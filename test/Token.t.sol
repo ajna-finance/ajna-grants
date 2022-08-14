@@ -7,10 +7,16 @@ import { AjnaToken } from "../src/Token.sol";
 
 contract TokenTest is Test {
 
+    using stdStorage for StdStorage;
+
     AjnaToken internal _token;
 
     function setUp() external {
         _token = new AjnaToken();
+
+        // TODO: initialize the token
+        // _token.initialize();
+
     }
 
     function testFailCannotSendTokensToContract() external {
@@ -21,15 +27,21 @@ contract TokenTest is Test {
         assertEq(_token.name(),     "AjnaToken");
         assertEq(_token.symbol(),   "AJNA");
         assertEq(_token.decimals(), 18);
-
-        // TODO: check initial token supply
     }
 
-    // TODO: implement this
-    function testTokenSupply() external {
-        assertTrue(true);
+    function testTokenTotalSupply() external {
+        assertEq(_token.totalSupply(), 1_000_000_000 * 10 ** _token.decimals());
     }
 
+    function testTokenInitialization() external {
+        // should revert if token already initialized
+        vm.expectRevert("Initializable: contract is already initialized");
+        _token.initialize();
+    }
+
+    function testMinterTokenBalance() external {
+
+    }
 
     // TODO: implement this -> check can't mint additional tokens
     function testCantMint() external {
@@ -41,8 +53,13 @@ contract TokenTest is Test {
         assertTrue(true);
     }
 
+    // TODO: implement this -> possibly fuzzy within supply bounds
+    function testTransfer() external {
+
+    }
+
     // TODO: implement this
-    function testPermit() external {
+    function testTransferWithPermit() external {
         assertTrue(true);
     }
 
@@ -56,8 +73,15 @@ contract TokenTest is Test {
         assertTrue(true);
     }
 
+    // TODO: implement this
     function testUpgrade() external {
         assertTrue(true);
+    }
+
+    // TODO: record storage variables layout and check upgrade can take place without messing up storage layout
+    // relevant docs: https://book.getfoundry.sh/reference/forge-std/std-storage?highlight=storage#std-storage
+    function testUpgradeStorageLayout() external {
+
     }
 
 }

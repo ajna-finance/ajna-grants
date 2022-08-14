@@ -20,7 +20,7 @@ contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable,
         __ERC20Votes_init();
 
         // 1 billion token initial supply, with 18 decimals
-        _mint(msg.sender, 1000000000 * 10 ** decimals());
+        _mint(msg.sender, 1_000_000_000 * 10 ** decimals());
     }
 
     // The following functions are overrides required by Solidity.
