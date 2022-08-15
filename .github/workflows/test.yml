@@ -1,6 +1,6 @@
 name: test
 
-on: workflow_dispatch
+on: [push]
 
 env:
   FOUNDRY_PROFILE: ci
@@ -28,7 +28,13 @@ jobs:
           forge build --sizes
         id: build
 
-      - name: Run Forge tests
+      - name: Run tests
         run: |
-          forge test -vvv
+          make test-with-gas-report
         id: test
+
+      - name: Run coverage
+        continue-on-error: true
+        run: |
+          make coverage
+        id: coverage
