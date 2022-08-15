@@ -15,6 +15,8 @@ contract AjnaTokenTest is Test {
 
         vm.prank(_deployer);
         _token    = new AjnaToken();
+        vm.prank(_deployer);
+        _token.initialize();
     }
 
     function invariantMetadata() external {

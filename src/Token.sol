@@ -8,11 +8,6 @@ import { ERC20PermitUpgradeable } from "@openzeppelin/openzeppelin-contracts-upg
 import { ERC20VotesUpgradeable } from "@openzeppelin/openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 
 contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, ERC20PermitUpgradeable, ERC20VotesUpgradeable {
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        initialize();
-        _disableInitializers();
-    }
 
     function initialize() initializer public {
         __ERC20_init("AjnaToken", "AJNA");
