@@ -10,6 +10,7 @@ contract TokenTest is Test {
     using stdStorage for StdStorage;
 
     AjnaToken internal _token;
+    // UUPSProxy proxy;
 
     function setUp() external {
         _token = new AjnaToken();
@@ -65,6 +66,16 @@ contract TokenTest is Test {
 
     // TODO: implement this
     function testDelegateVotes() external {
+
+    }
+
+    // TODO: implement this
+    function testVote() external {
+
+    }
+
+    // TODO: implement this
+    function testCalculateVotingPower() external {
 
     }
 

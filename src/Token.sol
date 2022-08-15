@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.14;
 
-import { Initializable } from "@openzeppelin/openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
-import { ERC20Upgradeable } from "@openzeppelin/openzeppelin-contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import { ERC20BurnableUpgradeable } from "@openzeppelin/openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
-import { ERC20PermitUpgradeable } from "@openzeppelin/openzeppelin-contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
-import { ERC20VotesUpgradeable } from "@openzeppelin/openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
+import { Initializable } from "@oz-upgradeable/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { OwnableUpgradeable } from "@oz-upgradeable/access/OwnableUpgradeable.sol";
+import { ERC20Upgradeable } from "@oz-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import { ERC20BurnableUpgradeable } from "@oz-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
+import { ERC20PermitUpgradeable } from "@oz-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
+import { ERC20VotesUpgradeable } from "@oz-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 
-contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, ERC20PermitUpgradeable, ERC20VotesUpgradeable {
+// import { ERC1967Proxy } from "@oz/proxy/ERC1967/ERC1967Proxy.sol";
+
+
+contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpgradeable, UUPSUpgradeable {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -18,12 +23,23 @@ contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable,
         __ERC20Burnable_init();
         __ERC20Permit_init("AjnaToken");
         __ERC20Votes_init();
+        __Ownable_init();
+        __UUPSUpgradeable_init();
 
-        // 1 billion token initial supply, with 18 decimals
-        _mint(msg.sender, 1_000_000_000 * 10 ** decimals());
+        _mint(msg.sender, 1000000000 * 10 ** decimals());
     }
 
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyOwner
+        override
+    {}
+
     // The following functions are overrides required by Solidity.
+
+    /**************************/
+    /*** REQUIRED OVERRIDES ***/
+    /**************************/
 
     function _afterTokenTransfer(address from_, address to_, uint256 amount_)
         internal
@@ -46,3 +62,10 @@ contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable,
         super._burn(account_, amount_);
     }
 }
+
+// contract UUPSProxy is ERC1967Proxy {
+
+//     constructor(address implementation_, bytes memory data_)
+//         ERC1967Proxy(implementation_, data_)
+//     {}
+// }

@@ -29,3 +29,9 @@ make test
 ```
 
 <!-- TODO: Determine how to run off-chain integration tests -->
+
+# Research
+- https://forum.openzeppelin.com/t/uups-proxies-tutorial-solidity-javascript/7786 
+
+# Questions
+- Tax / regulatory implications of full mint by multisig and subsequent transfers of tokens, vs partial mint by multisig and subsequent mint to governance for community distributions?

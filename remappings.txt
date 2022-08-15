@@ -1,2 +1,2 @@
 @std=lib/forge-std/src/
-@openzeppelin/openzeppelin-contracts-upgradeable=lib/openzeppelin-contracts-upgradeable/contracts
+@oz-upgradeable=lib/openzeppelin-contracts-upgradeable/contracts
