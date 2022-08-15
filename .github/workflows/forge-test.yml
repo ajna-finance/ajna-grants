@@ -1,12 +1,19 @@
-name: Forge Tests
+name: test
 
 on: [push]
 
+env:
+  FOUNDRY_PROFILE: ci
+
 jobs:
-  tests:
+  check:
+    strategy:
+      fail-fast: true
+
+    name: Foundry project
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
 
@@ -15,9 +22,19 @@ jobs:
         with:
           version: nightly
 
+      - name: Run Forge build
+        run: |
+          forge --version
+          forge build --sizes
+        id: build
+
       - name: Run tests
-        run: make test-with-gas-report
+        run: |
+          make test-with-gas-report
+        id: test
 
       - name: Run coverage
         continue-on-error: true
-        run: make coverage
+        run: |
+          make coverage
+        id: coverage
