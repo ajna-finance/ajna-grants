@@ -32,6 +32,7 @@ make test
 
 # Research
 - https://forum.openzeppelin.com/t/uups-proxies-tutorial-solidity-javascript/7786 
+- https://github.com/jordaniza/OZ-Upgradeable-Foundry
 
 # Questions
 - Tax / regulatory implications of full mint by multisig and subsequent transfers of tokens, vs partial mint by multisig and subsequent mint to governance for community distributions?

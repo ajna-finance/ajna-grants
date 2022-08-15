@@ -3,41 +3,45 @@ pragma solidity 0.8.14;
 
 import "forge-std/Test.sol";
 
-import { AjnaToken } from "../src/Token.sol";
+import { AjnaToken, UUPSProxy } from "../src/Token.sol";
 
 contract TokenTest is Test {
 
     using stdStorage for StdStorage;
 
     AjnaToken internal _token;
-    // UUPSProxy proxy;
+    AjnaToken internal tokenProxyV1;
+    UUPSProxy proxy;
 
     function setUp() external {
         _token = new AjnaToken();
 
-        // TODO: initialize the token
-        // _token.initialize();
+        proxy = new UUPSProxy(address(_token), "");
 
+        // wrap in ABI to support easier calls
+        tokenProxyV1 = AjnaToken(address(proxy));
+
+        tokenProxyV1.initialize();
     }
 
     function testFailCannotSendTokensToContract() external {
-        assert(false == _token.transfer(address(_token), 1));
+        assert(false == tokenProxyV1.transfer(address(tokenProxyV1), 1));
     }
 
     function invariantMetadata() external {
-        assertEq(_token.name(),     "AjnaToken");
-        assertEq(_token.symbol(),   "AJNA");
-        assertEq(_token.decimals(), 18);
+        assertEq(tokenProxyV1.name(),     "AjnaToken");
+        assertEq(tokenProxyV1.symbol(),   "AJNA");
+        assertEq(tokenProxyV1.decimals(), 18);
     }
 
     function testTokenTotalSupply() external {
-        assertEq(_token.totalSupply(), 1_000_000_000 * 10 ** _token.decimals());
+        assertEq(tokenProxyV1.totalSupply(), 1_000_000_000 * 10 ** tokenProxyV1.decimals());
     }
 
-    function testTokenInitialization() external {
+    function testMultipleInitialization() external {
         // should revert if token already initialized
         vm.expectRevert("Initializable: contract is already initialized");
-        _token.initialize();
+        tokenProxyV1.initialize();
     }
 
     function testMinterTokenBalance() external {

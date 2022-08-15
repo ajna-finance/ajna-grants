@@ -9,7 +9,7 @@ import { ERC20BurnableUpgradeable } from "@oz-upgradeable/token/ERC20/extensions
 import { ERC20PermitUpgradeable } from "@oz-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
 import { ERC20VotesUpgradeable } from "@oz-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 
-// import { ERC1967Proxy } from "@oz/proxy/ERC1967/ERC1967Proxy.sol";
+import { ERC1967Proxy } from "@oz/proxy/ERC1967/ERC1967Proxy.sol";
 
 
 contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpgradeable, UUPSUpgradeable {
@@ -26,7 +26,7 @@ contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable,
         __Ownable_init();
         __UUPSUpgradeable_init();
 
-        _mint(msg.sender, 1000000000 * 10 ** decimals());
+        _mint(msg.sender, 1_000_000_000 * 10 ** decimals());
     }
 
     function _authorizeUpgrade(address newImplementation)
@@ -63,9 +63,9 @@ contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable,
     }
 }
 
-// contract UUPSProxy is ERC1967Proxy {
+contract UUPSProxy is ERC1967Proxy {
 
-//     constructor(address implementation_, bytes memory data_)
-//         ERC1967Proxy(implementation_, data_)
-//     {}
-// }
+    constructor(address implementation_, bytes memory data_)
+        ERC1967Proxy(implementation_, data_)
+    {}
+}
