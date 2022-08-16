@@ -5,6 +5,8 @@ import "forge-std/Test.sol";
 
 import { AjnaToken, UUPSProxy } from "../src/Token.sol";
 
+import { TestAjnaTokenV2 } from "./utils/TestAjnaTokenV2.sol";
+
 contract TokenTest is Test {
 
     using stdStorage for StdStorage;
@@ -88,9 +90,23 @@ contract TokenTest is Test {
         assertTrue(true);
     }
 
-    // TODO: implement this
-    function testUpgrade() external {
-        assertTrue(true);
+    function testCanUpgrade() external {
+        TestAjnaTokenV2 tokenV2 = new TestAjnaTokenV2();
+        tokenProxyV1.upgradeTo(address(tokenV2));
+
+        // re-wrap the proxy
+        TestAjnaTokenV2 tokenProxyV2 = TestAjnaTokenV2(address(proxy));
+
+        // check different implementation addresses
+        assertTrue(address(_token) != address(tokenV2));
+
+        // check new method can be accessed and correctly reads state
+        assertEq(tokenProxyV2.testVar(), 0);
+        tokenProxyV2.setTestVar(100);
+        assertEq(tokenProxyV2.testVar(), 100);
+
+        // TODO: check previous state no longer accessible...
+        // assertEq(tokenProxyV1.totalSupply(), 1_000_000_000 * 10 ** tokenProxyV1.decimals());
     }
 
     // TODO: record storage variables layout and check upgrade can take place without messing up storage layout
