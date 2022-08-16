@@ -15,6 +15,9 @@ contract TokenTest is Test {
     AjnaToken internal tokenProxyV1;
     UUPSProxy proxy;
 
+    event Upgraded(address indexed implementation);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
     function setUp() external {
         _token = new AjnaToken();
 
@@ -34,6 +37,30 @@ contract TokenTest is Test {
         assertEq(tokenProxyV1.name(),     "AjnaToken");
         assertEq(tokenProxyV1.symbol(),   "AJNA");
         assertEq(tokenProxyV1.decimals(), 18);
+    }
+
+    function testChangeOwner() external {
+        address newOwner = address(2222);
+
+        assertEq(tokenProxyV1.owner(), address(this));
+
+        vm.expectEmit(true, true, false, true);
+        emit OwnershipTransferred(address(this), newOwner);
+        tokenProxyV1.transferOwnership(newOwner);
+
+        assertEq(tokenProxyV1.owner(), newOwner);
+    }
+
+    function testRenounceOwnership() external {
+        assertEq(tokenProxyV1.owner(), address(this));
+
+        vm.expectEmit(true, true, false, true);
+        emit OwnershipTransferred(address(this), address(0));
+        tokenProxyV1.renounceOwnership();
+
+        assertEq(tokenProxyV1.owner(), address(0));
+
+        // TODO: check no upgrade or ownable actions are possible
     }
 
     function testTokenTotalSupply() external {
@@ -92,7 +119,11 @@ contract TokenTest is Test {
 
     function testCanUpgrade() external {
         TestAjnaTokenV2 tokenV2 = new TestAjnaTokenV2();
+        vm.expectEmit(true, true, false, true);
+        emit Upgraded(address(tokenV2));
         tokenProxyV1.upgradeTo(address(tokenV2));
+
+        // TODO: determine if need to call initialize on the new proxy variable again?
 
         // re-wrap the proxy
         TestAjnaTokenV2 tokenProxyV2 = TestAjnaTokenV2(address(proxy));
