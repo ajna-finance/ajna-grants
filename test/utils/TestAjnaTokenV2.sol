@@ -4,6 +4,7 @@ pragma solidity 0.8.14;
 import { Initializable } from "@oz-upgradeable/proxy/utils/Initializable.sol";
 import { UUPSUpgradeable } from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { OwnableUpgradeable } from "@oz-upgradeable/access/OwnableUpgradeable.sol";
+import { PausableUpgradeable } from "@oz-upgradeable/security/PausableUpgradeable.sol";
 import { ERC20Upgradeable } from "@oz-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import { ERC20BurnableUpgradeable } from "@oz-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
 import { ERC20PermitUpgradeable } from "@oz-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
@@ -12,10 +13,16 @@ import { ERC20VotesUpgradeable } from "@oz-upgradeable/token/ERC20/extensions/ER
 import { ERC1967Proxy } from "@oz/proxy/ERC1967/ERC1967Proxy.sol";
 
 
-contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpgradeable, UUPSUpgradeable {
+contract TestAjnaTokenV2 is Initializable, PausableUpgradeable, ERC20Upgradeable, ERC20BurnableUpgradeable, ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpgradeable, UUPSUpgradeable {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
+    }
+
+    uint256 public testVar;
+
+    function setTestVar(uint256 value_) external {
+        testVar = value_;
     }
 
     function initialize() initializer public {
@@ -25,8 +32,17 @@ contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable,
         __ERC20Votes_init();
         __Ownable_init();
         __UUPSUpgradeable_init();
+        __Pausable_init();                
 
         _mint(msg.sender, 1_000_000_000 * 10 ** decimals());
+    }
+
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
     }
 
     function _authorizeUpgrade(address newImplementation)
@@ -61,6 +77,7 @@ contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable,
     {
         super._burn(account_, amount_);
     }
+
 }
 
 contract UUPSProxy is ERC1967Proxy {
