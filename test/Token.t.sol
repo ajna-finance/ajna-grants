@@ -12,7 +12,7 @@ contract TokenTest is Test {
     using stdStorage for StdStorage;
 
     AjnaToken internal _token;
-    AjnaToken internal tokenProxyV1;
+    AjnaToken internal _tokenProxyV1;
     UUPSProxy proxy;
 
     event Upgraded(address indexed implementation);
@@ -24,53 +24,59 @@ contract TokenTest is Test {
         proxy = new UUPSProxy(address(_token), "");
 
         // wrap in ABI to support easier calls
-        tokenProxyV1 = AjnaToken(address(proxy));
+        _tokenProxyV1 = AjnaToken(address(proxy));
 
-        tokenProxyV1.initialize();
+        _tokenProxyV1.initialize();
     }
 
-    function testFailCannotSendTokensToContract() external {
-        assert(false == tokenProxyV1.transfer(address(tokenProxyV1), 1));
+    function testCannotSendTokensToContract() external {
+        vm.expectRevert("Cannot transfer tokens to the contract itself");
+        _tokenProxyV1.transfer(address(_tokenProxyV1), 1);
+    }
+
+    function testTransferTokensToZeroAddress() external {
+        vm.expectRevert("ERC20: transfer to the zero address");
+        _tokenProxyV1.transfer(address(0), 1);
     }
 
     function invariantMetadata() external {
-        assertEq(tokenProxyV1.name(),     "AjnaToken");
-        assertEq(tokenProxyV1.symbol(),   "AJNA");
-        assertEq(tokenProxyV1.decimals(), 18);
+        assertEq(_tokenProxyV1.name(),     "AjnaToken");
+        assertEq(_tokenProxyV1.symbol(),   "AJNA");
+        assertEq(_tokenProxyV1.decimals(), 18);
     }
 
     function testChangeOwner() external {
         address newOwner = address(2222);
 
-        assertEq(tokenProxyV1.owner(), address(this));
+        assertEq(_tokenProxyV1.owner(), address(this));
 
         vm.expectEmit(true, true, false, true);
         emit OwnershipTransferred(address(this), newOwner);
-        tokenProxyV1.transferOwnership(newOwner);
+        _tokenProxyV1.transferOwnership(newOwner);
 
-        assertEq(tokenProxyV1.owner(), newOwner);
+        assertEq(_tokenProxyV1.owner(), newOwner);
     }
 
     function testRenounceOwnership() external {
-        assertEq(tokenProxyV1.owner(), address(this));
+        assertEq(_tokenProxyV1.owner(), address(this));
 
         vm.expectEmit(true, true, false, true);
         emit OwnershipTransferred(address(this), address(0));
-        tokenProxyV1.renounceOwnership();
+        _tokenProxyV1.renounceOwnership();
 
-        assertEq(tokenProxyV1.owner(), address(0));
+        assertEq(_tokenProxyV1.owner(), address(0));
 
         // TODO: check no upgrade or ownable actions are possible
     }
 
     function testTokenTotalSupply() external {
-        assertEq(tokenProxyV1.totalSupply(), 1_000_000_000 * 10 ** tokenProxyV1.decimals());
+        assertEq(_tokenProxyV1.totalSupply(), 1_000_000_000 * 10 ** _tokenProxyV1.decimals());
     }
 
     function testMultipleInitialization() external {
         // should revert if token already initialized
         vm.expectRevert("Initializable: contract is already initialized");
-        tokenProxyV1.initialize();
+        _tokenProxyV1.initialize();
     }
 
     function testMinterTokenBalance() external {
@@ -89,7 +95,6 @@ contract TokenTest is Test {
 
     // TODO: implement this -> possibly fuzzy within supply bounds
     function testTransfer() external {
-
     }
 
     // TODO: implement this
@@ -121,7 +126,7 @@ contract TokenTest is Test {
         TestAjnaTokenV2 tokenV2 = new TestAjnaTokenV2();
         vm.expectEmit(true, true, false, true);
         emit Upgraded(address(tokenV2));
-        tokenProxyV1.upgradeTo(address(tokenV2));
+        _tokenProxyV1.upgradeTo(address(tokenV2));
 
         // TODO: determine if need to call initialize on the new proxy variable again?
 
