@@ -54,6 +54,7 @@ contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable,
 
     function _mint(address to_, uint256 amount_)
         internal
+        onlyInitializing
         override(ERC20Upgradeable, ERC20VotesUpgradeable)
     {
         super._mint(to_, amount_);

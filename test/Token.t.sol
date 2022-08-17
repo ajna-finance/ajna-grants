@@ -92,7 +92,14 @@ contract TokenTest is Test {
 
     // TODO: implement this -> check can't mint additional tokens
     function testCantMint() external {
+        AjnaTokenMintable mintableToken = new AjnaTokenMintable();
+        AjnaToken mintableTokenProxy = AjnaToken(address(new UUPSProxy(address(mintableToken), "")));
+        mintableTokenProxy.initialize();
 
+        assertEq(mintableTokenProxy.totalSupply(), 1_000_000_000 * 1e18);
+
+        vm.expectRevert("Initializable: contract is not initializing");
+        mintableToken.mint(address(1111), 10 * 1e18);
     }
 
     function testBurn() external {
@@ -175,4 +182,10 @@ contract TokenTest is Test {
 
     }
 
+}
+
+contract AjnaTokenMintable is AjnaToken {
+    function mint(address to_, uint256 amount_) external {
+        super._mint(to_, amount_);
+    }
 }
