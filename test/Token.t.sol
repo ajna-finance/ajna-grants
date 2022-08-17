@@ -9,6 +9,9 @@ import { TestAjnaTokenV2 } from "./utils/TestAjnaTokenV2.sol";
 
 contract TokenTest is Test {
 
+    // EIP1967 standard storage slot storing implementation address
+    bytes32 internal constant _IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
     using stdStorage for StdStorage;
 
     AjnaToken internal _token;
@@ -123,26 +126,42 @@ contract TokenTest is Test {
     }
 
     function testCanUpgrade() external {
+        // verify initial state
+        assertEq(_tokenProxyV1.totalSupply(), 1_000_000_000 * 10 ** _tokenProxyV1.decimals());
+        // TODO: check initial implementation slot as part of testing implementation address access vs proxy
+        // assertEq(_tokenProxyV1.proxiableUUID())
+        // emit log_address(stdStorage.read_address(_tokenProxyV1.proxiableUUID()));
+        // emit log_address(address(uint160(uint256(_tokenProxyV1.proxiableUUID()))));
+
+        // transfer some tokens to another address
+        address newTokenHolder = address(1111);
+        uint256 tokensTransferred = 1000;
+        _tokenProxyV1.approve(address(this), tokensTransferred);
+        _tokenProxyV1.transferFrom(address(this), newTokenHolder, tokensTransferred);
+
         TestAjnaTokenV2 tokenV2 = new TestAjnaTokenV2();
         vm.expectEmit(true, true, false, true);
         emit Upgraded(address(tokenV2));
         _tokenProxyV1.upgradeTo(address(tokenV2));
-
-        // TODO: determine if need to call initialize on the new proxy variable again?
 
         // re-wrap the proxy
         TestAjnaTokenV2 tokenProxyV2 = TestAjnaTokenV2(address(proxy));
 
         // check different implementation addresses
         assertTrue(address(_token) != address(tokenV2));
+        // check proxy address is unchanged
+        assertEq(address(_tokenProxyV1), address(tokenProxyV2));
+        assertEq(address(_tokenProxyV1), address(proxy));
+        assertEq(address(tokenProxyV2),  address(proxy));
 
         // check new method can be accessed and correctly reads state
         assertEq(tokenProxyV2.testVar(), 0);
         tokenProxyV2.setTestVar(100);
         assertEq(tokenProxyV2.testVar(), 100);
 
-        // TODO: check previous state no longer accessible...
-        // assertEq(tokenProxyV1.totalSupply(), 1_000_000_000 * 10 ** tokenProxyV1.decimals());
+        assertEq(tokenProxyV2.totalSupply(),             1_000_000_000 * 10 ** tokenProxyV2.decimals());
+        assertEq(tokenProxyV2.balanceOf(address(this)),  1_000_000_000 * 10 ** tokenProxyV2.decimals() - tokensTransferred);
+        assertEq(tokenProxyV2.balanceOf(newTokenHolder), tokensTransferred);
     }
 
     // TODO: record storage variables layout and check upgrade can take place without messing up storage layout
