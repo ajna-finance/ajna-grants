@@ -13,7 +13,68 @@ import { ERC20VotesUpgradeable } from "@oz-upgradeable/token/ERC20/extensions/ER
 import { ERC1967Proxy } from "@oz/proxy/ERC1967/ERC1967Proxy.sol";
 
 
-contract TestAjnaTokenV2 is Initializable, PausableUpgradeable, ERC20Upgradeable, ERC20BurnableUpgradeable, ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpgradeable, UUPSUpgradeable {
+// TODO: add base TestAjnaToken
+// abstract contract baseTestAjnaToken {}
+
+contract TestAjnaTokenV2 is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpgradeable, UUPSUpgradeable {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    uint256 public testVar;
+
+    function setTestVar(uint256 value_) external {
+        testVar = value_;
+    }
+
+    function initialize() initializer public {
+        __ERC20_init("AjnaToken", "AJNA");
+        __ERC20Burnable_init();
+        __ERC20Permit_init("AjnaToken");
+        __ERC20Votes_init();
+        __Ownable_init();
+        __UUPSUpgradeable_init();
+
+        _mint(msg.sender, 1_000_000_000 * 10 ** decimals());
+    }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyOwner
+        override
+    {}
+
+    // The following functions are overrides required by Solidity.
+
+    /**************************/
+    /*** REQUIRED OVERRIDES ***/
+    /**************************/
+
+    function _afterTokenTransfer(address from_, address to_, uint256 amount_)
+        internal
+        override(ERC20Upgradeable, ERC20VotesUpgradeable)
+    {
+        super._afterTokenTransfer(from_, to_, amount_);
+    }
+
+    function _mint(address to_, uint256 amount_)
+        internal
+        override(ERC20Upgradeable, ERC20VotesUpgradeable)
+    {
+        super._mint(to_, amount_);
+    }
+
+    function _burn(address account_, uint256 amount_)
+        internal
+        override(ERC20Upgradeable, ERC20VotesUpgradeable)
+    {
+        super._burn(account_, amount_);
+    }
+
+}
+
+contract TestAjnaTokenV3 is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpgradeable, UUPSUpgradeable, PausableUpgradeable {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -77,7 +138,6 @@ contract TestAjnaTokenV2 is Initializable, PausableUpgradeable, ERC20Upgradeable
     {
         super._burn(account_, amount_);
     }
-
 }
 
 contract UUPSProxy is ERC1967Proxy {

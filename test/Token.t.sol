@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import { AjnaToken, UUPSProxy } from "../src/Token.sol";
 
-import { TestAjnaTokenV2 } from "./utils/TestAjnaTokenV2.sol";
+import { TestAjnaTokenV2 } from "./utils/TestAjnaTokens.sol";
 
 contract TokenTest is Test {
 
@@ -159,6 +159,7 @@ contract TokenTest is Test {
         tokenProxyV2.setTestVar(100);
         assertEq(tokenProxyV2.testVar(), 100);
 
+        // check previous state unchanged
         assertEq(tokenProxyV2.totalSupply(),             1_000_000_000 * 10 ** tokenProxyV2.decimals());
         assertEq(tokenProxyV2.balanceOf(address(this)),  1_000_000_000 * 10 ** tokenProxyV2.decimals() - tokensTransferred);
         assertEq(tokenProxyV2.balanceOf(newTokenHolder), tokensTransferred);
@@ -173,6 +174,10 @@ contract TokenTest is Test {
         //     .sig() // function signature
         //     .with_key() // function arg
         //     .read_uint(); // check type 
+    }
+
+    function testRemoveUpgradeability() external {
+
     }
 
 }
