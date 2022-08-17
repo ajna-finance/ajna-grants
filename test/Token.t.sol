@@ -66,7 +66,14 @@ contract TokenTest is Test {
 
         assertEq(_tokenProxyV1.owner(), address(0));
 
-        // TODO: check no upgrade or ownable actions are possible
+        TestAjnaTokenV2 tokenV2 = new TestAjnaTokenV2();
+        // check upgrade is not possible
+        vm.expectRevert("Ownable: caller is not the owner");
+        _tokenProxyV1.upgradeTo(address(tokenV2));
+
+        // check no ownable actions are possible
+        vm.expectRevert("Ownable: caller is not the owner");
+        _tokenProxyV1.transferOwnership(address(2222));
     }
 
     function testTokenTotalSupply() external {
@@ -80,7 +87,7 @@ contract TokenTest is Test {
     }
 
     function testMinterTokenBalance() external {
-
+        assertEq(_tokenProxyV1.balanceOf(address(this)), 1_000_000_000 * 10 **18);
     }
 
     // TODO: implement this -> check can't mint additional tokens
@@ -88,9 +95,10 @@ contract TokenTest is Test {
 
     }
 
-    // TODO: implement this
     function testBurn() external {
-        assertTrue(true);
+        assertEq(_tokenProxyV1.totalSupply(), 1_000_000_000 * 10 ** _tokenProxyV1.decimals());
+        _tokenProxyV1.burn(50_000_000 * 1e18);
+        assertEq(_tokenProxyV1.totalSupply(), 950_000_000 * 10 ** _tokenProxyV1.decimals());
     }
 
     // TODO: implement this -> possibly fuzzy within supply bounds
@@ -104,7 +112,16 @@ contract TokenTest is Test {
 
     // TODO: implement this
     function testDelegateVotes() external {
+        assertEq(_tokenProxyV1.getVotes(address(this)), 0);
+        assertEq(_tokenProxyV1.getVotes(address(3333)), 0);
 
+        _tokenProxyV1.delegate(address(3333));
+        assertEq(_tokenProxyV1.balanceOf(address(this)), 1_000_000_000 * 10 **18);
+        assertEq(_tokenProxyV1.balanceOf(address(3333)), 0);
+
+        assertEq(_tokenProxyV1.getVotes(address(this)), 0);
+        assertEq(_tokenProxyV1.getVotes(address(3333)), 1_000_000_000 * 10 **18);
+        assertEq(_tokenProxyV1.delegates(address(this)), address(3333));
     }
 
     // TODO: implement this
@@ -123,10 +140,16 @@ contract TokenTest is Test {
     }
 
     function testCanUpgrade() external {
+        assertEq(_tokenProxyV1.totalSupply(),            1_000_000_000 * 10 **18);
+        assertEq(_tokenProxyV1.balanceOf(address(this)), 1_000_000_000 * 10 **18);
+
         TestAjnaTokenV2 tokenV2 = new TestAjnaTokenV2();
         vm.expectEmit(true, true, false, true);
         emit Upgraded(address(tokenV2));
         _tokenProxyV1.upgradeTo(address(tokenV2));
+
+        assertEq(_tokenProxyV1.totalSupply(),            0);
+        assertEq(_tokenProxyV1.balanceOf(address(this)), 0);
 
         // TODO: determine if need to call initialize on the new proxy variable again?
 
@@ -141,8 +164,9 @@ contract TokenTest is Test {
         tokenProxyV2.setTestVar(100);
         assertEq(tokenProxyV2.testVar(), 100);
 
-        // TODO: check previous state no longer accessible...
-        // assertEq(tokenProxyV1.totalSupply(), 1_000_000_000 * 10 ** tokenProxyV1.decimals());
+        // FIXME: shouldn't these be 1bil as it used to be in v1?
+        assertEq(tokenProxyV2.totalSupply(),            0);
+        assertEq(tokenProxyV2.balanceOf(address(this)), 0);
     }
 
     // TODO: record storage variables layout and check upgrade can take place without messing up storage layout
