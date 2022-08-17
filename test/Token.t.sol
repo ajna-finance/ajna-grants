@@ -144,6 +144,11 @@ contract TokenTest is Test {
     // relevant docs: https://book.getfoundry.sh/reference/forge-std/std-storage?highlight=storage#std-storage
     function testUpgradeStorageLayout() external {
 
+        // // TODO: check before and after storage layout
+        // stdStorage.target(address(tokenProxyV1))
+        //     .sig() // function signature
+        //     .with_key() // function arg
+        //     .read_uint(); // check type 
     }
 
 }

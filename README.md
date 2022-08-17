@@ -35,6 +35,7 @@ make test
 - https://github.com/jordaniza/OZ-Upgradeable-Foundry
 - https://github.com/beskay/UUPS_Proxy/blob/main/src/test/Implementation.t.sol
 - https://docs.openzeppelin.com/contracts/4.x/api/proxy#transparent-vs-uups
+- https://eips.ethereum.org/EIPS/eip-1822
 
 # Questions
 - Tax / regulatory implications of full mint by multisig and subsequent transfers of tokens, vs partial mint by multisig and subsequent mint to governance for community distributions?
