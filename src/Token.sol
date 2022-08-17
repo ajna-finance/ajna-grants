@@ -48,6 +48,14 @@ contract AjnaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable,
         super._afterTokenTransfer(from_, to_, amount_);
     }
 
+    function _beforeTokenTransfer(address from_, address to_, uint256 amount_)
+        internal
+        override(ERC20Upgradeable)
+    {
+        require(to_ != address(this), "Cannot transfer tokens to the contract itself");
+        super._beforeTokenTransfer(from_, to_, amount_);
+    }
+
     function _mint(address to_, uint256 amount_)
         internal
         override(ERC20Upgradeable, ERC20VotesUpgradeable)
