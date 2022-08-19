@@ -135,13 +135,15 @@ contract TokenTest is Test {
         // define owner and spender addresses
         (address owner, uint256 ownerPrivateKey) = makeAddrAndKey("owner");
         address spender                          = makeAddr("spender");
+        address newOwner                         = makeAddr("newOwner");
 
-        // set owner balance to 1_000 AJNA tokens
+        // set owner balance
         deal(address(_tokenProxyV1), owner, amount_);
 
         // check owner and spender balances
-        assertEq(_tokenProxyV1.balanceOf(owner),   amount_);
-        assertEq(_tokenProxyV1.balanceOf(spender), 0);
+        assertEq(_tokenProxyV1.balanceOf(owner),    amount_);
+        assertEq(_tokenProxyV1.balanceOf(spender),  0);
+        assertEq(_tokenProxyV1.balanceOf(newOwner), 0);
 
         SigUtils.Permit memory permit = SigUtils.Permit({
             owner: owner,
@@ -153,14 +155,39 @@ contract TokenTest is Test {
 
         bytes32 digest = _sigUtils.getTypedDataHash(permit);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, digest);
-        _tokenProxyV1.permit(permit.owner, permit.spender, permit.value, permit.deadline, v, r, s);
 
+        // test transfer with ERC20 permit
+        _tokenProxyV1.permit(owner, spender, amount_, permit.deadline, v, r, s);
         vm.prank(spender);
-        _tokenProxyV1.transferFrom(owner, spender, amount_);
+        _tokenProxyV1.transferFrom(owner, newOwner, amount_);
 
         // check owner and spender balances after transfer
-        assertEq(_tokenProxyV1.balanceOf(owner),   0);
-        assertEq(_tokenProxyV1.balanceOf(spender), amount_);
+        assertEq(_tokenProxyV1.balanceOf(owner),    0);
+        assertEq(_tokenProxyV1.balanceOf(spender),  0);
+        assertEq(_tokenProxyV1.balanceOf(newOwner), amount_);
+
+        assertEq(_tokenProxyV1.allowance(owner, spender), 0);
+
+        // set owner balance
+        deal(address(_tokenProxyV1), owner, amount_);
+
+        permit = SigUtils.Permit({
+            owner: owner,
+            spender: spender,
+            value: amount_,
+            nonce: 1,
+            deadline: 1 days
+        });
+
+        digest = _sigUtils.getTypedDataHash(permit);
+        (v, r, s) = vm.sign(ownerPrivateKey, digest);
+
+        vm.prank(spender);
+        _tokenProxyV1.safeTransferFromWithPermit(owner, newOwner, spender, amount_, permit.deadline, v, r, s);
+        // check owner and spender balances after 2nd transfer with permit
+        assertEq(_tokenProxyV1.balanceOf(owner),    0);
+        assertEq(_tokenProxyV1.balanceOf(spender),  0);
+        assertEq(_tokenProxyV1.balanceOf(newOwner), amount_ * 2);
 
         assertEq(_tokenProxyV1.allowance(owner, spender), 0);
     }
@@ -224,11 +251,6 @@ contract TokenTest is Test {
         assertEq(_tokenProxyV1.getPastVotes(delegate2, 11111), 0);
         assertEq(_tokenProxyV1.getPastVotes(delegate1, 11112), 0);
         assertEq(_tokenProxyV1.getPastVotes(delegate2, 11112), 1_000 * 10 **18);
-    }
-
-    // TODO: implement this
-    function testVote() external {
-        // TODO: should we implement this by actually simulate voting?
     }
 
     function testCalculateVotingPower() external {
