@@ -3,11 +3,11 @@ pragma solidity 0.8.14;
 
 import "forge-std/Test.sol";
 
-import { AjnaToken, UUPSProxy } from "../src/Token.sol";
+import { AjnaToken, UUPSProxy } from "../src/UpgradeableToken.sol";
 
 import { TestAjnaTokenV2 } from "./utils/TestAjnaTokenV2.sol";
 
-contract TokenTest is Test {
+contract UpgradeableTokenTest is Test {
 
     using stdStorage for StdStorage;
 
