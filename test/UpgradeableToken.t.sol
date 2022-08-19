@@ -3,11 +3,11 @@ pragma solidity 0.8.14;
 
 import "forge-std/Test.sol";
 
-import { AjnaToken, UUPSProxy } from "../src/Token.sol";
+import { AjnaToken, UUPSProxy } from "../src/UpgradeableToken.sol";
 
 import { TestAjnaTokenV2 } from "./utils/TestAjnaTokenV2.sol";
 
-contract TokenTest is Test {
+contract UpgradeableTokenTest is Test {
 
     using stdStorage for StdStorage;
 
@@ -149,6 +149,11 @@ contract TokenTest is Test {
     // relevant docs: https://book.getfoundry.sh/reference/forge-std/std-storage?highlight=storage#std-storage
     function testUpgradeStorageLayout() external {
 
+        // // TODO: check before and after storage layout
+        // stdStorage.target(address(tokenProxyV1))
+        //     .sig() // function signature
+        //     .with_key() // function arg
+        //     .read_uint(); // check type 
     }
 
 }
