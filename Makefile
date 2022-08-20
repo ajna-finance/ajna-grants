@@ -26,6 +26,6 @@ snapshot :; forge clean && forge snapshot --optimize --optimize-runs 1000000
 # use the "@" to hide the command from your shell 
 deploy-rinkeby :; @forge script script/${contract}.s.sol:Deploy${contract} --rpc-url ${RINKEBY_RPC_URL}  --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}  -vvvv
 
-deploy-kovan :; forge script script/${contract}.s.sol:Deploy${contract} --rpc-url ${KOVAN_RPC_URL}  --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}  -vvvv
+deploy-kovan :; @forge script script/${contract}.s.sol:Deploy${contract} --rpc-url ${KOVAN_RPC_URL}  --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}  -vvvv
 
 deploy-mainnet :; @forge script script/${contract}.s.sol:Deploy${contract} --rpc-url ${MAINNET_RPC_URL}  --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}  -vvvv
