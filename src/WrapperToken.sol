@@ -54,4 +54,26 @@ contract WrappedAjnaToken is ERC20, ERC20Wrapper, ERC20Votes {
         super._burn(account, amount);
     }
 
+    /**************************/
+    /*** External Functions ***/
+    /**************************/
+
+    /**
+     *  @notice Called by an owner of AJNA tokens to enable their tokens to be transferred by a spender address without making a seperate permit call
+     *  @param  from_     The address of the current owner of the tokens
+     *  @param  to_       The address of the new owner of the tokens
+     *  @param  spender_  The address of the third party who will execute the transaction involving an owners tokens
+     *  @param  value_    The amount of tokens to transfer
+     *  @param  deadline_ The unix timestamp by which the permit must be called
+     *  @param  v_        Component of secp256k1 signature
+     *  @param  r_        Component of secp256k1 signature
+     *  @param  s_        Component of secp256k1 signature
+     */
+    function transferFromWithPermit(
+        address from_, address to_, address spender_, uint256 value_, uint256 deadline_, uint8 v_, bytes32 r_, bytes32 s_
+    ) external {
+        permit(from_, spender_, value_, deadline_, v_, r_, s_);
+        transferFrom(from_, to_, value_);
+    }
+
 }

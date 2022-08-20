@@ -6,19 +6,26 @@ import "forge-std/Test.sol";
 import { AjnaToken }        from "../src/BaseToken.sol";
 import { WrappedAjnaToken } from "../src/WrapperToken.sol";
 
+import { SigUtils } from "./utils/SigUtils.sol";
+
 contract WrappedTokenTest is Test {
 
-    AjnaToken internal _token;
+    AjnaToken        internal _token;
     WrappedAjnaToken internal _wrappedToken;
+    SigUtils         internal _sigUtils;
 
     address internal _testTokenHolder = makeAddr("_testTokenHolder");
     uint256 _initialAjnaTokenSupply   = 1_000_000_000 * 1e18;
 
-    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Transfer(address indexed src, address indexed dst, uint256 wad);
+    event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
+    event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
 
     function setUp() external {
         _token = new AjnaToken();
         _wrappedToken = new WrappedAjnaToken(_token);
+
+        _sigUtils = new SigUtils(_wrappedToken.DOMAIN_SEPARATOR());
     }
 
     function approveAndWrapTokens(address account_, uint256 amount_) internal {
@@ -81,7 +88,7 @@ contract WrappedTokenTest is Test {
         uint256 tokensToWrap = 50 * 1e18;
 
         // check initial token supply
-        assertEq(_token.totalSupply(),        1_000_000_000 * 10 ** _token.decimals());
+        assertEq(_token.totalSupply(),        _initialAjnaTokenSupply);
         assertEq(_wrappedToken.totalSupply(), 0);
 
         // transfer some tokens to the test address
@@ -92,7 +99,7 @@ contract WrappedTokenTest is Test {
         approveAndWrapTokens(_testTokenHolder, tokensToWrap);
 
         // check post wrap token supply
-        assertEq(_token.totalSupply(),        1_000_000_000 * 10 ** _token.decimals());
+        assertEq(_token.totalSupply(),        _initialAjnaTokenSupply);
         assertEq(_wrappedToken.totalSupply(), tokensToWrap);
     }
 
@@ -140,10 +147,129 @@ contract WrappedTokenTest is Test {
         assertEq(_wrappedToken.balanceOf(address(this)), 0);
     }
 
-    // TODO: implement
-    function testPermitWrapped() external {}
+    function testPermitWrapped(uint256 amount_) external {
+        vm.assume(amount_ > 0);
+        vm.assume(amount_ <= _initialAjnaTokenSupply);
 
-    // TODO: implement
-    function testDelegateVotes() external {}
+        // define owner and spender addresses
+        (address owner, uint256 ownerPrivateKey) = makeAddrAndKey("owner");
+        address spender                          = makeAddr("spender");
+        address newOwner                         = makeAddr("newOwner");
+
+        // set owner balance
+        deal(address(_wrappedToken), owner, amount_);
+
+        // check owner and spender balances
+        assertEq(_wrappedToken.balanceOf(owner),    amount_);
+        assertEq(_wrappedToken.balanceOf(spender),  0);
+        assertEq(_wrappedToken.balanceOf(newOwner), 0);
+
+        SigUtils.Permit memory permit = SigUtils.Permit({
+            owner: owner,
+            spender: spender,
+            value: amount_,
+            nonce: 0,
+            deadline: 1 days
+        });
+
+        bytes32 digest = _sigUtils.getTypedDataHash(permit);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, digest);
+
+        // test transfer with ERC20 permit
+        _wrappedToken.permit(owner, spender, amount_, permit.deadline, v, r, s);
+        vm.prank(spender);
+        _wrappedToken.transferFrom(owner, newOwner, amount_);
+
+        // check owner and spender balances after transfer
+        assertEq(_wrappedToken.balanceOf(owner),    0);
+        assertEq(_wrappedToken.balanceOf(spender),  0);
+        assertEq(_wrappedToken.balanceOf(newOwner), amount_);
+
+        assertEq(_wrappedToken.allowance(owner, spender), 0);
+
+        // set owner balance
+        deal(address(_wrappedToken), owner, amount_);
+
+        permit = SigUtils.Permit({
+            owner: owner,
+            spender: spender,
+            value: amount_,
+            nonce: 1,
+            deadline: 1 days
+        });
+
+        digest = _sigUtils.getTypedDataHash(permit);
+        (v, r, s) = vm.sign(ownerPrivateKey, digest);
+
+        vm.prank(spender);
+        _wrappedToken.transferFromWithPermit(owner, newOwner, spender, amount_, permit.deadline, v, r, s);
+        // check owner and spender balances after 2nd transfer with permit
+        assertEq(_wrappedToken.balanceOf(owner),    0);
+        assertEq(_wrappedToken.balanceOf(spender),  0);
+        assertEq(_wrappedToken.balanceOf(newOwner), amount_ * 2);
+
+        assertEq(_wrappedToken.allowance(owner, spender), 0);
+    }
+
+    function testDelegateVotes() external {
+        address delegator = address(2222);
+        address delegate1 = address(3333);
+        address delegate2 = address(4444);
+
+        // set delegator balance to 1_000 AJNA tokens
+        deal(address(_wrappedToken), delegator, 1_000 * 1e18);
+
+        // check voting power
+        assertEq(_wrappedToken.getVotes(delegator), 0);
+        assertEq(_wrappedToken.getVotes(delegate1), 0);
+        assertEq(_wrappedToken.getVotes(delegate2), 0);
+
+        vm.roll(11111);
+        vm.prank(delegator);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateChanged(delegator, address(0), delegate1);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateVotesChanged(delegate1, 0, 1_000 * 1e18);
+        _wrappedToken.delegate(delegate1);
+
+        // check accounts balances
+        assertEq(_wrappedToken.balanceOf(delegator), 1_000 * 1e18);
+        assertEq(_wrappedToken.balanceOf(delegate1), 0);
+        assertEq(_wrappedToken.balanceOf(delegate2), 0);
+        // check voting power
+        assertEq(_wrappedToken.getVotes(delegator), 0);
+        assertEq(_wrappedToken.getVotes(delegate1), 1_000 * 1e18);
+        assertEq(_wrappedToken.getVotes(delegate2), 0);
+
+        assertEq(_wrappedToken.delegates(delegator), delegate1);
+
+        vm.roll(11112);
+
+        vm.prank(delegator);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateChanged(delegator, delegate1, delegate2);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateVotesChanged(delegate1, 1_000 * 1e18, 0);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateVotesChanged(delegate2, 0, 1_000 * 1e18);
+        _wrappedToken.delegate(delegate2);
+        vm.roll(11113);
+
+        // check accounts balances
+        assertEq(_wrappedToken.balanceOf(delegator), 1_000 * 1e18);
+        assertEq(_wrappedToken.balanceOf(delegate1), 0);
+        assertEq(_wrappedToken.balanceOf(delegate2), 0);
+        // check voting power
+        assertEq(_wrappedToken.getVotes(delegator), 0);
+        assertEq(_wrappedToken.getVotes(delegate1), 0);
+        assertEq(_wrappedToken.getVotes(delegate2), 1_000 * 1e18);
+
+        assertEq(_wrappedToken.delegates(delegator), delegate2);
+        // check voting power at block 11111 and 11112
+        assertEq(_wrappedToken.getPastVotes(delegate1, 11111), 1_000 * 1e18);
+        assertEq(_wrappedToken.getPastVotes(delegate2, 11111), 0);
+        assertEq(_wrappedToken.getPastVotes(delegate1, 11112), 0);
+        assertEq(_wrappedToken.getPastVotes(delegate2, 11112), 1_000 * 1e18);
+    }
 
 }
