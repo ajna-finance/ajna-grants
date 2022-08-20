@@ -25,7 +25,7 @@ make all
 #### Run Tests
 
 ```bash
-make test
+make tests
 ```
 
 <!-- TODO: Determine how to run off-chain integration tests -->
