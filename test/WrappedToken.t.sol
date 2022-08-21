@@ -22,7 +22,8 @@ contract WrappedTokenTest is Test {
     event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
 
     function setUp() external {
-        _token = new AjnaToken();
+        // mint all tokens to test address
+        _token = new AjnaToken(address(this));
         _wrappedToken = new WrappedAjnaToken(_token);
 
         _sigUtils = new SigUtils(_wrappedToken.DOMAIN_SEPARATOR());
