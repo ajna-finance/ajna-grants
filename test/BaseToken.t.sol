@@ -12,17 +12,18 @@ contract AjnaTokenTest is Test {
     AjnaToken internal _token;
     SigUtils  internal _sigUtils;
 
-    address internal _tokenDeployer   = makeAddr("tokenDeployer");
-    address internal _testTokenHolder = makeAddr("_testTokenHolder");
+    address internal _tokenDeployer = makeAddr("tokenDeployer");
+    address internal _tokenHolder   = makeAddr("_tokenHolder");
     uint256 _initialAjnaTokenSupply   = 1_000_000_000 * 1e18;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     function setUp() external {
         vm.startPrank(_tokenDeployer);
-        _token = new AjnaToken();
+        _token = new AjnaToken(_tokenHolder);
 
         _sigUtils = new SigUtils(_token.DOMAIN_SEPARATOR());
+        changePrank(_tokenHolder);
     }
 
     function testCannotSendTokensToContract() external {
@@ -45,8 +46,8 @@ contract AjnaTokenTest is Test {
         assertEq(_token.totalSupply(), _initialAjnaTokenSupply);
     }
 
-    function testMinterTokenBalance() external {
-        assertEq(_token.balanceOf(_tokenDeployer), _initialAjnaTokenSupply);
+    function testHolderTokenBalance() external {
+        assertEq(_token.balanceOf(_tokenHolder), _initialAjnaTokenSupply);
     }
 
     function testBurn() external {
@@ -58,12 +59,12 @@ contract AjnaTokenTest is Test {
     function testTransferWithApprove(uint256 amount_) external {
         vm.assume(amount_ > 0);
         vm.assume(amount_ <= _initialAjnaTokenSupply);
-        _token.approve(_tokenDeployer, amount_);
+        _token.approve(_tokenHolder, amount_);
         vm.expectEmit(true, true, false, true);
-        emit Transfer(_tokenDeployer, address(5555), amount_);
-        _token.transferFrom(_tokenDeployer, address(5555), amount_);
+        emit Transfer(_tokenHolder, address(5555), amount_);
+        _token.transferFrom(_tokenHolder, address(5555), amount_);
 
-        assertEq(_token.balanceOf(_tokenDeployer), _initialAjnaTokenSupply - amount_);
+        assertEq(_token.balanceOf(_tokenHolder), _initialAjnaTokenSupply - amount_);
         assertEq(_token.balanceOf(address(5555)),  amount_);
     }
 
