@@ -43,11 +43,6 @@ WARNING: THE RPC_URL PASSED IN WILL DETERMINE WHAT NETWORK YOUR CONTRACT IS DEPL
 make deploy-contract contract=<CONTRACT_NAME_HERE> RPC_URL=<RPC_URL_HERE>
 ```
 
-
-
-
-
-
 <!-- TODO: Determine how to run off-chain integration tests -->
 
 # Research
