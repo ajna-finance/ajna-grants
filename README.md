@@ -28,6 +28,26 @@ make all
 make tests
 ```
 
+
+### Contract Deployment
+Ensure the following env variables are set in your env file `.env`
+
+```
+PRIVATE_KEY = <PRIVATE_KEY_HERE>
+ETHERSCAN_API_KEY = <ETHERSCAN_API_KEY_HERE>
+```
+
+Once the above variables are set run the following:
+WARNING: THE RPC_URL PASSED IN WILL DETERMINE WHAT NETWORK YOUR CONTRACT IS DEPLOYED ON.
+```
+make deploy-contract contract=<CONTRACT_NAME_HERE> RPC_URL=<RPC_URL_HERE>
+```
+
+
+
+
+
+
 <!-- TODO: Determine how to run off-chain integration tests -->
 
 # Research
