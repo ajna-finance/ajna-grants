@@ -9,7 +9,7 @@ contract DeployAjnaToken is Script {
     function run() public {
         vm.startBroadcast();
 
-        new AjnaToken(vm.envAddress("MINT_TO"));
+        new AjnaToken(vm.envAddress("MINT_TO_ADDRESS"));
 
         vm.stopBroadcast();
     }
