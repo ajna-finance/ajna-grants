@@ -1,0 +1,14 @@
+name: Slither Analysis
+on: [push]
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - uses: crytic/slither-action@v0.1.1
+        with:
+          target: 'src/BaseToken.sol'
+          solc-version: 0.8.14
+          slither-config: slither.config.json
