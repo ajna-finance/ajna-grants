@@ -21,3 +21,7 @@ coverage   :; forge coverage
 
 # Generate Gas Snapshots
 snapshot :; forge clean && forge snapshot --optimize --optimize-runs 1000000
+
+# Deployment
+# use the "@" to hide the command from your shell 
+deploy-contract :; @forge script script/${contract}.s.sol:Deploy${contract} --rpc-url ${RPC_URL}  --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}  -vvvv

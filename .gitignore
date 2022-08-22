@@ -7,4 +7,6 @@ out/
 /broadcast/*
 /broadcast/*/31337/
 
+# Env
+.env
 .vscode/
