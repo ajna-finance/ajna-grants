@@ -14,7 +14,7 @@ contract AjnaTokenTest is Test {
 
     address internal _tokenDeployer = makeAddr("tokenDeployer");
     address internal _tokenHolder   = makeAddr("_tokenHolder");
-    uint256 _initialAjnaTokenSupply   = 1_000_000_000 * 1e18;
+    uint256 _initialAjnaTokenSupply   = 2_000_000_000 * 1e18;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
     event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
@@ -59,7 +59,7 @@ contract AjnaTokenTest is Test {
     function testBurn() external {
         assertEq(_token.totalSupply(), _initialAjnaTokenSupply);
         _token.burn(50_000_000 * 1e18);
-        assertEq(_token.totalSupply(), 950_000_000 * 1e18);
+        assertEq(_token.totalSupply(), 1_950_000_000 * 1e18);
     }
 
     function testTransferWithApprove(uint256 amount_) external {
@@ -264,7 +264,7 @@ contract AjnaTokenTest is Test {
         _token.delegate(address(3333));
 
         assertEq(_token.getVotes(_tokenHolder),  0);
-        assertEq(_token.getVotes(address(3333)), 1_000_000_000 * 1e18);
+        assertEq(_token.getVotes(address(3333)), 2_000_000_000 * 1e18);
         assertEq(_token.getVotes(address(4444)), 0);
 
         // 3333 cannot delegate votes to 4444
@@ -273,7 +273,7 @@ contract AjnaTokenTest is Test {
         _token.delegate(address(4444));
 
         assertEq(_token.getVotes(_tokenHolder),  0);
-        assertEq(_token.getVotes(address(3333)), 1_000_000_000 * 1e18);
+        assertEq(_token.getVotes(address(3333)), 2_000_000_000 * 1e18);
         assertEq(_token.getVotes(address(4444)), 0);
 
         // tokens owner delegates votes to 4444
@@ -282,6 +282,6 @@ contract AjnaTokenTest is Test {
 
         assertEq(_token.getVotes(_tokenHolder),  0);
         assertEq(_token.getVotes(address(3333)), 0);
-        assertEq(_token.getVotes(address(4444)), 1_000_000_000 * 1e18);
+        assertEq(_token.getVotes(address(4444)), 2_000_000_000 * 1e18);
     }
 }
