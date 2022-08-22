@@ -1,0 +1,24 @@
+name: Slither Analysis
+on: [push]
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install and set solc version
+        run: |
+          pip install solc-select && solc-select install 0.8.14 && solc-select use 0.8.14
+        id: solc
+
+      - name: Install Slither
+        run: |
+          pip install slither-analyzer
+        id: slither
+
+      - name: Analyze AjnaToken
+        run: |
+          slither src/BaseToken.sol
+        id: analyzer

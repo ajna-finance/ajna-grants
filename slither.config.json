@@ -1,0 +1,7 @@
+{
+    "filter_paths": "lib",
+    "solc_remaps": [
+      "@oz=lib/openzeppelin-contracts/contracts/"
+    ],
+    "detectors_to_exclude": "solc-version"
+  }
