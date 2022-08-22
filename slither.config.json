@@ -3,5 +3,5 @@
     "solc_remaps": [
       "@oz=lib/openzeppelin-contracts/contracts/"
     ],
-    "exclude_informational": true
+    "detectors_to_exclude": "solc-version"
   }
