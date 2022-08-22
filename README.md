@@ -35,6 +35,7 @@ Ensure the following env variables are set in your env file `.env`
 ```
 PRIVATE_KEY = <PRIVATE_KEY_HERE>
 ETHERSCAN_API_KEY = <ETHERSCAN_API_KEY_HERE>
+MINT_TO_ADDRESS = <MINT_TO_ADDRESS_HERE>
 ```
 
 Once the above variables are set run the following:
