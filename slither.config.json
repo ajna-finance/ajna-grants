@@ -2,5 +2,6 @@
     "filter_paths": "lib",
     "solc_remaps": [
       "@oz=lib/openzeppelin-contracts/contracts/"
-    ]
+    ],
+    "exclude_informational": true
   }

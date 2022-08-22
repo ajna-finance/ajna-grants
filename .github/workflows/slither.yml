@@ -7,8 +7,18 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - uses: crytic/slither-action@v0.1.1
-        with:
-          target: 'src/BaseToken.sol'
-          solc-version: 0.8.14
-          slither-config: slither.config.json
+
+      - name: Install and set solc version
+        run: |
+          pip install solc-select && solc-select install 0.8.14 && solc-select use 0.8.14
+        id: solc
+
+      - name: Install Slither
+        run: |
+          pip install slither-analyzer
+        id: slither
+
+      - name: Analyze AjnaToken
+        run: |
+          slither src/BaseToken.sol
+        id: analyzer
