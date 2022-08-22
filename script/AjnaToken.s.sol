@@ -5,12 +5,11 @@ import { Script } from "forge-std/Script.sol";
 import { AjnaToken } from "../src/BaseToken.sol";
 
 contract DeployAjnaToken is Script {
-    function setUp() public {}
 
     function run() public {
         vm.startBroadcast();
 
-        new AjnaToken();
+        new AjnaToken(vm.envAddress("MINT_TO"));
 
         vm.stopBroadcast();
     }
