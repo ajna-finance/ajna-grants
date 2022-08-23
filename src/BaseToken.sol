@@ -8,8 +8,8 @@ import { ERC20Permit }   from  "@oz/token/ERC20/extensions/draft-ERC20Permit.sol
 import { ERC20Votes }    from "@oz/token/ERC20/extensions/ERC20Votes.sol";
 
 contract AjnaToken is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
-    constructor(address tokenOwner_) ERC20("AjnaToken", "AJNA") ERC20Permit("AjnaToken") {
-        _mint(tokenOwner_, 2_000_000_000 * 10 ** decimals());
+    constructor(address tokenReceiver_) ERC20("AjnaToken", "AJNA") ERC20Permit("AjnaToken") {
+        _mint(tokenReceiver_, 2_000_000_000 * 10 ** decimals());
     }
 
     /*****************/
