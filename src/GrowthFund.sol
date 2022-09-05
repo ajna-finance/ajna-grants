@@ -22,9 +22,18 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         Governor("AjnaEcosystemGrowthFund")
         GovernorSettings(1 /* 1 block */, 45818 /* 1 week */, 0) // default settings, can be updated via a governance proposal        
         GovernorVotes(token_) // token that will be used for voting
-        GovernorVotesQuorumFraction(5) // percentage of total voting power required; updateable via governance proposal
+        GovernorVotesQuorumFraction(4) // percentage of total voting power required; updateable via governance proposal
     {
         extraordinaryFundingBaseQuorum = 50; // initialize base quorum percentrage required for extraordinary funding to 50%
+    }
+
+    // TODO: finish implementing
+    /**
+     * @notice Generate calldata that can be executed as part of a successful proposal.
+     * @dev    Intended to allow the Ajna token to be passed as target contract, values to be the amount of ajna tokens, and calldata to contain the transfer instructions.
+     */
+    function generateFundingCalldata(address recipient) public view returns (bytes32) {
+
     }
 
     /*****************************/

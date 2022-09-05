@@ -83,4 +83,14 @@ WARNING: THE RPC_URL PASSED IN WILL DETERMINE WHAT NETWORK YOUR CONTRACT IS DEPL
 make deploy-contract contract=<CONTRACT_NAME_HERE> RPC_URL=<RPC_URL_HERE>
 ```
 
-TODO: Create documentation regarding methods
+
+### Governance Design Research:
+*ENS*
+- https://github.com/ensdomains/governance-docs/blob/main/process/README.md
+- https://github.com/ensdomains/governance 
+
+*HOP*
+- https://github.com/hop-protocol/governance
+
+*OP*
+- https://github.com/ethereum-optimism/optimism/tree/develop/packages/contracts-governance
