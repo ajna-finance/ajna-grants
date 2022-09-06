@@ -11,7 +11,7 @@ import { IGovernor } from "@oz/governance/IGovernor.sol";
 import { IVotes } from "@oz/governance/utils/IVotes.sol";
 
 
-// TODO: figure out how to allow partial votes
+// TODO: figure out how to allow partial votes -> need to override cast votes to allocate only some amount of voting power
 contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, GovernorVotes, GovernorVotesQuorumFraction {
 
     uint256 internal extraordinaryFundingBaseQuorum;

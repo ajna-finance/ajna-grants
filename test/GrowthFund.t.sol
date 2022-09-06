@@ -53,6 +53,12 @@ contract GrowthFundTest is Test {
 
         _sigUtils = new SigUtils(_token.DOMAIN_SEPARATOR());
 
+        // deploy voting token wrapper
+        _votingToken = IVotes(address(_token));
+
+        // deploy growth fund contract
+        _growthFund = new GrowthFund(_votingToken);
+
         // initial minter distributes tokens to test addresses
         changePrank(_tokenHolder1);
         _token.transfer(_tokenHolder2, 50_000_000 * 1e18);
@@ -60,11 +66,8 @@ contract GrowthFundTest is Test {
         _token.transfer(_tokenHolder4, 50_000_000 * 1e18);
         _token.transfer(_tokenHolder5, 50_000_000 * 1e18);
 
-        // deploy voting token wrapper
-        _votingToken = IVotes(address(_token));
-
-        // deploy growth fund contract
-        _growthFund = new GrowthFund(_votingToken);
+        // initial minter distributes treasury to growthFund
+        _token.transfer(address(_growthFund), 500_000_000 * 1e18);
     }
 
     /*****************************/
@@ -72,7 +75,31 @@ contract GrowthFundTest is Test {
     /*****************************/
 
     // TODO: finish implementing 
-    function _createProposal(address target_) internal {}
+    function _createProposal(address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (uint256) {
+        // generate expected proposal state
+        uint256 expectedProposalId = _growthFund.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
+        uint256 startBlock = block.number.toUint64() + _growthFund.votingDelay().toUint64();
+        uint256 endBlock   = startBlock + _growthFund.votingPeriod().toUint64();
+
+        // submit proposal
+        changePrank(proposer_);
+        vm.expectEmit(true, true, false, true);
+        emit ProposalCreated(
+            expectedProposalId,
+            proposer_,
+            targets_,
+            values_,
+            new string[](targets_.length),
+            proposalCalldatas_,
+            startBlock,
+            endBlock,
+            description
+        );
+        uint256 proposalId = _growthFund.propose(targets_, values_, proposalCalldatas_, description);
+        assertEq(proposalId, expectedProposalId);
+
+        return proposalId;
+    }
 
     function _delegateVotes(address delegator_, address delegatee_) internal {
         changePrank(delegator_);
@@ -124,12 +151,12 @@ contract GrowthFundTest is Test {
         address[] memory ajnaTokenTargets = new address[](1);
         ajnaTokenTargets[0] = address(_token);
 
+        // generate proposal values
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
 
         // generate proposal calldata
         bytes[] memory proposalCalldata = new bytes[](1);
-
         proposalCalldata[0] = abi.encodeWithSignature(
             "transfer(address,uint256)",
             _tokenHolder2,
@@ -139,27 +166,8 @@ contract GrowthFundTest is Test {
         // generate proposal message 
         string memory description = "Proposal for Ajna token transfer to tester address";
 
-        // generate expected proposal state
-        uint256 expectedProposalId = _growthFund.hashProposal(ajnaTokenTargets, values, proposalCalldata, keccak256(bytes(description)));
-        uint256 startBlock = block.number.toUint64() + _growthFund.votingDelay().toUint64();
-        uint256 endBlock   = startBlock + _growthFund.votingPeriod().toUint64();
-
-        // submit proposal
-        changePrank(_tokenHolder2);
-        vm.expectEmit(true, true, false, true);
-        emit ProposalCreated(
-            expectedProposalId,
-            _tokenHolder2,
-            ajnaTokenTargets,
-            values,
-            new string[](ajnaTokenTargets.length),
-            proposalCalldata,
-            startBlock,
-            endBlock,
-            description
-        );
-        uint256 proposalId = _growthFund.propose(ajnaTokenTargets, values, proposalCalldata, description);
-        assertEq(proposalId, expectedProposalId);
+        // create and submit proposal
+        uint256 proposalId = _createProposal(_tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
 
         vm.roll(10);
 
@@ -167,9 +175,6 @@ contract GrowthFundTest is Test {
         IGovernor.ProposalState proposalState = _growthFund.state(proposalId);
         assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Active));
     }
-
-    // TODO: implement more granular testing
-    // function testVoteOnProposal() external {}
 
     function testVoteAndExecuteProposal() external {
         // tokenholders self delegate their tokens to enable voting on the proposal
@@ -181,12 +186,12 @@ contract GrowthFundTest is Test {
         address[] memory ajnaTokenTargets = new address[](1);
         ajnaTokenTargets[0] = address(_token);
 
+        // generate proposal values
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
 
         // generate proposal calldata
         bytes[] memory proposalCalldata = new bytes[](1);
-
         proposalCalldata[0] = abi.encodeWithSignature(
             "transfer(address,uint256)",
             _tokenHolder2,
@@ -196,27 +201,8 @@ contract GrowthFundTest is Test {
         // generate proposal message
         string memory description = "Proposal for Ajna token transfer to tester address";
 
-        // generate expected proposal state
-        uint256 expectedProposalId = _growthFund.hashProposal(ajnaTokenTargets, values, proposalCalldata, keccak256(bytes(description)));
-        uint256 startBlock = block.number.toUint64() + _growthFund.votingDelay().toUint64();
-        uint256 endBlock   = startBlock + _growthFund.votingPeriod().toUint64();
-
-        // submit proposal
-        changePrank(_tokenHolder2);
-        vm.expectEmit(true, true, false, true);
-        emit ProposalCreated(
-            expectedProposalId,
-            _tokenHolder2,
-            ajnaTokenTargets,
-            values,
-            new string[](ajnaTokenTargets.length),
-            proposalCalldata,
-            startBlock,
-            endBlock,
-            description
-        );
-        uint256 proposalId = _growthFund.propose(ajnaTokenTargets, values, proposalCalldata, description);
-        assertEq(proposalId, expectedProposalId);
+        // create and submit proposal
+        uint256 proposalId = _createProposal(_tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
 
         vm.roll(110);
 
@@ -229,13 +215,15 @@ contract GrowthFundTest is Test {
         _vote(_tokenHolder3, proposalId, 1, 100);
         _vote(_tokenHolder4, proposalId, 0, 100);
 
-        // TODO: count votes
+        // TODO: count vote status
 
         proposalState = _growthFund.state(proposalId);
         assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Active));
 
         // skip to the end of the voting period
         vm.roll(46000);
+
+        // check proposal was succesful after deadline and with quorum reached
         proposalState = _growthFund.state(proposalId);
         assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Succeeded));
 
