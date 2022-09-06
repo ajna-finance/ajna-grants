@@ -45,7 +45,9 @@ contract GrowthFundTest is Test {
         uint256 endBlock,
         string description
     );
+    event ProposalExecuted(uint256 proposalId);
     event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason);
+    event Transfer(address indexed from, address indexed to, uint256 value);
 
     function setUp() external {
         vm.startPrank(_tokenDeployer);
@@ -191,11 +193,12 @@ contract GrowthFundTest is Test {
         values[0] = 0;
 
         // generate proposal calldata
+        uint256 proposalTokenAmount = 1 * 1e18;
         bytes[] memory proposalCalldata = new bytes[](1);
         proposalCalldata[0] = abi.encodeWithSignature(
             "transfer(address,uint256)",
             _tokenHolder2,
-            1 * 1e18
+            proposalTokenAmount
         );
 
         // generate proposal message
@@ -220,6 +223,7 @@ contract GrowthFundTest is Test {
         proposalState = _growthFund.state(proposalId);
         assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Active));
 
+        // TODO: switch to using _growthFund.votingPeriod() instead of hardcoded blocks to roll forward to
         // skip to the end of the voting period
         vm.roll(46000);
 
@@ -227,7 +231,21 @@ contract GrowthFundTest is Test {
         proposalState = _growthFund.state(proposalId);
         assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Succeeded));
 
+        assertEq(_token.balanceOf(_tokenHolder2), 50_000_000 * 1e18);
+        assertEq(_token.balanceOf(address(_growthFund)), 500_000_000 * 1e18);
+
         // execute proposal
+        vm.expectEmit(true, true, false, true);
+        emit ProposalExecuted(proposalId);
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(address(_growthFund), _tokenHolder2, proposalTokenAmount);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateVotesChanged(_tokenHolder2, 50_000_000 * 1e18, 50_000_001 * 1e18); 
+        _growthFund.execute(ajnaTokenTargets, values, proposalCalldata, keccak256(bytes(description)));
+
+        // check balances changes
+        assertEq(_token.balanceOf(_tokenHolder2), 50_000_001 * 1e18);
+        assertEq(_token.balanceOf(address(_growthFund)), 499_999_999 * 1e18);
     }
 
     function testQuorum() external {
