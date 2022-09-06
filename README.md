@@ -87,6 +87,8 @@ make deploy-contract contract=<CONTRACT_NAME_HERE> RPC_URL=<RPC_URL_HERE>
 ### Governance Design Research:
 *OpenZeppelin Guides*
 - https://docs.openzeppelin.com/contracts/4.x/governance
+- https://wizard.openzeppelin.com/#governor
+- https://twitter.com/OpenZeppelin/status/1448054190631051266
 
 *ENS*
 - https://github.com/ensdomains/governance-docs/blob/main/process/README.md

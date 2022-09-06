@@ -10,10 +10,8 @@ import { GovernorVotesQuorumFraction } from "@oz/governance/extensions/GovernorV
 import { IGovernor } from "@oz/governance/IGovernor.sol";
 import { IVotes } from "@oz/governance/utils/IVotes.sol";
 
-// TODO: customize implementation of override functions
-// https://docs.openzeppelin.com/contracts/4.x/api/governance#Governor
-// https://wizard.openzeppelin.com/#governor
-// https://twitter.com/OpenZeppelin/status/1448054190631051266
+
+// TODO: figure out how to allow partial votes
 contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, GovernorVotes, GovernorVotesQuorumFraction {
 
     uint256 internal extraordinaryFundingBaseQuorum;
