@@ -99,3 +99,11 @@ make deploy-contract contract=<CONTRACT_NAME_HERE> RPC_URL=<RPC_URL_HERE>
 
 *OP*
 - https://github.com/ethereum-optimism/optimism/tree/develop/packages/contracts-governance
+
+*Multichain Governance*
+- https://doseofdefi.substack.com/p/multichain-governance-how-can-daos
+- https://github.com/gnosis/zodiac
+- https://ethereum-magicians.org/t/eip-draft-multi-chain-governance/9284
+
+*General Governance Research*
+- https://github.com/D3LAB-DAO/Governor-C

@@ -248,6 +248,19 @@ contract GrowthFundTest is Test {
         assertEq(_token.balanceOf(address(_growthFund)), 499_999_999 * 1e18);
     }
 
+    function testVoteMultipleProposals() external {
+        // tokenholders self delegate their tokens to enable voting on the proposal
+        _delegateVotes(_tokenHolder2, _tokenHolder2);
+        _delegateVotes(_tokenHolder3, _tokenHolder3);
+        _delegateVotes(_tokenHolder4, _tokenHolder4);
+
+        // create multiple test proposals to check vote splitting
+    }
+
+    function testSetMaximumQuarterlyTokenDistribution() external {
+
+    }
+
     function testQuorum() external {
         uint256 pastBlock = 10;
 
