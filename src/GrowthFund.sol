@@ -18,6 +18,15 @@ import { Maths } from "./libraries/Maths.sol";
 // TODO: figure out how to allow partial votes -> need to override cast votes to allocate only some amount of voting power?
 contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, GovernorVotes, GovernorVotesQuorumFraction {
 
+    /*********************/
+    /*** Custom Errors ***/
+    /*********************/
+
+    /**
+     * @notice Voter has already voted on a proposal in the screening stage in a quarter.
+     */
+    error AlreadyVoted();
+
     /***********************/
     /*** State Variables ***/
     /***********************/
@@ -34,6 +43,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
      */
     uint256 public maximumTokenDistributionPercentage = Maths.wad(2) / Maths.wad(100);
 
+    // TODO: reset this at the start of each new quarter
     /**
      * @notice Accumulator tracking the number of votes cast in a quarter.
      * @dev Reset to 0 at the start of each new quarter.
@@ -41,20 +51,40 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     uint256 quarterlyVotesCounter = 0;
 
     /**
-     * @dev List of quarterly distributions paid out of the growth fund.
+     * @notice ID of the current distribution period.
+     * @dev Used to access information on the status of an ongoing distribution.
+     * @dev Updated at the start of each quarter.
      */
-    QuarterlyDistribution[] public quarterlyDistributions;
+    uint256 currentDistributionId = 0;
 
     /**
-     * @dev List of all proposals that have ever been submitted to the growth fund.
+     * @notice Mapping of quarterly distributions from the growth fund.
+     * @dev distributionId => QuarterlyDistribution
      */
-    Proposal[] public proposals;
+    mapping (uint256 => QuarterlyDistribution) distributions;
+
+    /**
+     * @notice Mapping checking if a voter has voted on a proposal during the screening stage in a quarter.
+     * @dev Reset to false at the start of each new quarter.
+     */
+    mapping (address => bool) hasScreened;
+
+    /**
+     * @dev Mapping of all proposals that have ever been submitted to the growth fund for screening.
+     * @dev proposalId => Proposal
+     */
+    mapping (uint256 => Proposal) proposals;
+
 
     /***************/
     /*** Structs ***/
     /***************/
 
+    /**
+     * @dev Contains proposals that made it through the screening process to the funding stage.
+     */
     struct QuarterlyDistribution {
+        uint256 distributionId;     // id of the current quarterly distribution
         uint256 tokensDistributed;  // number of ajna tokens distrubted that quarter
         uint256 votesCast;          // total number of votes cast that quarter
         uint256 startingBlock;      // block number of the quarterly distrubtions start
@@ -71,6 +101,14 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         bool canceled;
     }
 
+    /**
+     * @dev Restrict a voter to only voting on one proposal during the screening stage.
+     */
+    modifier onlyScreenOnce() {
+        if (hasScreened[msg.sender]) revert AlreadyVoted();
+        _;
+    }
+
     constructor(IVotes token_)
         Governor("AjnaEcosystemGrowthFund")
         GovernorSettings(1 /* 1 block */, 45818 /* 1 week */, 0) // default settings, can be updated via a governance proposal        
@@ -85,6 +123,57 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     /*** Standard Distribution ***/
     /*****************************/
 
+    // create a new distribution Id
+    // TODO: update this from a simple nonce incrementor
+    function _setNewDistributionId() private {
+        ++currentDistributionId;
+    }
+
+    function propose(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        string memory description
+    ) public override(Governor) returns (uint256) {
+
+        uint256 proposalId = hashProposal(targets, values, calldatas, keccak256(bytes(description)));
+
+        // TODO: create a Proposal object here
+        // Proposal storage newProposal = Proposal();
+
+        // TODO: store new proposal information
+        // proposals[proposalId] = newProposal;
+
+        return super.propose();
+    }
+
+    // TODO: determine if anyone can kick or governance only
+    function startNewDistributionPeriod() public {
+        // check block number can be kicked
+
+        // set new value for currentDistributionId
+        _setNewDistributionId();
+
+        // store the new QuarterlyDistribution struct
+        QuarterlyDistribution newDistributionPeriod = QuarterlyDistribution(currentDistributionId, );
+    }
+
+    // _castVote() and update growthFund structs tracking progress
+    function screenProposals(uint256 proposalId_, uint8 support_) public onlyScreenOnce {
+        QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
+
+        // TODO: determine a better way to calculate the screening period
+        uint256 screeningPeriodEndBlock = currentDistribution.startBlock + (currentDistribution.endBlock - currentDistribution.startBlock);
+        require(block.number < screeningPeriodEndBlock, "screening period ended");
+
+        // TODO: need to override createProposal with storage of the proposal, followed by call to super.propose() for remaining logic
+        Proposal storage proposal = proposals[proposalId_];
+
+        // record voters vote
+        hasScreened[msg.sender] = true;
+
+    }
+
     /**
      * @notice Get the current percentage of the maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
      */
@@ -96,8 +185,12 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         return tokensToAllocate;
     }
 
+    // TODO: implement this? May need to pass the QuarterlyDistribution struct...
+    function _screeningPeriodEndBlock() public view returns (uint256 endBlock) {}
+
     /**
      * @notice Set the new percentage of the maximum possible distribution of Ajna tokens that will be released from the treasury each quarter.
+     * @dev Can only be called by Governance through the proposal process.
      */
     function setMaximumTokenDistributionPercentage(uint256 newDistributionPercentage_) public onlyGovernance {
         maximumTokenDistributionPercentage = newDistributionPercentage_;

@@ -248,13 +248,18 @@ contract GrowthFundTest is Test {
         assertEq(_token.balanceOf(address(_growthFund)), 499_999_999 * 1e18);
     }
 
-    function testVoteMultipleProposals() external {
+    /**
+     *  @notice 4 voters consider 15 different proposals. 10 Make it through to the funding stage.
+     */    
+    function testVoteAndScreenProposals() external {
         // tokenholders self delegate their tokens to enable voting on the proposal
         _delegateVotes(_tokenHolder2, _tokenHolder2);
         _delegateVotes(_tokenHolder3, _tokenHolder3);
         _delegateVotes(_tokenHolder4, _tokenHolder4);
+    }
 
-        // create multiple test proposals to check vote splitting
+    function testStartNewDistributionPeriod() external {
+        
     }
 
     function testSetMaximumQuarterlyTokenDistribution() external {
@@ -269,8 +274,11 @@ contract GrowthFundTest is Test {
         assertEq((_initialAjnaTokenSupply * 4) / 100, _growthFund.quorum(pastBlock));
     }
 
+    function testUpdateSettings() external {}
+
     function testUpdateQuorum() external {}
 
+    // TODO: move this into the voting tests?
     function testVotingDelay() external {}
 
 
