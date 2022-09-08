@@ -8,7 +8,6 @@ import { GovernorCountingSimple } from "@oz/governance/extensions/GovernorCounti
 import { GovernorSettings } from "@oz/governance/extensions/GovernorSettings.sol";
 import { GovernorVotes } from "@oz/governance/extensions/GovernorVotes.sol";
 import { GovernorVotesQuorumFraction } from "@oz/governance/extensions/GovernorVotesQuorumFraction.sol";
-
 import { IGovernor } from "@oz/governance/IGovernor.sol";
 import { IVotes } from "@oz/governance/utils/IVotes.sol";
 
@@ -17,6 +16,18 @@ import { Maths } from "./libraries/Maths.sol";
 
 // TODO: figure out how to allow partial votes -> need to override cast votes to allocate only some amount of voting power?
 contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, GovernorVotes, GovernorVotesQuorumFraction {
+
+    /**************/
+    /*** Events ***/
+    /**************/
+
+    /**
+     *  @notice Emitted at the beginning of a new quarterly distribution period.
+     *  @param  distributionId_ Id of the new quarterly distribution.
+     *  @param  startBlock_     Block number of the quarterly distrubtions start.
+     *  @param  endBlock_       Block number of the quarterly distrubtions end.
+     */
+    event QuarterlyDistributionStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
 
     /*********************/
     /*** Custom Errors ***/
@@ -81,15 +92,16 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     /***************/
 
     /**
-     * @dev Contains proposals that made it through the screening process to the funding stage.
+     * @notice Contains proposals that made it through the screening process to the funding stage.
+     * @dev Mapping and uint array used for tracking proposals in the distribution as typed arrays (like Proposal[]) can't be nested.
      */
     struct QuarterlyDistribution {
-        uint256 distributionId;     // id of the current quarterly distribution
-        uint256 tokensDistributed;  // number of ajna tokens distrubted that quarter
-        uint256 votesCast;          // total number of votes cast that quarter
-        uint256 startingBlock;      // block number of the quarterly distrubtions start
-        uint256 endingBlock;        // block number of the quarterly distrubtions end
-        Proposal[] proposals;       // list of successful proposals receiving distribution in the quarter
+        uint256 distributionId;              // id of the current quarterly distribution
+        uint256 tokensDistributed;           // number of ajna tokens distrubted that quarter
+        uint256 votesCast;                   // total number of votes cast that quarter
+        uint256 startBlock;                  // block number of the quarterly distrubtions start
+        uint256 endBlock;                    // block number of the quarterly distrubtions end
+        uint256[] proposalIds;               // list of successful proposalIds
     }
 
     struct Proposal {
@@ -97,8 +109,8 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         uint256 tokensRequested; // TODO:
         uint256 proposalId; // OZ.Governor proposalId
         uint256 votesReceived; // accumulator of votes received by a proposal
-        bool executed;
-        bool canceled;
+        bool isVoting;
+        bool succeeded;
     }
 
     /**
@@ -135,27 +147,40 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         bytes[] memory calldatas,
         string memory description
     ) public override(Governor) returns (uint256) {
-
         uint256 proposalId = hashProposal(targets, values, calldatas, keccak256(bytes(description)));
 
-        // TODO: create a Proposal object here
-        // Proposal storage newProposal = Proposal();
+        // TODO: figure out how to decompose tokenId to calculate tokensRequested...
+        // If we do decompose, how do we ensure that they did actually supply a `transferTo(address,uint256)`
+        // do we need to create it ourselves?
+        uint256 tokensRequested = 0;
 
-        // TODO: store new proposal information
-        // proposals[proposalId] = newProposal;
+        // create a struct to store proposal information
+        Proposal memory newProposal = Proposal(description, tokensRequested, proposalId, 0, true, false);
 
-        return super.propose();
+        // store new proposal information
+        proposals[proposalId] = newProposal;
+
+        return super.propose(targets, values, calldatas, description);
     }
 
     // TODO: determine if anyone can kick or governance only
     function startNewDistributionPeriod() public {
-        // check block number can be kicked
+        // TODO: check block number meets conditions and start can proceed
+
+        // TODO: calculate starting and ending block properly
+        uint256 startBlock = 0;
+        uint256 endBlock = 0;
 
         // set new value for currentDistributionId
         _setNewDistributionId();
 
-        // store the new QuarterlyDistribution struct
-        QuarterlyDistribution newDistributionPeriod = QuarterlyDistribution(currentDistributionId, );
+        // create QuarterlyDistribution struct
+        QuarterlyDistribution storage newDistributionPeriod = distributions[currentDistributionId];
+        newDistributionPeriod.distributionId =  currentDistributionId;
+        newDistributionPeriod.startBlock = startBlock;
+        newDistributionPeriod.endBlock = endBlock;
+
+        emit QuarterlyDistributionStarted(currentDistributionId, startBlock, endBlock);
     }
 
     // _castVote() and update growthFund structs tracking progress
@@ -172,6 +197,8 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         // record voters vote
         hasScreened[msg.sender] = true;
 
+        // vote for the given proposal
+        castVote(proposalId_, support_);
     }
 
     /**

@@ -32,8 +32,13 @@ contract GrowthFundTest is Test {
     uint256 _initialAjnaTokenSupply   = 2_000_000_000 * 1e18;
 
     // TODO: replace with selectors from Governor interface?
+
+    /***************************/
+    /*** OpenZeppelin Events ***/
+    /***************************/
+
     event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
-    event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
+    event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);    
     event ProposalCreated(
         uint256 proposalId,
         address proposer,
@@ -48,6 +53,13 @@ contract GrowthFundTest is Test {
     event ProposalExecuted(uint256 proposalId);
     event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason);
     event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /**************************/
+    /*** Growth Fund Events ***/
+    /**************************/
+
+    event QuarterlyDistributionStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
+
 
     function setUp() external {
         vm.startPrank(_tokenDeployer);
@@ -259,7 +271,9 @@ contract GrowthFundTest is Test {
     }
 
     function testStartNewDistributionPeriod() external {
-        
+        vm.expectEmit(true, true, false, true);
+        emit QuarterlyDistributionStarted(1, 0, 0);
+        _growthFund.startNewDistributionPeriod();
     }
 
     function testSetMaximumQuarterlyTokenDistribution() external {
