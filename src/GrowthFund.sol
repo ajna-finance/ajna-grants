@@ -65,14 +65,12 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
      */
     uint256 quarterlyVotesCounter = 0;
 
-    // TODO: replace this with OZ.Checkpoints
-    // https://docs.openzeppelin.com/contracts/4.x/api/utils#Checkpoints
     /**
      * @notice ID of the current distribution period.
      * @dev Used to access information on the status of an ongoing distribution.
      * @dev Updated at the start of each quarter.
      */
-    uint256 currentDistributionId = 0;
+    Checkpoints.History private _distributionIdCheckpoints;
 
     /**
      * @notice Mapping of quarterly distributions from the growth fund.
@@ -128,6 +126,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         bool succeeded;
     }
 
+    // TODO: replace with governorCountingSimple.hasVoted?
     /**
      * @dev Restrict a voter to only voting on one proposal during the screening stage.
      */
@@ -155,7 +154,20 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     // TODO: replace with OpenZeppelin Checkpoints.push
     // TODO: user counters.counter as well?
     function _setNewDistributionId() private {
-        ++currentDistributionId;
+        // increment the distributionId
+        uint256 currentDistributionId = getDistributionId();
+        uint256 newDistributionId = currentDistributionId += 1;
+
+        // set the current block number as the checkpoint for the current block
+        _distributionIdCheckpoints.push(newDistributionId);
+    }
+
+    function getDistributionId() public view returns (uint256) {
+        return _distributionIdCheckpoints.latest();
+    }
+
+    function getDistributionIdAtBlock(uint256 blockNumber) public view returns (uint256) {
+        return _distributionIdCheckpoints.getAtBlock(blockNumber);
     }
 
     function propose(
@@ -173,7 +185,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
 
         // TODO: add the distributionId of the period in which the proposal was submitted
         // create a struct to store proposal information
-        Proposal memory newProposal = Proposal(description, tokensRequested, proposalId, currentDistributionId, 0, true, false);
+        Proposal memory newProposal = Proposal(description, tokensRequested, proposalId, getDistributionId(), 0, true, false);
 
         // store new proposal information
         proposals[proposalId] = newProposal;
@@ -187,11 +199,13 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         // TODO: check block number meets conditions and start can proceed
 
         // TODO: calculate starting and ending block properly
-        uint256 startBlock = 0;
-        uint256 endBlock = 0;
+        uint256 startBlock = 0; // TODO: should this be the current block?
+        uint256 endBlock = 0; // TODO: startBlock += screeningPeriodLength (controlled by governance)
 
         // set new value for currentDistributionId
         _setNewDistributionId();
+
+        uint256 currentDistributionId = getDistributionId();
 
         // create QuarterlyDistribution struct
         QuarterlyDistribution storage newDistributionPeriod = distributions[currentDistributionId];
@@ -204,7 +218,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
 
     // _castVote() and update growthFund structs tracking progress
     function screenProposals(uint256 proposalId_, uint8 support_) public onlyScreenOnce {
-        QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
+        QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
 
         // TODO: determine a better way to calculate the screening period
         uint256 screeningPeriodEndBlock = currentDistribution.startBlock + (currentDistribution.endBlock - currentDistribution.startBlock);
