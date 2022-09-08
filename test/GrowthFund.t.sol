@@ -38,7 +38,7 @@ contract GrowthFundTest is Test {
     /***************************/
 
     event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
-    event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);    
+    event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
     event ProposalCreated(
         uint256 proposalId,
         address proposer,
@@ -260,6 +260,7 @@ contract GrowthFundTest is Test {
         assertEq(_token.balanceOf(address(_growthFund)), 499_999_999 * 1e18);
     }
 
+    // TODO: figure out a good way to randomly generate proposals...? Will need to create at least 15
     /**
      *  @notice 4 voters consider 15 different proposals. 10 Make it through to the funding stage.
      */    

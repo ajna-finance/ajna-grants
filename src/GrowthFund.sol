@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.7;
 
+import { Checkpoints } from "@oz/utils/Checkpoints.sol";
+
 import { IERC20 } from "@oz/token/ERC20/IERC20.sol";
 
 import { Governor } from "@oz/governance/Governor.sol";
@@ -16,6 +18,8 @@ import { Maths } from "./libraries/Maths.sol";
 
 // TODO: figure out how to allow partial votes -> need to override cast votes to allocate only some amount of voting power?
 contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, GovernorVotes, GovernorVotesQuorumFraction {
+
+    using Checkpoints for Checkpoints.History;
 
     /**************/
     /*** Events ***/
@@ -61,6 +65,8 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
      */
     uint256 quarterlyVotesCounter = 0;
 
+    // TODO: replace this with OZ.Checkpoints
+    // https://docs.openzeppelin.com/contracts/4.x/api/utils#Checkpoints
     /**
      * @notice ID of the current distribution period.
      * @dev Used to access information on the status of an ongoing distribution.
@@ -72,19 +78,27 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
      * @notice Mapping of quarterly distributions from the growth fund.
      * @dev distributionId => QuarterlyDistribution
      */
-    mapping (uint256 => QuarterlyDistribution) distributions;
+    mapping(uint256 => QuarterlyDistribution) distributions;
 
     /**
      * @notice Mapping checking if a voter has voted on a proposal during the screening stage in a quarter.
      * @dev Reset to false at the start of each new quarter.
      */
-    mapping (address => bool) hasScreened;
+    mapping(address => bool) hasScreened;
 
     /**
      * @dev Mapping of all proposals that have ever been submitted to the growth fund for screening.
-     * @dev proposalId => Proposal
+     * @dev distribution.id => proposalId => Proposal
      */
-    mapping (uint256 => Proposal) proposals;
+    mapping(uint256 => Proposal) proposals;
+
+    // TODO: deploy a clone contract with a fresh contract and it's own sorted list OR having a mapping distributionId => SortedList
+    /**
+     * @dev Mapping of distributionId to proposalId.
+     * @dev distribution.id => Queue
+     * @dev A new queue is created for each distribution period
+     */
+    // mapping(uint256 => Queue) queues;
 
 
     /***************/
@@ -96,7 +110,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
      * @dev Mapping and uint array used for tracking proposals in the distribution as typed arrays (like Proposal[]) can't be nested.
      */
     struct QuarterlyDistribution {
-        uint256 distributionId;              // id of the current quarterly distribution
+        uint256 id;                          // id of the current quarterly distribution
         uint256 tokensDistributed;           // number of ajna tokens distrubted that quarter
         uint256 votesCast;                   // total number of votes cast that quarter
         uint256 startBlock;                  // block number of the quarterly distrubtions start
@@ -105,10 +119,11 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     }
 
     struct Proposal {
-        string description; // TODO: may not be necessary if we are also storing proposalId
+        string description;      // TODO: may not be necessary if we are also storing proposalId
         uint256 tokensRequested; // TODO:
-        uint256 proposalId; // OZ.Governor proposalId
-        uint256 votesReceived; // accumulator of votes received by a proposal
+        uint256 proposalId;      // OZ.Governor proposalId
+        uint256 distributionId;  // Id of the distribution period in which the proposal was made
+        uint256 votesReceived;   // accumulator of votes received by a proposal
         bool isVoting;
         bool succeeded;
     }
@@ -137,6 +152,8 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
 
     // create a new distribution Id
     // TODO: update this from a simple nonce incrementor
+    // TODO: replace with OpenZeppelin Checkpoints.push
+    // TODO: user counters.counter as well?
     function _setNewDistributionId() private {
         ++currentDistributionId;
     }
@@ -154,8 +171,9 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         // do we need to create it ourselves?
         uint256 tokensRequested = 0;
 
+        // TODO: add the distributionId of the period in which the proposal was submitted
         // create a struct to store proposal information
-        Proposal memory newProposal = Proposal(description, tokensRequested, proposalId, 0, true, false);
+        Proposal memory newProposal = Proposal(description, tokensRequested, proposalId, currentDistributionId, 0, true, false);
 
         // store new proposal information
         proposals[proposalId] = newProposal;
@@ -164,6 +182,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     }
 
     // TODO: determine if anyone can kick or governance only
+    // TODO: deploy a clone contract with a fresh contract and it's own sorted list OR having a mapping distributionId => SortedList
     function startNewDistributionPeriod() public {
         // TODO: check block number meets conditions and start can proceed
 
@@ -176,7 +195,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
 
         // create QuarterlyDistribution struct
         QuarterlyDistribution storage newDistributionPeriod = distributions[currentDistributionId];
-        newDistributionPeriod.distributionId =  currentDistributionId;
+        newDistributionPeriod.id =  currentDistributionId;
         newDistributionPeriod.startBlock = startBlock;
         newDistributionPeriod.endBlock = endBlock;
 
@@ -191,14 +210,27 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         uint256 screeningPeriodEndBlock = currentDistribution.startBlock + (currentDistribution.endBlock - currentDistribution.startBlock);
         require(block.number < screeningPeriodEndBlock, "screening period ended");
 
-        // TODO: need to override createProposal with storage of the proposal, followed by call to super.propose() for remaining logic
+        // TODO: determine when to calculate voting weight
+        uint256 blockToCountVotesAt = currentDistribution.startBlock;
+
+        // update proposal vote count
         Proposal storage proposal = proposals[proposalId_];
+        proposal.votesReceived += _getVotes(msg.sender, blockToCountVotesAt, "");
+
+        // TODO: add proposal that was voted on to the vote tracking data structure
 
         // record voters vote
         hasScreened[msg.sender] = true;
 
         // vote for the given proposal
         castVote(proposalId_, support_);
+    }
+
+    /**
+     * @notice Determine the 10 proposals which will make it through screening and move on to the funding round.
+     */
+    function determineScreeningOutcome() public {
+
     }
 
     /**

@@ -107,3 +107,10 @@ make deploy-contract contract=<CONTRACT_NAME_HERE> RPC_URL=<RPC_URL_HERE>
 
 *General Governance Research*
 - https://github.com/D3LAB-DAO/Governor-C
+
+*Potential Vote Counting structures*
+- https://github.com/bokkypoobah/BokkyPooBahsRedBlackTreeLibrary
+
+
+*QV*
+- https://github.com/VirginiaBlockchain/QuadraticVotingDapp
