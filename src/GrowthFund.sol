@@ -92,11 +92,11 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
 
     // TODO: deploy a clone contract with a fresh contract and it's own sorted list OR having a mapping distributionId => SortedList
     /**
-     * @dev Mapping of distributionId to proposalId.
-     * @dev distribution.id => Queue
-     * @dev A new queue is created for each distribution period
+     * @dev Mapping of distributionId to a sorted array of 10 proposals with the most votes in the screening period.
+     * @dev distribution.id => Proposal[]
+     * @dev A new array is created for each distribution period
      */
-    // mapping(uint256 => Queue) queues;
+    mapping(uint256 => Proposal[]) topTenProposals;
 
 
     /***************/
@@ -113,12 +113,11 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         uint256 votesCast;                   // total number of votes cast that quarter
         uint256 startBlock;                  // block number of the quarterly distrubtions start
         uint256 endBlock;                    // block number of the quarterly distrubtions end
-        uint256[] proposalIds;               // list of successful proposalIds
     }
 
     struct Proposal {
         string description;      // TODO: may not be necessary if we are also storing proposalId
-        uint256 tokensRequested; // TODO:
+        // uint256 tokensRequested; // TODO: does this need to be tracked?
         uint256 proposalId;      // OZ.Governor proposalId
         uint256 distributionId;  // Id of the distribution period in which the proposal was made
         uint256 votesReceived;   // accumulator of votes received by a proposal
@@ -178,14 +177,15 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     ) public override(Governor) returns (uint256) {
         uint256 proposalId = hashProposal(targets, values, calldatas, keccak256(bytes(description)));
 
+        // TODO: will need to update the value in the calldata
         // TODO: figure out how to decompose tokenId to calculate tokensRequested...
         // If we do decompose, how do we ensure that they did actually supply a `transferTo(address,uint256)`
         // do we need to create it ourselves?
-        uint256 tokensRequested = 0;
+        // uint256 tokensRequested = 0;
 
         // TODO: add the distributionId of the period in which the proposal was submitted
         // create a struct to store proposal information
-        Proposal memory newProposal = Proposal(description, tokensRequested, proposalId, getDistributionId(), 0, true, false);
+        Proposal memory newProposal = Proposal(description, proposalId, getDistributionId(), 0, true, false);
 
         // store new proposal information
         proposals[proposalId] = newProposal;
@@ -217,6 +217,8 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     }
 
     // _castVote() and update growthFund structs tracking progress
+    // TODO: update this to castVote() override with if block that checks voting round and acts accordingly to maintain compatibility with tall.xyz
+    // TODO: then: if screenProposals call _screenProposals, if fundProposals call _fundProposals() 
     function screenProposals(uint256 proposalId_, uint8 support_) public onlyScreenOnce {
         QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
 
@@ -231,7 +233,25 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         Proposal storage proposal = proposals[proposalId_];
         proposal.votesReceived += _getVotes(msg.sender, blockToCountVotesAt, "");
 
+        Proposal[] storage currentTopTenProposals = topTenProposals[getDistributionId()];
+
         // TODO: add proposal that was voted on to the vote tracking data structure
+        // check if additional votes are enough to push the proposal into the top 10
+        if (currentTopTenProposals.length == 0 || currentTopTenProposals.length < 10) {
+            currentTopTenProposals.push(proposal);
+        }
+        else {
+            if (currentTopTenProposals[currentTopTenProposals.length - 1].votesReceived < proposal.votesReceived) {
+                currentTopTenProposals.pop();
+                currentTopTenProposals.push(proposal);
+
+                // sort top ten proposals
+                _sortProposalsByVotes(currentTopTenProposals, 0, int(currentTopTenProposals.length - 1));
+            }
+        }
+
+        // TODO: remove after end of dev process
+        require(topTenProposals[getDistributionId()].length <= 10 && topTenProposals[getDistributionId()].length > 0, "CV:LIST_MALFORMED");
 
         // record voters vote
         hasScreened[msg.sender] = true;
@@ -239,6 +259,32 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         // vote for the given proposal
         castVote(proposalId_, support_);
     }
+
+    /**
+     * @notice Determine the 10 proposals which will make it through screening and move on to the funding round.
+     * @dev    Retrieved from: https://github.com/reflexer-labs/ds-sort/blob/master/src/sort.sol
+     */
+    function _sortProposalsByVotes(Proposal[] storage arr, int left, int right) internal {
+        int i = left;
+        int j = right;
+        if(i==j) return;
+        uint pivot = arr[uint(left + (right - left) / 2)].votesReceived;
+        while (i <= j) {
+            while (arr[uint(i)].votesReceived < pivot) i++;
+            while (pivot < arr[uint(j)].votesReceived) j--;
+            if (i <= j) {
+                (arr[uint(i)], arr[uint(j)]) = (arr[uint(j)], arr[uint(i)]);
+                i++;
+                j--;
+            }
+        }
+        if (left < j)
+            _sortProposalsByVotes(arr, left, j);
+        if (i < right)
+            _sortProposalsByVotes(arr, i, right);
+    }
+    // TODO: compare with existing sort implementation for efficiency
+    // function _bubbleSortProposalsByVotes() private {}
 
     /**
      * @notice Determine the 10 proposals which will make it through screening and move on to the funding round.
@@ -269,6 +315,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         maximumTokenDistributionPercentage = newDistributionPercentage_;
     }
 
+    // TODO: tie this into quarterly distribution starting?
     // TODO: implement custom override
     function votingDelay()
         public
@@ -279,6 +326,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         return super.votingDelay();
     }
 
+    // TODO: tie this into screening period?
     // TODO: implement custom override
     function votingPeriod()
         public
