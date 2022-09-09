@@ -30,6 +30,14 @@ contract GrowthFundTest is Test {
     address internal _tokenHolder3   = makeAddr("_tokenHolder3");
     address internal _tokenHolder4   = makeAddr("_tokenHolder4");
     address internal _tokenHolder5   = makeAddr("_tokenHolder5");
+    address internal _tokenHolder6   = makeAddr("_tokenHolder6");
+    address internal _tokenHolder7   = makeAddr("_tokenHolder7");
+    address internal _tokenHolder8   = makeAddr("_tokenHolder8");
+    address internal _tokenHolder9   = makeAddr("_tokenHolder9");
+    address internal _tokenHolder10   = makeAddr("_tokenHolder10");
+    address internal _tokenHolder11   = makeAddr("_tokenHolder11");
+    address internal _tokenHolder12   = makeAddr("_tokenHolder12");
+    address internal _tokenHolder13   = makeAddr("_tokenHolder13");
 
     uint256 _initialAjnaTokenSupply   = 2_000_000_000 * 1e18;
 
@@ -81,6 +89,14 @@ contract GrowthFundTest is Test {
         _token.transfer(_tokenHolder3, 50_000_000 * 1e18);
         _token.transfer(_tokenHolder4, 50_000_000 * 1e18);
         _token.transfer(_tokenHolder5, 50_000_000 * 1e18);
+        _token.transfer(_tokenHolder6, 50_000_000 * 1e18);
+        _token.transfer(_tokenHolder7, 50_000_000 * 1e18);
+        _token.transfer(_tokenHolder8, 50_000_000 * 1e18);
+        _token.transfer(_tokenHolder9, 50_000_000 * 1e18);
+        _token.transfer(_tokenHolder10, 50_000_000 * 1e18);
+        _token.transfer(_tokenHolder11, 50_000_000 * 1e18);
+        _token.transfer(_tokenHolder12, 50_000_000 * 1e18);
+        _token.transfer(_tokenHolder13, 50_000_000 * 1e18);
 
         // initial minter distributes treasury to growthFund
         _token.transfer(address(_growthFund), 500_000_000 * 1e18);
@@ -117,6 +133,41 @@ contract GrowthFundTest is Test {
         return proposalId;
     }
 
+    // TODO: make token receivers dynamic as well?
+    function _createNProposals(uint n, address tokenReceiver_) internal returns (uint256[] memory) {
+        // generate proposal targets
+        address[] memory ajnaTokenTargets = new address[](1);
+        ajnaTokenTargets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        uint256[] memory returnProposalIds = new uint256[](n);
+
+        for (uint256 i = 1; i < n + 1; ++i) {
+
+            // generate description string
+            string memory descriptionPartOne = "Proposal to transfer ";
+            string memory descriptionPartTwo = Strings.toString(i * 1e18);
+            string memory descriptionPartThree = " tokens to tester address";
+            string memory description = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo, descriptionPartThree));
+
+            // generate calldata
+            bytes[] memory proposalCalldata = new bytes[](1);
+            proposalCalldata[0] = abi.encodeWithSignature(
+                "transfer(address,uint256)",
+                tokenReceiver_,
+                i * 1e18
+            );
+
+            uint256 proposalId = _createProposal(tokenReceiver_, ajnaTokenTargets, values, proposalCalldata, description);
+            returnProposalIds[i - 1] = proposalId;
+
+        }
+        return returnProposalIds;
+    }
+
     function _delegateVotes(address delegator_, address delegatee_) internal {
         changePrank(delegator_);
         vm.expectEmit(true, true, false, true);
@@ -124,6 +175,12 @@ contract GrowthFundTest is Test {
         vm.expectEmit(true, true, false, true);
         emit DelegateVotesChanged(delegatee_, 0, 50_000_000 * 1e18);
         _token.delegate(delegatee_);
+    }
+
+    function _startDistributionPeriod() internal {
+        vm.expectEmit(true, true, false, true);
+        emit QuarterlyDistributionStarted(1, block.number, block.number + _growthFund.distributionPeriodLength());
+        _growthFund.startNewDistributionPeriod();
     }
 
     function _vote(address voter_, uint256 proposalId_, uint8 support_, uint256 votingWeightSnapshotBlock_) internal {
@@ -197,6 +254,9 @@ contract GrowthFundTest is Test {
         _delegateVotes(_tokenHolder2, _tokenHolder2);
         _delegateVotes(_tokenHolder3, _tokenHolder3);
         _delegateVotes(_tokenHolder4, _tokenHolder4);
+
+        // start distribution period
+        _startDistributionPeriod();
 
         // generate proposal targets
         address[] memory ajnaTokenTargets = new address[](1);
@@ -273,55 +333,37 @@ contract GrowthFundTest is Test {
         _delegateVotes(_tokenHolder3, _tokenHolder3);
         _delegateVotes(_tokenHolder4, _tokenHolder4);
 
+        // start distribution period
+        _startDistributionPeriod();
+
         // create 15 proposals paying out tokens to _tokenHolder2
         uint256[] memory proposalIds = _createNProposals(15, _tokenHolder2);
         assertEq(proposalIds.length, 15);
 
-        // TODO: determine how to vote on multiple proposals...
+        vm.roll(110);
+
+        // TODO: add duplicate votes to some of the proposals
+        _vote(_tokenHolder2, proposalIds[0], 1, 100);
+        _vote(_tokenHolder3, proposalIds[1], 1, 100);
+        _vote(_tokenHolder4, proposalIds[2], 1, 100);
 
 
     }
-
-    // TODO: make token receivers dynamic as well?
-    function _createNProposals(uint n, address tokenReceiver_) internal returns (uint256[] memory) {
-        // generate proposal targets
-        address[] memory ajnaTokenTargets = new address[](1);
-        ajnaTokenTargets[0] = address(_token);
-
-        // generate proposal values
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        uint256[] memory returnProposalIds = new uint256[](n);
-
-        for (uint256 i = 1; i < n + 1; ++i) {
-
-            // generate description string
-            string memory descriptionPartOne = "Proposal to transfer ";
-            string memory descriptionPartTwo = Strings.toString(i * 1e18);
-            string memory descriptionPartThree = " tokens to tester address";
-            string memory description = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo, descriptionPartThree));
-
-            // generate calldata
-            bytes[] memory proposalCalldata = new bytes[](1);
-            proposalCalldata[0] = abi.encodeWithSignature(
-                "transfer(address,uint256)",
-                tokenReceiver_,
-                i * 1e18
-            );
-
-            uint256 proposalId = _createProposal(tokenReceiver_, ajnaTokenTargets, values, proposalCalldata, description);
-            returnProposalIds[i - 1] = proposalId;
-
-        }
-        return returnProposalIds;
-    }
-
 
     function testStartNewDistributionPeriod() external {
-        vm.expectEmit(true, true, false, true);
-        emit QuarterlyDistributionStarted(1, 0, 0);
-        _growthFund.startNewDistributionPeriod();
+        uint256 currentDistributionId = _growthFund.getDistributionId();
+        assertEq(currentDistributionId, 0);
+
+        _startDistributionPeriod();
+        currentDistributionId = _growthFund.getDistributionId();
+        assertEq(currentDistributionId, 1);
+
+        (uint256 id, uint256 tokensDistributed, uint256 votesCast, uint256 startBlock, uint256 endBlock) = _growthFund.getDistributionPeriodInfo(currentDistributionId);
+        assertEq(id, currentDistributionId);
+        assertEq(tokensDistributed, 0);
+        assertEq(votesCast, 0);
+        assertEq(startBlock, block.number);
+        assertEq(endBlock, block.number + _growthFund.distributionPeriodLength());
     }
 
     function testSetMaximumQuarterlyTokenDistribution() external {

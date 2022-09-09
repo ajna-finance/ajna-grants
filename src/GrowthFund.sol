@@ -15,6 +15,8 @@ import { IVotes } from "@oz/governance/utils/IVotes.sol";
 
 import { Maths } from "./libraries/Maths.sol";
 
+import { console } from "@std/console.sol";
+
 
 // TODO: figure out how to allow partial votes -> need to override cast votes to allocate only some amount of voting power?
 contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, GovernorVotes, GovernorVotesQuorumFraction {
@@ -57,6 +59,11 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
      * @dev Stored as a Wad percentage.
      */
     uint256 public maximumTokenDistributionPercentage = Maths.wad(2) / Maths.wad(100);
+
+    /**
+     * @notice Length of the distribution period in blocks.
+     */
+    uint256 public distributionPeriodLength = 183272; // 4 weeks
 
     // TODO: reset this at the start of each new quarter
     /**
@@ -169,6 +176,20 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         return _distributionIdCheckpoints.getAtBlock(blockNumber);
     }
 
+    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, uint256) {
+        QuarterlyDistribution memory distribution = distributions[distributionId_];
+        return (
+            distribution.id,
+            distribution.tokensDistributed,
+            distribution.votesCast,
+            distribution.startBlock,
+            distribution.endBlock
+        );
+    }
+
+    // TODO: implement this
+    function getProposalInfo() external view {}
+
     function propose(
         address[] memory targets,
         uint256[] memory values,
@@ -195,12 +216,12 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
 
     // TODO: determine if anyone can kick or governance only
     // TODO: deploy a clone contract with a fresh contract and it's own sorted list OR having a mapping distributionId => SortedList
-    function startNewDistributionPeriod() public {
+    function startNewDistributionPeriod() public returns (uint256) {
         // TODO: check block number meets conditions and start can proceed
 
         // TODO: calculate starting and ending block properly
-        uint256 startBlock = 0; // TODO: should this be the current block?
-        uint256 endBlock = 0; // TODO: startBlock += screeningPeriodLength (controlled by governance)
+        uint256 startBlock = block.number; // TODO: should this be the current block?
+        uint256 endBlock = startBlock + distributionPeriodLength; // TODO:  (controlled by governance) //TODO: update this... AND TEST IN testStartNewDistributionPeriod
 
         // set new value for currentDistributionId
         _setNewDistributionId();
@@ -213,25 +234,34 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         newDistributionPeriod.startBlock = startBlock;
         newDistributionPeriod.endBlock = endBlock;
 
+        // reset quarterly votes counter
+        quarterlyVotesCounter = 0;
+
         emit QuarterlyDistributionStarted(currentDistributionId, startBlock, endBlock);
+        return newDistributionPeriod.id;
     }
 
+    // TODO: restrict voting to the distribution period?
     // _castVote() and update growthFund structs tracking progress
     // TODO: update this to castVote() override with if block that checks voting round and acts accordingly to maintain compatibility with tall.xyz
     // TODO: then: if screenProposals call _screenProposals, if fundProposals call _fundProposals() 
-    function screenProposals(uint256 proposalId_, uint8 support_) public onlyScreenOnce {
+    function castVote(uint256 proposalId_, uint8 support_) public override(Governor) onlyScreenOnce returns(uint256) {
         QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
 
         // TODO: determine a better way to calculate the screening period block range
-        uint256 screeningPeriodEndBlock = currentDistribution.startBlock + (currentDistribution.endBlock - currentDistribution.startBlock);
+        uint256 screeningPeriodEndBlock = currentDistribution.startBlock + (currentDistribution.endBlock - currentDistribution.startBlock) / 2;
         require(block.number < screeningPeriodEndBlock, "screening period ended");
 
         // TODO: determine when to calculate voting weight
         uint256 blockToCountVotesAt = currentDistribution.startBlock;
 
         // update proposal vote count
+        uint256 votes = _getVotes(msg.sender, blockToCountVotesAt, "");
         Proposal storage proposal = proposals[proposalId_];
-        proposal.votesReceived += _getVotes(msg.sender, blockToCountVotesAt, "");
+        proposal.votesReceived += votes;
+
+        // increment quarterly votes counter
+        quarterlyVotesCounter += votes;
 
         Proposal[] storage currentTopTenProposals = topTenProposals[getDistributionId()];
 
@@ -257,7 +287,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         hasScreened[msg.sender] = true;
 
         // vote for the given proposal
-        castVote(proposalId_, support_);
+        return super.castVote(proposalId_, support_);
     }
 
     /**
@@ -290,7 +320,12 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
      * @notice Determine the 10 proposals which will make it through screening and move on to the funding round.
      */
     function determineScreeningOutcome() public {
+        QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
 
+        currentDistribution.votesCast = quarterlyVotesCounter;
+        currentDistribution.tokensDistributed = maximumQuarterlyDistribution();
+
+        // TODO: finish implementing -> need to split into end functions for each sub period
     }
 
     /**
@@ -317,12 +352,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
 
     // TODO: tie this into quarterly distribution starting?
     // TODO: implement custom override
-    function votingDelay()
-        public
-        view
-        override(IGovernor, GovernorSettings)
-        returns (uint256)
-    {
+    function votingDelay() public view override(IGovernor, GovernorSettings) returns (uint256) {
         return super.votingDelay();
     }
 
