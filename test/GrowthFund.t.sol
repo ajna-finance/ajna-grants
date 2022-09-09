@@ -11,11 +11,13 @@ import { SigUtils } from "./utils/SigUtils.sol";
 import { IGovernor } from "@oz/governance/IGovernor.sol";
 import { IVotes } from "@oz/governance/utils/IVotes.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
+import { Strings } from "@oz/utils/Strings.sol"; // used for createNProposals
 
 contract GrowthFundTest is Test {
 
     // used to cast 256 to uint64 to match emit expectations
     using SafeCast for uint256;
+    using Strings for string;
 
     AjnaToken  internal  _token;
     IVotes     internal  _votingToken;
@@ -261,6 +263,7 @@ contract GrowthFundTest is Test {
     }
 
     // TODO: figure out a good way to randomly generate proposals...? Will need to create at least 15
+    // TODO: need to test sort order
     /**
      *  @notice 4 voters consider 15 different proposals. 10 Make it through to the funding stage.
      */    
@@ -269,7 +272,51 @@ contract GrowthFundTest is Test {
         _delegateVotes(_tokenHolder2, _tokenHolder2);
         _delegateVotes(_tokenHolder3, _tokenHolder3);
         _delegateVotes(_tokenHolder4, _tokenHolder4);
+
+        // create 15 proposals paying out tokens to _tokenHolder2
+        uint256[] memory proposalIds = _createNProposals(15, _tokenHolder2);
+        assertEq(proposalIds.length, 15);
+
+        // TODO: determine how to vote on multiple proposals...
+
+
     }
+
+    // TODO: make token receivers dynamic as well?
+    function _createNProposals(uint n, address tokenReceiver_) internal returns (uint256[] memory) {
+        // generate proposal targets
+        address[] memory ajnaTokenTargets = new address[](1);
+        ajnaTokenTargets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        uint256[] memory returnProposalIds = new uint256[](n);
+
+        for (uint256 i = 1; i < n + 1; ++i) {
+
+            // generate description string
+            string memory descriptionPartOne = "Proposal to transfer ";
+            string memory descriptionPartTwo = Strings.toString(i * 1e18);
+            string memory descriptionPartThree = " tokens to tester address";
+            string memory description = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo, descriptionPartThree));
+
+            // generate calldata
+            bytes[] memory proposalCalldata = new bytes[](1);
+            proposalCalldata[0] = abi.encodeWithSignature(
+                "transfer(address,uint256)",
+                tokenReceiver_,
+                i * 1e18
+            );
+
+            uint256 proposalId = _createProposal(tokenReceiver_, ajnaTokenTargets, values, proposalCalldata, description);
+            returnProposalIds[i - 1] = proposalId;
+
+        }
+        return returnProposalIds;
+    }
+
 
     function testStartNewDistributionPeriod() external {
         vm.expectEmit(true, true, false, true);

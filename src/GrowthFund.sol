@@ -222,7 +222,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     function screenProposals(uint256 proposalId_, uint8 support_) public onlyScreenOnce {
         QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
 
-        // TODO: determine a better way to calculate the screening period
+        // TODO: determine a better way to calculate the screening period block range
         uint256 screeningPeriodEndBlock = currentDistribution.startBlock + (currentDistribution.endBlock - currentDistribution.startBlock);
         require(block.number < screeningPeriodEndBlock, "screening period ended");
 
