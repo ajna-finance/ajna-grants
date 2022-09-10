@@ -65,7 +65,6 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
      */
     uint256 public distributionPeriodLength = 183272; // 4 weeks
 
-    // TODO: reset this at the start of each new quarter
     /**
      * @notice Accumulator tracking the number of votes cast in a quarter.
      * @dev Reset to 0 at the start of each new quarter.
@@ -190,6 +189,10 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     // TODO: implement this
     function getProposalInfo() external view {}
 
+    function getTopTenProposals(uint256 distributionId_) external view returns (Proposal[] memory) {
+        return topTenProposals[distributionId_];
+    }
+
     function propose(
         address[] memory targets,
         uint256[] memory values,
@@ -241,7 +244,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         return newDistributionPeriod.id;
     }
 
-    // TODO: restrict voting to the distribution period?
+    // TODO: restrict voting through this method to the distribution period? -> may need to place this overriding logic in _castVote instead
     // _castVote() and update growthFund structs tracking progress
     // TODO: update this to castVote() override with if block that checks voting round and acts accordingly to maintain compatibility with tall.xyz
     // TODO: then: if screenProposals call _screenProposals, if fundProposals call _fundProposals() 
@@ -265,18 +268,27 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
 
         Proposal[] storage currentTopTenProposals = topTenProposals[getDistributionId()];
 
-        // TODO: add proposal that was voted on to the vote tracking data structure
         // check if additional votes are enough to push the proposal into the top 10
         if (currentTopTenProposals.length == 0 || currentTopTenProposals.length < 10) {
             currentTopTenProposals.push(proposal);
         }
         else {
-            if (currentTopTenProposals[currentTopTenProposals.length - 1].votesReceived < proposal.votesReceived) {
+            int indexInArray = _findInArray(proposal.proposalId, currentTopTenProposals);
+
+            // proposal is already in the array
+            if (indexInArray != -1) {
+                currentTopTenProposals[uint256(indexInArray)] = proposal;
+
+                // sort top ten proposals
+                _quickSortProposalsByVotes(currentTopTenProposals, 0, int(currentTopTenProposals.length - 1));
+            }
+            // proposal isn't already in the array
+            else if(currentTopTenProposals[currentTopTenProposals.length - 1].votesReceived < proposal.votesReceived) {
                 currentTopTenProposals.pop();
                 currentTopTenProposals.push(proposal);
 
                 // sort top ten proposals
-                _sortProposalsByVotes(currentTopTenProposals, 0, int(currentTopTenProposals.length - 1));
+                _quickSortProposalsByVotes(currentTopTenProposals, 0, int(currentTopTenProposals.length - 1));
             }
         }
 
@@ -290,31 +302,48 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         return super.castVote(proposalId_, support_);
     }
 
+    // TODO: move this into sort library
+    // return the index of the proposalId in the array, else -1
+    function _findInArray(uint256 proposalId, Proposal[] storage array) internal returns (int256 index) {
+        index = -1; // default value indicating proposalId not in the array
+
+        for (int i = 0; i < int(array.length);) {
+            if (array[uint256(i)].proposalId == proposalId) {
+                index = i;
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    // TODO: move this into sort library
     /**
      * @notice Determine the 10 proposals which will make it through screening and move on to the funding round.
-     * @dev    Retrieved from: https://github.com/reflexer-labs/ds-sort/blob/master/src/sort.sol
+     * @dev    Implements the descending quicksort algorithm from this discussion: https://gist.github.com/subhodi/b3b86cc13ad2636420963e692a4d896f#file-quicksort-sol-L12
      */
-    function _sortProposalsByVotes(Proposal[] storage arr, int left, int right) internal {
+    function _quickSortProposalsByVotes(Proposal[] storage arr, int left, int right) internal {
         int i = left;
         int j = right;
-        if(i==j) return;
+        if (i == j) return;
         uint pivot = arr[uint(left + (right - left) / 2)].votesReceived;
         while (i <= j) {
-            while (arr[uint(i)].votesReceived < pivot) i++;
-            while (pivot < arr[uint(j)].votesReceived) j--;
+            while (arr[uint(i)].votesReceived > pivot) i++;
+            while (pivot > arr[uint(j)].votesReceived) j--;
             if (i <= j) {
-                (arr[uint(i)], arr[uint(j)]) = (arr[uint(j)], arr[uint(i)]);
+                Proposal memory temp = arr[uint(i)];
+                arr[uint(i)] = arr[uint(j)];
+                arr[uint(j)] = temp;
                 i++;
                 j--;
             }
         }
         if (left < j)
-            _sortProposalsByVotes(arr, left, j);
+            _quickSortProposalsByVotes(arr, left, j);
         if (i < right)
-            _sortProposalsByVotes(arr, i, right);
+            _quickSortProposalsByVotes(arr, i, right);
     }
-    // TODO: compare with existing sort implementation for efficiency
-    // function _bubbleSortProposalsByVotes() private {}
 
     /**
      * @notice Determine the 10 proposals which will make it through screening and move on to the funding round.

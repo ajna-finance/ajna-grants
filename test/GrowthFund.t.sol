@@ -38,6 +38,7 @@ contract GrowthFundTest is Test {
     address internal _tokenHolder11   = makeAddr("_tokenHolder11");
     address internal _tokenHolder12   = makeAddr("_tokenHolder12");
     address internal _tokenHolder13   = makeAddr("_tokenHolder13");
+    address internal _tokenHolder14   = makeAddr("_tokenHolder14");
 
     uint256 _initialAjnaTokenSupply   = 2_000_000_000 * 1e18;
 
@@ -97,6 +98,7 @@ contract GrowthFundTest is Test {
         _token.transfer(_tokenHolder11, 50_000_000 * 1e18);
         _token.transfer(_tokenHolder12, 50_000_000 * 1e18);
         _token.transfer(_tokenHolder13, 50_000_000 * 1e18);
+        _token.transfer(_tokenHolder14, 50_000_000 * 1e18);
 
         // initial minter distributes treasury to growthFund
         _token.transfer(address(_growthFund), 500_000_000 * 1e18);
@@ -332,6 +334,16 @@ contract GrowthFundTest is Test {
         _delegateVotes(_tokenHolder2, _tokenHolder2);
         _delegateVotes(_tokenHolder3, _tokenHolder3);
         _delegateVotes(_tokenHolder4, _tokenHolder4);
+        _delegateVotes(_tokenHolder5, _tokenHolder5);
+        _delegateVotes(_tokenHolder6, _tokenHolder6);
+        _delegateVotes(_tokenHolder7, _tokenHolder7);
+        _delegateVotes(_tokenHolder8, _tokenHolder8);
+        _delegateVotes(_tokenHolder9, _tokenHolder9);
+        _delegateVotes(_tokenHolder10, _tokenHolder10);
+        _delegateVotes(_tokenHolder11, _tokenHolder11);
+        _delegateVotes(_tokenHolder12, _tokenHolder12);
+        _delegateVotes(_tokenHolder13, _tokenHolder13);
+        _delegateVotes(_tokenHolder14, _tokenHolder14);
 
         // start distribution period
         _startDistributionPeriod();
@@ -342,10 +354,29 @@ contract GrowthFundTest is Test {
 
         vm.roll(110);
 
-        // TODO: add duplicate votes to some of the proposals
+        // TODO: add additional duplicate votes to some of the proposals
         _vote(_tokenHolder2, proposalIds[0], 1, 100);
         _vote(_tokenHolder3, proposalIds[1], 1, 100);
         _vote(_tokenHolder4, proposalIds[2], 1, 100);
+        _vote(_tokenHolder5, proposalIds[3], 1, 100);
+        _vote(_tokenHolder6, proposalIds[4], 1, 100);
+        _vote(_tokenHolder7, proposalIds[5], 1, 100);
+        _vote(_tokenHolder8, proposalIds[6], 1, 100);
+        _vote(_tokenHolder9, proposalIds[7], 1, 100);
+        _vote(_tokenHolder10, proposalIds[8], 1, 100);
+        _vote(_tokenHolder11, proposalIds[9], 1, 100);
+        _vote(_tokenHolder12, proposalIds[1], 1, 100);
+        _vote(_tokenHolder13, proposalIds[1], 1, 100);
+        _vote(_tokenHolder14, proposalIds[5], 1, 100);
+
+        // check topTenProposals array
+        GrowthFund.Proposal[] memory proposals = _growthFund.getTopTenProposals(_growthFund.getDistributionId());
+        assertEq(proposals.length, 10);
+        assertEq(proposals[0].proposalId, proposalIds[1]);
+        assertEq(proposals[0].votesReceived, 150_000_000 * 1e18);
+
+        assertEq(proposals[1].proposalId, proposalIds[5]);
+        assertEq(proposals[1].votesReceived, 100_000_000 * 1e18);
 
 
     }
