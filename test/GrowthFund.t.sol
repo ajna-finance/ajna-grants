@@ -221,6 +221,14 @@ contract GrowthFundTest is Test {
         assertGt(_votingTokenPowerViaInterface, 0);
     }
 
+    function testGetVotingPowerScreeningStage() external {
+
+    }
+
+    function testGetVotingPowerFundingStage() external {
+
+    }
+
     function testPropose() external {
         // generate proposal targets
         address[] memory ajnaTokenTargets = new address[](1);
@@ -324,12 +332,10 @@ contract GrowthFundTest is Test {
         assertEq(_token.balanceOf(address(_growthFund)), 499_999_999 * 1e18);
     }
 
-    // TODO: figure out a good way to randomly generate proposals...? Will need to create at least 15
-    // TODO: need to test sort order
     /**
      *  @notice 4 voters consider 15 different proposals. 10 Make it through to the funding stage.
      */    
-    function testVoteAndScreenProposals() external {
+    function testScreenProposalsCheckSorting() external {
         // tokenholders self delegate their tokens to enable voting on the proposal
         _delegateVotes(_tokenHolder2, _tokenHolder2);
         _delegateVotes(_tokenHolder3, _tokenHolder3);

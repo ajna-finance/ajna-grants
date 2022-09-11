@@ -131,6 +131,18 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         bool succeeded;
     }
 
+    struct QuadraticVoter {
+        uint256 budgetRemaining; // remaining voting budget
+        bytes32 commitment;      // commitment hash enabling scret voting
+    }
+
+    // TODO: use this enum instead of block number calculations?
+    enum DistributionPhase {
+        Screening,
+        Funding,
+        Pending // TODO: rename - indicate the period between phases and a new distribution period
+    }
+
     // TODO: replace with governorCountingSimple.hasVoted?
     /**
      * @dev Restrict a voter to only voting on one proposal during the screening stage.
@@ -244,111 +256,122 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         return newDistributionPeriod.id;
     }
 
-    // TODO: restrict voting through this method to the distribution period? -> may need to place this overriding logic in _castVote instead
+    // TODO: restrict voting through this method to the distribution period? -> may need to place this overriding logic in _castVote instead and ovverride other voting methods to channel through here
     // _castVote() and update growthFund structs tracking progress
-    // TODO: update this to castVote() override with if block that checks voting round and acts accordingly to maintain compatibility with tall.xyz
-    // TODO: then: if screenProposals call _screenProposals, if fundProposals call _fundProposals() 
-    function castVote(uint256 proposalId_, uint8 support_) public override(Governor) onlyScreenOnce returns(uint256) {
+    function castVote(uint256 proposalId_, uint8 support_) public override(Governor) onlyScreenOnce returns (uint256) {
         QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
-
-        // TODO: determine a better way to calculate the screening period block range
-        uint256 screeningPeriodEndBlock = currentDistribution.startBlock + (currentDistribution.endBlock - currentDistribution.startBlock) / 2;
-        require(block.number < screeningPeriodEndBlock, "screening period ended");
-
-        // TODO: determine when to calculate voting weight
-        uint256 blockToCountVotesAt = currentDistribution.startBlock;
-
-        // update proposal vote count
-        uint256 votes = _getVotes(msg.sender, blockToCountVotesAt, "");
+        Proposal[] storage currentTopTenProposals = topTenProposals[getDistributionId()];
         Proposal storage proposal = proposals[proposalId_];
-        proposal.votesReceived += votes;
+
+        bytes memory stage;
+        uint256 screeningPeriodEndBlock = currentDistribution.startBlock + (currentDistribution.endBlock - currentDistribution.startBlock) / 2;
+        uint256 blockToCountVotesAt;
+        uint256 votes;
+
+        // screening stage
+        if (block.number >= currentDistribution.startBlock && block.number <= screeningPeriodEndBlock) {
+            // determine stage and available screening votes
+            stage = bytes("Screening");
+            blockToCountVotesAt = currentDistribution.startBlock;
+            votes = _getVotes(msg.sender, blockToCountVotesAt, stage);
+
+            return _screeningVote(currentTopTenProposals, proposal, support_, votes);
+        }
+
+        // funding stage
+        else if (block.number > screeningPeriodEndBlock && block.number <= currentDistribution.endBlock) {
+            stage = bytes("Funding");
+            blockToCountVotesAt = screeningPeriodEndBlock + 1; // assume funding stage starts immediatly after screening stage
+            votes = _getVotes(msg.sender, blockToCountVotesAt, stage);
+
+        }
+
+        // all other votes -> governance? 
+        // TODO: determine how this should be restricted
+
+
+    }
+
+    function _fundingVote() internal {
+
+    }
+
+    /**
+     * @notice Vote on a proposal in the screening stage of the Distribution Period.
+     */
+    function _screeningVote(Proposal[] storage currentTopTenProposals_, Proposal storage proposal_, uint8 support_, uint256 votes) internal returns (uint256) {
+        // TODO: bring votes calculation into this internal function?
+
+        // update proposal votes counter
+        proposal_.votesReceived += votes;
 
         // increment quarterly votes counter
         quarterlyVotesCounter += votes;
 
-        Proposal[] storage currentTopTenProposals = topTenProposals[getDistributionId()];
-
         // check if additional votes are enough to push the proposal into the top 10
-        if (currentTopTenProposals.length == 0 || currentTopTenProposals.length < 10) {
-            currentTopTenProposals.push(proposal);
+        if (currentTopTenProposals_.length == 0 || currentTopTenProposals_.length < 10) {
+            currentTopTenProposals_.push(proposal_);
         }
         else {
-            int indexInArray = _findInArray(proposal.proposalId, currentTopTenProposals);
+            int indexInArray = _findInArray(proposal_.proposalId, currentTopTenProposals_);
 
             // proposal is already in the array
             if (indexInArray != -1) {
-                currentTopTenProposals[uint256(indexInArray)] = proposal;
+                currentTopTenProposals_[uint256(indexInArray)] = proposal_;
 
                 // sort top ten proposals
-                _quickSortProposalsByVotes(currentTopTenProposals, 0, int(currentTopTenProposals.length - 1));
+                _quickSortProposalsByVotes(currentTopTenProposals_, 0, int(currentTopTenProposals_.length - 1));
             }
             // proposal isn't already in the array
-            else if(currentTopTenProposals[currentTopTenProposals.length - 1].votesReceived < proposal.votesReceived) {
-                currentTopTenProposals.pop();
-                currentTopTenProposals.push(proposal);
+            else if(currentTopTenProposals_[currentTopTenProposals_.length - 1].votesReceived < proposal_.votesReceived) {
+                currentTopTenProposals_.pop();
+                currentTopTenProposals_.push(proposal_);
 
                 // sort top ten proposals
-                _quickSortProposalsByVotes(currentTopTenProposals, 0, int(currentTopTenProposals.length - 1));
+                _quickSortProposalsByVotes(currentTopTenProposals_, 0, int(currentTopTenProposals_.length - 1));
             }
         }
 
-        // TODO: remove after end of dev process
+        // ensure proposal list is within expected bounds
         require(topTenProposals[getDistributionId()].length <= 10 && topTenProposals[getDistributionId()].length > 0, "CV:LIST_MALFORMED");
 
         // record voters vote
         hasScreened[msg.sender] = true;
 
         // vote for the given proposal
-        return super.castVote(proposalId_, support_);
-    }
-
-    // TODO: move this into sort library
-    // return the index of the proposalId in the array, else -1
-    function _findInArray(uint256 proposalId, Proposal[] storage array) internal returns (int256 index) {
-        index = -1; // default value indicating proposalId not in the array
-
-        for (int i = 0; i < int(array.length);) {
-            if (array[uint256(i)].proposalId == proposalId) {
-                index = i;
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    // TODO: move this into sort library
-    /**
-     * @notice Determine the 10 proposals which will make it through screening and move on to the funding round.
-     * @dev    Implements the descending quicksort algorithm from this discussion: https://gist.github.com/subhodi/b3b86cc13ad2636420963e692a4d896f#file-quicksort-sol-L12
-     */
-    function _quickSortProposalsByVotes(Proposal[] storage arr, int left, int right) internal {
-        int i = left;
-        int j = right;
-        if (i == j) return;
-        uint pivot = arr[uint(left + (right - left) / 2)].votesReceived;
-        while (i <= j) {
-            while (arr[uint(i)].votesReceived > pivot) i++;
-            while (pivot > arr[uint(j)].votesReceived) j--;
-            if (i <= j) {
-                Proposal memory temp = arr[uint(i)];
-                arr[uint(i)] = arr[uint(j)];
-                arr[uint(j)] = temp;
-                i++;
-                j--;
-            }
-        }
-        if (left < j)
-            _quickSortProposalsByVotes(arr, left, j);
-        if (i < right)
-            _quickSortProposalsByVotes(arr, i, right);
+        return super.castVote(proposal_.proposalId, support_);
     }
 
     /**
-     * @notice Determine the 10 proposals which will make it through screening and move on to the funding round.
+     * @notice Calculates the number of votes available to an account depending on the current stage of the Distribution Period.
      */
-    function determineScreeningOutcome() public {
+    function _getVotes(address account_, uint256 blockNumber_, bytes memory stage_) internal view override(Governor, GovernorVotes) returns (uint256) {
+        // if block number within screening period 1 token 1 vote
+        if (keccak256(stage_) == keccak256(bytes("Screening"))) {
+            return super._getVotes(account_, blockNumber_, "");
+        }
+        // else if in funding period quadratic formula squares the number of votes
+        else if (keccak256(stage_) == keccak256(bytes("Funding"))) {
+            return (super._getVotes(account_, blockNumber_, "") ** 2);
+        }
+        // else one token one vote for all other voting
+        else {
+            return super._getVotes(account_, blockNumber_, "");
+        }
+    }
+
+    // TODO: implement this -> uses enums instead of block number to determine what phase for voting
+    //         DistributionPhase phase = distributionPhase()
+    function distributionPhase(uint256 distributionId_) public view returns (DistributionPhase) {
+    }
+
+    // TODO: potentially will want to override Governor.execute()
+    /**
+     * @notice Execute proposals and distribute funds to successful proposals
+     */
+    function executeDistribution() public {
+        // TODO: how to given block height if it's ok to distribute?
+
         QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
 
         currentDistribution.votesCast = quarterlyVotesCounter;
@@ -432,6 +455,51 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
      */
     function _setExtraordinaryFundingQuorum() internal {}
 
+    /*************************/
+    /*** Sorting Functions ***/
+    /*************************/
 
+    // TODO: move this into sort library
+    // return the index of the proposalId in the array, else -1
+    function _findInArray(uint256 proposalId, Proposal[] storage array) internal returns (int256 index) {
+        index = -1; // default value indicating proposalId not in the array
+
+        for (int i = 0; i < int(array.length);) {
+            if (array[uint256(i)].proposalId == proposalId) {
+                index = i;
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    // TODO: move this into sort library
+    /**
+     * @notice Determine the 10 proposals which will make it through screening and move on to the funding round.
+     * @dev    Implements the descending quicksort algorithm from this discussion: https://gist.github.com/subhodi/b3b86cc13ad2636420963e692a4d896f#file-quicksort-sol-L12
+     */
+    function _quickSortProposalsByVotes(Proposal[] storage arr, int left, int right) internal {
+        int i = left;
+        int j = right;
+        if (i == j) return;
+        uint pivot = arr[uint(left + (right - left) / 2)].votesReceived;
+        while (i <= j) {
+            while (arr[uint(i)].votesReceived > pivot) i++;
+            while (pivot > arr[uint(j)].votesReceived) j--;
+            if (i <= j) {
+                Proposal memory temp = arr[uint(i)];
+                arr[uint(i)] = arr[uint(j)];
+                arr[uint(j)] = temp;
+                i++;
+                j--;
+            }
+        }
+        if (left < j)
+            _quickSortProposalsByVotes(arr, left, j);
+        if (i < right)
+            _quickSortProposalsByVotes(arr, i, right);
+    }
 
 }
