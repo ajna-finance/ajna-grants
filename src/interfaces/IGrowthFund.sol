@@ -27,6 +27,33 @@ interface IGrowthFund {
      */
     error AlreadyVoted();
 
+    /**
+     * @notice Non Ajna token contract address specified in target list.
+     */
+    error InvalidTarget();
+
+    /**
+     * @notice Non-zero amount specified in values array.
+     * @dev This parameter is only used for sending ETH which the GrowthFund doesn't utilize.
+     */
+    error InvalidValues();
+
+    /**
+     * @notice Calldata for a method other than `transfer(address,uint256) was provided in a proposal.
+     * @dev seth sig "transfer(address,uint256)" == 0xa9059cbb.
+     */
+    error InvalidSignature();
+
+    /**
+     * @notice User attempted to execute a proposal that wasn't succesfully funded.
+     */
+    error ProposalNotFunded();
+
+    /**
+     * @notice Proposal requests more tokens than the previous maximum quarterly distribution.
+     */
+    error RequestedTooManyTokens();
+
     /***************/
     /*** Structs ***/
     /***************/

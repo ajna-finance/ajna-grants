@@ -20,7 +20,6 @@ import { IGrowthFund } from "./interfaces/IGrowthFund.sol";
 import { console } from "@std/console.sol";
 
 
-// TODO: figure out how to allow partial votes -> need to override cast votes to allocate only some amount of voting power?
 contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSettings, GovernorVotes, GovernorVotesQuorumFraction {
 
     using Checkpoints for Checkpoints.History;
@@ -77,7 +76,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
      */
     mapping(uint256 => Proposal) proposals;
 
-    // TODO: deploy a clone contract with a fresh contract and it's own sorted list OR having a mapping distributionId => SortedList
     /**
      * @dev Mapping of distributionId to a sorted array of 10 proposals with the most votes in the screening period.
      * @dev distribution.id => Proposal[]
@@ -97,10 +95,31 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
 
     // TODO: replace with governorCountingSimple.hasVoted?
     /**
-     * @dev Restrict a voter to only voting on one proposal during the screening stage.
+     * @notice Restrict a voter to only voting on one proposal during the screening stage.
      */
     modifier onlyScreenOnce() {
         if (hasScreened[msg.sender]) revert AlreadyVoted();
+        _;
+    }
+
+    /**
+     * @notice Ensure a proposal matches GrowthFund specifications.
+     * @dev Targets_ should be the Ajna token contract, values_ should be 0, and calldatas_ should be transfer().
+     * @param targets_   List of contract addresses the proposal interacts with.
+     * @param values_    List of wei amounts to call the target address with.
+     * @param calldatas_ List of calldatas to execute if the proposal is successful.
+     */
+    modifier checkProposal(address[] memory targets_, uint256[] memory values_, bytes[] calldata calldatas_) {
+        for (uint i = 0; i < targets_.length;) {
+
+            if (targets_[i] != votingToken) revert InvalidTarget();
+            if (values_[i] != 0) revert InvalidValues();
+            if (bytes4(calldatas_[i][:4]) != bytes4(0xa9059cbb)) revert InvalidSignature();
+
+            unchecked {
+                ++i;
+            }
+        }
         _;
     }
 
@@ -141,6 +160,11 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         return _distributionIdCheckpoints.getAtBlock(blockNumber);
     }
 
+    // TODO: implement this -> uses enums instead of block number to determine what phase for voting
+    //         DistributionPhase phase = distributionPhase()
+    function getDistributionPhase(uint256 distributionId_) public view returns (DistributionPhase) {
+    }
+
     function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, uint256) {
         QuarterlyDistribution memory distribution = distributions[distributionId_];
         return (
@@ -168,28 +192,23 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         return topTenProposals[distributionId_];
     }
 
-    // TODO: call out to propose() down below with additional field for tokens requested
-    function distributionProposal() public returns (uint256) {}
-
     function propose(
         address[] memory targets,
         uint256[] memory values,
-        bytes[] memory calldatas,
+        bytes[] calldata calldatas,
         string memory description
-    ) public override(Governor) returns (uint256) {
+    ) public override(Governor) checkProposal(targets, values, calldatas) returns (uint256) {
         uint256 proposalId = hashProposal(targets, values, calldatas, keccak256(bytes(description)));
-
-        // TODO: block proposals from being created that would take more than the maximumQuarterlyDistribution
-        // TODO: will need to update the value in the calldata
-        // TODO: figure out how to decompose tokenId to calculate tokensRequested...
-        // If we do decompose, how do we ensure that they did actually supply a `transferTo(address,uint256)`
-        // do we need to create it ourselves?
-        int256 tokensRequested = 0;
         int256 fundingReceived = 0;
 
-        // TODO: add the distributionId of the period in which the proposal was submitted
+        // retrieve tokensRequested from proposal calldata
+        (address recipient, uint256 tokensRequested) = abi.decode(calldatas[0][4:], (address, uint256));
+
+        // TODO: check tokensRequested is less than the previous maximumQuarterlyDistribution
+        // if (tokensRequested > maximumQuarterlyDistribution()) revert RequestedTooManyTokens();
+
         // create a struct to store proposal information
-        Proposal memory newProposal = Proposal(proposalId, getDistributionId(), 0, tokensRequested, fundingReceived, false);
+        Proposal memory newProposal = Proposal(proposalId, getDistributionId(), 0, int256(tokensRequested), fundingReceived, false);
 
         // store new proposal information
         proposals[proposalId] = newProposal;
@@ -230,8 +249,10 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         return newDistributionPeriod.id;
     }
 
-    // TODO: restrict voting through this method to the distribution period? -> may need to place this overriding logic in _castVote instead and ovverride other voting methods to channel through here
-    // TODO: may want to replace the conditional checks of stage here with the above enum
+    // TODO: override _countVote()
+
+    // TODO: ensure all castVote methods channel through this overrided method
+    // TODO: may want to replace the conditional checks of stage here with the DistributionPhase enum
     // _castVote() and update growthFund structs tracking progress
     function _castVote(uint256 proposalId_, address account_, uint8 support_, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
         QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
@@ -377,25 +398,38 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         }
     }
 
-    // TODO: implement this -> uses enums instead of block number to determine what phase for voting
-    //         DistributionPhase phase = distributionPhase()
-    function distributionPhase(uint256 distributionId_) public view returns (DistributionPhase) {
+    // TODO: create flows for distribution round execution, and governance parameter updates
+    function execute(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash) public payable override(Governor) returns (uint256) {
+        uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash);
+
+        // check if proposal to execute is in the top 10, and status succeeded
+        if (_findInArray(proposalId, topTenProposals[getDistributionId()]) == -1 || !proposals[proposalId].succeeded) revert ProposalNotFunded(); 
+
+        super.execute(targets, values, calldatas, descriptionHash);
     }
 
-    // TODO: potentially will want to override Governor.execute()
+    // TODO: is this function necessary -> intention is to max execute proposals
     /**
      * @notice Execute proposals and distribute funds to successful proposals
      */
-    function executeDistribution() public {
-        // TODO: how to given block height if it's ok to distribute?
+    // function executeDistribution() public {
+    //     // TODO: how to know given block height if it's ok to distribute?
+    //     // check if the last distribution phase has ended and that proposals remain to be executed
 
-        QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
+    //     QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
 
-        currentDistribution.votesCast = quarterlyVotesCounter;
-        currentDistribution.tokensDistributed = maximumQuarterlyDistribution();
+    //     currentDistribution.votesCast = quarterlyVotesCounter;
+    //     currentDistribution.tokensDistributed = maximumQuarterlyDistribution();
 
-        // TODO: finish implementing -> need to split into end functions for each sub period
-    }
+    //     Proposal[] storage currentTopTenProposals = topTenProposals[getDistributionId()];
+
+    //     for (uint256 i = 0; i < currentTopTenProposals.length;) {
+
+    //         unchecked {
+    //             ++i;
+    //         }
+    //     }
+    // }
 
     /**
      * @notice Get the current percentage of the maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
@@ -407,6 +441,10 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
 
         return tokensToAllocate;
     }
+
+    /******************************/
+    /*** Growth Fund Parameters ***/
+    /******************************/
 
     /**
      * @notice Set the new percentage of the maximum possible distribution of Ajna tokens that will be released from the treasury each quarter.
