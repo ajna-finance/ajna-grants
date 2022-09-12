@@ -23,6 +23,11 @@ library Maths {
         return x <= y ? x : y;
     }
 
+    function minInt(int256 x, int256 y) internal pure returns (int256) {
+        return x <= y ? x : y;
+    }
+
+
     function wad(uint256 x) internal pure returns (uint256) {
         return x * 10**18;
     }

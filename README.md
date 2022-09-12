@@ -114,6 +114,10 @@ make deploy-contract contract=<CONTRACT_NAME_HERE> RPC_URL=<RPC_URL_HERE>
 
 *QV*
 - https://github.com/VirginiaBlockchain/QuadraticVotingDapp
+- https://blog.tally.xyz/a-simple-guide-to-quadratic-voting-327b52addde1
 
 *Tally*
 - https://docs.tally.xyz/user-guides/tally-contract-compatibility
+
+
+*https://www.daomasters.xyz/*

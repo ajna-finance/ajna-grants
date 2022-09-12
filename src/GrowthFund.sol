@@ -104,6 +104,12 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
      */
     mapping(uint256 => Proposal[]) topTenProposals;
 
+    /**
+     * @notice Mapping of quarterly distributions to voters to a Quadratic Voter info struct.
+     * @dev distributionId => voter address => QuadraticVoter 
+     */
+    mapping (uint256 => mapping(address => QuadraticVoter)) quadraticVoters;
+
 
     /***************/
     /*** Structs ***/
@@ -122,17 +128,16 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     }
 
     struct Proposal {
-        string description;      // TODO: may not be necessary if we are also storing proposalId
-        // uint256 tokensRequested; // TODO: does this need to be tracked?
         uint256 proposalId;      // OZ.Governor proposalId
         uint256 distributionId;  // Id of the distribution period in which the proposal was made
         uint256 votesReceived;   // accumulator of votes received by a proposal
-        bool isVoting;
+        int256 tokensRequested;  // number of Ajna tokens requested in the proposal
+        int256 fundingReceived;  // accumulator of QV budget allocated
         bool succeeded;
     }
 
     struct QuadraticVoter {
-        uint256 budgetRemaining; // remaining voting budget
+        int256 budgetRemaining; // remaining voting budget
         bytes32 commitment;      // commitment hash enabling scret voting
     }
 
@@ -199,11 +204,24 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     }
 
     // TODO: implement this
-    function getProposalInfo() external view {}
+    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, int256, int256, bool) {
+        Proposal memory proposal = proposals[proposalId_];
+        return (
+            proposal.proposalId,
+            proposal.distributionId,
+            proposal.votesReceived,
+            proposal.tokensRequested,
+            proposal.fundingReceived,
+            proposal.succeeded
+        );
+    }
 
     function getTopTenProposals(uint256 distributionId_) external view returns (Proposal[] memory) {
         return topTenProposals[distributionId_];
     }
+
+    // TODO: call out to propose() down below with additional field for tokens requested
+    function distributionProposal() public returns (uint256) {}
 
     function propose(
         address[] memory targets,
@@ -213,15 +231,17 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     ) public override(Governor) returns (uint256) {
         uint256 proposalId = hashProposal(targets, values, calldatas, keccak256(bytes(description)));
 
+        // TODO: block proposals from being created that would take more than the maximumQuarterlyDistribution
         // TODO: will need to update the value in the calldata
         // TODO: figure out how to decompose tokenId to calculate tokensRequested...
         // If we do decompose, how do we ensure that they did actually supply a `transferTo(address,uint256)`
         // do we need to create it ourselves?
-        // uint256 tokensRequested = 0;
+        int256 tokensRequested = 0;
+        int256 fundingReceived = 0;
 
         // TODO: add the distributionId of the period in which the proposal was submitted
         // create a struct to store proposal information
-        Proposal memory newProposal = Proposal(description, proposalId, getDistributionId(), 0, true, false);
+        Proposal memory newProposal = Proposal(proposalId, getDistributionId(), 0, tokensRequested, fundingReceived, false);
 
         // store new proposal information
         proposals[proposalId] = newProposal;
@@ -258,7 +278,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
 
     // TODO: restrict voting through this method to the distribution period? -> may need to place this overriding logic in _castVote instead and ovverride other voting methods to channel through here
     // _castVote() and update growthFund structs tracking progress
-    function castVote(uint256 proposalId_, uint8 support_) public override(Governor) onlyScreenOnce returns (uint256) {
+    function _castVote(uint256 proposalId_, address account_, uint8 support_, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
         QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
         Proposal[] storage currentTopTenProposals = topTenProposals[getDistributionId()];
         Proposal storage proposal = proposals[proposalId_];
@@ -273,7 +293,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
             // determine stage and available screening votes
             stage = bytes("Screening");
             blockToCountVotesAt = currentDistribution.startBlock;
-            votes = _getVotes(msg.sender, blockToCountVotesAt, stage);
+            votes = _getVotes(account_, blockToCountVotesAt, stage);
 
             return _screeningVote(currentTopTenProposals, proposal, support_, votes);
         }
@@ -282,24 +302,62 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         else if (block.number > screeningPeriodEndBlock && block.number <= currentDistribution.endBlock) {
             stage = bytes("Funding");
             blockToCountVotesAt = screeningPeriodEndBlock + 1; // assume funding stage starts immediatly after screening stage
-            votes = _getVotes(msg.sender, blockToCountVotesAt, stage);
+            votes = _getVotes(account_, blockToCountVotesAt, stage);
 
+            // amount of quadratic budget to allocated to the proposal
+            int256 budgetAllocation = abi.decode(params_, (int256));
+
+            // TODO: figure out how to handle return type here
+            _fundingVote(proposal, account_, budgetAllocation);
         }
 
         // all other votes -> governance? 
         // TODO: determine how this should be restricted
-
-
     }
 
-    function _fundingVote() internal {
+    // TODO: add return value from fundingVote?
+    function _fundingVote(Proposal storage proposal_, address account_, int256 budgetAllocation_) internal {
+        QuadraticVoter storage voter = quadraticVoters[getDistributionId()][account_];
 
+        // TODO: implement this
+        // calculate the vote cost of this vote based upon voters history in the funding round
+        uint256 voteCost = 0;
+
+        int256 remainingAllocationNeeded = proposal_.tokensRequested - proposal_.fundingReceived;
+        int256 allocationUsed;
+
+        // case where voter is voting against the proposal
+        if (budgetAllocation_ < 0) {
+            allocationUsed = budgetAllocation_;
+        }
+        // voter is voting in support of the proposal
+        else {
+            // TODO: REMOVE THIS if check since people may want to overallocate to ensure passing?
+            // prevent allocation to a proposal that has already reached its requested token amount
+            if (!proposal_.succeeded) {
+                allocationUsed = Maths.minInt(remainingAllocationNeeded, budgetAllocation_);
+            }
+        }
+
+        // update voters budget tracking
+        voter.budgetRemaining += allocationUsed;
+
+        // update proposal state to account for additional vote allocation
+        proposal_.fundingReceived += allocationUsed;
+
+        if (proposal_.fundingReceived == proposal_.tokensRequested) {
+            proposal_.succeeded = true;
+        }
+        else if (proposal_.fundingReceived != proposal_.tokensRequested && proposal_.succeeded) {
+            proposal_.succeeded = false;
+        }
     }
 
     /**
      * @notice Vote on a proposal in the screening stage of the Distribution Period.
+     * @param currentTopTenProposals_ List of top ten vote receiving proposals that made it through the screening round.
      */
-    function _screeningVote(Proposal[] storage currentTopTenProposals_, Proposal storage proposal_, uint8 support_, uint256 votes) internal returns (uint256) {
+    function _screeningVote(Proposal[] storage currentTopTenProposals_, Proposal storage proposal_, uint8 support_, uint256 votes) internal onlyScreenOnce returns (uint256) {
         // TODO: bring votes calculation into this internal function?
 
         // update proposal votes counter
@@ -339,7 +397,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         hasScreened[msg.sender] = true;
 
         // vote for the given proposal
-        return super.castVote(proposal_.proposalId, support_);
+        return super._castVote(proposal_.proposalId, msg.sender, support_, "", "");
     }
 
     /**
@@ -402,6 +460,10 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         maximumTokenDistributionPercentage = newDistributionPercentage_;
     }
 
+    /**************************/
+    /*** Required Overrides ***/
+    /**************************/
+
     // TODO: tie this into quarterly distribution starting?
     // TODO: implement custom override
     function votingDelay() public view override(IGovernor, GovernorSettings) returns (uint256) {
@@ -455,13 +517,21 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
      */
     function _setExtraordinaryFundingQuorum() internal {}
 
+    /**************************/
+    /*** Proposal Functions ***/
+    /**************************/
+
+    /************************/
+    /*** Voting Functions ***/
+    /************************/
+
     /*************************/
     /*** Sorting Functions ***/
     /*************************/
 
     // TODO: move this into sort library
     // return the index of the proposalId in the array, else -1
-    function _findInArray(uint256 proposalId, Proposal[] storage array) internal returns (int256 index) {
+    function _findInArray(uint256 proposalId, Proposal[] storage array) internal view returns (int256 index) {
         index = -1; // default value indicating proposalId not in the array
 
         for (int i = 0; i < int(array.length);) {

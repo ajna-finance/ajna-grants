@@ -383,7 +383,9 @@ contract GrowthFundTest is Test {
 
         assertEq(proposals[1].proposalId, proposalIds[5]);
         assertEq(proposals[1].votesReceived, 100_000_000 * 1e18);
+    }
 
+    function testAllocateBudgetToTopTen() external {
 
     }
 
