@@ -28,6 +28,11 @@ interface IGrowthFund {
     error AlreadyVoted();
 
     /**
+     * @notice User attempted to finalize a distribution for execution when it has already been executed, or isn't ready.
+     */
+    error FinalizeDistributionInvalid();
+
+    /**
      * @notice Non Ajna token contract address specified in target list.
      */
     error InvalidTarget();
@@ -63,11 +68,12 @@ interface IGrowthFund {
      * @dev Mapping and uint array used for tracking proposals in the distribution as typed arrays (like Proposal[]) can't be nested.
      */
     struct QuarterlyDistribution {
-        uint256 id;                          // id of the current quarterly distribution
-        uint256 tokensDistributed;           // number of ajna tokens distrubted that quarter
-        uint256 votesCast;                   // total number of votes cast that quarter
-        uint256 startBlock;                  // block number of the quarterly distrubtions start
-        uint256 endBlock;                    // block number of the quarterly distrubtions end
+        uint256 id;                // id of the current quarterly distribution
+        uint256 tokensDistributed; // number of ajna tokens distrubted that quarter
+        uint256 votesCast;         // total number of votes cast that quarter
+        uint256 startBlock;        // block number of the quarterly distrubtions start
+        uint256 endBlock;          // block number of the quarterly distrubtions end
+        bool    executed;          // check whether or not proposals can be executed from a distribution
     }
 
     struct Proposal {
@@ -76,7 +82,8 @@ interface IGrowthFund {
         uint256 votesReceived;   // accumulator of votes received by a proposal
         int256 tokensRequested;  // number of Ajna tokens requested in the proposal
         int256 fundingReceived;  // accumulator of QV budget allocated
-        bool succeeded;
+        bool succeeded;          // whether or not the proposal was fully funded
+        bool executed;           // whether or not the proposal has been executed
     }
 
     struct QuadraticVoter {

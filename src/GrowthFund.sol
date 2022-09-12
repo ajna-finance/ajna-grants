@@ -199,19 +199,18 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         string memory description
     ) public override(Governor) checkProposal(targets, values, calldatas) returns (uint256) {
         uint256 proposalId = hashProposal(targets, values, calldatas, keccak256(bytes(description)));
-        int256 fundingReceived = 0;
 
         // retrieve tokensRequested from proposal calldata
-        (address recipient, uint256 tokensRequested) = abi.decode(calldatas[0][4:], (address, uint256));
+        (, uint256 tokensRequested) = abi.decode(calldatas[0][4:], (address, uint256));
 
         // TODO: check tokensRequested is less than the previous maximumQuarterlyDistribution
         // if (tokensRequested > maximumQuarterlyDistribution()) revert RequestedTooManyTokens();
 
-        // create a struct to store proposal information
-        Proposal memory newProposal = Proposal(proposalId, getDistributionId(), 0, int256(tokensRequested), fundingReceived, false);
-
         // store new proposal information
-        proposals[proposalId] = newProposal;
+        Proposal storage newProposal = proposals[proposalId];
+        newProposal.proposalId = proposalId;
+        newProposal.distributionId = getDistributionId();
+        newProposal.tokensRequested = int256(tokensRequested);
 
         return super.propose(targets, values, calldatas, description);
     }
@@ -227,8 +226,8 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         // check that there isn't currently an active distribution period
         require(block.number > lastDistribution.endBlock, "Distribution Period Ongoing");
 
-        // TODO: calculate starting and ending block properly
-        uint256 startBlock = block.number; // TODO: should this be the current block?
+        // TODO: calculate starting and ending block properly -> should startBlock be the current block?
+        uint256 startBlock = block.number;
         uint256 endBlock = startBlock + distributionPeriodLength;
 
         // set new value for currentDistributionId
@@ -402,41 +401,49 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
     function execute(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash) public payable override(Governor) returns (uint256) {
         uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash);
 
-        // check if proposal to execute is in the top 10, and status succeeded
-        if (_findInArray(proposalId, topTenProposals[getDistributionId()]) == -1 || !proposals[proposalId].succeeded) revert ProposalNotFunded(); 
+        // check if proposal to execute is in the top 10, status succeeded, and it hasn't already been executed.
+        if (_findInArray(proposalId, topTenProposals[getDistributionId()]) == -1 || !proposals[proposalId].succeeded || proposals[proposalId].executed) revert ProposalNotFunded();
 
         super.execute(targets, values, calldatas, descriptionHash);
     }
 
-    // TODO: is this function necessary -> intention is to max execute proposals
     /**
-     * @notice Execute proposals and distribute funds to successful proposals
+     * @notice Update QuarterlyDistribution information, and burn any unused tokens.
      */
-    // function executeDistribution() public {
-    //     // TODO: how to know given block height if it's ok to distribute?
-    //     // check if the last distribution phase has ended and that proposals remain to be executed
+    function finalizeDistribution() public {
+        QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
 
-    //     QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
+        // check if the last distribution phase has ended and that proposals remain to be executed
+        if (block.number > currentDistribution.endBlock && !currentDistribution.executed) revert FinalizeDistributionInvalid();
 
-    //     currentDistribution.votesCast = quarterlyVotesCounter;
-    //     currentDistribution.tokensDistributed = maximumQuarterlyDistribution();
+        currentDistribution.votesCast = quarterlyVotesCounter;
+        currentDistribution.tokensDistributed = 0;
 
-    //     Proposal[] storage currentTopTenProposals = topTenProposals[getDistributionId()];
+        Proposal[] memory currentTopTenProposals = topTenProposals[getDistributionId()];
 
-    //     for (uint256 i = 0; i < currentTopTenProposals.length;) {
+        for (uint256 i = 0; i < currentTopTenProposals.length;) {
+            if (currentTopTenProposals[i].succeeded) {
+                currentDistribution.tokensDistributed += uint256(currentTopTenProposals[i].tokensRequested);
+            }
 
-    //         unchecked {
-    //             ++i;
-    //         }
-    //     }
-    // }
+            unchecked {
+                ++i;
+            }
+        }
+
+        // transfer unused tokens to the burn address
+        uint256 unusedTokens = maximumQuarterlyDistribution() - currentDistribution.tokensDistributed;
+        votingTokenIERC20.transfer(address(0), unusedTokens);
+
+        // mark the current distribution as execution, ensuring that succesful proposals can be executed and recieve their funding
+        currentDistribution.executed = true;
+    }
 
     /**
      * @notice Get the current percentage of the maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
      */
     function maximumQuarterlyDistribution() public view returns (uint256) {
         uint256 growthFundBalance = votingTokenIERC20.balanceOf(address(this));
-
         uint256 tokensToAllocate = (quarterlyVotesCounter *  (votingTokenIERC20.totalSupply() - growthFundBalance)) * maximumTokenDistributionPercentage;
 
         return tokensToAllocate;
@@ -490,7 +497,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
     }
 
 
-    // TODO: implement custom override
+    // Required override; we don't currently have a threshold to create a proposal so this returns the default value of 0
     function proposalThreshold()
         public
         view
