@@ -15,34 +15,15 @@ import { IVotes } from "@oz/governance/utils/IVotes.sol";
 
 import { Maths } from "./libraries/Maths.sol";
 
+import { IGrowthFund } from "./interfaces/IGrowthFund.sol";
+
 import { console } from "@std/console.sol";
 
 
 // TODO: figure out how to allow partial votes -> need to override cast votes to allocate only some amount of voting power?
-contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, GovernorVotes, GovernorVotesQuorumFraction {
+contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSettings, GovernorVotes, GovernorVotesQuorumFraction {
 
     using Checkpoints for Checkpoints.History;
-
-    /**************/
-    /*** Events ***/
-    /**************/
-
-    /**
-     *  @notice Emitted at the beginning of a new quarterly distribution period.
-     *  @param  distributionId_ Id of the new quarterly distribution.
-     *  @param  startBlock_     Block number of the quarterly distrubtions start.
-     *  @param  endBlock_       Block number of the quarterly distrubtions end.
-     */
-    event QuarterlyDistributionStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
-
-    /*********************/
-    /*** Custom Errors ***/
-    /*********************/
-
-    /**
-     * @notice Voter has already voted on a proposal in the screening stage in a quarter.
-     */
-    error AlreadyVoted();
 
     /***********************/
     /*** State Variables ***/
@@ -110,43 +91,9 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
      */
     mapping (uint256 => mapping(address => QuadraticVoter)) quadraticVoters;
 
-
-    /***************/
-    /*** Structs ***/
-    /***************/
-
-    /**
-     * @notice Contains proposals that made it through the screening process to the funding stage.
-     * @dev Mapping and uint array used for tracking proposals in the distribution as typed arrays (like Proposal[]) can't be nested.
-     */
-    struct QuarterlyDistribution {
-        uint256 id;                          // id of the current quarterly distribution
-        uint256 tokensDistributed;           // number of ajna tokens distrubted that quarter
-        uint256 votesCast;                   // total number of votes cast that quarter
-        uint256 startBlock;                  // block number of the quarterly distrubtions start
-        uint256 endBlock;                    // block number of the quarterly distrubtions end
-    }
-
-    struct Proposal {
-        uint256 proposalId;      // OZ.Governor proposalId
-        uint256 distributionId;  // Id of the distribution period in which the proposal was made
-        uint256 votesReceived;   // accumulator of votes received by a proposal
-        int256 tokensRequested;  // number of Ajna tokens requested in the proposal
-        int256 fundingReceived;  // accumulator of QV budget allocated
-        bool succeeded;
-    }
-
-    struct QuadraticVoter {
-        int256 budgetRemaining; // remaining voting budget
-        bytes32 commitment;      // commitment hash enabling scret voting
-    }
-
-    // TODO: use this enum instead of block number calculations?
-    enum DistributionPhase {
-        Screening,
-        Funding,
-        Pending // TODO: rename - indicate the period between phases and a new distribution period
-    }
+    /*****************/
+    /*** Modifiers ***/
+    /*****************/
 
     // TODO: replace with governorCountingSimple.hasVoted?
     /**
@@ -156,6 +103,10 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         if (hasScreened[msg.sender]) revert AlreadyVoted();
         _;
     }
+
+    /*******************/
+    /*** Constructor ***/
+    /*******************/
 
     constructor(IVotes token_)
         Governor("AjnaEcosystemGrowthFund")
@@ -172,9 +123,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     /*****************************/
 
     // create a new distribution Id
-    // TODO: update this from a simple nonce incrementor
-    // TODO: replace with OpenZeppelin Checkpoints.push
-    // TODO: user counters.counter as well?
+    // TODO: update this from a simple nonce incrementor -> use counters.counter instead?
     function _setNewDistributionId() private {
         // increment the distributionId
         uint256 currentDistributionId = getDistributionId();
@@ -203,7 +152,6 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         );
     }
 
-    // TODO: implement this
     function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, int256, int256, bool) {
         Proposal memory proposal = proposals[proposalId_];
         return (
@@ -249,34 +197,41 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         return super.propose(targets, values, calldatas, description);
     }
 
-    // TODO: determine if anyone can kick or governance only
-    // TODO: deploy a clone contract with a fresh contract and it's own sorted list OR having a mapping distributionId => SortedList
+    /**
+     * @notice Start a new Distribution Period and reset appropiate state.
+     * @dev    Can be kicked off by anyone assuming a distribution period isn't already active.
+     */    
     function startNewDistributionPeriod() public returns (uint256) {
-        // TODO: check block number meets conditions and start can proceed
+        QuarterlyDistribution memory lastDistribution = distributions[getDistributionId()];
+
+        // TODO: add a delay to new period start
+        // check that there isn't currently an active distribution period
+        require(block.number > lastDistribution.endBlock, "Distribution Period Ongoing");
 
         // TODO: calculate starting and ending block properly
         uint256 startBlock = block.number; // TODO: should this be the current block?
-        uint256 endBlock = startBlock + distributionPeriodLength; // TODO:  (controlled by governance) //TODO: update this... AND TEST IN testStartNewDistributionPeriod
+        uint256 endBlock = startBlock + distributionPeriodLength;
 
         // set new value for currentDistributionId
         _setNewDistributionId();
 
-        uint256 currentDistributionId = getDistributionId();
+        uint256 newDistributionId = getDistributionId();
 
         // create QuarterlyDistribution struct
-        QuarterlyDistribution storage newDistributionPeriod = distributions[currentDistributionId];
-        newDistributionPeriod.id =  currentDistributionId;
+        QuarterlyDistribution storage newDistributionPeriod = distributions[newDistributionId];
+        newDistributionPeriod.id =  newDistributionId;
         newDistributionPeriod.startBlock = startBlock;
         newDistributionPeriod.endBlock = endBlock;
 
         // reset quarterly votes counter
         quarterlyVotesCounter = 0;
 
-        emit QuarterlyDistributionStarted(currentDistributionId, startBlock, endBlock);
+        emit QuarterlyDistributionStarted(newDistributionId, startBlock, endBlock);
         return newDistributionPeriod.id;
     }
 
     // TODO: restrict voting through this method to the distribution period? -> may need to place this overriding logic in _castVote instead and ovverride other voting methods to channel through here
+    // TODO: may want to replace the conditional checks of stage here with the above enum
     // _castVote() and update growthFund structs tracking progress
     function _castVote(uint256 proposalId_, address account_, uint8 support_, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
         QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
@@ -356,15 +311,18 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
     /**
      * @notice Vote on a proposal in the screening stage of the Distribution Period.
      * @param currentTopTenProposals_ List of top ten vote receiving proposals that made it through the screening round.
+     * @param proposal_               The current proposal being voted upon.
+     * @param support_                Vote direction, 1 is for, 0 is against.
+     * @param votes_                  The amount of votes being cast.
      */
-    function _screeningVote(Proposal[] storage currentTopTenProposals_, Proposal storage proposal_, uint8 support_, uint256 votes) internal onlyScreenOnce returns (uint256) {
+    function _screeningVote(Proposal[] storage currentTopTenProposals_, Proposal storage proposal_, uint8 support_, uint256 votes_) internal onlyScreenOnce returns (uint256) {
         // TODO: bring votes calculation into this internal function?
 
         // update proposal votes counter
-        proposal_.votesReceived += votes;
+        proposal_.votesReceived += votes_;
 
         // increment quarterly votes counter
-        quarterlyVotesCounter += votes;
+        quarterlyVotesCounter += votes_;
 
         // check if additional votes are enough to push the proposal into the top 10
         if (currentTopTenProposals_.length == 0 || currentTopTenProposals_.length < 10) {
@@ -402,6 +360,7 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
 
     /**
      * @notice Calculates the number of votes available to an account depending on the current stage of the Distribution Period.
+     * @dev    Overrides OpenZeppelin _getVotes implementation to ensure appropriate voting weight is always returned.
      */
     function _getVotes(address account_, uint256 blockNumber_, bytes memory stage_) internal view override(Governor, GovernorVotes) returns (uint256) {
         // if block number within screening period 1 token 1 vote
@@ -449,15 +408,16 @@ contract GrowthFund is Governor, GovernorCountingSimple, GovernorSettings, Gover
         return tokensToAllocate;
     }
 
-    // TODO: implement this? May need to pass the QuarterlyDistribution struct...
-    function _screeningPeriodEndBlock() public view returns (uint256 endBlock) {}
-
     /**
      * @notice Set the new percentage of the maximum possible distribution of Ajna tokens that will be released from the treasury each quarter.
      * @dev Can only be called by Governance through the proposal process.
      */
     function setMaximumTokenDistributionPercentage(uint256 newDistributionPercentage_) public onlyGovernance {
         maximumTokenDistributionPercentage = newDistributionPercentage_;
+    }
+
+    function setDistributionPeriodLength(uint256 newDistributionPeriodLength_) public onlyGovernance {
+        distributionPeriodLength = newDistributionPeriodLength_;
     }
 
     /**************************/
