@@ -9,10 +9,16 @@ interface IGrowthFund {
     /**************/
     /*** Events ***/
     /**************/
+    /**
+     *  @notice Emitted at the end of a distribution period.
+     *  @param  distributionId_ Id of the distribution period.
+     *  @param  tokensBurned    Number of unused tokens burned at the distribution periods end.
+     */
+    event FinalizeDistribution(uint256 indexed distributionId_, uint256 tokensBurned);
 
     /**
      *  @notice Emitted at the beginning of a new quarterly distribution period.
-     *  @param  distributionId_ Id of the new quarterly distribution.
+     *  @param  distributionId_ Id of the new distribution period.
      *  @param  startBlock_     Block number of the quarterly distrubtions start.
      *  @param  endBlock_       Block number of the quarterly distrubtions end.
      */
@@ -87,8 +93,9 @@ interface IGrowthFund {
     }
 
     struct QuadraticVoter {
+        int256 votingWeight;    // amount of votes available to the voter
         int256 budgetRemaining; // remaining voting budget
-        bytes32 commitment;      // commitment hash enabling scret voting
+        bytes32 commitment;     // commitment hash enabling scret voting // TODO: remove this
     }
 
     // TODO: use this enum instead of block number calculations?

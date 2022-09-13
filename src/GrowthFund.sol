@@ -17,6 +17,8 @@ import { Maths } from "./libraries/Maths.sol";
 
 import { IGrowthFund } from "./interfaces/IGrowthFund.sol";
 
+import { AjnaToken } from "./BaseToken.sol";
+
 import { console } from "@std/console.sol";
 
 
@@ -30,15 +32,15 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
 
     uint256 internal extraordinaryFundingBaseQuorum;
 
-    address public   votingToken;
-    IERC20  internal votingTokenIERC20;
+    address public   votingTokenAddress;
+    AjnaToken  internal ajnaToken;
 
     // TODO: update this from a percentage to just the numerator?
     /**
      * @notice Maximum amount of tokens that can be distributed by the treasury in a quarter.
      * @dev Stored as a Wad percentage.
      */
-    uint256 public maximumTokenDistributionPercentage = Maths.wad(2) / Maths.wad(100);
+    uint256 public maximumTokenDistributionPercentage = Maths.wdiv(Maths.wad(2), Maths.wad(100));
 
     /**
      * @notice Length of the distribution period in blocks.
@@ -112,7 +114,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
     modifier checkProposal(address[] memory targets_, uint256[] memory values_, bytes[] calldata calldatas_) {
         for (uint i = 0; i < targets_.length;) {
 
-            if (targets_[i] != votingToken) revert InvalidTarget();
+            if (targets_[i] != votingTokenAddress) revert InvalidTarget();
             if (values_[i] != 0) revert InvalidValues();
             if (bytes4(calldatas_[i][:4]) != bytes4(0xa9059cbb)) revert InvalidSignature();
 
@@ -134,7 +136,9 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         GovernorVotesQuorumFraction(4) // percentage of total voting power required; updateable via governance proposal
     {
         extraordinaryFundingBaseQuorum = 50; // initialize base quorum percentrage required for extraordinary funding to 50%
-        votingToken = address(token_);
+
+        votingTokenAddress = address(token_);
+        ajnaToken          = AjnaToken(address(token_));
     }
 
     /*****************************/
@@ -165,18 +169,19 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
     function getDistributionPhase(uint256 distributionId_) public view returns (DistributionPhase) {
     }
 
-    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, uint256) {
+    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, uint256, bool) {
         QuarterlyDistribution memory distribution = distributions[distributionId_];
         return (
             distribution.id,
             distribution.tokensDistributed,
             distribution.votesCast,
             distribution.startBlock,
-            distribution.endBlock
+            distribution.endBlock,
+            distribution.executed
         );
     }
 
-    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, int256, int256, bool) {
+    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, int256, int256, bool, bool) {
         Proposal memory proposal = proposals[proposalId_];
         return (
             proposal.proposalId,
@@ -184,7 +189,17 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
             proposal.votesReceived,
             proposal.tokensRequested,
             proposal.fundingReceived,
-            proposal.succeeded
+            proposal.succeeded,
+            proposal.executed
+        );
+    }
+
+    function getVoterInfo(uint256 distributionId_, address account_) external view returns (int256, int256, bytes32) {
+        QuadraticVoter memory voter = quadraticVoters[distributionId_][account_];
+        return (
+            voter.votingWeight,
+            voter.budgetRemaining,
+            voter.commitment
         );
     }
 
@@ -248,12 +263,17 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         return newDistributionPeriod.id;
     }
 
-    // TODO: override _countVote()
-
-    // TODO: ensure all castVote methods channel through this overrided method
+    // TODO: override _countVote() as well
     // TODO: may want to replace the conditional checks of stage here with the DistributionPhase enum
-    // _castVote() and update growthFund structs tracking progress
-    function _castVote(uint256 proposalId_, address account_, uint8 support_, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
+    /**
+     * @notice Vote on a proposal in the screening or funding stage of the Distribution Period.
+     * @dev Override channels all other castVote methods through here.
+     * @param proposalId_ The current proposal being voted upon.
+     * @param account_    The voting account.
+     * @param support_    Vote direction, 1 is for, 0 is against.
+     * @param params_     The amount of votes being allocated in the funding stage.
+     */
+     function _castVote(uint256 proposalId_, address account_, uint8 support_, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
         QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
         Proposal[] storage currentTopTenProposals = topTenProposals[getDistributionId()];
         Proposal storage proposal = proposals[proposalId_];
@@ -282,28 +302,39 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
             // amount of quadratic budget to allocated to the proposal
             int256 budgetAllocation = abi.decode(params_, (int256));
 
-            // TODO: figure out how to handle return type here
-            _fundingVote(proposal, account_, budgetAllocation);
+            return _fundingVote(proposal, account_, votes, budgetAllocation);
         }
 
         // all other votes -> governance? 
         // TODO: determine how this should be restricted
     }
 
-    // TODO: add return value from fundingVote?
-    function _fundingVote(Proposal storage proposal_, address account_, int256 budgetAllocation_) internal {
+    // TODO: add check to ensure that total funding received is still below the maximumQuarterlyDistribution invariant
+    function _fundingVote(Proposal storage proposal_, address account_, uint256 votes_, int256 budgetAllocation_) internal returns (uint256) {
         QuadraticVoter storage voter = quadraticVoters[getDistributionId()][account_];
 
-        // TODO: implement this
+        // if first time voting update their voting weight
+        if (voter.votingWeight == 0 && votes_ > 0) {
+            voter.votingWeight = int256(votes_);
+            voter.budgetRemaining = int256(votes_);
+        }
+
+        // TODO: implement this following update to the spec
         // calculate the vote cost of this vote based upon voters history in the funding round
         uint256 voteCost = 0;
 
         int256 remainingAllocationNeeded = proposal_.tokensRequested - proposal_.fundingReceived;
         int256 allocationUsed;
+        uint8  support = 1;
 
         // case where voter is voting against the proposal
         if (budgetAllocation_ < 0) {
-            allocationUsed = budgetAllocation_;
+            allocationUsed -= budgetAllocation_;
+            support = 0;
+
+            // update voter and proposal vote tracking
+            voter.budgetRemaining -= allocationUsed;
+            proposal_.fundingReceived -= allocationUsed;
         }
         // voter is voting in support of the proposal
         else {
@@ -312,20 +343,23 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
             if (!proposal_.succeeded) {
                 allocationUsed = Maths.minInt(remainingAllocationNeeded, budgetAllocation_);
             }
+
+            // update voter and proposal vote tracking
+            voter.budgetRemaining -= allocationUsed;
+            proposal_.fundingReceived += allocationUsed;
         }
 
-        // update voters budget tracking
-        voter.budgetRemaining += allocationUsed;
+        if (proposal_.fundingReceived >= proposal_.tokensRequested) {
 
-        // update proposal state to account for additional vote allocation
-        proposal_.fundingReceived += allocationUsed;
-
-        if (proposal_.fundingReceived == proposal_.tokensRequested) {
             proposal_.succeeded = true;
         }
         else if (proposal_.fundingReceived != proposal_.tokensRequested && proposal_.succeeded) {
             proposal_.succeeded = false;
         }
+
+        // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
+        emit VoteCast(account_, proposal_.proposalId, support, uint256(allocationUsed), "");
+        return uint256(allocationUsed);
     }
 
     /**
@@ -414,7 +448,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
 
         // check if the last distribution phase has ended and that proposals remain to be executed
-        if (block.number > currentDistribution.endBlock && !currentDistribution.executed) revert FinalizeDistributionInvalid();
+        if (block.number <= currentDistribution.endBlock || currentDistribution.executed) revert FinalizeDistributionInvalid();
 
         currentDistribution.votesCast = quarterlyVotesCounter;
         currentDistribution.tokensDistributed = 0;
@@ -422,7 +456,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         Proposal[] memory currentTopTenProposals = topTenProposals[getDistributionId()];
 
         for (uint256 i = 0; i < currentTopTenProposals.length;) {
-            if (currentTopTenProposals[i].succeeded) {
+            if (proposals[currentTopTenProposals[i].proposalId].succeeded) {
                 currentDistribution.tokensDistributed += uint256(currentTopTenProposals[i].tokensRequested);
             }
 
@@ -433,20 +467,21 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
 
         // transfer unused tokens to the burn address
         uint256 unusedTokens = maximumQuarterlyDistribution() - currentDistribution.tokensDistributed;
-        votingTokenIERC20.transfer(address(0), unusedTokens);
+        ajnaToken.burn(unusedTokens);
 
         // mark the current distribution as execution, ensuring that succesful proposals can be executed and recieve their funding
         currentDistribution.executed = true;
+        emit FinalizeDistribution(getDistributionId(), unusedTokens);
     }
 
     /**
      * @notice Get the current percentage of the maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
      */
     function maximumQuarterlyDistribution() public view returns (uint256) {
-        uint256 growthFundBalance = votingTokenIERC20.balanceOf(address(this));
-        uint256 tokensToAllocate = (quarterlyVotesCounter *  (votingTokenIERC20.totalSupply() - growthFundBalance)) * maximumTokenDistributionPercentage;
+        uint256 growthFundBalance = ajnaToken.balanceOf(address(this));
+        uint256 percentageOfTreasuryToAllocate = Maths.wmul(Maths.wdiv(quarterlyVotesCounter, (ajnaToken.totalSupply() - growthFundBalance)), maximumTokenDistributionPercentage);
 
-        return tokensToAllocate;
+        return Maths.wmul(growthFundBalance, percentageOfTreasuryToAllocate);
     }
 
     /******************************/
