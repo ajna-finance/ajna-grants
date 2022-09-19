@@ -512,33 +512,17 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
 
     // TODO: tie this into screening period?
     // TODO: implement custom override
-    function votingPeriod()
-        public
-        view
-        override(IGovernor, GovernorSettings)
-        returns (uint256)
-    {
+    function votingPeriod() public view override(IGovernor, GovernorSettings) returns (uint256) {
         return super.votingPeriod();
     }
 
     // TODO: implement custom override - need to support both regular votes, and the extraordinaryFunding mechanism
-    function quorum(uint256 blockNumber)
-        public
-        view
-        override(IGovernor, GovernorVotesQuorumFraction)
-        returns (uint256)
-    {
+    function quorum(uint256 blockNumber) public view override(IGovernor, GovernorVotesQuorumFraction) returns (uint256) {
         return super.quorum(blockNumber);
     }
 
-
     // Required override; we don't currently have a threshold to create a proposal so this returns the default value of 0
-    function proposalThreshold()
-        public
-        view
-        override(Governor, GovernorSettings)
-        returns (uint256)
-    {
+    function proposalThreshold() public view override(Governor, GovernorSettings) returns (uint256) {
         return super.proposalThreshold();
     }
 
