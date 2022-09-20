@@ -133,12 +133,12 @@ contract GrowthFundTest is GrowthFundTestHelper {
         string memory description = "Proposal for Ajna token transfer to tester address";
 
         // create and submit proposal
-        uint256 proposalId = _createProposal(_growthFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
+        TestProposal memory proposal = _createProposal(_growthFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
 
         vm.roll(10);
 
         // check proposal state
-        IGovernor.ProposalState proposalState = _growthFund.state(proposalId);
+        IGovernor.ProposalState proposalState = _growthFund.state(proposal.proposalId);
         assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Active));
     }
 
@@ -182,7 +182,8 @@ contract GrowthFundTest is GrowthFundTestHelper {
         string memory description = "Proposal for Ajna token transfer to tester address";
 
         // create and submit proposal
-        uint256 proposalId = _createProposal(_growthFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
+        TestProposal memory proposal = _createProposal(_growthFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
+        uint256 proposalId = proposal.proposalId;
 
         vm.roll(110);
 
@@ -248,34 +249,34 @@ contract GrowthFundTest is GrowthFundTestHelper {
         _startDistributionPeriod(_growthFund);
 
         // create 15 proposals paying out tokens to _tokenHolder2
-        uint256[] memory proposalIds = _createNProposals(_growthFund, _token, 15, _tokenHolder2);
-        assertEq(proposalIds.length, 15);
+        TestProposal[] memory testProposals = _createNProposals(_growthFund, _token, 15, _tokenHolder2);
+        assertEq(testProposals.length, 15);
 
         vm.roll(110);
 
         // TODO: add additional duplicate votes to some of the proposals
         // screening period votes
-        _vote(_growthFund, _tokenHolder2, proposalIds[0], 1, 100);
-        _vote(_growthFund, _tokenHolder3, proposalIds[1], 1, 100);
-        _vote(_growthFund, _tokenHolder4, proposalIds[2], 1, 100);
-        _vote(_growthFund, _tokenHolder5, proposalIds[3], 1, 100);
-        _vote(_growthFund, _tokenHolder6, proposalIds[4], 1, 100);
-        _vote(_growthFund, _tokenHolder7, proposalIds[5], 1, 100);
-        _vote(_growthFund, _tokenHolder8, proposalIds[6], 1, 100);
-        _vote(_growthFund, _tokenHolder9, proposalIds[7], 1, 100);
-        _vote(_growthFund, _tokenHolder10, proposalIds[8], 1, 100);
-        _vote(_growthFund, _tokenHolder11, proposalIds[9], 1, 100);
-        _vote(_growthFund, _tokenHolder12, proposalIds[1], 1, 100);
-        _vote(_growthFund, _tokenHolder13, proposalIds[1], 1, 100);
-        _vote(_growthFund, _tokenHolder14, proposalIds[5], 1, 100);
+        _vote(_growthFund, _tokenHolder2, testProposals[0].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder3, testProposals[1].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder4, testProposals[2].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder5, testProposals[3].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder6, testProposals[4].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder7, testProposals[5].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder8, testProposals[6].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder9, testProposals[7].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder10, testProposals[8].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder11, testProposals[9].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder12, testProposals[1].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder13, testProposals[1].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder14, testProposals[5].proposalId, 1, 100);
 
         // check topTenProposals array
         GrowthFund.Proposal[] memory proposals = _growthFund.getTopTenProposals(_growthFund.getDistributionId());
         assertEq(proposals.length, 10);
-        assertEq(proposals[0].proposalId, proposalIds[1]);
+        assertEq(proposals[0].proposalId, testProposals[1].proposalId);
         assertEq(proposals[0].votesReceived, 150_000_000 * 1e18);
 
-        assertEq(proposals[1].proposalId, proposalIds[5]);
+        assertEq(proposals[1].proposalId, testProposals[5].proposalId);
         assertEq(proposals[1].votesReceived, 100_000_000 * 1e18);
     }
 
@@ -299,33 +300,33 @@ contract GrowthFundTest is GrowthFundTestHelper {
         _startDistributionPeriod(_growthFund);
 
         // create 15 proposals paying out tokens to _tokenHolder2
-        uint256[] memory proposalIds = _createNProposals(_growthFund, _token, 15, _tokenHolder2);
-        assertEq(proposalIds.length, 15);
+        TestProposal[] memory testProposals = _createNProposals(_growthFund, _token, 15, _tokenHolder2);
+        assertEq(testProposals.length, 15);
 
         vm.roll(110);
 
         // screening period votes
-        _vote(_growthFund, _tokenHolder2, proposalIds[0], 1, 100);
-        _vote(_growthFund, _tokenHolder3, proposalIds[1], 1, 100);
-        _vote(_growthFund, _tokenHolder4, proposalIds[2], 1, 100);
-        _vote(_growthFund, _tokenHolder5, proposalIds[3], 1, 100);
-        _vote(_growthFund, _tokenHolder6, proposalIds[4], 1, 100);
-        _vote(_growthFund, _tokenHolder7, proposalIds[5], 1, 100);
-        _vote(_growthFund, _tokenHolder8, proposalIds[6], 1, 100);
-        _vote(_growthFund, _tokenHolder9, proposalIds[7], 1, 100);
-        _vote(_growthFund, _tokenHolder10, proposalIds[8], 1, 100);
-        _vote(_growthFund, _tokenHolder11, proposalIds[9], 1, 100);
-        _vote(_growthFund, _tokenHolder12, proposalIds[1], 1, 100);
-        _vote(_growthFund, _tokenHolder13, proposalIds[1], 1, 100);
-        _vote(_growthFund, _tokenHolder14, proposalIds[5], 1, 100);
+        _vote(_growthFund, _tokenHolder2, testProposals[0].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder3, testProposals[1].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder4, testProposals[2].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder5, testProposals[3].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder6, testProposals[4].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder7, testProposals[5].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder8, testProposals[6].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder9, testProposals[7].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder10, testProposals[8].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder11, testProposals[9].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder12, testProposals[1].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder13, testProposals[1].proposalId, 1, 100);
+        _vote(_growthFund, _tokenHolder14, testProposals[5].proposalId, 1, 100);
 
         // check topTenProposals array is correct after screening period
         GrowthFund.Proposal[] memory screenedProposals = _growthFund.getTopTenProposals(_growthFund.getDistributionId());
         assertEq(screenedProposals.length, 10);
-        assertEq(screenedProposals[0].proposalId, proposalIds[1]);
+        assertEq(screenedProposals[0].proposalId, testProposals[1].proposalId);
         assertEq(screenedProposals[0].votesReceived, 150_000_000 * 1e18);
 
-        assertEq(screenedProposals[1].proposalId, proposalIds[5]);
+        assertEq(screenedProposals[1].proposalId, testProposals[5].proposalId);
         assertEq(screenedProposals[1].votesReceived, 100_000_000 * 1e18);
 
         // skip time to move from screening period to funding period
@@ -336,7 +337,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
 
         // check proposal state
         (uint256 proposalId, uint256 distributionId, uint256 votesReceived, int256 tokensRequested, int256 fundingReceived, bool succeeded, bool executed) = _growthFund.getProposalInfo(screenedProposals[0].proposalId);
-        assertEq(proposalId, proposalIds[1]);
+        assertEq(proposalId, testProposals[1].proposalId);
         assertEq(distributionId, _growthFund.getDistributionId());
         assertEq(votesReceived, 150_000_000 * 1e18);
         assertEq(tokensRequested, 2 * 1e18);
@@ -353,7 +354,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         _fundingVote(_growthFund, _tokenHolder2, screenedProposals[1].proposalId, 0, -25 * 1e18, 100);
 
         (proposalId, distributionId, votesReceived, tokensRequested, fundingReceived, succeeded, executed) = _growthFund.getProposalInfo(screenedProposals[1].proposalId);
-        assertEq(proposalId, proposalIds[5]);
+        assertEq(proposalId, testProposals[5].proposalId);
         assertEq(distributionId, _growthFund.getDistributionId());
         assertEq(votesReceived, 100_000_000 * 1e18);
         assertEq(tokensRequested, 6 * 1e18);
@@ -369,7 +370,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         _fundingVote(_growthFund, _tokenHolder3, screenedProposals[2].proposalId, 1, 7 * 1e18, 100);
 
         (proposalId, distributionId, votesReceived, tokensRequested, fundingReceived, succeeded, executed) = _growthFund.getProposalInfo(screenedProposals[2].proposalId);
-        assertEq(proposalId, proposalIds[6]);
+        assertEq(proposalId, testProposals[6].proposalId);
         assertEq(distributionId, _growthFund.getDistributionId());
         assertEq(votesReceived, 50_000_000 * 1e18);
         assertEq(tokensRequested, 7 * 1e18);
@@ -404,7 +405,15 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertEq(distributionExecuted, true);
 
         // TODO: execute the two successful proposals
-        // _growthFund.execute(ajnaTokenTargets, values, proposalCalldata, keccak256(bytes(description)));
+        TestProposal memory testProposal = testProposals[6];
+        _growthFund.execute(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));
+
+        assertEq(_token.balanceOf())
+
+
+    }
+
+    function testFundingVoteAllVotesAllocated() external {
 
     }
 

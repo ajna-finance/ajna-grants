@@ -63,7 +63,7 @@ abstract contract GrowthFundTestHelper is Test {
     /*** Test Helper Functions ***/
     /*****************************/
 
-    function _createProposal(GrowthFund growthFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (uint256) {
+    function _createProposal(GrowthFund growthFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (TestProposal memory) {
         // generate expected proposal state
         uint256 expectedProposalId = growthFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
         uint256 startBlock = block.number.toUint64() + growthFund_.votingDelay().toUint64();
@@ -86,11 +86,11 @@ abstract contract GrowthFundTestHelper is Test {
         uint256 proposalId = growthFund_.propose(targets_, values_, proposalCalldatas_, description);
         assertEq(proposalId, expectedProposalId);
 
-        return proposalId;
+        return TestProposal(proposalId, targets_, values_, proposalCalldatas_, description);
     }
 
     // TODO: make token receivers dynamic as well?
-    function _createNProposals(GrowthFund growthFund_, AjnaToken token_, uint n, address tokenReceiver_) internal returns (uint256[] memory) {
+    function _createNProposals(GrowthFund growthFund_, AjnaToken token_, uint n, address tokenReceiver_) internal returns (TestProposal[] memory) {
         // generate proposal targets
         address[] memory ajnaTokenTargets = new address[](1);
         ajnaTokenTargets[0] = address(token_);
@@ -99,7 +99,7 @@ abstract contract GrowthFundTestHelper is Test {
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
 
-        uint256[] memory returnProposalIds = new uint256[](n);
+        TestProposal[] memory testProposals = new TestProposal[](n);
 
         for (uint256 i = 1; i < n + 1; ++i) {
 
@@ -117,11 +117,10 @@ abstract contract GrowthFundTestHelper is Test {
                 i * 1e18
             );
 
-            uint256 proposalId = _createProposal(growthFund_, tokenReceiver_, ajnaTokenTargets, values, proposalCalldata, description);
-            returnProposalIds[i - 1] = proposalId;
-
+            TestProposal memory proposal = _createProposal(growthFund_, tokenReceiver_, ajnaTokenTargets, values, proposalCalldata, description);
+            testProposals[i - 1] = proposal;
         }
-        return returnProposalIds;
+        return testProposals;
     }
 
     function _delegateVotes(AjnaToken token_, address delegator_, address delegatee_) internal {

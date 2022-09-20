@@ -263,7 +263,31 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         return newDistributionPeriod.id;
     }
 
+    /*********************/
+    /*** Vote Counting ***/
+    /*********************/
+
     // TODO: override _countVote() as well
+    // TODO: remove import of GovernorCountingSimple.sol
+    // function _countVote(uint256 proposalId, address account, uint8 support, uint256 weight, bytes memory) internal override(Governor) {
+        // TODO: check if voter has already voted - or do it above based upon the funding flow?
+    // }
+
+    // TODO: finish implementing
+    function _quorumReached(uint256 proposalId) internal view override(Governor, GovernorCountingSimple) returns (bool) {
+        return true;
+    }
+
+    function _voteSucceeded(uint256 proposalId_) internal view override(Governor, GovernorCountingSimple) returns (bool) {
+        console.log("in here");
+        Proposal memory proposal = proposals[proposalId_];
+        return proposal.succeeded == true;
+    }
+
+    /**************/
+    /*** Voting ***/
+    /**************/
+
     // TODO: may want to replace the conditional checks of stage here with the DistributionPhase enum
     /**
      * @notice Vote on a proposal in the screening or funding stage of the Distribution Period.
@@ -431,6 +455,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         }
     }
 
+    // TODO: check that the distribution period has actually ended prior to allowing people to call execute
     // TODO: create flows for distribution round execution, and governance parameter updates
     function execute(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash) public payable override(Governor) returns (uint256) {
         uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash);
@@ -544,10 +569,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
     /**************************/
     /*** Proposal Functions ***/
     /**************************/
-
-    /************************/
-    /*** Voting Functions ***/
-    /************************/
 
     /*************************/
     /*** Sorting Functions ***/
