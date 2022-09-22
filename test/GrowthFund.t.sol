@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 
 import { AjnaToken } from "../src/BaseToken.sol";
 import { GrowthFund } from "../src/GrowthFund.sol";
+import { IGrowthFund } from "../src/interfaces/IGrowthFund.sol";
 
 import { SigUtils } from "./utils/SigUtils.sol";
 import { GrowthFundTestHelper } from "./GrowthFundTestHelper.sol";
@@ -404,13 +405,39 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertEq(tokensDistributed, 9 * 1e18);
         assertEq(distributionExecuted, true);
 
-        // TODO: execute the two successful proposals
-        TestProposal memory testProposal = testProposals[6];
+        // execute the two successful proposals, and check for revert of unsuccesful proposal
+
+        // execute first successful proposal
+        TestProposal memory testProposal = testProposals[1];
+        vm.expectEmit(true, true, false, true);
+        emit ProposalExecuted(testProposal.proposalId);
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(address(_growthFund), testProposal.recipient, testProposal.tokensRequested);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateVotesChanged(testProposal.recipient, 50_000_000 * 1e18, 50_000_000 * 1e18 + testProposal.tokensRequested); 
+        _growthFund.execute(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));
+        assertEq(_token.balanceOf(testProposal.recipient), 50_000_002 * 1e18);
+
+        // execute second successful proposal
+        testProposal = testProposals[6];
+        vm.expectEmit(true, true, false, true);
+        emit ProposalExecuted(testProposal.proposalId);
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(address(_growthFund), testProposal.recipient, testProposal.tokensRequested);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateVotesChanged(testProposal.recipient, 50_000_002 * 1e18, 50_000_002 * 1e18 + testProposal.tokensRequested); 
+        _growthFund.execute(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));
+        assertEq(_token.balanceOf(testProposal.recipient), 50_000_009 * 1e18);
+
+        // executing unfunded proposal should fail
+        testProposal = testProposals[5];
+        vm.expectRevert(IGrowthFund.ProposalNotFunded.selector);
         _growthFund.execute(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));
 
-        assertEq(_token.balanceOf())
-
-
+        // executing proposal that didn't make it through screening should fail
+        testProposal = testProposals[10];
+        vm.expectRevert(IGrowthFund.ProposalNotFunded.selector);
+        _growthFund.execute(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));
     }
 
     function testFundingVoteAllVotesAllocated() external {

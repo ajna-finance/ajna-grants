@@ -6,7 +6,6 @@ import { Checkpoints } from "@oz/utils/Checkpoints.sol";
 import { IERC20 } from "@oz/token/ERC20/IERC20.sol";
 
 import { Governor } from "@oz/governance/Governor.sol";
-import { GovernorCountingSimple } from "@oz/governance/extensions/GovernorCountingSimple.sol";
 import { GovernorSettings } from "@oz/governance/extensions/GovernorSettings.sol";
 import { GovernorVotes } from "@oz/governance/extensions/GovernorVotes.sol";
 import { GovernorVotesQuorumFraction } from "@oz/governance/extensions/GovernorVotesQuorumFraction.sol";
@@ -22,7 +21,7 @@ import { AjnaToken } from "./BaseToken.sol";
 import { console } from "@std/console.sol";
 
 
-contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSettings, GovernorVotes, GovernorVotesQuorumFraction {
+contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuorumFraction {
 
     using Checkpoints for Checkpoints.History;
 
@@ -207,28 +206,9 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         return topTenProposals[distributionId_];
     }
 
-    function propose(
-        address[] memory targets,
-        uint256[] memory values,
-        bytes[] calldata calldatas,
-        string memory description
-    ) public override(Governor) checkProposal(targets, values, calldatas) returns (uint256) {
-        uint256 proposalId = hashProposal(targets, values, calldatas, keccak256(bytes(description)));
-
-        // retrieve tokensRequested from proposal calldata
-        (, uint256 tokensRequested) = abi.decode(calldatas[0][4:], (address, uint256));
-
-        // TODO: check tokensRequested is less than the previous maximumQuarterlyDistribution
-        // if (tokensRequested > maximumQuarterlyDistribution()) revert RequestedTooManyTokens();
-
-        // store new proposal information
-        Proposal storage newProposal = proposals[proposalId];
-        newProposal.proposalId = proposalId;
-        newProposal.distributionId = getDistributionId();
-        newProposal.tokensRequested = int256(tokensRequested);
-
-        return super.propose(targets, values, calldatas, description);
-    }
+    /*****************************************/
+    /*** Distribution Management Functions ***/
+    /*****************************************/
 
     /**
      * @notice Start a new Distribution Period and reset appropiate state.
@@ -263,30 +243,120 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         return newDistributionPeriod.id;
     }
 
-    /*********************/
-    /*** Vote Counting ***/
-    /*********************/
+    /**
+     * @notice Update QuarterlyDistribution information, and burn any unused tokens.
+     */
+    function finalizeDistribution() public {
+        QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
 
-    // TODO: override _countVote() as well
-    // TODO: remove import of GovernorCountingSimple.sol
-    // function _countVote(uint256 proposalId, address account, uint8 support, uint256 weight, bytes memory) internal override(Governor) {
-        // TODO: check if voter has already voted - or do it above based upon the funding flow?
-    // }
+        // check if the last distribution phase has ended and that proposals remain to be executed
+        if (block.number <= currentDistribution.endBlock || currentDistribution.executed) revert FinalizeDistributionInvalid();
+
+        currentDistribution.votesCast = quarterlyVotesCounter;
+        currentDistribution.tokensDistributed = 0;
+
+        Proposal[] memory currentTopTenProposals = topTenProposals[getDistributionId()];
+
+        for (uint256 i = 0; i < currentTopTenProposals.length;) {
+            if (proposals[currentTopTenProposals[i].proposalId].succeeded) {
+                currentDistribution.tokensDistributed += uint256(currentTopTenProposals[i].tokensRequested);
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // transfer unused tokens to the burn address
+        uint256 unusedTokens = maximumQuarterlyDistribution() - currentDistribution.tokensDistributed;
+        ajnaToken.burn(unusedTokens);
+
+        // mark the current distribution as execution, ensuring that succesful proposals can be executed and recieve their funding
+        currentDistribution.executed = true;
+        emit FinalizeDistribution(getDistributionId(), unusedTokens);
+    }
+
+    /**
+     * @notice Get the current percentage of the maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
+     */
+    function maximumQuarterlyDistribution() public view returns (uint256) {
+        uint256 growthFundBalance = ajnaToken.balanceOf(address(this));
+        uint256 percentageOfTreasuryToAllocate = Maths.wmul(Maths.wdiv(quarterlyVotesCounter, (ajnaToken.totalSupply() - growthFundBalance)), maximumTokenDistributionPercentage);
+
+        return Maths.wmul(growthFundBalance, percentageOfTreasuryToAllocate);
+    }
+
+    /**************************/
+    /*** Proposal Functions ***/
+    /**************************/
+
+    function propose(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] calldata calldatas,
+        string memory description
+    ) public override(Governor) checkProposal(targets, values, calldatas) returns (uint256) {
+        uint256 proposalId = hashProposal(targets, values, calldatas, keccak256(bytes(description)));
+
+        // retrieve tokensRequested from proposal calldata
+        (, uint256 tokensRequested) = abi.decode(calldatas[0][4:], (address, uint256));
+
+        // TODO: check tokensRequested is less than the previous maximumQuarterlyDistribution
+        // if (tokensRequested > maximumQuarterlyDistribution()) revert RequestedTooManyTokens();
+
+        // store new proposal information
+        Proposal storage newProposal = proposals[proposalId];
+        newProposal.proposalId = proposalId;
+        newProposal.distributionId = getDistributionId();
+        newProposal.tokensRequested = int256(tokensRequested);
+
+        return super.propose(targets, values, calldatas, description);
+    }
+
+    // TODO: check that the distribution period has actually ended prior to allowing people to call execute
+    // TODO: create flows for distribution round execution, and governance parameter updates
+    function execute(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash) public payable override(Governor) returns (uint256) {
+        uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash);
+
+        // check if proposal to execute is in the top 10, status succeeded, and it hasn't already been executed.
+        if (_findInArray(proposalId, topTenProposals[getDistributionId()]) == -1 || !proposals[proposalId].succeeded || proposals[proposalId].executed) revert ProposalNotFunded();
+
+        super.execute(targets, values, calldatas, descriptionHash);
+    }
+
+    /************************/
+    /*** Voting Functions ***/
+    /************************/
+
+    /**
+     * @dev See {IGovernor-COUNTING_MODE}.
+     */
+    // solhint-disable-next-line func-name-mixedcase
+    function COUNTING_MODE() public pure override(IGovernor) returns (string memory) {
+        return "support=bravo&quorum=for,abstain";
+    }
+
+    /**
+     * @dev See {IGovernor-hasVoted}.
+     */
+    function hasVoted(uint256 proposalId, address account) public view override(IGovernor) returns (bool) {
+        if (hasScreened[msg.sender]) return true;
+    }
 
     // TODO: finish implementing
-    function _quorumReached(uint256 proposalId) internal view override(Governor, GovernorCountingSimple) returns (bool) {
+    function _countVote(uint256 proposalId, address account, uint8 support, uint256 weight, bytes memory) internal override(Governor) {
+        // TODO: check if voter has already voted - or do it above based upon the funding flow?
+    }
+
+    // TODO: finish implementing
+    function _quorumReached(uint256 proposalId) internal view override(Governor) returns (bool) {
         return true;
     }
 
-    function _voteSucceeded(uint256 proposalId_) internal view override(Governor, GovernorCountingSimple) returns (bool) {
-        console.log("in here");
+    function _voteSucceeded(uint256 proposalId_) internal view override(Governor) returns (bool) {
         Proposal memory proposal = proposals[proposalId_];
         return proposal.succeeded == true;
     }
-
-    /**************/
-    /*** Voting ***/
-    /**************/
 
     // TODO: may want to replace the conditional checks of stage here with the DistributionPhase enum
     /**
@@ -455,60 +525,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
         }
     }
 
-    // TODO: check that the distribution period has actually ended prior to allowing people to call execute
-    // TODO: create flows for distribution round execution, and governance parameter updates
-    function execute(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash) public payable override(Governor) returns (uint256) {
-        uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash);
-
-        // check if proposal to execute is in the top 10, status succeeded, and it hasn't already been executed.
-        if (_findInArray(proposalId, topTenProposals[getDistributionId()]) == -1 || !proposals[proposalId].succeeded || proposals[proposalId].executed) revert ProposalNotFunded();
-
-        super.execute(targets, values, calldatas, descriptionHash);
-    }
-
-    /**
-     * @notice Update QuarterlyDistribution information, and burn any unused tokens.
-     */
-    function finalizeDistribution() public {
-        QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
-
-        // check if the last distribution phase has ended and that proposals remain to be executed
-        if (block.number <= currentDistribution.endBlock || currentDistribution.executed) revert FinalizeDistributionInvalid();
-
-        currentDistribution.votesCast = quarterlyVotesCounter;
-        currentDistribution.tokensDistributed = 0;
-
-        Proposal[] memory currentTopTenProposals = topTenProposals[getDistributionId()];
-
-        for (uint256 i = 0; i < currentTopTenProposals.length;) {
-            if (proposals[currentTopTenProposals[i].proposalId].succeeded) {
-                currentDistribution.tokensDistributed += uint256(currentTopTenProposals[i].tokensRequested);
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        // transfer unused tokens to the burn address
-        uint256 unusedTokens = maximumQuarterlyDistribution() - currentDistribution.tokensDistributed;
-        ajnaToken.burn(unusedTokens);
-
-        // mark the current distribution as execution, ensuring that succesful proposals can be executed and recieve their funding
-        currentDistribution.executed = true;
-        emit FinalizeDistribution(getDistributionId(), unusedTokens);
-    }
-
-    /**
-     * @notice Get the current percentage of the maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
-     */
-    function maximumQuarterlyDistribution() public view returns (uint256) {
-        uint256 growthFundBalance = ajnaToken.balanceOf(address(this));
-        uint256 percentageOfTreasuryToAllocate = Maths.wmul(Maths.wdiv(quarterlyVotesCounter, (ajnaToken.totalSupply() - growthFundBalance)), maximumTokenDistributionPercentage);
-
-        return Maths.wmul(growthFundBalance, percentageOfTreasuryToAllocate);
-    }
-
     /******************************/
     /*** Growth Fund Parameters ***/
     /******************************/
@@ -565,10 +581,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorCountingSimple, GovernorSe
      * @notice Update the extraordinaryFundingBaseQuorum upon a successful extraordinary funding vote.
      */
     function _setExtraordinaryFundingQuorum() internal {}
-
-    /**************************/
-    /*** Proposal Functions ***/
-    /**************************/
 
     /*************************/
     /*** Sorting Functions ***/

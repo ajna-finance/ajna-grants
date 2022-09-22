@@ -57,6 +57,8 @@ abstract contract GrowthFundTestHelper is Test {
         uint256[] values;
         bytes[] calldatas;
         string description;
+        address recipient;
+        uint256 tokensRequested;
     }
 
     /*****************************/
@@ -86,10 +88,15 @@ abstract contract GrowthFundTestHelper is Test {
         uint256 proposalId = growthFund_.propose(targets_, values_, proposalCalldatas_, description);
         assertEq(proposalId, expectedProposalId);
 
-        return TestProposal(proposalId, targets_, values_, proposalCalldatas_, description);
+        // https://github.com/ethereum/solidity/issues/6012
+        (, address recipient, uint256 tokensRequested) = abi.decode(
+            abi.encodePacked(bytes28(0), proposalCalldatas_[0]),
+            (bytes32,address,uint256)
+        );
+
+        return TestProposal(proposalId, targets_, values_, proposalCalldatas_, description, recipient, tokensRequested);
     }
 
-    // TODO: make token receivers dynamic as well?
     function _createNProposals(GrowthFund growthFund_, AjnaToken token_, uint n, address tokenReceiver_) internal returns (TestProposal[] memory) {
         // generate proposal targets
         address[] memory ajnaTokenTargets = new address[](1);
