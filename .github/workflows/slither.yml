@@ -20,5 +20,10 @@ jobs:
 
       - name: Analyze AjnaToken
         run: |
-          slither src/BaseToken.sol
+          slither src/AjnaToken.sol
+        id: analyzer
+
+      - name: Analyze GrowthFund
+        run: |
+          slither src/GrowthFund.sol
         id: analyzer
