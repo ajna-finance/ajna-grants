@@ -145,7 +145,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuo
     /*****************************/
 
     // create a new distribution Id
-    // TODO: update this from a simple nonce incrementor -> use counters.counter instead?
     function _setNewDistributionId() private {
         // increment the distributionId
         uint256 currentDistributionId = getDistributionId();
@@ -313,13 +312,15 @@ contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuo
         return super.propose(targets, values, calldatas, description);
     }
 
-    // TODO: check that the distribution period has actually ended prior to allowing people to call execute
     // TODO: create flows for distribution round execution, and governance parameter updates
     function execute(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash) public payable override(Governor) returns (uint256) {
         uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash);
 
         // check if proposal to execute is in the top 10, status succeeded, and it hasn't already been executed.
         if (_findInArray(proposalId, topTenProposals[getDistributionId()]) == -1 || !proposals[proposalId].succeeded || proposals[proposalId].executed) revert ProposalNotFunded();
+
+        // check that the distribution period has ended
+        if (block.number <= distributions[getDistributionId()].endBlock) revert DistributionPeriodStillActive();
 
         super.execute(targets, values, calldatas, descriptionHash);
     }
@@ -348,7 +349,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuo
         // TODO: check if voter has already voted - or do it above based upon the funding flow?
     }
 
-    // TODO: finish implementing
+    // TODO: finish implementing -> add flag to see if the vote is for a StandardProposal or ExtraordinaryFundingProposal
     function _quorumReached(uint256 proposalId) internal view override(Governor) returns (bool) {
         return true;
     }
@@ -432,11 +433,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuo
         }
         // voter is voting in support of the proposal
         else {
-            // TODO: REMOVE THIS if check since people may want to overallocate to ensure passing?
-            // prevent allocation to a proposal that has already reached its requested token amount
-            if (!proposal_.succeeded) {
-                allocationUsed = Maths.minInt(remainingAllocationNeeded, budgetAllocation_);
-            }
+            allocationUsed = budgetAllocation_;
 
             // update voter and proposal vote tracking
             voter.budgetRemaining -= allocationUsed;
@@ -464,8 +461,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuo
      * @param votes_                  The amount of votes being cast.
      */
     function _screeningVote(Proposal[] storage currentTopTenProposals_, Proposal storage proposal_, uint8 support_, uint256 votes_) internal onlyScreenOnce returns (uint256) {
-        // TODO: bring votes calculation into this internal function?
-
         // update proposal votes counter
         proposal_.votesReceived += votes_;
 
