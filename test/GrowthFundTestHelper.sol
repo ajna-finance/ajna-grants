@@ -3,7 +3,7 @@ pragma solidity 0.8.7;
 
 import "forge-std/Test.sol";
 
-import { AjnaToken } from "../src/BaseToken.sol";
+import { AjnaToken } from "../src/AjnaToken.sol";
 import { GrowthFund } from "../src/GrowthFund.sol";
 
 import { SigUtils } from "./utils/SigUtils.sol";

@@ -3,7 +3,7 @@ pragma solidity 0.8.7;
 
 import "forge-std/Test.sol";
 
-import { AjnaToken } from "../src/BaseToken.sol";
+import { AjnaToken } from "../src/AjnaToken.sol";
 import { GrowthFund } from "../src/GrowthFund.sol";
 import { IGrowthFund } from "../src/interfaces/IGrowthFund.sol";
 
@@ -147,8 +147,30 @@ contract GrowthFundTest is GrowthFundTestHelper {
 
     }
 
-    function testProposeInvalidCalldatas() external {
+    function testProposeInvalidCalldata() external {
+        // generate proposal targets
+        address[] memory targets = new address[](1);
+        targets[0] = address(_token);
 
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        uint256 proposalTokenAmount = 1 * 1e18;
+        bytes[] memory proposalCalldata = new bytes[](1);
+        proposalCalldata[0] = abi.encodeWithSignature(
+            "burn(address,uint256)",
+            address(_growthFund),
+            proposalTokenAmount
+        );
+
+        // generate proposal message
+        string memory description = "Proposal for Ajna token burn from the growth fund";
+
+        // create proposal should revert since invalid burn operation was attempted
+        vm.expectRevert(IGrowthFund.InvalidSignature.selector);
+        _growthFund.propose(targets, values, proposalCalldata, description);
     }
 
     // disabled this test due to vote implementation overrides

@@ -16,7 +16,7 @@ import { Maths } from "./libraries/Maths.sol";
 
 import { IGrowthFund } from "./interfaces/IGrowthFund.sol";
 
-import { AjnaToken } from "./BaseToken.sol";
+import { AjnaToken } from "./AjnaToken.sol";
 
 import { console } from "@std/console.sol";
 
@@ -144,7 +144,10 @@ contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuo
     /*** Standard Distribution ***/
     /*****************************/
 
-    // create a new distribution Id
+    /**
+     * @notice Set a new DistributionPeriod Id.
+     * @dev    Increments the previous Id nonce by 1, and sets a checkpoint at the calling block.number.
+     */
     function _setNewDistributionId() private {
         // increment the distributionId
         uint256 currentDistributionId = getDistributionId();

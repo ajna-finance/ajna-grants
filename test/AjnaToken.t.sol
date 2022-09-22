@@ -3,7 +3,7 @@ pragma solidity 0.8.7;
 
 import "forge-std/Test.sol";
 
-import { AjnaToken } from "../src/BaseToken.sol";
+import { AjnaToken } from "../src/AjnaToken.sol";
 
 import { SigUtils } from "./utils/SigUtils.sol";
 
@@ -139,6 +139,21 @@ contract AjnaTokenTest is Test {
         assertEq(_token.balanceOf(spender),  0);
         assertEq(_token.balanceOf(newOwner), amount_ * 2);
         assertEq(_token.allowance(owner, spender), 0);
+
+        // CHECK FOR UNDERFLOW: owner can no longer spend tokens if their balance is 0
+        permit = SigUtils.Permit({
+            owner: owner,
+            spender: spender,
+            value: 1,
+            nonce: 2,
+            deadline: 1 days
+        });
+
+        digest = _sigUtils.getTypedDataHash(permit);
+        (v, r, s) = vm.sign(ownerPrivateKey, digest);
+
+        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        _token.transferFromWithPermit(owner, newOwner, spender, 1, permit.deadline, v, r, s);
     }
 
     /*********************/
