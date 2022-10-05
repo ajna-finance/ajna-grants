@@ -133,6 +133,9 @@ contract GrowthFundTest is GrowthFundTestHelper {
         // generate proposal message 
         string memory description = "Proposal for Ajna token transfer to tester address";
 
+        // start distribution period
+        _startDistributionPeriod(_growthFund);
+
         // create and submit proposal
         TestProposal memory proposal = _createProposal(_growthFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
 
@@ -487,10 +490,6 @@ contract GrowthFundTest is GrowthFundTestHelper {
 
     }
 
-    function testSetMaximumQuarterlyTokenDistribution() external {
-
-    }
-
     function testQuorum() external {
         uint256 pastBlock = 10;
 
@@ -498,10 +497,6 @@ contract GrowthFundTest is GrowthFundTestHelper {
         vm.roll(100);
         assertEq((_initialAjnaTokenSupply * 4) / 100, _growthFund.quorum(pastBlock));
     }
-
-    function testUpdateSettings() external {}
-
-    function testUpdateQuorum() external {}
 
     // TODO: move this into the voting tests?
     function testVotingDelay() external {}

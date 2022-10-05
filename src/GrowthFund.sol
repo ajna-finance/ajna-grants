@@ -6,7 +6,6 @@ import { Checkpoints } from "@oz/utils/Checkpoints.sol";
 import { IERC20 } from "@oz/token/ERC20/IERC20.sol";
 
 import { Governor } from "@oz/governance/Governor.sol";
-import { GovernorSettings } from "@oz/governance/extensions/GovernorSettings.sol";
 import { GovernorVotes } from "@oz/governance/extensions/GovernorVotes.sol";
 import { GovernorVotesQuorumFraction } from "@oz/governance/extensions/GovernorVotesQuorumFraction.sol";
 import { IGovernor } from "@oz/governance/IGovernor.sol";
@@ -21,7 +20,11 @@ import { AjnaToken } from "./AjnaToken.sol";
 import { console } from "@std/console.sol";
 
 
-contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuorumFraction {
+// TODO: remove burning
+// TODO: implement budget
+// TODO: remove ability to set governance parameters
+
+contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
     using Checkpoints for Checkpoints.History;
 
@@ -130,7 +133,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuo
 
     constructor(IVotes token_)
         Governor("AjnaEcosystemGrowthFund")
-        GovernorSettings(1 /* 1 block */, 45818 /* 1 week */, 0) // default settings, can be updated via a governance proposal        
         GovernorVotes(token_) // token that will be used for voting
         GovernorVotesQuorumFraction(4) // percentage of total voting power required; updateable via governance proposal
     {
@@ -358,8 +360,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuo
     }
 
     function _voteSucceeded(uint256 proposalId_) internal view override(Governor) returns (bool) {
-        Proposal memory proposal = proposals[proposalId_];
-        return proposal.succeeded == true;
+        return proposals[proposalId_].succeeded;
     }
 
     // TODO: may want to replace the conditional checks of stage here with the DistributionPhase enum
@@ -402,9 +403,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuo
 
             return _fundingVote(proposal, account_, votes, budgetAllocation);
         }
-
-        // all other votes -> governance? 
-        // TODO: determine how this should be restricted
     }
 
     // TODO: add check to ensure that total funding received is still below the maximumQuarterlyDistribution invariant
@@ -523,36 +521,27 @@ contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuo
         }
     }
 
-    /******************************/
-    /*** Growth Fund Parameters ***/
-    /******************************/
-
-    /**
-     * @notice Set the new percentage of the maximum possible distribution of Ajna tokens that will be released from the treasury each quarter.
-     * @dev Can only be called by Governance through the proposal process.
-     */
-    function setMaximumTokenDistributionPercentage(uint256 newDistributionPercentage_) public onlyGovernance {
-        maximumTokenDistributionPercentage = newDistributionPercentage_;
-    }
-
-    function setDistributionPeriodLength(uint256 newDistributionPeriodLength_) public onlyGovernance {
-        distributionPeriodLength = newDistributionPeriodLength_;
-    }
-
     /**************************/
     /*** Required Overrides ***/
     /**************************/
 
-    // TODO: tie this into quarterly distribution starting?
-    // TODO: implement custom override
-    function votingDelay() public view override(IGovernor, GovernorSettings) returns (uint256) {
-        return super.votingDelay();
+    /**
+     * @notice Required ovverride.
+     * @dev    Since no voting delay is implemented, this is hardcoded to 0.
+     */
+    function votingDelay() public view override(IGovernor) returns (uint256) {
+        return 0;
     }
 
-    // TODO: tie this into screening period?
-    // TODO: implement custom override
-    function votingPeriod() public view override(IGovernor, GovernorSettings) returns (uint256) {
-        return super.votingPeriod();
+    /**
+     * @notice Calculates the remaining blocks left in the screening period.
+     * @return The remaining number of blocks.
+     */
+    function votingPeriod() public view override(IGovernor) returns (uint256) {
+        // TODO: return remaining time in whichever period we're in (super.propose()#266)
+        QuarterlyDistribution memory currentDistribution = distributions[getDistributionId()];
+        uint256 screeningPeriodEndBlock = currentDistribution.startBlock + (currentDistribution.endBlock - currentDistribution.startBlock) / 2;
+        return screeningPeriodEndBlock - block.number;
     }
 
     // TODO: implement custom override - need to support both regular votes, and the extraordinaryFunding mechanism
@@ -561,7 +550,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuo
     }
 
     // Required override; we don't currently have a threshold to create a proposal so this returns the default value of 0
-    function proposalThreshold() public view override(Governor, GovernorSettings) returns (uint256) {
+    function proposalThreshold() public view override(Governor) returns (uint256) {
         return super.proposalThreshold();
     }
 
@@ -574,11 +563,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorSettings, GovernorVotesQuo
      */
     function getExtraordinaryFundingQuorum(uint256 blockNumber, uint256 tokensRequested) public view returns (uint256) {
     }
-
-    /**
-     * @notice Update the extraordinaryFundingBaseQuorum upon a successful extraordinary funding vote.
-     */
-    function _setExtraordinaryFundingQuorum() internal {}
 
     /*************************/
     /*** Sorting Functions ***/
