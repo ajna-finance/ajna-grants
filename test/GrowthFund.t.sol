@@ -412,8 +412,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         vm.roll(200_000);
 
         // check DistributionPeriod info
-        (, uint256 tokensDistributed, , , , bool distributionExecuted) = _growthFund.getDistributionPeriodInfo(_growthFund.getDistributionId());
-        assertEq(tokensDistributed, 0 * 1e18);
+        (, , , , bool distributionExecuted) = _growthFund.getDistributionPeriodInfo(_growthFund.getDistributionId());
         assertEq(distributionExecuted, false);
 
         uint256 tokensBurned = _growthFund.maximumQuarterlyDistribution() - 9 * 1e18;
@@ -423,11 +422,10 @@ contract GrowthFundTest is GrowthFundTestHelper {
         emit Transfer(address(_growthFund), address(0), tokensBurned);
         vm.expectEmit(true, true, false, true);
         emit FinalizeDistribution(distributionId, tokensBurned);
-        _growthFund.finalizeDistribution();
+        _growthFund.finalizeDistribution(_growthFund.getDistributionId());
 
         // check DistributionPeriod info
-        (, tokensDistributed, , , , distributionExecuted) = _growthFund.getDistributionPeriodInfo(_growthFund.getDistributionId());
-        assertEq(tokensDistributed, 9 * 1e18);
+        (, , , , distributionExecuted) = _growthFund.getDistributionPeriodInfo(_growthFund.getDistributionId());
         assertEq(distributionExecuted, true);
 
         // execute the two successful proposals, and check for revert of unsuccesful proposal
@@ -465,7 +463,11 @@ contract GrowthFundTest is GrowthFundTestHelper {
         _growthFund.execute(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));
     }
 
-    function testFundingVoteAllVotesAllocated() external {
+    function testGetSlateHash() external {
+
+    }
+
+    function testFinalizeDistributionKnapsack() external {
 
     }
 
@@ -477,9 +479,8 @@ contract GrowthFundTest is GrowthFundTestHelper {
         currentDistributionId = _growthFund.getDistributionId();
         assertEq(currentDistributionId, 1);
 
-        (uint256 id, uint256 tokensDistributed, uint256 votesCast, uint256 startBlock, uint256 endBlock, bool executed) = _growthFund.getDistributionPeriodInfo(currentDistributionId);
+        (uint256 id, uint256 votesCast, uint256 startBlock, uint256 endBlock, bool executed) = _growthFund.getDistributionPeriodInfo(currentDistributionId);
         assertEq(id, currentDistributionId);
-        assertEq(tokensDistributed, 0);
         assertEq(votesCast, 0);
         assertEq(startBlock, block.number);
         assertEq(endBlock, block.number + _growthFund.distributionPeriodLength());

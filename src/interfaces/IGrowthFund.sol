@@ -11,10 +11,10 @@ interface IGrowthFund {
     /**************/
     /**
      *  @notice Emitted at the end of a distribution period.
-     *  @param  distributionId_ Id of the distribution period.
-     *  @param  tokensBurned    Number of unused tokens burned at the distribution periods end.
+     *  @param  distributionId_  Id of the distribution period.
+     *  @param  fundedSlateHash_ Hash of the proposals to be funded.
      */
-    event FinalizeDistribution(uint256 indexed distributionId_, uint256 tokensBurned);
+    event FinalizeDistribution(uint256 indexed distributionId_, bytes32 indexed fundedSlateHash_);
 
     /**
      *  @notice Emitted at the beginning of a new quarterly distribution period.
@@ -79,12 +79,12 @@ interface IGrowthFund {
      * @dev Mapping and uint array used for tracking proposals in the distribution as typed arrays (like Proposal[]) can't be nested.
      */
     struct QuarterlyDistribution {
-        uint256 id;                // id of the current quarterly distribution
-        uint256 tokensDistributed; // number of ajna tokens distrubted that quarter
-        uint256 votesCast;         // total number of votes cast that quarter
-        uint256 startBlock;        // block number of the quarterly distrubtions start
-        uint256 endBlock;          // block number of the quarterly distrubtions end
-        bool    executed;          // check whether or not proposals can be executed from a distribution
+        uint256 id;                 // id of the current quarterly distribution
+        uint256 votesCast;          // total number of votes cast that quarter
+        uint256 startBlock;         // block number of the quarterly distrubtions start
+        uint256 endBlock;           // block number of the quarterly distrubtions end
+        bool    executed;           // check whether or not proposals can be executed from a distribution
+        bytes32 fundedSlateHash;    // hash of list of proposals to fund
     }
 
     struct Proposal {
