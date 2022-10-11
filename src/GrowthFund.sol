@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.7;
+pragma solidity 0.8.17;
 
 import { Checkpoints } from "@oz/utils/Checkpoints.sol";
 
@@ -111,6 +111,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         _;
     }
 
+    // TODO: add revert if length is greater than 1
     /**
      * @notice Ensure a proposal matches GrowthFund specifications.
      * @dev Targets_ should be the Ajna token contract, values_ should be 0, and calldatas_ should be transfer().
@@ -118,12 +119,19 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @param values_    List of wei amounts to call the target address with.
      * @param calldatas_ List of calldatas to execute if the proposal is successful.
      */
-    modifier checkProposal(address[] memory targets_, uint256[] memory values_, bytes[] calldata calldatas_) {
+    modifier checkProposal(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_) {
         for (uint i = 0; i < targets_.length;) {
 
             if (targets_[i] != votingTokenAddress) revert InvalidTarget();
             if (values_[i] != 0) revert InvalidValues();
-            if (bytes4(calldatas_[i][:4]) != bytes4(0xa9059cbb)) revert InvalidSignature();
+
+            // check calldata function selector is transfer()
+            bytes memory dataWithSig = calldatas_[i];
+            bytes4 selector;
+            assembly {
+                selector := mload(add(dataWithSig, 0x20))
+            }
+            if (selector != bytes4(0xa9059cbb)) revert InvalidSignature();
 
             unchecked {
                 ++i;
@@ -188,7 +196,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         );
     }
 
-    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, int256, int256, bool, bool) {
+    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256, bool, bool) {
         Proposal memory proposal = proposals[proposalId_];
         return (
             proposal.proposalId,
@@ -250,7 +258,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         return newDistributionPeriod.id;
     }
 
-    function _sumTokensRequested(Proposal[] memory proposalSubset_) public returns (uint256 sum) {
+    function _sumFundingReceived(Proposal[] memory proposalSubset_) public returns (uint256 sum) {
         sum = 0;
         for (uint i = 0; i < proposalSubset_.length;) {
             sum += uint256(proposalSubset_[i].fundingReceived);
@@ -285,7 +293,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @return Boolean indicating whether the new proposal slate was set as the new slate for distribution.
      */
     function checkSlate(Proposal[] calldata fundedProposals_, uint256 distributionId_) public returns (bool) {
-
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
 
         // check that the function is being called within the challenge period
@@ -301,9 +308,10 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
             // check if Proposal is in the topTenProposals list
             if (_findInArray(fundedProposals_[i].proposalId, topTenProposals[distributionId_]) == -1) return false;
 
+            // TODO: account for fundingReceived possibly being negative
             // update counters
             sum += uint256(fundedProposals_[i].fundingReceived);
-            totalTokensRequested += uint256(fundedProposals_[i].tokensRequested);
+            totalTokensRequested += fundedProposals_[i].tokensRequested;
 
             // check if slate of proposals exceeded budget constraint
             if (totalTokensRequested > gbc) {
@@ -321,7 +329,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
         // check if current slate received more support than the current leading slate
         if (currentSlateHash != 0) {
-            if (sum > _sumTokensRequested(fundedProposalSlates[distributionId_][currentSlateHash])) {
+            if (sum > _sumFundingReceived(fundedProposalSlates[distributionId_][currentSlateHash])) {
 
                 _updateFundedSlate(fundedProposals_, currentDistribution, newSlateHash);
                 return true;
@@ -375,22 +383,24 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     function propose(
         address[] memory targets,
         uint256[] memory values,
-        bytes[] calldata calldatas,
+        bytes[] memory calldatas,
         string memory description
     ) public override(Governor) checkProposal(targets, values, calldatas) returns (uint256) {
         uint256 proposalId = hashProposal(targets, values, calldatas, keccak256(bytes(description)));
 
-        // retrieve tokensRequested from proposal calldata
-        (, uint256 tokensRequested) = abi.decode(calldatas[0][4:], (address, uint256));
-
-        // TODO: check tokensRequested is less than the previous maximumQuarterlyDistribution
-        // if (tokensRequested > maximumQuarterlyDistribution()) revert RequestedTooManyTokens();
+        // https://github.com/ethereum/solidity/issues/9439
+        // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
+        bytes memory dataWithSig = calldatas[0];
+        uint256 tokensRequested;
+        assembly {
+            tokensRequested := mload(add(dataWithSig, 68))
+        }
 
         // store new proposal information
         Proposal storage newProposal = proposals[proposalId];
         newProposal.proposalId = proposalId;
         newProposal.distributionId = getDistributionId();
-        newProposal.tokensRequested = int256(tokensRequested);
+        newProposal.tokensRequested = tokensRequested;
 
         return super.propose(targets, values, calldatas, description);
     }

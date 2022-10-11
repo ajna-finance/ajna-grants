@@ -1,0 +1,94 @@
+{
+  "Proposals": [
+    {
+      "proposalId": 0,   
+      "distributionId": 1,
+      "votesReceived": 0,
+      "tokensRequested": 0,
+      "fundingReceived": 0,
+      "succeeded": false,
+      "executed": false
+    },
+    {
+      "proposalId": 1,   
+      "distributionId": 1,
+      "votesReceived": 0,
+      "tokensRequested": 0,
+      "fundingReceived": 0,
+      "succeeded": false,
+      "executed": false
+    },
+    {
+      "proposalId": 2,   
+      "distributionId": 1,
+      "votesReceived": 0,
+      "tokensRequested": 0,
+      "fundingReceived": 0,
+      "succeeded": false,
+      "executed": false
+    },
+    {
+      "proposalId": 3,   
+      "distributionId": 1,
+      "votesReceived": 0,
+      "tokensRequested": 0,
+      "fundingReceived": 0,
+      "succeeded": false,
+      "executed": false
+    },
+    {
+      "proposalId": 4,   
+      "distributionId": 1,
+      "votesReceived": 0,
+      "tokensRequested": 0,
+      "fundingReceived": 0,
+      "succeeded": false,
+      "executed": false
+    },
+    {
+      "proposalId": 5,   
+      "distributionId": 1,
+      "votesReceived": 0,
+      "tokensRequested": 0,
+      "fundingReceived": 0,
+      "succeeded": false,
+      "executed": false
+    },
+    {
+      "proposalId": 6,   
+      "distributionId": 1,
+      "votesReceived": 0,
+      "tokensRequested": 0,
+      "fundingReceived": 0,
+      "succeeded": false,
+      "executed": false
+    },
+    {
+      "proposalId": 7,   
+      "distributionId": 1,
+      "votesReceived": 0,
+      "tokensRequested": 0,
+      "fundingReceived": 0,
+      "succeeded": false,
+      "executed": false
+    },
+    {
+      "proposalId": 8,   
+      "distributionId": 1,
+      "votesReceived": 0,
+      "tokensRequested": 0,
+      "fundingReceived": 0,
+      "succeeded": false,
+      "executed": false
+    },
+    {
+      "proposalId": 9,   
+      "distributionId": 1,
+      "votesReceived": 0,
+      "tokensRequested": 0,
+      "fundingReceived": 0,
+      "succeeded": false,
+      "executed": false
+    }
+    ]
+}

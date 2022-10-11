@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.7;
+pragma solidity 0.8.17;
 
 /**
  * @title Ajna ERC20 Pool
@@ -90,8 +90,8 @@ interface IGrowthFund {
     struct Proposal {
         uint256 proposalId;      // OZ.Governor proposalId
         uint256 distributionId;  // Id of the distribution period in which the proposal was made
-        uint256 votesReceived;   // accumulator of votes received by a proposal
-        int256 tokensRequested;  // number of Ajna tokens requested in the proposal
+        uint256 votesReceived;   // accumulator of screening votes received by a proposal
+        uint256 tokensRequested; // number of Ajna tokens requested in the proposal
         int256 fundingReceived;  // accumulator of QV budget allocated
         bool succeeded;          // whether or not the proposal was fully funded
         bool executed;           // whether or not the proposal has been executed
