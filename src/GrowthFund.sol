@@ -38,21 +38,15 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
     // TODO: update this from a percentage to just the numerator?
     /**
-     * @notice Maximum amount of tokens that can be distributed by the treasury in a quarter.
+     * @notice Maximum percentage of tokens that can be distributed by the treasury in a quarter.
      * @dev Stored as a Wad percentage.
      */
-    uint256 public maximumTokenDistributionPercentage = Maths.wdiv(Maths.wad(2), Maths.wad(100));
+    uint256 public globalBudgetConstraint = Maths.wdiv(Maths.wad(2), Maths.wad(100));
 
     /**
      * @notice Length of the distribution period in blocks.
      */
     uint256 public distributionPeriodLength = 183272; // 4 weeks
-
-    /**
-     * @notice Accumulator tracking the number of votes cast in a quarter.
-     * @dev Reset to 0 at the start of each new quarter.
-     */
-    uint256 quarterlyVotesCounter = 0;
 
     /**
      * @notice ID of the current distribution period.
@@ -185,15 +179,23 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     function getDistributionPhase(uint256 distributionId_) public view returns (DistributionPhase) {
     }
 
-    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, bool) {
+    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, bool, bytes32) {
         QuarterlyDistribution memory distribution = distributions[distributionId_];
         return (
             distribution.id,
             distribution.votesCast,
             distribution.startBlock,
             distribution.endBlock,
-            distribution.executed
+            distribution.executed,
+            distribution.fundedSlateHash
         );
+    }
+
+    /**
+     * @notice Get the funded proposal slate for a given distributionId, and slate hash
+     */
+    function getFundedProposalSlate(uint256 distributionId_, bytes32 slateHash_) external view returns (Proposal[] memory) {
+        return fundedProposalSlates[distributionId_][slateHash_];
     }
 
     function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256, bool, bool) {
@@ -234,7 +236,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         QuarterlyDistribution memory lastDistribution = distributions[getDistributionId()];
 
         // check that there isn't currently an active distribution period
-        require(block.number > lastDistribution.endBlock, "Distribution Period Ongoing");
+        if (block.number <= lastDistribution.endBlock) revert DistributionPeriodStillActive();
 
         // TODO: calculate starting and ending block properly -> should startBlock be the current block?
         uint256 startBlock = block.number;
@@ -251,14 +253,11 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         newDistributionPeriod.startBlock = startBlock;
         newDistributionPeriod.endBlock = endBlock;
 
-        // reset quarterly votes counter
-        quarterlyVotesCounter = 0;
-
         emit QuarterlyDistributionStarted(newDistributionId, startBlock, endBlock);
         return newDistributionPeriod.id;
     }
 
-    function _sumFundingReceived(Proposal[] memory proposalSubset_) public returns (uint256 sum) {
+    function _sumFundingReceived(Proposal[] memory proposalSubset_) internal pure returns (uint256 sum) {
         sum = 0;
         for (uint i = 0; i < proposalSubset_.length;) {
             sum += uint256(proposalSubset_[i].fundingReceived);
@@ -269,7 +268,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         }
     }
 
-    function getSlateHash(Proposal[] calldata proposals_) public returns (bytes32) {
+    function getSlateHash(Proposal[] calldata proposals_) public pure returns (bytes32) {
         return keccak256(abi.encode(proposals_));
     }
 
@@ -344,6 +343,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         return false;
     }
 
+    // TODO: is this function necessary? I.e. can we simpy checkSlate, and then execute following the end of the period?
     /**
      * @notice Update QuarterlyDistribution information, and burn any unused tokens.
      */
@@ -355,9 +355,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
             revert FinalizeDistributionInvalid();
         }
 
-        // TODO: check which stage should be used for this vote counter
-        currentDistribution.votesCast = quarterlyVotesCounter;
-
         Proposal[] memory currentTopTenProposals = topTenProposals[distributionId_];
 
         // mark the current distribution as execution, ensuring that succesful proposals can be executed and recieve their funding
@@ -365,15 +362,12 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         emit FinalizeDistribution(distributionId_, currentDistribution.fundedSlateHash);
     }
 
-    // TODO: rename to gbc
     /**
-     * @notice Get the current percentage of the maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
+     * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
      */
     function maximumQuarterlyDistribution() public view returns (uint256) {
         uint256 growthFundBalance = ajnaToken.balanceOf(address(this));
-        uint256 percentageOfTreasuryToAllocate = Maths.wmul(Maths.wdiv(quarterlyVotesCounter, (ajnaToken.totalSupply() - growthFundBalance)), maximumTokenDistributionPercentage);
-
-        return Maths.wmul(growthFundBalance, percentageOfTreasuryToAllocate);
+        return Maths.wmul(growthFundBalance, globalBudgetConstraint);
     }
 
     /**************************/
@@ -413,7 +407,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         if (_findInArray(proposalId, topTenProposals[getDistributionId()]) == -1 || !proposals[proposalId].succeeded || proposals[proposalId].executed) revert ProposalNotFunded();
 
         // check that the distribution period has ended
-        if (block.number <= distributions[getDistributionId()].endBlock) revert DistributionPeriodStillActive();
+        if (block.number <= distributions[getDistributionId()].endBlock) revert ExecuteProposalInvalid();
 
         super.execute(targets, values, calldatas, descriptionHash);
     }
@@ -493,9 +487,11 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         }
     }
 
+    // TODO: ensure this updated Proposal ties back to top ten proposals
     // TODO: rename fundingReceived to votesReceived
     function _fundingVote(Proposal storage proposal_, address account_, uint256 votes_, int256 budgetAllocation_) internal returns (uint256) {
-        QuadraticVoter storage voter = quadraticVoters[getDistributionId()][account_];
+        uint256 distributionId = getDistributionId();
+        QuadraticVoter storage voter = quadraticVoters[distributionId][account_];
 
         // if first time voting update their voting weight
         if (voter.votingWeight == 0 && votes_ > 0) {
@@ -524,11 +520,15 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
             proposal_.fundingReceived += allocationUsed;
         }
 
+        // update proposal vote tracking in top ten array
+        topTenProposals[distributionId][uint256(_findInArray(proposal_.proposalId, topTenProposals[distributionId]))].fundingReceived = proposal_.fundingReceived;
+
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(account_, proposal_.proposalId, support, uint256(allocationUsed), "");
         return uint256(allocationUsed);
     }
 
+    // TODO: check voting against a proposal
     /**
      * @notice Vote on a proposal in the screening stage of the Distribution Period.
      * @param currentTopTenProposals_ List of top ten vote receiving proposals that made it through the screening round.
@@ -540,16 +540,14 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         // update proposal votes counter
         proposal_.votesReceived += votes_;
 
-        // increment quarterly votes counter
-        quarterlyVotesCounter += votes_;
+        // check if proposal was already screened
+        int indexInArray = _findInArray(proposal_.proposalId, currentTopTenProposals_);
 
-        // check if additional votes are enough to push the proposal into the top 10
-        if (currentTopTenProposals_.length == 0 || currentTopTenProposals_.length < 10) {
+        // check if the proposal should be added to the top ten list for the first time
+        if (currentTopTenProposals_.length < 10 && indexInArray == -1) {
             currentTopTenProposals_.push(proposal_);
         }
         else {
-            int indexInArray = _findInArray(proposal_.proposalId, currentTopTenProposals_);
-
             // proposal is already in the array
             if (indexInArray != -1) {
                 currentTopTenProposals_[uint256(indexInArray)] = proposal_;
@@ -559,6 +557,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
             }
             // proposal isn't already in the array
             else if(currentTopTenProposals_[currentTopTenProposals_.length - 1].votesReceived < proposal_.votesReceived) {
+                // replace least supported proposal with the new proposal
                 currentTopTenProposals_.pop();
                 currentTopTenProposals_.push(proposal_);
 

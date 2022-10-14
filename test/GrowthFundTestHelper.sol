@@ -61,6 +61,14 @@ abstract contract GrowthFundTestHelper is Test {
         uint256 tokensRequested;
     }
 
+    struct TestProposalParams {
+        address recipient;
+        uint256 tokensRequested;
+    }
+
+    uint8 voteNo = 0;
+    uint8 voteYes = 1;
+
     /*****************************/
     /*** Test Helper Functions ***/
     /*****************************/
@@ -97,7 +105,7 @@ abstract contract GrowthFundTestHelper is Test {
         return TestProposal(proposalId, targets_, values_, proposalCalldatas_, description, recipient, tokensRequested);
     }
 
-    function _createNProposals(GrowthFund growthFund_, AjnaToken token_, uint n, address tokenReceiver_) internal returns (TestProposal[] memory) {
+    function _createNProposals(GrowthFund growthFund_, AjnaToken token_, TestProposalParams[] memory testProposalParams_) internal returns (TestProposal[] memory) {
         // generate proposal targets
         address[] memory ajnaTokenTargets = new address[](1);
         ajnaTokenTargets[0] = address(token_);
@@ -106,13 +114,13 @@ abstract contract GrowthFundTestHelper is Test {
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
 
-        TestProposal[] memory testProposals = new TestProposal[](n);
+        TestProposal[] memory testProposals = new TestProposal[](testProposalParams_.length);
 
-        for (uint256 i = 1; i < n + 1; ++i) {
+        for (uint256 i = 0; i < testProposalParams_.length; ++i) {
 
             // generate description string
             string memory descriptionPartOne = "Proposal to transfer ";
-            string memory descriptionPartTwo = Strings.toString(i * 1e18);
+            string memory descriptionPartTwo = Strings.toString(testProposalParams_[i].tokensRequested);
             string memory descriptionPartThree = " tokens to tester address";
             string memory description = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo, descriptionPartThree));
 
@@ -120,12 +128,12 @@ abstract contract GrowthFundTestHelper is Test {
             bytes[] memory proposalCalldata = new bytes[](1);
             proposalCalldata[0] = abi.encodeWithSignature(
                 "transfer(address,uint256)",
-                tokenReceiver_,
-                i * 1e18
+                testProposalParams_[i].recipient,
+                testProposalParams_[i].tokensRequested
             );
 
-            TestProposal memory proposal = _createProposal(growthFund_, tokenReceiver_, ajnaTokenTargets, values, proposalCalldata, description);
-            testProposals[i - 1] = proposal;
+            TestProposal memory proposal = _createProposal(growthFund_, testProposalParams_[i].recipient, ajnaTokenTargets, values, proposalCalldata, description);
+            testProposals[i] = proposal;
         }
         return testProposals;
     }
@@ -139,20 +147,29 @@ abstract contract GrowthFundTestHelper is Test {
         token_.delegate(delegatee_);
     }
 
+    function _selfDelegateVoters(AjnaToken token_, address[] memory voters_) internal {
+        for (uint256 i = 0; i < voters_.length; ++i) {
+            _delegateVotes(token_, voters_[i], voters_[i]);
+        }
+    }
+
     function _startDistributionPeriod(GrowthFund growthFund_) internal {
         vm.expectEmit(true, true, false, true);
-        emit QuarterlyDistributionStarted(1, block.number, block.number + growthFund_.distributionPeriodLength());
+        emit QuarterlyDistributionStarted(growthFund_.getDistributionId() + 1, block.number, block.number + growthFund_.distributionPeriodLength());
         growthFund_.startNewDistributionPeriod();
     }
 
     function _vote(GrowthFund growthFund_, address voter_, uint256 proposalId_, uint8 support_, uint256 votingWeightSnapshotBlock_) internal {
+        uint256 votingWeight = growthFund_.getVotes(voter_, votingWeightSnapshotBlock_);
+
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
-        emit VoteCast(voter_, proposalId_, support_, growthFund_.getVotes(address(voter_), votingWeightSnapshotBlock_), "");
+        emit VoteCast(voter_, proposalId_, support_, votingWeight, "");
         growthFund_.castVote(proposalId_, support_);
     }
 
-    function _fundingVote(GrowthFund growthFund_, address voter_, uint256 proposalId_, uint8 support_, int256 votesAllocated_, uint256) internal {
+    // TODO: determine how to handle support vs passing in a negative votesAllocated number
+    function _fundingVote(GrowthFund growthFund_, address voter_, uint256 proposalId_, uint8 support_, int256 votesAllocated_) internal {
         string memory reason = "";
         bytes memory params = abi.encode(votesAllocated_);
 

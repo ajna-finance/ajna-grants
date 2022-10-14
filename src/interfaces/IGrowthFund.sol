@@ -39,6 +39,11 @@ interface IGrowthFund {
      error DistributionPeriodStillActive();
 
     /**
+     * @notice User attempted to execute a proposal before the distribution period ended.
+     */
+     error ExecuteProposalInvalid();
+
+    /**
      * @notice User attempted to finalize a distribution for execution when it has already been executed, or isn't ready.
      */
     error FinalizeDistributionInvalid();
