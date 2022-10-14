@@ -88,7 +88,6 @@ interface IGrowthFund {
         uint256 votesCast;          // total number of votes cast that quarter
         uint256 startBlock;         // block number of the quarterly distrubtions start
         uint256 endBlock;           // block number of the quarterly distrubtions end
-        bool    executed;           // check whether or not proposals can be executed from a distribution
         bytes32 fundedSlateHash;    // hash of list of proposals to fund
     }
 

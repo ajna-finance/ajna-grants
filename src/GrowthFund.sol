@@ -179,14 +179,13 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     function getDistributionPhase(uint256 distributionId_) public view returns (DistributionPhase) {
     }
 
-    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, bool, bytes32) {
+    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, bytes32) {
         QuarterlyDistribution memory distribution = distributions[distributionId_];
         return (
             distribution.id,
             distribution.votesCast,
             distribution.startBlock,
             distribution.endBlock,
-            distribution.executed,
             distribution.fundedSlateHash
         );
     }
@@ -343,25 +342,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         return false;
     }
 
-    // TODO: is this function necessary? I.e. can we simpy checkSlate, and then execute following the end of the period?
-    /**
-     * @notice Update QuarterlyDistribution information, and burn any unused tokens.
-     */
-    function finalizeDistribution(uint256 distributionId_) public {
-        QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
-
-        // check if the last distribution phase has ended and that proposals remain to be executed
-        if (block.number <= currentDistribution.endBlock || block.number <= currentDistribution.endBlock + 50400 || currentDistribution.executed) {
-            revert FinalizeDistributionInvalid();
-        }
-
-        Proposal[] memory currentTopTenProposals = topTenProposals[distributionId_];
-
-        // mark the current distribution as execution, ensuring that succesful proposals can be executed and recieve their funding
-        currentDistribution.executed = true;
-        emit FinalizeDistribution(distributionId_, currentDistribution.fundedSlateHash);
-    }
-
     /**
      * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
      */
@@ -399,17 +379,29 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         return super.propose(targets, values, calldatas, description);
     }
 
-    // TODO: create flows for distribution round execution, and governance parameter updates
+    /**
+     * @notice Execute a proposal that has been approved by the community.
+     * @dev    Calls out to Governor.execute()
+     * @return proposalId of the executed proposal.
+     */
     function execute(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash) public payable override(Governor) returns (uint256) {
         uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash);
+        Proposal storage proposal = proposals[proposalId];
 
-        // check if proposal to execute is in the top 10, status succeeded, and it hasn't already been executed.
-        if (_findInArray(proposalId, topTenProposals[getDistributionId()]) == -1 || !proposals[proposalId].succeeded || proposals[proposalId].executed) revert ProposalNotFunded();
+        // check if propsal is in the fundedProposalSlates list
+        if (_findInArray(proposalId, fundedProposalSlates[proposal.distributionId][distributions[proposal.distributionId].fundedSlateHash]) == -1) {
+            revert ProposalNotFunded();
+        }
 
-        // check that the distribution period has ended
-        if (block.number <= distributions[getDistributionId()].endBlock) revert ExecuteProposalInvalid();
+        // check that the distribution period has ended, and it hasn't already been executed
+        if (block.number <= distributions[proposal.distributionId].endBlock + 50400 || proposals[proposalId].executed) revert ExecuteProposalInvalid();
+
+        // update proposal state
+        proposal.succeeded = true;
+        proposal.executed = true;
 
         super.execute(targets, values, calldatas, descriptionHash);
+        return proposalId;
     }
 
     /************************/

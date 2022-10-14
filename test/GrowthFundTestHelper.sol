@@ -153,6 +153,26 @@ abstract contract GrowthFundTestHelper is Test {
         }
     }
 
+    function _executeProposal(GrowthFund growthFund_, AjnaToken token_, TestProposal memory testProposal_) internal {
+        // calculate starting balances
+        uint256 voterStartingBalance = token_.balanceOf(testProposal_.recipient);
+        uint256 growthFundStartingBalance = token_.balanceOf(address(growthFund_));
+
+        // execute proposal
+        changePrank(testProposal_.recipient);
+        vm.expectEmit(true, true, false, true);
+        emit ProposalExecuted(testProposal_.proposalId);
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(address(growthFund_), testProposal_.recipient, testProposal_.tokensRequested);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateVotesChanged(testProposal_.recipient, voterStartingBalance, voterStartingBalance + testProposal_.tokensRequested);
+        growthFund_.execute(testProposal_.targets, testProposal_.values, testProposal_.calldatas, keccak256(bytes(testProposal_.description)));
+
+        // check ending token balances
+        assertEq(token_.balanceOf(testProposal_.recipient), voterStartingBalance + testProposal_.tokensRequested);
+        assertEq(token_.balanceOf(address(growthFund_)), growthFundStartingBalance - testProposal_.tokensRequested);
+    }
+
     function _startDistributionPeriod(GrowthFund growthFund_) internal {
         vm.expectEmit(true, true, false, true);
         emit QuarterlyDistributionStarted(growthFund_.getDistributionId() + 1, block.number, block.number + growthFund_.distributionPeriodLength());

@@ -270,6 +270,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         // assertEq(proposals[1].votesReceived, 100_000_000 * 1e18);
     }
 
+    // TODO: remove this?
     function testFundingStage() external {
         // TODO: allocate funding votes and check that state matches the fixtures
 
@@ -286,12 +287,11 @@ contract GrowthFundTest is GrowthFundTestHelper {
         currentDistributionId = _growthFund.getDistributionId();
         assertEq(currentDistributionId, 1);
 
-        (uint256 id, uint256 votesCast, uint256 startBlock, uint256 endBlock, bool executed, ) = _growthFund.getDistributionPeriodInfo(currentDistributionId);
+        (uint256 id, uint256 votesCast, uint256 startBlock, uint256 endBlock, ) = _growthFund.getDistributionPeriodInfo(currentDistributionId);
         assertEq(id, currentDistributionId);
         assertEq(votesCast, 0);
         assertEq(startBlock, block.number);
         assertEq(endBlock, block.number + _growthFund.distributionPeriodLength());
-        assertEq(executed, false);
 
         // check a new distribution period can't be started if already active
         vm.expectRevert(IGrowthFund.DistributionPeriodStillActive.selector);
@@ -308,8 +308,9 @@ contract GrowthFundTest is GrowthFundTestHelper {
     /**
      *  @notice Integration test of 5 proposals submitted, with 3 passing the screening stage. There should be two potential proposal slates after funding.
      *  @dev    Maximum quarterly distribution is 10_000_000.
+     *  @dev    Funded slate is executed.
      */
-    function testCheckSlateSimplified() external {
+    function testDistributionPeriodEndToEnd() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _selfDelegatedVotersArr);
 
@@ -388,7 +389,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         // ensure checkSlate won't allow exceeding the GBC
         bool validSlate = _growthFund.checkSlate(potentialProposalSlate, distributionId);
         assertFalse(validSlate);
-        (, , , , , bytes32 slateHash1) = _growthFund.getDistributionPeriodInfo(distributionId);
+        (, , , , bytes32 slateHash1) = _growthFund.getDistributionPeriodInfo(distributionId);
         assertEq(slateHash1, 0);
 
         // ensure checkSlate will allow a valid slate
@@ -397,7 +398,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         validSlate = _growthFund.checkSlate(potentialProposalSlate, distributionId);
         assertTrue(validSlate);
         // check slate hash
-        (, , , , , bytes32 slateHash2) = _growthFund.getDistributionPeriodInfo(distributionId);
+        (, , , , bytes32 slateHash2) = _growthFund.getDistributionPeriodInfo(distributionId);
         assertEq(slateHash2, 0xbaecea49d532511a6bbc6ca382353d6a7cc116a987c058e4c86023f5d5166b5f);
         // check funded proposal slate matches expected state
         GrowthFund.Proposal[] memory fundedProposalSlate = _growthFund.getFundedProposalSlate(distributionId, slateHash2);
@@ -411,7 +412,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         validSlate = _growthFund.checkSlate(potentialProposalSlate, distributionId);
         assertTrue(validSlate);
         // check slate hash
-        (, , , , , bytes32 slateHash3) = _growthFund.getDistributionPeriodInfo(distributionId);
+        (, , , , bytes32 slateHash3) = _growthFund.getDistributionPeriodInfo(distributionId);
         assertEq(slateHash3, 0xb99a61b06ff11e483096c15eaece1c4c16bdf9529d766136a057d46d0f53c232);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _growthFund.getFundedProposalSlate(distributionId, slateHash3);
@@ -426,7 +427,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         validSlate = _growthFund.checkSlate(potentialProposalSlate, distributionId);
         assertTrue(validSlate);
         // check slate hash
-        (, , , , , bytes32 slateHash4) = _growthFund.getDistributionPeriodInfo(distributionId);
+        (, , , , bytes32 slateHash4) = _growthFund.getDistributionPeriodInfo(distributionId);
         assertEq(slateHash4, 0x206d2831dfe1629370693fb401dc5bec8cdd48a54da24f8b9720489287c8d850);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _growthFund.getFundedProposalSlate(distributionId, slateHash4);
@@ -441,13 +442,20 @@ contract GrowthFundTest is GrowthFundTestHelper {
         validSlate = _growthFund.checkSlate(potentialProposalSlate, distributionId);
         assertFalse(validSlate);
         // check slate hash
-        (, , , , , bytes32 slateHash5) = _growthFund.getDistributionPeriodInfo(distributionId);
+        (, , , , bytes32 slateHash5) = _growthFund.getDistributionPeriodInfo(distributionId);
         assertEq(slateHash5, slateHash4);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _growthFund.getFundedProposalSlate(distributionId, slateHash5);
         assertEq(fundedProposalSlate.length, 2);
         assertEq(fundedProposalSlate[0].proposalId, screenedProposals[0].proposalId);
         assertEq(fundedProposalSlate[1].proposalId, screenedProposals[4].proposalId);
+
+        // skip to the end of the DistributionPeriod
+        vm.roll(250_000);
+
+        // execute funded proposals
+        _executeProposal(_growthFund, _token, testProposals[0]);
+        _executeProposal(_growthFund, _token, testProposals[4]);
     }
 
     function xtestCheckSlateFixture() external {
@@ -464,15 +472,6 @@ contract GrowthFundTest is GrowthFundTestHelper {
 
         bool slateStatus = _growthFund.checkSlate(proposals, _growthFund.maximumQuarterlyDistribution());
         assertEq(slateStatus, true);
-
-    }
-
-    function testFinalizeDistribution() external {
-
-    }
-
-    function testFinalizeDistributionInvalid() external {
-
     }
 
     // TODO: finish implementing
