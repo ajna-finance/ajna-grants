@@ -113,6 +113,8 @@ contract GrowthFundTest is GrowthFundTestHelper {
         return proposals;
     }
 
+    // function _rawToConvertedProposal() internal 
+
     /*************/
     /*** Tests ***/
     /*************/
@@ -124,7 +126,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         // check voting power before screening stage has started
         vm.roll(50);
 
-        uint256 votingPower = _growthFund.getVotesWithParams(address(_tokenHolder1), block.number, "Screening");
+        uint256 votingPower = _growthFund.getVotesWithParams(_tokenHolder1, block.number, "Screening");
         assertEq(votingPower, 0);
 
         // skip forward 50 blocks to ensure voters made it into the voting power snapshot
@@ -134,7 +136,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         _startDistributionPeriod(_growthFund);
 
         // check voting power
-        votingPower = _growthFund.getVotesWithParams(address(_tokenHolder1), block.number, "Screening");
+        votingPower = _growthFund.getVotesWithParams(_tokenHolder1, block.number, "Screening");
         assertEq(votingPower, 50_000_000 * 1e18);
 
         // check voting power won't change with token transfer to an address that didn't make it into the snapshot
@@ -142,9 +144,9 @@ contract GrowthFundTest is GrowthFundTestHelper {
         changePrank(_tokenHolder1);
         _token.transfer(nonVotingAddress, 10_000_000 * 1e18);
 
-        votingPower = _growthFund.getVotesWithParams(address(_tokenHolder1), block.number, "Screening");
+        votingPower = _growthFund.getVotesWithParams(_tokenHolder1, block.number, "Screening");
         assertEq(votingPower, 50_000_000 * 1e18);
-        votingPower = _growthFund.getVotesWithParams(address(nonVotingAddress), block.number, "Screening");
+        votingPower = _growthFund.getVotesWithParams(nonVotingAddress, block.number, "Screening");
         assertEq(votingPower, 0);
     }
 
@@ -157,8 +159,23 @@ contract GrowthFundTest is GrowthFundTestHelper {
         // start distribution period
         _startDistributionPeriod(_growthFund);
 
-        // check voting power before funding stage has started
-        uint256 votingPower = _growthFund.getVotesWithParams(address(_tokenHolder1), 10, "Funding");
+        // TODO: a single proposal is submitted and screened
+
+        // skip forward to the funding stage
+        vm.roll(600_000);
+
+        // check initial voting power
+        uint256 votingPower = _growthFund.getVotesWithParams(_tokenHolder1, block.number, "Funding");
+        assertEq(votingPower, 2_500_000_000_000_000 * 1e18);
+
+        // check voting power won't change with token transfer to an address that didn't make it into the snapshot
+        address nonVotingAddress = makeAddr("nonVotingAddress");
+        changePrank(_tokenHolder1);
+        _token.transfer(nonVotingAddress, 10_000_000 * 1e18);
+
+        votingPower = _growthFund.getVotesWithParams(_tokenHolder1, block.number, "Funding");
+        assertEq(votingPower, 2_500_000_000_000_000 * 1e18);
+        votingPower = _growthFund.getVotesWithParams(nonVotingAddress, block.number, "Funding");
         assertEq(votingPower, 0);
 
         // TODO: check voting power decreases with funding votes cast -> will need to generate single test proposal
@@ -391,20 +408,20 @@ contract GrowthFundTest is GrowthFundTestHelper {
         screenedProposals = _growthFund.getTopTenProposals(distributionId);
 
         // check remaining votes available to the above token holders
-        (uint256 voterWeight, int256 budgetRemaining, ) = _growthFund.getVoterInfo(distributionId, _tokenHolder1);
+        (uint256 voterWeight, int256 budgetRemaining) = _growthFund.getVoterInfo(distributionId, _tokenHolder1);
         assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
         assertEq(budgetRemaining, 0);
-        (voterWeight, budgetRemaining, ) = _growthFund.getVoterInfo(distributionId, _tokenHolder2);
+        (voterWeight, budgetRemaining) = _growthFund.getVoterInfo(distributionId, _tokenHolder2);
         assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
         assertEq(budgetRemaining, 0);
-        (voterWeight, budgetRemaining, ) = _growthFund.getVoterInfo(distributionId, _tokenHolder3);
+        (voterWeight, budgetRemaining) = _growthFund.getVoterInfo(distributionId, _tokenHolder3);
         assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
         assertEq(budgetRemaining, 0);
-        (voterWeight, budgetRemaining, ) = _growthFund.getVoterInfo(distributionId, _tokenHolder4);
+        (voterWeight, budgetRemaining) = _growthFund.getVoterInfo(distributionId, _tokenHolder4);
         assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
         assertEq(budgetRemaining, 0);
         assertEq(uint256(budgetRemaining), _growthFund.getVotesWithParams(_tokenHolder4, block.number, bytes("Funding")));
-        (voterWeight, budgetRemaining, ) = _growthFund.getVoterInfo(distributionId, _tokenHolder5);
+        (voterWeight, budgetRemaining) = _growthFund.getVoterInfo(distributionId, _tokenHolder5);
         assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
         assertEq(budgetRemaining, 2_000_000_000_000_000 * 1e18);
         assertEq(uint256(budgetRemaining), _growthFund.getVotesWithParams(_tokenHolder5, block.number, bytes("Funding")));
@@ -501,6 +518,10 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertEq(slateHash, 0x782d39817b3256245278e90dcc253aec40e6834480269e4442be665f6f2944a9);
 
         // check a similar slate results in a different hash
+    }
+
+    function testVotingPeriod() external {
+
     }
 
 }

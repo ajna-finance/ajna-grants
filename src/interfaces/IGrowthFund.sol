@@ -2,13 +2,14 @@
 pragma solidity 0.8.17;
 
 /**
- * @title Ajna ERC20 Pool
+ * @title Ajna Growth Coordination Fund
  */
 interface IGrowthFund {
 
     /**************/
     /*** Events ***/
     /**************/
+
     /**
      *  @notice Emitted at the end of a distribution period.
      *  @param  distributionId_  Id of the distribution period.
@@ -97,19 +98,18 @@ interface IGrowthFund {
     }
 
     struct Proposal {
-        uint256 proposalId;      // OZ.Governor proposalId
-        uint256 distributionId;  // Id of the distribution period in which the proposal was made
-        uint256 votesReceived;   // accumulator of screening votes received by a proposal
-        uint256 tokensRequested; // number of Ajna tokens requested in the proposal
-        int256 fundingReceived;  // accumulator of QV budget allocated
-        bool succeeded;          // whether or not the proposal was fully funded
-        bool executed;           // whether or not the proposal has been executed
+        uint256 proposalId;       // OZ.Governor proposalId
+        uint256 distributionId;   // Id of the distribution period in which the proposal was made
+        uint256 votesReceived;    // accumulator of screening votes received by a proposal
+        uint256 tokensRequested;  // number of Ajna tokens requested in the proposal
+        int256 qvBudgetAllocated; // accumulator of QV budget allocated
+        bool succeeded;           // whether or not the proposal was fully funded
+        bool executed;            // whether or not the proposal has been executed
     }
 
     struct QuadraticVoter {
         uint256 votingWeight;   // amount of votes originally available to the voter
         int256 budgetRemaining; // remaining voting budget in the given period
-        bytes32 commitment;     // commitment hash enabling scret voting // TODO: remove this
     }
 
     // TODO: use this enum instead of block number calculations?

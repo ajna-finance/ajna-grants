@@ -33,7 +33,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     address public   votingTokenAddress;
     AjnaToken  internal ajnaToken;
 
-    // TODO: update this from a percentage to just the numerator?
     /**
      * @notice Maximum percentage of tokens that can be distributed by the treasury in a quarter.
      * @dev Stored as a Wad percentage.
@@ -202,18 +201,17 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
             proposal.distributionId,
             proposal.votesReceived,
             proposal.tokensRequested,
-            proposal.fundingReceived,
+            proposal.qvBudgetAllocated,
             proposal.succeeded,
             proposal.executed
         );
     }
 
-    function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, int256, bytes32) {
+    function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, int256) {
         QuadraticVoter memory voter = quadraticVoters[distributionId_][account_];
         return (
             voter.votingWeight,
-            voter.budgetRemaining,
-            voter.commitment
+            voter.budgetRemaining
         );
     }
 
@@ -226,7 +224,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @notice Calculate the block at which the screening period of a distribution ends.
      * @dev    Screening period is 80 days, funding period is 10 days. Total distributin is 90 days.
      */
-    function getScreeningPeriodEndBlock(QuarterlyDistribution memory currentDistribution_) public view returns (uint256) {
+    function getScreeningPeriodEndBlock(QuarterlyDistribution memory currentDistribution_) public pure returns (uint256) {
         // 10 days is equivalent to 72,000 blocks (12 seconds per block, 86400 seconds per day)
         return currentDistribution_.endBlock - 72000;
     }
@@ -245,7 +243,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         // check that there isn't currently an active distribution period
         if (block.number <= lastDistribution.endBlock) revert DistributionPeriodStillActive();
 
-        // TODO: calculate starting and ending block properly -> should startBlock be the current block?
+        // set the distribution period to start at the current block
         uint256 startBlock = block.number;
         uint256 endBlock = startBlock + distributionPeriodLength;
 
@@ -264,10 +262,10 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         return newDistributionPeriod.id;
     }
 
-    function _sumFundingReceived(Proposal[] memory proposalSubset_) internal pure returns (uint256 sum) {
+    function _sumBudgetAllocated(Proposal[] memory proposalSubset_) internal pure returns (uint256 sum) {
         sum = 0;
         for (uint i = 0; i < proposalSubset_.length;) {
-            sum += uint256(proposalSubset_[i].fundingReceived);
+            sum += uint256(proposalSubset_[i].qvBudgetAllocated);
 
             unchecked {
                 ++i;
@@ -314,9 +312,11 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
             // check if Proposal is in the topTenProposals list
             if (_findInArray(fundedProposals_[i].proposalId, topTenProposals[distributionId_]) == -1) return false;
 
-            // TODO: account for fundingReceived possibly being negative
+            // account for qvBudgetAllocated possibly being negative
+            if (fundedProposals_[i].qvBudgetAllocated < 0) return false;
+
             // update counters
-            sum += uint256(fundedProposals_[i].fundingReceived);
+            sum += uint256(fundedProposals_[i].qvBudgetAllocated);
             totalTokensRequested += fundedProposals_[i].tokensRequested;
 
             // check if slate of proposals exceeded budget constraint
@@ -335,7 +335,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
         // check if current slate received more support than the current leading slate
         if (currentSlateHash != 0) {
-            if (sum > _sumFundingReceived(fundedProposalSlates[distributionId_][currentSlateHash])) {
+            if (sum > _sumBudgetAllocated(fundedProposalSlates[distributionId_][currentSlateHash])) {
 
                 _updateFundedSlate(fundedProposals_, currentDistribution, newSlateHash);
                 return true;
@@ -412,6 +412,11 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         return proposalId;
     }
 
+    // Required override; we don't currently have a threshold to create a proposal so this returns the default value of 0
+    function proposalThreshold() public view override(Governor) returns (uint256) {
+        return super.proposalThreshold();
+    }
+
     /************************/
     /*** Voting Functions ***/
     /************************/
@@ -436,7 +441,11 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         // TODO: check if voter has already voted - or do it above based upon the funding flow?
     }
 
-    function _quorumReached(uint256 proposalId) internal view override(Governor) returns (bool) {
+    /**
+     * @notice Required ovveride used in Governor.state()
+     * @dev See {IGovernor-quorumReached}.
+     */
+    function _quorumReached(uint256) internal pure override(Governor) returns (bool) {
         return true;
     }
 
@@ -492,7 +501,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         }
     }
 
-    // TODO: rename fundingReceived to qvBudgetAllocated
     /**
      * @notice Vote on a proposal in the funding stage of the Distribution Period.
      * @dev    Votes can be allocated to multiple proposals, quadratically, for or against.
@@ -513,7 +521,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
             // update voter and proposal vote tracking
             voter_.budgetRemaining -= allocationUsed;
-            proposal_.fundingReceived -= allocationUsed;
+            proposal_.qvBudgetAllocated -= allocationUsed;
         }
         // voter is voting in support of the proposal
         else {
@@ -521,19 +529,18 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
             // update voter and proposal vote tracking
             voter_.budgetRemaining -= allocationUsed;
-            proposal_.fundingReceived += allocationUsed;
+            proposal_.qvBudgetAllocated += allocationUsed;
         }
 
         // update proposal vote tracking in top ten array
         uint256 distributionId = getDistributionId();
-        topTenProposals[distributionId][uint256(_findInArray(proposal_.proposalId, topTenProposals[distributionId]))].fundingReceived = proposal_.fundingReceived;
+        topTenProposals[distributionId][uint256(_findInArray(proposal_.proposalId, topTenProposals[distributionId]))].qvBudgetAllocated = proposal_.qvBudgetAllocated;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(account_, proposal_.proposalId, support, uint256(allocationUsed), "");
         return uint256(allocationUsed);
     }
 
-    // TODO: move currentTopTenProposals into this method
     // TODO: check voting against a proposal
     /**
      * @notice Vote on a proposal in the screening stage of the Distribution Period.
@@ -618,11 +625,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         }
     }
 
-    // TODO: place these functions in their relevant sections
-    /**************************/
-    /*** Required Overrides ***/
-    /**************************/
-
     /**
      * @notice Required ovverride.
      * @dev    Since no voting delay is implemented, this is hardcoded to 0.
@@ -633,23 +635,14 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
     /**
      * @notice Calculates the remaining blocks left in the screening period.
+     * @dev    Required ovverride.
      * @return The remaining number of blocks.
      */
     function votingPeriod() public view override(IGovernor) returns (uint256) {
         // TODO: return remaining time in whichever period we're in (super.propose()#266)
         QuarterlyDistribution memory currentDistribution = distributions[getDistributionId()];
-        uint256 screeningPeriodEndBlock = currentDistribution.startBlock + (currentDistribution.endBlock - currentDistribution.startBlock) / 2;
+        uint256 screeningPeriodEndBlock = getScreeningPeriodEndBlock(currentDistribution);
         return screeningPeriodEndBlock - block.number;
-    }
-
-    // TODO: implement custom override - need to support both regular votes, and the extraordinaryFunding mechanism
-    function quorum(uint256 blockNumber) public view override(IGovernor, GovernorVotesQuorumFraction) returns (uint256) {
-        return super.quorum(blockNumber);
-    }
-
-    // Required override; we don't currently have a threshold to create a proposal so this returns the default value of 0
-    function proposalThreshold() public view override(Governor) returns (uint256) {
-        return super.proposalThreshold();
     }
 
     /*****************************/
@@ -662,11 +655,16 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     function getExtraordinaryFundingQuorum(uint256 blockNumber, uint256 tokensRequested) public view returns (uint256) {
     }
 
+    // TODO: implement custom override - need to support both regular votes, and the extraordinaryFunding mechanism
+    function quorum(uint256 blockNumber) public view override(IGovernor, GovernorVotesQuorumFraction) returns (uint256) {
+        return super.quorum(blockNumber);
+    }
+
+    // TODO: move this into a sort library; investigate replacement with simple iterative sort
     /*************************/
     /*** Sorting Functions ***/
     /*************************/
 
-    // TODO: move this into sort library
     // return the index of the proposalId in the array, else -1
     function _findInArray(uint256 proposalId, Proposal[] storage array) internal view returns (int256 index) {
         index = -1; // default value indicating proposalId not in the array
@@ -682,7 +680,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         }
     }
 
-    // TODO: move this into sort library
     /**
      * @notice Determine the 10 proposals which will make it through screening and move on to the funding round.
      * @dev    Implements the descending quicksort algorithm from this discussion: https://gist.github.com/subhodi/b3b86cc13ad2636420963e692a4d896f#file-quicksort-sol-L12
