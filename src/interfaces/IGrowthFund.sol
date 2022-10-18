@@ -49,6 +49,11 @@ interface IGrowthFund {
     error FinalizeDistributionInvalid();
 
     /**
+     * @notice User attempted to vote with more qvBudget than was available to them.
+     */
+    error InsufficientBudget();
+
+    /**
      * @notice Non Ajna token contract address specified in target list.
      */
     error InvalidTarget();
@@ -102,8 +107,8 @@ interface IGrowthFund {
     }
 
     struct QuadraticVoter {
-        int256 votingWeight;    // amount of votes available to the voter
-        int256 budgetRemaining; // remaining voting budget
+        uint256 votingWeight;   // amount of votes originally available to the voter
+        int256 budgetRemaining; // remaining voting budget in the given period
         bytes32 commitment;     // commitment hash enabling scret voting // TODO: remove this
     }
 

@@ -20,9 +20,6 @@ import { AjnaToken } from "./AjnaToken.sol";
 import { console } from "@std/console.sol";
 
 
-// TODO: remove burning
-// TODO: implement budget
-
 contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
     using Checkpoints for Checkpoints.History;
@@ -45,8 +42,9 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
     /**
      * @notice Length of the distribution period in blocks.
+     * @dev    Equivalent to the number of blocks in 90 days. Blocks come every 12 seconds.
      */
-    uint256 public distributionPeriodLength = 183272; // 4 weeks
+    uint256 public distributionPeriodLength = 648000; // 90 days
 
     /**
      * @notice ID of the current distribution period.
@@ -210,7 +208,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         );
     }
 
-    function getVoterInfo(uint256 distributionId_, address account_) external view returns (int256, int256, bytes32) {
+    function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, int256, bytes32) {
         QuadraticVoter memory voter = quadraticVoters[distributionId_][account_];
         return (
             voter.votingWeight,
@@ -221,6 +219,16 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
     function getTopTenProposals(uint256 distributionId_) external view returns (Proposal[] memory) {
         return topTenProposals[distributionId_];
+    }
+
+
+    /**
+     * @notice Calculate the block at which the screening period of a distribution ends.
+     * @dev    Screening period is 80 days, funding period is 10 days. Total distributin is 90 days.
+     */
+    function getScreeningPeriodEndBlock(QuarterlyDistribution memory currentDistribution_) public view returns (uint256) {
+        // 10 days is equivalent to 72,000 blocks (12 seconds per block, 86400 seconds per day)
+        return currentDistribution_.endBlock - 72000;
     }
 
     /*****************************************/
@@ -428,7 +436,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         // TODO: check if voter has already voted - or do it above based upon the funding flow?
     }
 
-    // TODO: finish implementing -> add flag to see if the vote is for a StandardProposal or ExtraordinaryFundingProposal
     function _quorumReached(uint256 proposalId) internal view override(Governor) returns (bool) {
         return true;
     }
@@ -447,21 +454,18 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @param params_     The amount of votes being allocated in the funding stage.
      */
      function _castVote(uint256 proposalId_, address account_, uint8 support_, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
-        QuarterlyDistribution storage currentDistribution = distributions[getDistributionId()];
-        Proposal[] storage currentTopTenProposals = topTenProposals[getDistributionId()];
+        QuarterlyDistribution memory currentDistribution = distributions[getDistributionId()];
         Proposal storage proposal = proposals[proposalId_];
 
+        uint256 screeningPeriodEndBlock = getScreeningPeriodEndBlock(currentDistribution);
         bytes memory stage;
-        uint256 screeningPeriodEndBlock = currentDistribution.startBlock + (currentDistribution.endBlock - currentDistribution.startBlock) / 2;
-        uint256 blockToCountVotesAt;
         uint256 votes;
 
         // screening stage
         if (block.number >= currentDistribution.startBlock && block.number <= screeningPeriodEndBlock) {
-            // determine stage and available screening votes
+            Proposal[] storage currentTopTenProposals = topTenProposals[getDistributionId()];
             stage = bytes("Screening");
-            blockToCountVotesAt = currentDistribution.startBlock;
-            votes = _getVotes(account_, blockToCountVotesAt, stage);
+            votes = _getVotes(account_, block.number, stage);
 
             return _screeningVote(currentTopTenProposals, proposal, support_, votes);
         }
@@ -469,28 +473,36 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         // funding stage
         else if (block.number > screeningPeriodEndBlock && block.number <= currentDistribution.endBlock) {
             stage = bytes("Funding");
-            blockToCountVotesAt = screeningPeriodEndBlock + 1; // assume funding stage starts immediatly after screening stage
-            votes = _getVotes(account_, blockToCountVotesAt, stage);
+
+            QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
+
+            // this is the first time a voter has attempted to vote this period
+            if (voter.votingWeight == 0) {
+                voter.votingWeight = Maths.wpow(super._getVotes(account_, getScreeningPeriodEndBlock(currentDistribution) - 33, ""), 2);
+                voter.budgetRemaining = int256(voter.votingWeight);
+            }
 
             // amount of quadratic budget to allocated to the proposal
             int256 budgetAllocation = abi.decode(params_, (int256));
 
-            return _fundingVote(proposal, account_, votes, budgetAllocation);
+            // check if the voter has enough budget remaining to allocate to the proposal
+            if (voter.budgetRemaining == 0 || budgetAllocation > voter.budgetRemaining) revert InsufficientBudget();
+
+            return _fundingVote(proposal, account_, voter, budgetAllocation);
         }
     }
 
-    // TODO: ensure this updated Proposal ties back to top ten proposals
-    // TODO: rename fundingReceived to votesReceived
-    function _fundingVote(Proposal storage proposal_, address account_, uint256 votes_, int256 budgetAllocation_) internal returns (uint256) {
-        uint256 distributionId = getDistributionId();
-        QuadraticVoter storage voter = quadraticVoters[distributionId][account_];
-
-        // if first time voting update their voting weight
-        if (voter.votingWeight == 0 && votes_ > 0) {
-            voter.votingWeight = int256(votes_);
-            voter.budgetRemaining = int256(votes_);
-        }
-
+    // TODO: rename fundingReceived to qvBudgetAllocated
+    /**
+     * @notice Vote on a proposal in the funding stage of the Distribution Period.
+     * @dev    Votes can be allocated to multiple proposals, quadratically, for or against.
+     * @param  proposal_ The current proposal being voted upon.
+     * @param  account_  The voting account.
+     * @param  voter_    The voter data struct tracking available votes.
+     * @param  budgetAllocation_ The amount of votes being allocated to the proposal.
+     * @return The amount of votes allocated to the proposal.
+     */
+    function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 budgetAllocation_) internal returns (uint256) {
         int256 allocationUsed;
         uint8  support = 1;
 
@@ -500,7 +512,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
             support = 0;
 
             // update voter and proposal vote tracking
-            voter.budgetRemaining -= allocationUsed;
+            voter_.budgetRemaining -= allocationUsed;
             proposal_.fundingReceived -= allocationUsed;
         }
         // voter is voting in support of the proposal
@@ -508,11 +520,12 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
             allocationUsed = budgetAllocation_;
 
             // update voter and proposal vote tracking
-            voter.budgetRemaining -= allocationUsed;
+            voter_.budgetRemaining -= allocationUsed;
             proposal_.fundingReceived += allocationUsed;
         }
 
         // update proposal vote tracking in top ten array
+        uint256 distributionId = getDistributionId();
         topTenProposals[distributionId][uint256(_findInArray(proposal_.proposalId, topTenProposals[distributionId]))].fundingReceived = proposal_.fundingReceived;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
@@ -520,6 +533,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         return uint256(allocationUsed);
     }
 
+    // TODO: move currentTopTenProposals into this method
     // TODO: check voting against a proposal
     /**
      * @notice Vote on a proposal in the screening stage of the Distribution Period.
@@ -527,6 +541,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @param proposal_               The current proposal being voted upon.
      * @param support_                Vote direction, 1 is for, 0 is against.
      * @param votes_                  The amount of votes being cast.
+     * @return                        The amount of votes cast.
      */
     function _screeningVote(Proposal[] storage currentTopTenProposals_, Proposal storage proposal_, uint8 support_, uint256 votes_) internal onlyScreenOnce returns (uint256) {
         // update proposal votes counter
@@ -571,19 +586,35 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     /**
      * @notice Calculates the number of votes available to an account depending on the current stage of the Distribution Period.
      * @dev    Overrides OpenZeppelin _getVotes implementation to ensure appropriate voting weight is always returned.
+     * @dev    Snapshot checks are built into this function to ensure accurate power is returned regardless of the caller.
      */
     function _getVotes(address account_, uint256 blockNumber_, bytes memory stage_) internal view override(Governor, GovernorVotes) returns (uint256) {
-        // if block number within screening period 1 token 1 vote
+        QuarterlyDistribution memory currentDistribution = distributions[getDistributionId()];
+
+        // within screening period 1 token 1 vote
         if (keccak256(stage_) == keccak256(bytes("Screening"))) {
-            return super._getVotes(account_, blockNumber_, "");
+            // calculate voting weight based on the number of tokens held before the start of the distribution period
+            return currentDistribution.startBlock == 0 ? 0 : super._getVotes(account_, currentDistribution.startBlock - 33, "");
         }
         // else if in funding period quadratic formula squares the number of votes
         else if (keccak256(stage_) == keccak256(bytes("Funding"))) {
-            return (super._getVotes(account_, blockNumber_, "") ** 2);
+            QuadraticVoter memory voter = quadraticVoters[currentDistribution.id][account_];
+            // this is the first time a voter has attempted to vote this period
+            if (voter.votingWeight == 0) {
+                return Maths.wpow(super._getVotes(account_, getScreeningPeriodEndBlock(currentDistribution) - 33, ""), 2);
+            }
+            // voter has already allocated some of their budget this period
+            else {
+                return uint256(voter.budgetRemaining);
+            }
         }
-        // else one token one vote for all other voting
-        else {
+        // one token one vote for extraordinary funding
+        else if (keccak256(stage_) == keccak256(bytes("Extraordinary"))) {
             return super._getVotes(account_, blockNumber_, "");
+        }
+        // voting is not possible for non-specified pathways
+        else {
+            return 0;
         }
     }
 
@@ -656,7 +687,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @notice Determine the 10 proposals which will make it through screening and move on to the funding round.
      * @dev    Implements the descending quicksort algorithm from this discussion: https://gist.github.com/subhodi/b3b86cc13ad2636420963e692a4d896f#file-quicksort-sol-L12
      */
-    function _quickSortProposalsByVotes(Proposal[] storage arr, int left, int right) internal {
+    function _quickSortProposalsByVotes(Proposal[] memory arr, int left, int right) internal {
         int i = left;
         int j = right;
         if (i == j) return;

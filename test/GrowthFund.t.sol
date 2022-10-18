@@ -8,6 +8,7 @@ import { GrowthFund } from "../src/GrowthFund.sol";
 import { IGrowthFund } from "../src/interfaces/IGrowthFund.sol";
 
 import { SigUtils } from "./utils/SigUtils.sol";
+import { GrowthFundInstance } from "./utils/GrowthFundInstance.sol";
 import { GrowthFundTestHelper } from "./GrowthFundTestHelper.sol";
 
 import { IGovernor } from "@oz/governance/IGovernor.sol";
@@ -21,10 +22,11 @@ contract GrowthFundTest is GrowthFundTestHelper {
     using SafeCast for uint256;
     using stdJson for string;
 
-    AjnaToken  internal  _token;
-    IVotes     internal  _votingToken;
-    GrowthFund internal  _growthFund;
-    SigUtils   internal  _sigUtils;
+    AjnaToken          internal  _token;
+    IVotes             internal  _votingToken;
+    GrowthFund         internal  _growthFund;
+    GrowthFundInstance internal  _growthFundInstance;
+    SigUtils           internal  _sigUtils;
 
     address internal _tokenDeployer  = makeAddr("tokenDeployer");
     address internal _tokenHolder1   = makeAddr("_tokenHolder1");
@@ -73,6 +75,10 @@ contract GrowthFundTest is GrowthFundTestHelper {
         // deploy growth fund contract
         _growthFund = new GrowthFund(_votingToken);
 
+        // instantiate GrowthFundInstance for sort testing
+        _growthFundInstance = new GrowthFundInstance(_votingToken);
+
+        // TODO: replace with for loop -> test address initializer method that created array and transfers tokens given n?
         // initial minter distributes tokens to test addresses
         changePrank(_tokenDeployer);
         _token.transfer(_tokenHolder1, 50_000_000 * 1e18);
@@ -96,7 +102,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
 
     // expects a list of Proposal structs
     // filepath expected to be defined from root
-    function loadProposalSlateJSON(string memory filePath) internal returns (IGrowthFund.Proposal[] memory) {
+    function _loadProposalSlateJSON(string memory filePath) internal returns (IGrowthFund.Proposal[] memory) {
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, filePath);
 
@@ -111,37 +117,51 @@ contract GrowthFundTest is GrowthFundTestHelper {
     /*** Tests ***/
     /*************/
 
-    function testGetVotingPower() external {
-        uint256 pastBlock = 10;
+    function testGetVotingPowerScreeningStage() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
 
-        // skip forward 100 blocks
-        vm.roll(100);
-        assertEq(block.number, 100);
+        // check voting power before screening stage has started
+        vm.roll(50);
 
-        uint256 votingPower = _growthFund.getVotes(address(_tokenHolder2), pastBlock);
-
+        uint256 votingPower = _growthFund.getVotesWithParams(address(_tokenHolder1), block.number, "Screening");
         assertEq(votingPower, 0);
 
-        // _tokenHolder2 self delegates
-        _delegateVotes(_token, _tokenHolder2, _tokenHolder2);
+        // skip forward 50 blocks to ensure voters made it into the voting power snapshot
+        vm.roll(100);
 
-        // skip forward 10 blocks
-        vm.roll(110);
-        assertEq(block.number, 110);
+        // start distribution period
+        _startDistributionPeriod(_growthFund);
 
-        votingPower = _growthFund.getVotes(address(_tokenHolder2), 100);
+        // check voting power
+        votingPower = _growthFund.getVotesWithParams(address(_tokenHolder1), block.number, "Screening");
         assertEq(votingPower, 50_000_000 * 1e18);
 
-        uint256 _votingTokenPowerViaInterface = _votingToken.getVotes(_tokenHolder2);
-        assertGt(_votingTokenPowerViaInterface, 0);
-    }
+        // check voting power won't change with token transfer to an address that didn't make it into the snapshot
+        address nonVotingAddress = makeAddr("nonVotingAddress");
+        changePrank(_tokenHolder1);
+        _token.transfer(nonVotingAddress, 10_000_000 * 1e18);
 
-    function testGetVotingPowerScreeningStage() external {
-
+        votingPower = _growthFund.getVotesWithParams(address(_tokenHolder1), block.number, "Screening");
+        assertEq(votingPower, 50_000_000 * 1e18);
+        votingPower = _growthFund.getVotesWithParams(address(nonVotingAddress), block.number, "Screening");
+        assertEq(votingPower, 0);
     }
 
     function testGetVotingPowerFundingStage() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
 
+        vm.roll(50);
+
+        // start distribution period
+        _startDistributionPeriod(_growthFund);
+
+        // check voting power before funding stage has started
+        uint256 votingPower = _growthFund.getVotesWithParams(address(_tokenHolder1), 10, "Funding");
+        assertEq(votingPower, 0);
+
+        // TODO: check voting power decreases with funding votes cast -> will need to generate single test proposal
     }
 
     function testPropose() external {
@@ -229,36 +249,23 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertEq(maximumQuarterlyDistribution, 10_000_000 * 1e18);
     }
 
+    // TODO: check negative votes - second fixture?
     /**
-     *  @notice 4 voters consider 15 different proposals. 10 Make it through to the funding stage.
+     *  @notice 14 voters consider 18 different proposals. 10 Make it through to the funding stage.
      */
-    function xtestScreenProposalsCheckSorting() external {
+    function testScreenProposalsCheckSorting() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _selfDelegatedVotersArr);
 
         // start distribution period
         _startDistributionPeriod(_growthFund);
 
-        // // create 15 proposals paying out tokens to _tokenHolder2
-        // TestProposal[] memory testProposals = _createNProposals(_growthFund, _token, 15, _tokenHolder2);
-        // assertEq(testProposals.length, 15);
+        // load proposals from JSON file
+        IGrowthFund.Proposal[] memory proposals = _loadProposalSlateJSON("/test/fixtures/ProposalsToScreen.json");
 
-        // vm.roll(110);
+        vm.roll(110);
 
-        // // screening period votes
-        // _vote(_growthFund, _tokenHolder2, testProposals[0].proposalId, 1, 100);
-        // _vote(_growthFund, _tokenHolder3, testProposals[1].proposalId, 1, 100);
-        // _vote(_growthFund, _tokenHolder4, testProposals[2].proposalId, 1, 100);
-        // _vote(_growthFund, _tokenHolder5, testProposals[3].proposalId, 1, 100);
-        // _vote(_growthFund, _tokenHolder6, testProposals[4].proposalId, 1, 100);
-        // _vote(_growthFund, _tokenHolder7, testProposals[5].proposalId, 1, 100);
-        // _vote(_growthFund, _tokenHolder8, testProposals[6].proposalId, 1, 100);
-        // _vote(_growthFund, _tokenHolder9, testProposals[7].proposalId, 1, 100);
-        // _vote(_growthFund, _tokenHolder10, testProposals[8].proposalId, 1, 100);
-        // _vote(_growthFund, _tokenHolder11, testProposals[9].proposalId, 1, 100);
-        // _vote(_growthFund, _tokenHolder12, testProposals[1].proposalId, 1, 100);
-        // _vote(_growthFund, _tokenHolder13, testProposals[1].proposalId, 1, 100);
-        // _vote(_growthFund, _tokenHolder14, testProposals[5].proposalId, 1, 100);
+        _growthFundInstance.quickSortProposalsByVotes(proposals, 0, int256(proposals.length) - 1);
 
         // // check topTenProposals array
         // GrowthFund.Proposal[] memory proposals = _growthFund.getTopTenProposals(_growthFund.getDistributionId());
@@ -268,15 +275,6 @@ contract GrowthFundTest is GrowthFundTestHelper {
 
         // assertEq(proposals[1].proposalId, testProposals[5].proposalId);
         // assertEq(proposals[1].votesReceived, 100_000_000 * 1e18);
-    }
-
-    // TODO: remove this?
-    function testFundingStage() external {
-        // TODO: allocate funding votes and check that state matches the fixtures
-
-        // 14 tokenholders self delegate their tokens to enable voting on the proposals
-        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
-
     }
 
     function testStartNewDistributionPeriod() external {
@@ -298,7 +296,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         _growthFund.startNewDistributionPeriod();
 
         // skip forward past the end of the distribution period to allow starting anew
-        vm.roll(300_000);
+        vm.roll(650_000);
 
         _startDistributionPeriod(_growthFund);
         currentDistributionId = _growthFund.getDistributionId();
@@ -306,13 +304,19 @@ contract GrowthFundTest is GrowthFundTestHelper {
     }
 
     /**
-     *  @notice Integration test of 5 proposals submitted, with 3 passing the screening stage. There should be two potential proposal slates after funding.
+     *  @notice Integration test of 7 proposals submitted, with 6 passing the screening stage. Five potential funding slates are tested.
      *  @dev    Maximum quarterly distribution is 10_000_000.
      *  @dev    Funded slate is executed.
+     *  @dev    Reverts:
+     *              - IGrowthFund.InsufficientBudget
+     *              - IGrowthFund.ProposalNotFunded
+     *              - IGrowthFund.ExecuteProposalInvalid
      */
     function testDistributionPeriodEndToEnd() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _selfDelegatedVotersArr);
+
+        vm.roll(150);
 
         // start distribution period
         _startDistributionPeriod(_growthFund);
@@ -328,11 +332,11 @@ contract GrowthFundTest is GrowthFundTestHelper {
         testProposalParams[5] = TestProposalParams(_tokenHolder6, 100_000 * 1e18);
         testProposalParams[6] = TestProposalParams(_tokenHolder7, 100_000 * 1e18);
 
-        // create 6 proposals paying out tokens
+        // create 7 proposals paying out tokens
         TestProposal[] memory testProposals = _createNProposals(_growthFund, _token, testProposalParams);
         assertEq(testProposals.length, 7);
 
-        vm.roll(110);
+        vm.roll(200);
 
         // screening period votes
         _vote(_growthFund, _tokenHolder1, testProposals[0].proposalId, voteYes, 100);
@@ -347,10 +351,10 @@ contract GrowthFundTest is GrowthFundTestHelper {
         _vote(_growthFund, _tokenHolder10, testProposals[5].proposalId, voteYes, 100);
 
         // skip time to move from screening period to funding period
-        vm.roll(100_000);
+        vm.roll(600_000);
 
         // check topTenProposals array is correct after screening period - only four should have advanced
-        GrowthFund.Proposal[] memory screenedProposals = _growthFund.getTopTenProposals(_growthFund.getDistributionId());
+        GrowthFund.Proposal[] memory screenedProposals = _growthFund.getTopTenProposals(distributionId);
         assertEq(screenedProposals.length, 6);
         assertEq(screenedProposals[0].proposalId, testProposals[0].proposalId);
         assertEq(screenedProposals[0].votesReceived, 150_000_000 * 1e18);
@@ -366,21 +370,47 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertEq(screenedProposals[5].votesReceived, 50_000_000 * 1e18);
 
         // funding period votes for two competing slates, 1, or 2 and 3
-        _fundingVote(_growthFund, _tokenHolder1, screenedProposals[0].proposalId, voteYes, 250_000_000 * 1e18);
-        screenedProposals = _growthFund.getTopTenProposals(_growthFund.getDistributionId());
-        _fundingVote(_growthFund, _tokenHolder2, screenedProposals[1].proposalId, voteYes, 250_000_000 * 1e18);
-        screenedProposals = _growthFund.getTopTenProposals(_growthFund.getDistributionId());
-        _fundingVote(_growthFund, _tokenHolder3, screenedProposals[2].proposalId, voteYes, 125_000_000 * 1e18);
-        screenedProposals = _growthFund.getTopTenProposals(_growthFund.getDistributionId());
-        _fundingVote(_growthFund, _tokenHolder3, screenedProposals[4].proposalId, voteYes, 125_000_000 * 1e18);
-        screenedProposals = _growthFund.getTopTenProposals(_growthFund.getDistributionId());
-        _fundingVote(_growthFund, _tokenHolder4, screenedProposals[3].proposalId, voteYes, 200_000_000 * 1e18);
-        screenedProposals = _growthFund.getTopTenProposals(_growthFund.getDistributionId());
-        _fundingVote(_growthFund, _tokenHolder4, screenedProposals[5].proposalId, voteNo, -50_000_000 * 1e18);
-        screenedProposals = _growthFund.getTopTenProposals(_growthFund.getDistributionId());
+        _fundingVote(_growthFund, _tokenHolder1, screenedProposals[0].proposalId, voteYes, 2_500_000_000_000_000 * 1e18);
+        screenedProposals = _growthFund.getTopTenProposals(distributionId);
+        _fundingVote(_growthFund, _tokenHolder2, screenedProposals[1].proposalId, voteYes, 2_500_000_000_000_000 * 1e18);
+        screenedProposals = _growthFund.getTopTenProposals(distributionId);
+        _fundingVote(_growthFund, _tokenHolder3, screenedProposals[2].proposalId, voteYes, 1_250_000_000_000_000 * 1e18);
+        screenedProposals = _growthFund.getTopTenProposals(distributionId);
+        _fundingVote(_growthFund, _tokenHolder3, screenedProposals[4].proposalId, voteYes, 1_250_000_000_000_000 * 1e18);
+        screenedProposals = _growthFund.getTopTenProposals(distributionId);
+        _fundingVote(_growthFund, _tokenHolder4, screenedProposals[3].proposalId, voteYes, 2_000_000_000_000_000 * 1e18);
+        screenedProposals = _growthFund.getTopTenProposals(distributionId);
+        _fundingVote(_growthFund, _tokenHolder4, screenedProposals[5].proposalId, voteNo, -500_000_000_000_000 * 1e18);
+        screenedProposals = _growthFund.getTopTenProposals(distributionId);
+
+        vm.expectRevert(IGrowthFund.InsufficientBudget.selector);
+        _growthFund.castVoteWithReasonAndParams(screenedProposals[3].proposalId, 1, "", abi.encode(2_500_000_000_000_000 * 1e18));
+
+        // check tokerHolder partial vote budget calculations
+        _fundingVote(_growthFund, _tokenHolder5, screenedProposals[5].proposalId, voteNo, -500_000_000_000_000 * 1e18);
+        screenedProposals = _growthFund.getTopTenProposals(distributionId);
+
+        // check remaining votes available to the above token holders
+        (uint256 voterWeight, int256 budgetRemaining, ) = _growthFund.getVoterInfo(distributionId, _tokenHolder1);
+        assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
+        assertEq(budgetRemaining, 0);
+        (voterWeight, budgetRemaining, ) = _growthFund.getVoterInfo(distributionId, _tokenHolder2);
+        assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
+        assertEq(budgetRemaining, 0);
+        (voterWeight, budgetRemaining, ) = _growthFund.getVoterInfo(distributionId, _tokenHolder3);
+        assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
+        assertEq(budgetRemaining, 0);
+        (voterWeight, budgetRemaining, ) = _growthFund.getVoterInfo(distributionId, _tokenHolder4);
+        assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
+        assertEq(budgetRemaining, 0);
+        assertEq(uint256(budgetRemaining), _growthFund.getVotesWithParams(_tokenHolder4, block.number, bytes("Funding")));
+        (voterWeight, budgetRemaining, ) = _growthFund.getVoterInfo(distributionId, _tokenHolder5);
+        assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
+        assertEq(budgetRemaining, 2_000_000_000_000_000 * 1e18);
+        assertEq(uint256(budgetRemaining), _growthFund.getVotesWithParams(_tokenHolder5, block.number, bytes("Funding")));
 
         // skip to the DistributionPeriod
-        vm.roll(200_000);
+        vm.roll(650_000);
 
         GrowthFund.Proposal[] memory potentialProposalSlate = new GrowthFund.Proposal[](2);
         potentialProposalSlate[0] = screenedProposals[0];
@@ -399,7 +429,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertTrue(validSlate);
         // check slate hash
         (, , , , bytes32 slateHash2) = _growthFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash2, 0xbaecea49d532511a6bbc6ca382353d6a7cc116a987c058e4c86023f5d5166b5f);
+        assertEq(slateHash2, 0x66add00dcf55b40812c015cb43f6448e193756eb92a1bad6ccdf330bdf247d07);
         // check funded proposal slate matches expected state
         GrowthFund.Proposal[] memory fundedProposalSlate = _growthFund.getFundedProposalSlate(distributionId, slateHash2);
         assertEq(fundedProposalSlate.length, 1);
@@ -413,7 +443,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertTrue(validSlate);
         // check slate hash
         (, , , , bytes32 slateHash3) = _growthFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash3, 0xb99a61b06ff11e483096c15eaece1c4c16bdf9529d766136a057d46d0f53c232);
+        assertEq(slateHash3, 0x7bcdbd18e8ffe0a1ca31429dd71072cb9455bf1135902f06c2154a8729dfcfc4);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _growthFund.getFundedProposalSlate(distributionId, slateHash3);
         assertEq(fundedProposalSlate.length, 2);
@@ -428,7 +458,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertTrue(validSlate);
         // check slate hash
         (, , , , bytes32 slateHash4) = _growthFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash4, 0x206d2831dfe1629370693fb401dc5bec8cdd48a54da24f8b9720489287c8d850);
+        assertEq(slateHash4, 0x6a0dd1a8da53d04b863aed7ff5c62423d7d05eeb956899bf7679b79e68464d28);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _growthFund.getFundedProposalSlate(distributionId, slateHash4);
         assertEq(fundedProposalSlate.length, 2);
@@ -441,60 +471,36 @@ contract GrowthFundTest is GrowthFundTestHelper {
         potentialProposalSlate[1] = screenedProposals[3];
         validSlate = _growthFund.checkSlate(potentialProposalSlate, distributionId);
         assertFalse(validSlate);
-        // check slate hash
-        (, , , , bytes32 slateHash5) = _growthFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash5, slateHash4);
-        // check funded proposal slate matches expected state
-        fundedProposalSlate = _growthFund.getFundedProposalSlate(distributionId, slateHash5);
+        // check funded proposal slate wasn't updated
+        fundedProposalSlate = _growthFund.getFundedProposalSlate(distributionId, slateHash4);
         assertEq(fundedProposalSlate.length, 2);
         assertEq(fundedProposalSlate[0].proposalId, screenedProposals[0].proposalId);
         assertEq(fundedProposalSlate[1].proposalId, screenedProposals[4].proposalId);
 
         // skip to the end of the DistributionPeriod
-        vm.roll(250_000);
+        vm.roll(700_000);
 
         // execute funded proposals
         _executeProposal(_growthFund, _token, testProposals[0]);
         _executeProposal(_growthFund, _token, testProposals[4]);
-    }
 
-    function xtestCheckSlateFixture() external {
-        IGrowthFund.Proposal[] memory proposals = loadProposalSlateJSON("/test/fixtures/FundedSlate.json");
+        // check that shouldn't be able to execute unfunded proposals
+        vm.expectRevert(IGrowthFund.ProposalNotFunded.selector);
+        _growthFund.execute(testProposals[1].targets, testProposals[1].values, testProposals[1].calldatas, keccak256(bytes(testProposals[1].description)));
 
-        // check that the slate returns false if screening period hasn't occured
-        assertEq(_growthFund.checkSlate(proposals, _growthFund.maximumQuarterlyDistribution()), false);
-
-        // start distribution period
-        _startDistributionPeriod(_growthFund);
-
-        // skip time to move to the distribution period
-        vm.roll(200_000);
-
-        bool slateStatus = _growthFund.checkSlate(proposals, _growthFund.maximumQuarterlyDistribution());
-        assertEq(slateStatus, true);
+        // check that shouldn't be able to execute a proposal twice
+        vm.expectRevert(IGrowthFund.ExecuteProposalInvalid.selector);
+        _growthFund.execute(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
     }
 
     // TODO: finish implementing
-    function testSlateHash() external {
-        IGrowthFund.Proposal[] memory proposals = loadProposalSlateJSON("/test/fixtures/FundedSlate.json");
+    function xtestSlateHash() external {
+        IGrowthFund.Proposal[] memory proposals = _loadProposalSlateJSON("/test/fixtures/FundedSlate.json");
 
         bytes32 slateHash = _growthFund.getSlateHash(proposals);
         assertEq(slateHash, 0x782d39817b3256245278e90dcc253aec40e6834480269e4442be665f6f2944a9);
 
         // check a similar slate results in a different hash
     }
-
-
-    function testQuorum() external {
-        uint256 pastBlock = 10;
-
-        // skip forward 100 blocks
-        vm.roll(100);
-        assertEq((_initialAjnaTokenSupply * 4) / 100, _growthFund.quorum(pastBlock));
-    }
-
-    // TODO: move this into the voting tests?
-    function testVotingDelay() external {}
-
 
 }
