@@ -178,7 +178,7 @@ abstract contract GrowthFundTestHelper is Test {
 
     function _startDistributionPeriod(GrowthFund growthFund_) internal {
         vm.expectEmit(true, true, false, true);
-        emit QuarterlyDistributionStarted(growthFund_.getDistributionId() + 1, block.number, block.number + growthFund_.distributionPeriodLength());
+        emit QuarterlyDistributionStarted(growthFund_.getDistributionId() + 1, block.number, block.number + growthFund_.DISTRIBUTION_PERIOD_LENGTH());
         growthFund_.startNewDistributionPeriod();
     }
 

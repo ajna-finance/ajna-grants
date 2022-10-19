@@ -17,8 +17,6 @@ import { IGrowthFund } from "./interfaces/IGrowthFund.sol";
 
 import { AjnaToken } from "./AjnaToken.sol";
 
-import { console } from "@std/console.sol";
-
 
 contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
@@ -43,7 +41,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @notice Length of the distribution period in blocks.
      * @dev    Equivalent to the number of blocks in 90 days. Blocks come every 12 seconds.
      */
-    uint256 public distributionPeriodLength = 648000; // 90 days
+    uint256 public constant DISTRIBUTION_PERIOD_LENGTH = 648000; // 90 days
 
     /**
      * @notice ID of the current distribution period.
@@ -154,26 +152,27 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @notice Set a new DistributionPeriod Id.
      * @dev    Increments the previous Id nonce by 1, and sets a checkpoint at the calling block.number.
      */
-    function _setNewDistributionId() private {
+    function _setNewDistributionId() private returns (uint256 newDistributionId) {
         // increment the distributionId
         uint256 currentDistributionId = getDistributionId();
-        uint256 newDistributionId = currentDistributionId += 1;
+        newDistributionId = currentDistributionId += 1;
 
         // set the current block number as the checkpoint for the current block
         _distributionIdCheckpoints.push(newDistributionId);
+        return newDistributionId;
     }
 
     function getDistributionId() public view returns (uint256) {
         return _distributionIdCheckpoints.latest();
     }
 
-    function getDistributionIdAtBlock(uint256 blockNumber) public view returns (uint256) {
+    function getDistributionIdAtBlock(uint256 blockNumber) external view returns (uint256) {
         return _distributionIdCheckpoints.getAtBlock(blockNumber);
     }
 
     // TODO: implement this -> uses enums instead of block number to determine what phase for voting
     //         DistributionPhase phase = distributionPhase()
-    function getDistributionPhase(uint256 distributionId_) public view returns (DistributionPhase) {
+    function getDistributionPhase(uint256 distributionId_) external view returns (DistributionPhase) {
     }
 
     function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, bytes32) {
@@ -237,7 +236,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @notice Start a new Distribution Period and reset appropiate state.
      * @dev    Can be kicked off by anyone assuming a distribution period isn't already active.
      */
-    function startNewDistributionPeriod() public returns (uint256) {
+    function startNewDistributionPeriod() external returns (uint256) {
         QuarterlyDistribution memory lastDistribution = distributions[getDistributionId()];
 
         // check that there isn't currently an active distribution period
@@ -245,7 +244,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
         // set the distribution period to start at the current block
         uint256 startBlock = block.number;
-        uint256 endBlock = startBlock + distributionPeriodLength;
+        uint256 endBlock = startBlock + DISTRIBUTION_PERIOD_LENGTH;
 
         // set new value for currentDistributionId
         _setNewDistributionId();
@@ -296,7 +295,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @notice Check if a slate of proposals meets requirements, and maximizes votes. If so, update QuarterlyDistribution.
      * @return Boolean indicating whether the new proposal slate was set as the new slate for distribution.
      */
-    function checkSlate(Proposal[] calldata fundedProposals_, uint256 distributionId_) public returns (bool) {
+    function checkSlate(Proposal[] calldata fundedProposals_, uint256 distributionId_) external returns (bool) {
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
 
         // check that the function is being called within the challenge period
@@ -434,6 +433,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      */
     function hasVoted(uint256 proposalId, address account_) public view override(IGovernor) returns (bool) {
         if (hasScreened[account_]) return true;
+        else return false;
     }
 
     // TODO: finish implementing
@@ -511,7 +511,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @return The amount of votes allocated to the proposal.
      */
     function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 budgetAllocation_) internal returns (uint256) {
-        int256 allocationUsed;
+        int256 allocationUsed = 0;
         uint8  support = 1;
 
         // case where voter is voting against the proposal
@@ -651,7 +651,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     /**
      * @notice Get the current extraordinaryFundingBaseQuorum required to pass an extraordinary funding proposal.
      */
-    function getExtraordinaryFundingQuorum(uint256 blockNumber, uint256 tokensRequested) public view returns (uint256) {
+    function getExtraordinaryFundingQuorum(uint256 blockNumber, uint256 tokensRequested) external view returns (uint256) {
     }
 
     // TODO: implement custom override - need to support both regular votes, and the extraordinaryFunding mechanism

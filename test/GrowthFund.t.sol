@@ -338,7 +338,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertEq(id, currentDistributionId);
         assertEq(votesCast, 0);
         assertEq(startBlock, block.number);
-        assertEq(endBlock, block.number + _growthFund.distributionPeriodLength());
+        assertEq(endBlock, block.number + _growthFund.DISTRIBUTION_PERIOD_LENGTH());
 
         // check a new distribution period can't be started if already active
         vm.expectRevert(IGrowthFund.DistributionPeriodStillActive.selector);
@@ -550,10 +550,6 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertEq(slateHash, 0x782d39817b3256245278e90dcc253aec40e6834480269e4442be665f6f2944a9);
 
         // check a similar slate results in a different hash
-    }
-
-    function testVotingPeriod() external {
-
     }
 
 }

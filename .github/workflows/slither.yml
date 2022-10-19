@@ -10,7 +10,7 @@ jobs:
 
       - name: Install and set solc version
         run: |
-          pip install solc-select && solc-select install 0.8.7 && solc-select use 0.8.7
+          pip install solc-select && solc-select install 0.8.17 && solc-select use 0.8.17
         id: solc
 
       - name: Install Slither
