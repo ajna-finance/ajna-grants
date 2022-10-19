@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.16;
 
 import "forge-std/Test.sol";
 
@@ -216,7 +216,33 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertEq(executed, false);
     }
 
-    function testInvalidProposeCalldata() external {
+    function testInvalidProposal() external {
+        // generate proposal targets
+        address[] memory targets = new address[](2);
+        targets[0] = _tokenHolder1;
+        targets[1] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory proposalCalldata = new bytes[](1);
+        proposalCalldata[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            1 * 1e18
+        );
+
+        // generate proposal message
+        string memory description = "Proposal for Ajna token transfer to tester address";
+
+        // create proposal should revert since multiple targets were listed
+        vm.expectRevert(IGrowthFund.InvalidProposal.selector);
+        _growthFund.propose(targets, values, proposalCalldata, description);
+    }
+
+    function testInvalidProposalCalldata() external {
         // generate proposal targets
         address[] memory targets = new address[](1);
         targets[0] = address(_token);
@@ -239,6 +265,31 @@ contract GrowthFundTest is GrowthFundTestHelper {
 
         // create proposal should revert since invalid burn operation was attempted
         vm.expectRevert(IGrowthFund.InvalidSignature.selector);
+        _growthFund.propose(targets, values, proposalCalldata, description);
+    }
+
+    function testInvalidProposalTarget() external {
+        // generate proposal targets
+        address[] memory targets = new address[](1);
+        targets[0] = _tokenHolder1;
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory proposalCalldata = new bytes[](1);
+        proposalCalldata[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            1 * 1e18
+        );
+
+        // generate proposal message
+        string memory description = "Proposal for Ajna token transfer to tester address";
+
+        // create proposal should revert since a non Ajna token contract target was used
+        vm.expectRevert(IGrowthFund.InvalidTarget.selector);
         _growthFund.propose(targets, values, proposalCalldata, description);
     }
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.16;
 
 import { Script } from "forge-std/Script.sol";
 import { AjnaToken } from "../src/AjnaToken.sol";

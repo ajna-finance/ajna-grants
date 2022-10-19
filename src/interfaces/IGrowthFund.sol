@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+
+//slither-disable-next-line solc-version
+pragma solidity 0.8.16;
 
 /**
  * @title Ajna Growth Coordination Fund
@@ -70,6 +72,11 @@ interface IGrowthFund {
      * @dev seth sig "transfer(address,uint256)" == 0xa9059cbb.
      */
     error InvalidSignature();
+
+    /**
+     * @notice User attempted to submit a proposal with too many target, values or calldatas.
+     */
+    error InvalidProposal();
 
     /**
      * @notice User attempted to execute a proposal that wasn't succesfully funded.

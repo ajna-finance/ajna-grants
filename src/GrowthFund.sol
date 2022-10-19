@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+
+pragma solidity 0.8.16;
 
 import { Checkpoints } from "@oz/utils/Checkpoints.sol";
 
@@ -91,7 +92,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     /*** Modifiers ***/
     /*****************/
 
-    // TODO: add revert if length is greater than 1
     /**
      * @notice Ensure a proposal matches GrowthFund specifications.
      * @dev Targets_ should be the Ajna token contract, values_ should be 0, and calldatas_ should be transfer().
@@ -100,24 +100,22 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @param calldatas_ List of calldatas to execute if the proposal is successful.
      */
     modifier checkProposal(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_) {
-        for (uint i = 0; i < targets_.length;) {
-
-            if (targets_[i] != votingTokenAddress) revert InvalidTarget();
-            if (values_[i] != 0) revert InvalidValues();
-
-            // check calldata function selector is transfer()
-            bytes memory dataWithSig = calldatas_[i];
-            bytes4 selector;
-            //slither-disable-next-line assembly
-            assembly {
-                selector := mload(add(dataWithSig, 0x20))
-            }
-            if (selector != bytes4(0xa9059cbb)) revert InvalidSignature();
-
-            unchecked {
-                ++i;
-            }
+        // check proposal can only execute one calldata, with one target
+        if (targets_.length != 1 || values_.length != 1 || calldatas_.length != 1) {
+            revert InvalidProposal();
         }
+
+        if (targets_[0] != votingTokenAddress) revert InvalidTarget();
+        if (values_[0] != 0) revert InvalidValues();
+
+        // check calldata function selector is transfer()
+        bytes memory dataWithSig = calldatas_[0];
+        bytes4 selector;
+        //slither-disable-next-line assembly
+        assembly {
+            selector := mload(add(dataWithSig, 0x20))
+        }
+        if (selector != bytes4(0xa9059cbb)) revert InvalidSignature();
         _;
     }
 
@@ -358,7 +356,9 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         return proposalId;
     }
 
-    // Required override; we don't currently have a threshold to create a proposal so this returns the default value of 0
+    /**
+     * @dev Required override; we don't currently have a threshold to create a proposal so this returns the default value of 0
+     */
     function proposalThreshold() public view override(Governor) returns (uint256) {
         return super.proposalThreshold();
     }

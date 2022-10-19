@@ -10,7 +10,7 @@ jobs:
 
       - name: Install and set solc version
         run: |
-          pip install solc-select && solc-select install 0.8.17 && solc-select use 0.8.17
+          pip install solc-select && solc-select install 0.8.16 && solc-select use 0.8.16
         id: solc
 
       - name: Install Slither
@@ -18,12 +18,13 @@ jobs:
           pip install slither-analyzer
         id: slither
 
-      # - name: Analyze AjnaToken
-      #   run: |
-      #     slither src/AjnaToken.sol
-      #   id: token_analyzer
+      - name: Analyze AjnaToken
+        run: |
+          slither src/AjnaToken.sol
+        id: token_analyzer
 
       - name: Analyze GrowthFund
         run: |
           slither src/GrowthFund.sol
+        continue-on-error: true
         id: fund_analyzer
