@@ -324,6 +324,11 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertEq(screenedProposals[0].votesReceived, 150_000_000 * 1e18);
         assertEq(screenedProposals[1].proposalId, testProposals[10].proposalId);
         assertEq(screenedProposals[1].votesReceived, 100_000_000 * 1e18);
+
+        // should revert if voter attempts to cast a screeningVote twice
+        changePrank(_tokenHolder15);
+        vm.expectRevert(IGrowthFund.AlreadyVoted.selector);
+        _growthFund.castVote(testProposals[11].proposalId, voteYes);
     }
 
     function testStartNewDistributionPeriod() external {

@@ -91,15 +91,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     /*** Modifiers ***/
     /*****************/
 
-    // TODO: replace with governorCountingSimple.hasVoted?
-    /**
-     * @notice Restrict a voter to only voting on one proposal during the screening stage.
-     */
-    modifier onlyScreenOnce() {
-        if (hasScreened[msg.sender]) revert AlreadyVoted();
-        _;
-    }
-
     // TODO: add revert if length is greater than 1
     /**
      * @notice Ensure a proposal matches GrowthFund specifications.
@@ -117,6 +108,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
             // check calldata function selector is transfer()
             bytes memory dataWithSig = calldatas_[i];
             bytes4 selector;
+            //slither-disable-next-line assembly
             assembly {
                 selector := mload(add(dataWithSig, 0x20))
             }
@@ -144,80 +136,16 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         ajnaToken          = AjnaToken(address(token_));
     }
 
-    /*****************************/
-    /*** Standard Distribution ***/
-    /*****************************/
+    /*****************************************/
+    /*** Distribution Management Functions ***/
+    /*****************************************/
 
     /**
-     * @notice Set a new DistributionPeriod Id.
-     * @dev    Increments the previous Id nonce by 1, and sets a checkpoint at the calling block.number.
+     * @notice Retrieve the current QuarterlyDistribution distributionId.
      */
-    function _setNewDistributionId() private returns (uint256 newDistributionId) {
-        // increment the distributionId
-        uint256 currentDistributionId = getDistributionId();
-        newDistributionId = currentDistributionId += 1;
-
-        // set the current block number as the checkpoint for the current block
-        _distributionIdCheckpoints.push(newDistributionId);
-        return newDistributionId;
-    }
-
     function getDistributionId() public view returns (uint256) {
         return _distributionIdCheckpoints.latest();
     }
-
-    function getDistributionIdAtBlock(uint256 blockNumber) external view returns (uint256) {
-        return _distributionIdCheckpoints.getAtBlock(blockNumber);
-    }
-
-    // TODO: implement this -> uses enums instead of block number to determine what phase for voting
-    //         DistributionPhase phase = distributionPhase()
-    function getDistributionPhase(uint256 distributionId_) external view returns (DistributionPhase) {
-    }
-
-    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, bytes32) {
-        QuarterlyDistribution memory distribution = distributions[distributionId_];
-        return (
-            distribution.id,
-            distribution.votesCast,
-            distribution.startBlock,
-            distribution.endBlock,
-            distribution.fundedSlateHash
-        );
-    }
-
-    /**
-     * @notice Get the funded proposal slate for a given distributionId, and slate hash
-     */
-    function getFundedProposalSlate(uint256 distributionId_, bytes32 slateHash_) external view returns (Proposal[] memory) {
-        return fundedProposalSlates[distributionId_][slateHash_];
-    }
-
-    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256, bool, bool) {
-        Proposal memory proposal = proposals[proposalId_];
-        return (
-            proposal.proposalId,
-            proposal.distributionId,
-            proposal.votesReceived,
-            proposal.tokensRequested,
-            proposal.qvBudgetAllocated,
-            proposal.succeeded,
-            proposal.executed
-        );
-    }
-
-    function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, int256) {
-        QuadraticVoter memory voter = quadraticVoters[distributionId_][account_];
-        return (
-            voter.votingWeight,
-            voter.budgetRemaining
-        );
-    }
-
-    function getTopTenProposals(uint256 distributionId_) external view returns (Proposal[] memory) {
-        return topTenProposals[distributionId_];
-    }
-
 
     /**
      * @notice Calculate the block at which the screening period of a distribution ends.
@@ -228,9 +156,28 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         return currentDistribution_.endBlock - 72000;
     }
 
-    /*****************************************/
-    /*** Distribution Management Functions ***/
-    /*****************************************/
+    /**
+     * @notice Generate a unique hash of a list of proposals for usage as a key for comparing proposal slates.
+     * @param  proposals_ Array of proposals to hash.
+     * @return Bytes32 hash of the list of proposals.
+     */
+    function getSlateHash(Proposal[] calldata proposals_) public pure returns (bytes32) {
+        return keccak256(abi.encode(proposals_));
+    }
+
+    /**
+     * @notice Set a new DistributionPeriod Id.
+     * @dev    Increments the previous Id nonce by 1, and sets a checkpoint at the calling block.number.
+     * @return The new distribution period Id.
+     */
+    function _setNewDistributionId() private returns (uint256) {
+        // retrieve current distribution Id
+        uint256 currentDistributionId = getDistributionId();
+
+        // set the current block number as the checkpoint for the current block
+        (uint256 prevId, uint256 newId) = _distributionIdCheckpoints.push(currentDistributionId + 1);
+        return newId;
+    }
 
     /**
      * @notice Start a new Distribution Period and reset appropiate state.
@@ -272,10 +219,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         }
     }
 
-    function getSlateHash(Proposal[] calldata proposals_) public pure returns (bytes32) {
-        return keccak256(abi.encode(proposals_));
-    }
-
     function _updateFundedSlate(Proposal[] calldata fundedProposals_, QuarterlyDistribution storage currentDistribution_, bytes32 slateHash_) internal {
         for (uint i = 0; i < fundedProposals_.length; ) {
 
@@ -293,7 +236,9 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
     /**
      * @notice Check if a slate of proposals meets requirements, and maximizes votes. If so, update QuarterlyDistribution.
-     * @return Boolean indicating whether the new proposal slate was set as the new slate for distribution.
+     * @param  fundedProposals_ Array of proposals to check.
+     * @param  distributionId_ Id of the current quarterly distribution.
+     * @return Boolean indicating whether the new proposal slate was set as the new top slate for distribution.
      */
     function checkSlate(Proposal[] calldata fundedProposals_, uint256 distributionId_) external returns (bool) {
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
@@ -373,6 +318,8 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
         bytes memory dataWithSig = calldatas[0];
         uint256 tokensRequested;
+
+        //slither-disable-next-line assembly
         assembly {
             tokensRequested := mload(add(dataWithSig, 68))
         }
@@ -420,39 +367,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     /*** Voting Functions ***/
     /************************/
 
-    /**
-     * @dev See {IGovernor-COUNTING_MODE}.
-     */
-    // solhint-disable-next-line func-name-mixedcase
-    function COUNTING_MODE() public pure override(IGovernor) returns (string memory) {
-        return "support=bravo&quorum=for,abstain";
-    }
-
-    /**
-     * @dev See {IGovernor-hasVoted}.
-     */
-    function hasVoted(uint256 proposalId, address account_) public view override(IGovernor) returns (bool) {
-        if (hasScreened[account_]) return true;
-        else return false;
-    }
-
-    // TODO: finish implementing
-    function _countVote(uint256 proposalId, address account, uint8 support, uint256 weight, bytes memory) internal override(Governor) {
-        // TODO: check if voter has already voted - or do it above based upon the funding flow?
-    }
-
-    /**
-     * @notice Required ovveride used in Governor.state()
-     * @dev See {IGovernor-quorumReached}.
-     */
-    function _quorumReached(uint256) internal pure override(Governor) returns (bool) {
-        return true;
-    }
-
-    function _voteSucceeded(uint256 proposalId_) internal view override(Governor) returns (bool) {
-        return proposals[proposalId_].succeeded;
-    }
-
+    // TODO: check account_ vs msg.sender
     // TODO: may want to replace the conditional checks of stage here with the DistributionPhase enum
     /**
      * @notice Vote on a proposal in the screening or funding stage of the Distribution Period.
@@ -499,6 +414,8 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
             return _fundingVote(proposal, account_, voter, budgetAllocation);
         }
+
+        // TODO: implement extraordinary funding mechanism pathway
     }
 
     /**
@@ -549,7 +466,9 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @param votes_                  The amount of votes being cast.
      * @return                        The amount of votes cast.
      */
-    function _screeningVote(Proposal[] storage currentTopTenProposals_, Proposal storage proposal_, uint8 support_, uint256 votes_) internal onlyScreenOnce returns (uint256) {
+    function _screeningVote(Proposal[] storage currentTopTenProposals_, Proposal storage proposal_, uint8 support_, uint256 votes_) internal returns (uint256) {
+        if (hasVoted(proposal_.proposalId, msg.sender)) revert AlreadyVoted();
+
         // update proposal votes counter
         proposal_.votesReceived += votes_;
 
@@ -625,6 +544,41 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     }
 
     /**
+     * @dev See {IGovernor-COUNTING_MODE}.
+     */
+    //slither-disable-next-line naming-convention
+    function COUNTING_MODE() public pure override(IGovernor) returns (string memory) {
+        return "support=bravo&quorum=for,abstain";
+    }
+
+    /**
+     * @notice Restrict voter to only voting once during the screening stage.
+     * @dev    See {IGovernor-hasVoted}.
+     */
+    function hasVoted(uint256, address account_) public view override(IGovernor) returns (bool) {
+        if (hasScreened[account_]) return true;
+        else return false;
+    }
+
+    /**
+     * @notice Required ovveride; not currently used due to divergence in voting logic.
+     * @dev    See {IGovernor-_countVote}.
+     */
+    function _countVote(uint256 proposalId, address account, uint8 support, uint256 weight, bytes memory) internal override(Governor) {}
+
+    /**
+     * @notice Required ovveride used in Governor.state()
+     * @dev See {IGovernor-quorumReached}.
+     */
+    function _quorumReached(uint256) internal pure override(Governor) returns (bool) {
+        return true;
+    }
+
+    function _voteSucceeded(uint256 proposalId_) internal view override(Governor) returns (bool) {
+        return proposals[proposalId_].succeeded;
+    }
+
+    /**
      * @notice Required ovverride.
      * @dev    Since no voting delay is implemented, this is hardcoded to 0.
      */
@@ -634,7 +588,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
 
     /**
      * @notice Calculates the remaining blocks left in the screening period.
-     * @dev    Required ovverride.
+     * @dev    Required ovverride; see {IGovernor-votingPeriod}.
      * @return The remaining number of blocks.
      */
     function votingPeriod() public view override(IGovernor) returns (uint256) {
@@ -642,6 +596,70 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         QuarterlyDistribution memory currentDistribution = distributions[getDistributionId()];
         uint256 screeningPeriodEndBlock = getScreeningPeriodEndBlock(currentDistribution);
         return screeningPeriodEndBlock - block.number;
+    }
+
+    /**************************/
+    /*** External Functions ***/
+    /**************************/
+
+    /**
+     * @notice Retrieve the QuarterlyDistribution distributionId at a given block.
+     */
+    function getDistributionIdAtBlock(uint256 blockNumber) external view returns (uint256) {
+        return _distributionIdCheckpoints.getAtBlock(blockNumber);
+    }
+
+    // TODO: implement this -> uses enums instead of block number to determine what phase for voting
+    //         DistributionPhase phase = distributionPhase()
+    function getDistributionPhase(uint256 distributionId_) external view returns (DistributionPhase) {}
+
+    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, bytes32) {
+        QuarterlyDistribution memory distribution = distributions[distributionId_];
+        return (
+            distribution.id,
+            distribution.votesCast,
+            distribution.startBlock,
+            distribution.endBlock,
+            distribution.fundedSlateHash
+        );
+    }
+
+    /**
+     * @notice Get the funded proposal slate for a given distributionId, and slate hash
+     */
+    function getFundedProposalSlate(uint256 distributionId_, bytes32 slateHash_) external view returns (Proposal[] memory) {
+        return fundedProposalSlates[distributionId_][slateHash_];
+    }
+
+    /**
+     * @notice Get the current state of a given proposal.
+     */
+    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256, bool, bool) {
+        Proposal memory proposal = proposals[proposalId_];
+        return (
+            proposal.proposalId,
+            proposal.distributionId,
+            proposal.votesReceived,
+            proposal.tokensRequested,
+            proposal.qvBudgetAllocated,
+            proposal.succeeded,
+            proposal.executed
+        );
+    }
+
+    /**
+     * @notice Get the current state of a given voter in the funding stage.
+     */
+    function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, int256) {
+        QuadraticVoter memory voter = quadraticVoters[distributionId_][account_];
+        return (
+            voter.votingWeight,
+            voter.budgetRemaining
+        );
+    }
+
+    function getTopTenProposals(uint256 distributionId_) external view returns (Proposal[] memory) {
+        return topTenProposals[distributionId_];
     }
 
     /*****************************/
@@ -669,6 +687,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         index = -1; // default value indicating proposalId not in the array
 
         for (int i = 0; i < int(array.length);) {
+            //slither-disable-next-line incorrect-equality
             if (array[uint256(i)].proposalId == proposalId) {
                 index = i;
             }
@@ -686,6 +705,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     function _quickSortProposalsByVotes(Proposal[] storage arr, int left, int right) internal {
         int i = left;
         int j = right;
+        //slither-disable-next-line incorrect-equality
         if (i == j) return;
         uint pivot = arr[uint(left + (right - left) / 2)].votesReceived;
         while (i <= j) {
