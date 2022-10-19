@@ -587,15 +587,24 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     }
 
     /**
-     * @notice Calculates the remaining blocks left in the screening period.
+     * @notice Calculates the remaining blocks left in the current voting period
      * @dev    Required ovverride; see {IGovernor-votingPeriod}.
      * @return The remaining number of blocks.
      */
     function votingPeriod() public view override(IGovernor) returns (uint256) {
-        // TODO: return remaining time in whichever period we're in (super.propose()#266)
         QuarterlyDistribution memory currentDistribution = distributions[getDistributionId()];
         uint256 screeningPeriodEndBlock = getScreeningPeriodEndBlock(currentDistribution);
-        return screeningPeriodEndBlock - block.number;
+
+        if (block.number < screeningPeriodEndBlock) {
+            return screeningPeriodEndBlock - block.number;
+        }
+        else if (block.number > screeningPeriodEndBlock && block.number < currentDistribution.endBlock) {
+            return currentDistribution.endBlock - block.number;
+        }
+        // TODO: implement exraordinary funding mechanism
+        else {
+            return 0;
+        }
     }
 
     /**************************/

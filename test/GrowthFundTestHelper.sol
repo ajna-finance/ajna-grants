@@ -15,13 +15,11 @@ import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings } from "@oz/utils/Strings.sol"; // used for createNProposals
 import { stdJson } from "@std/StdJson.sol";
 
-// TODO: move to utils folder and add GrowthFundInstance to this file
 abstract contract GrowthFundTestHelper is Test {
 
     using SafeCast for uint256;
     using Strings for string;
 
-    // TODO: replace with selectors from Governor interface?
     /***************************/
     /*** OpenZeppelin Events ***/
     /***************************/
