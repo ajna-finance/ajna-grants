@@ -8,7 +8,6 @@ import { GrowthFund } from "../src/GrowthFund.sol";
 import { IGrowthFund } from "../src/interfaces/IGrowthFund.sol";
 
 import { SigUtils } from "./utils/SigUtils.sol";
-import { GrowthFundInstance } from "./utils/GrowthFundInstance.sol";
 import { GrowthFundTestHelper } from "./GrowthFundTestHelper.sol";
 
 import { IGovernor } from "@oz/governance/IGovernor.sol";
@@ -25,7 +24,6 @@ contract GrowthFundTest is GrowthFundTestHelper {
     AjnaToken          internal  _token;
     IVotes             internal  _votingToken;
     GrowthFund         internal  _growthFund;
-    GrowthFundInstance internal  _growthFundInstance;
     SigUtils           internal  _sigUtils;
 
     address internal _tokenDeployer  = makeAddr("tokenDeployer");
@@ -77,9 +75,6 @@ contract GrowthFundTest is GrowthFundTestHelper {
         // deploy growth fund contract
         _growthFund = new GrowthFund(_votingToken);
 
-        // instantiate GrowthFundInstance for sort testing
-        _growthFundInstance = new GrowthFundInstance(_votingToken);
-
         // TODO: replace with for loop -> test address initializer method that created array and transfers tokens given n?
         // initial minter distributes tokens to test addresses
         changePrank(_tokenDeployer);
@@ -101,19 +96,6 @@ contract GrowthFundTest is GrowthFundTestHelper {
 
         // initial minter distributes treasury to growthFund
         _token.transfer(address(_growthFund), 500_000_000 * 1e18);
-    }
-
-    // expects a list of Proposal structs
-    // filepath expected to be defined from root
-    function _loadProposalSlateJSON(string memory filePath) internal returns (IGrowthFund.Proposal[] memory) {
-        string memory root = vm.projectRoot();
-        string memory path = string.concat(root, filePath);
-
-        string memory json = vm.readFile(path);
-        bytes memory encodedProposals = vm.parseJson(json, ".Proposals");
-
-        (IGrowthFund.Proposal[] memory proposals) = abi.decode(encodedProposals, (IGrowthFund.Proposal[]));
-        return proposals;
     }
 
     /*************/

@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 
 import { AjnaToken } from "../src/AjnaToken.sol";
 import { GrowthFund } from "../src/GrowthFund.sol";
+import { IGrowthFund } from "../src/interfaces/IGrowthFund.sol";
 
 import { SigUtils } from "./utils/SigUtils.sol";
 
@@ -12,7 +13,9 @@ import { IGovernor } from "@oz/governance/IGovernor.sol";
 import { IVotes } from "@oz/governance/utils/IVotes.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings } from "@oz/utils/Strings.sol"; // used for createNProposals
+import { stdJson } from "@std/StdJson.sol";
 
+// TODO: move to utils folder and add GrowthFundInstance to this file
 abstract contract GrowthFundTestHelper is Test {
 
     using SafeCast for uint256;
@@ -206,6 +209,19 @@ abstract contract GrowthFundTestHelper is Test {
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support_, voteAllocatedEmit, "");
         growthFund_.castVoteWithReasonAndParams(proposalId_, support_, reason, params);
+    }
+
+    // expects a list of Proposal structs
+    // filepath expected to be defined from root
+    function _loadProposalSlateJSON(string memory filePath) internal returns (IGrowthFund.Proposal[] memory) {
+        string memory root = vm.projectRoot();
+        string memory path = string.concat(root, filePath);
+
+        string memory json = vm.readFile(path);
+        bytes memory encodedProposals = vm.parseJson(json, ".Proposals");
+
+        (IGrowthFund.Proposal[] memory proposals) = abi.decode(encodedProposals, (IGrowthFund.Proposal[]));
+        return proposals;
     }
 
 }
