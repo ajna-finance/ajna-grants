@@ -43,6 +43,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
     address internal _tokenHolder12   = makeAddr("_tokenHolder12");
     address internal _tokenHolder13   = makeAddr("_tokenHolder13");
     address internal _tokenHolder14   = makeAddr("_tokenHolder14");
+    address internal _tokenHolder15   = makeAddr("_tokenHolder15");
 
     address[] internal _selfDelegatedVotersArr = [
         _tokenHolder1,
@@ -58,7 +59,8 @@ contract GrowthFundTest is GrowthFundTestHelper {
         _tokenHolder11,
         _tokenHolder12,
         _tokenHolder13,
-        _tokenHolder14
+        _tokenHolder14,
+        _tokenHolder15
     ];
 
     uint256 _initialAjnaTokenSupply   = 2_000_000_000 * 1e18;
@@ -95,6 +97,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         _token.transfer(_tokenHolder12, 50_000_000 * 1e18);
         _token.transfer(_tokenHolder13, 50_000_000 * 1e18);
         _token.transfer(_tokenHolder14, 50_000_000 * 1e18);
+        _token.transfer(_tokenHolder15, 50_000_000 * 1e18);
 
         // initial minter distributes treasury to growthFund
         _token.transfer(address(_growthFund), 500_000_000 * 1e18);
@@ -112,8 +115,6 @@ contract GrowthFundTest is GrowthFundTestHelper {
         (IGrowthFund.Proposal[] memory proposals) = abi.decode(encodedProposals, (IGrowthFund.Proposal[]));
         return proposals;
     }
-
-    // function _rawToConvertedProposal() internal 
 
     /*************/
     /*** Tests ***/
@@ -274,24 +275,73 @@ contract GrowthFundTest is GrowthFundTestHelper {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _selfDelegatedVotersArr);
 
+        vm.roll(150);
+
         // start distribution period
         _startDistributionPeriod(_growthFund);
+        uint256 distributionId = _growthFund.getDistributionId();
 
-        // load proposals from JSON file
-        IGrowthFund.Proposal[] memory proposals = _loadProposalSlateJSON("/test/fixtures/ProposalsToScreen.json");
+        vm.roll(200);
 
-        vm.roll(110);
+        TestProposalParams[] memory testProposalParams = new TestProposalParams[](15);
+        testProposalParams[0] = TestProposalParams(_tokenHolder1, 9_000_000 * 1e18);
+        testProposalParams[1] = TestProposalParams(_tokenHolder2, 20_000_000 * 1e18);
+        testProposalParams[2] = TestProposalParams(_tokenHolder3, 5_000_000 * 1e18);
+        testProposalParams[3] = TestProposalParams(_tokenHolder4, 5_000_000 * 1e18);
+        testProposalParams[4] = TestProposalParams(_tokenHolder5, 50_000 * 1e18);
+        testProposalParams[5] = TestProposalParams(_tokenHolder6, 100_000 * 1e18);
+        testProposalParams[6] = TestProposalParams(_tokenHolder7, 100_000 * 1e18);
+        testProposalParams[7] = TestProposalParams(_tokenHolder8, 100_000 * 1e18);
+        testProposalParams[8] = TestProposalParams(_tokenHolder9, 100_000 * 1e18);
+        testProposalParams[9] = TestProposalParams(_tokenHolder10, 100_000 * 1e18);
+        testProposalParams[10] = TestProposalParams(_tokenHolder11, 100_000 * 1e18);
+        testProposalParams[11] = TestProposalParams(_tokenHolder12, 100_000 * 1e18);
+        testProposalParams[12] = TestProposalParams(_tokenHolder13, 100_000 * 1e18);
+        testProposalParams[13] = TestProposalParams(_tokenHolder14, 100_000 * 1e18);
 
-        _growthFundInstance.quickSortProposalsByVotes(proposals, 0, int256(proposals.length) - 1);
+        TestProposal[] memory testProposals = _createNProposals(_growthFund, _token, testProposalParams);
 
-        // // check topTenProposals array
-        // GrowthFund.Proposal[] memory proposals = _growthFund.getTopTenProposals(_growthFund.getDistributionId());
-        // assertEq(proposals.length, 10);
-        // assertEq(proposals[0].proposalId, testProposals[1].proposalId);
-        // assertEq(proposals[0].votesReceived, 150_000_000 * 1e18);
+        // TODO: why was this 300 necessary?
+        emit log_uint(_growthFund.proposalDeadline(testProposals[0].proposalId));
+        emit log_uint(block.number);
+        vm.roll(300);
 
-        // assertEq(proposals[1].proposalId, testProposals[5].proposalId);
-        // assertEq(proposals[1].votesReceived, 100_000_000 * 1e18);
+        // screen proposals
+        _vote(_growthFund, _tokenHolder1, testProposals[0].proposalId, voteYes, 100);
+        _vote(_growthFund, _tokenHolder2, testProposals[1].proposalId, voteYes, 100);
+        _vote(_growthFund, _tokenHolder3, testProposals[2].proposalId, voteYes, 100);
+        _vote(_growthFund, _tokenHolder4, testProposals[3].proposalId, voteYes, 100);
+        _vote(_growthFund, _tokenHolder5, testProposals[4].proposalId, voteYes, 100);
+        _vote(_growthFund, _tokenHolder6, testProposals[5].proposalId, voteYes, 100);
+        _vote(_growthFund, _tokenHolder7, testProposals[6].proposalId, voteYes, 100);
+        _vote(_growthFund, _tokenHolder8, testProposals[7].proposalId, voteYes, 100);
+        _vote(_growthFund, _tokenHolder9, testProposals[8].proposalId, voteYes, 100);
+        _vote(_growthFund, _tokenHolder10, testProposals[9].proposalId, voteYes, 100);
+
+        // check top ten proposals
+        GrowthFund.Proposal[] memory screenedProposals = _growthFund.getTopTenProposals(distributionId);
+        assertEq(screenedProposals.length, 10);
+
+        // one of the non-current top 10 is moved up to the top spot
+        _vote(_growthFund, _tokenHolder11, testProposals[10].proposalId, voteYes, 100);
+        _vote(_growthFund, _tokenHolder12, testProposals[10].proposalId, voteYes, 100);
+
+        screenedProposals = _growthFund.getTopTenProposals(distributionId);
+        assertEq(screenedProposals.length, 10);
+        assertEq(screenedProposals[0].proposalId, testProposals[10].proposalId);
+        assertEq(screenedProposals[0].votesReceived, 100_000_000 * 1e18);
+
+        // another non-current top ten is moved up to the top spot
+        _vote(_growthFund, _tokenHolder13, testProposals[11].proposalId, voteYes, 100);
+        _vote(_growthFund, _tokenHolder14, testProposals[11].proposalId, voteYes, 100);
+        _vote(_growthFund, _tokenHolder15, testProposals[11].proposalId, voteYes, 100);
+
+        screenedProposals = _growthFund.getTopTenProposals(distributionId);
+        assertEq(screenedProposals.length, 10);
+        assertEq(screenedProposals[0].proposalId, testProposals[11].proposalId);
+        assertEq(screenedProposals[0].votesReceived, 150_000_000 * 1e18);
+        assertEq(screenedProposals[1].proposalId, testProposals[10].proposalId);
+        assertEq(screenedProposals[1].votesReceived, 100_000_000 * 1e18);
     }
 
     function testStartNewDistributionPeriod() external {

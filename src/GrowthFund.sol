@@ -541,7 +541,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         return uint256(allocationUsed);
     }
 
-    // TODO: check voting against a proposal
     /**
      * @notice Vote on a proposal in the screening stage of the Distribution Period.
      * @param currentTopTenProposals_ List of top ten vote receiving proposals that made it through the screening round.
@@ -684,7 +683,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @notice Determine the 10 proposals which will make it through screening and move on to the funding round.
      * @dev    Implements the descending quicksort algorithm from this discussion: https://gist.github.com/subhodi/b3b86cc13ad2636420963e692a4d896f#file-quicksort-sol-L12
      */
-    function _quickSortProposalsByVotes(Proposal[] memory arr, int left, int right) internal {
+    function _quickSortProposalsByVotes(Proposal[] storage arr, int left, int right) internal {
         int i = left;
         int j = right;
         if (i == j) return;
