@@ -367,17 +367,15 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     /*** Voting Functions ***/
     /************************/
 
-    // TODO: check account_ vs msg.sender
     // TODO: may want to replace the conditional checks of stage here with the DistributionPhase enum
     /**
      * @notice Vote on a proposal in the screening or funding stage of the Distribution Period.
      * @dev Override channels all other castVote methods through here.
      * @param proposalId_ The current proposal being voted upon.
      * @param account_    The voting account.
-     * @param support_    Vote direction, 1 is for, 0 is against.
      * @param params_     The amount of votes being allocated in the funding stage.
      */
-     function _castVote(uint256 proposalId_, address account_, uint8 support_, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
+     function _castVote(uint256 proposalId_, address account_, uint8, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
         QuarterlyDistribution memory currentDistribution = distributions[getDistributionId()];
         Proposal storage proposal = proposals[proposalId_];
 
@@ -391,7 +389,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
             stage = bytes("Screening");
             votes = _getVotes(account_, block.number, stage);
 
-            return _screeningVote(currentTopTenProposals, proposal, support_, votes);
+            return _screeningVote(currentTopTenProposals, account_, proposal, votes);
         }
 
         // funding stage
@@ -461,13 +459,13 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     /**
      * @notice Vote on a proposal in the screening stage of the Distribution Period.
      * @param currentTopTenProposals_ List of top ten vote receiving proposals that made it through the screening round.
+     * @param account_                The voting account.
      * @param proposal_               The current proposal being voted upon.
-     * @param support_                Vote direction, 1 is for, 0 is against.
      * @param votes_                  The amount of votes being cast.
      * @return                        The amount of votes cast.
      */
-    function _screeningVote(Proposal[] storage currentTopTenProposals_, Proposal storage proposal_, uint8 support_, uint256 votes_) internal returns (uint256) {
-        if (hasVoted(proposal_.proposalId, msg.sender)) revert AlreadyVoted();
+    function _screeningVote(Proposal[] storage currentTopTenProposals_, address account_, Proposal storage proposal_, uint256 votes_) internal returns (uint256) {
+        if (hasVoted(proposal_.proposalId, account_)) revert AlreadyVoted();
 
         // update proposal votes counter
         proposal_.votesReceived += votes_;
@@ -502,10 +500,10 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
         require(topTenProposals[getDistributionId()].length <= 10 && topTenProposals[getDistributionId()].length > 0, "CV:LIST_MALFORMED");
 
         // record voters vote
-        hasScreened[msg.sender] = true;
+        hasScreened[account_] = true;
 
         // vote for the given proposal
-        return super._castVote(proposal_.proposalId, msg.sender, support_, "", "");
+        return super._castVote(proposal_.proposalId, account_, 1, "", "");
     }
 
     /**
