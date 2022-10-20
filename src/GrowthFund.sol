@@ -483,7 +483,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
                 currentTopTenProposals_[uint256(indexInArray)] = proposal_;
 
                 // sort top ten proposals
-                _quickSortProposalsByVotes(currentTopTenProposals_, 0, int(currentTopTenProposals_.length - 1));
+                _insertionSortProposalsByVotes(currentTopTenProposals_);
             }
             // proposal isn't already in the array
             else if(currentTopTenProposals_[currentTopTenProposals_.length - 1].votesReceived < proposal_.votesReceived) {
@@ -492,7 +492,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
                 currentTopTenProposals_.push(proposal_);
 
                 // sort top ten proposals
-                _quickSortProposalsByVotes(currentTopTenProposals_, 0, int(currentTopTenProposals_.length - 1));
+                _insertionSortProposalsByVotes(currentTopTenProposals_);
             }
         }
 
@@ -706,30 +706,23 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     }
 
     /**
-     * @notice Determine the 10 proposals which will make it through screening and move on to the funding round.
-     * @dev    Implements the descending quicksort algorithm from this discussion: https://gist.github.com/subhodi/b3b86cc13ad2636420963e692a4d896f#file-quicksort-sol-L12
+     * @notice Sort the 10 proposals which will make it through screening and move on to the funding round.
+     * @dev    Implements the descending insertion sort algorithm.
      */
-    function _quickSortProposalsByVotes(Proposal[] storage arr, int left, int right) internal {
-        int i = left;
-        int j = right;
-        //slither-disable-next-line incorrect-equality
-        if (i == j) return;
-        uint pivot = arr[uint(left + (right - left) / 2)].votesReceived;
-        while (i <= j) {
-            while (arr[uint(i)].votesReceived > pivot) i++;
-            while (pivot > arr[uint(j)].votesReceived) j--;
-            if (i <= j) {
-                Proposal memory temp = arr[uint(i)];
-                arr[uint(i)] = arr[uint(j)];
+    function _insertionSortProposalsByVotes(Proposal[] storage arr) internal {
+        for (int i = 1; i < int(arr.length); i++) {
+            Proposal memory key = arr[uint(i)];
+            int j = i;
+
+            while (j > 0 && key.votesReceived > arr[uint(j - 1)].votesReceived) {
+                // swap values if left item < right item
+                Proposal memory temp = arr[uint(j - 1)];
+                arr[uint(j - 1)] = arr[uint(j)];
                 arr[uint(j)] = temp;
-                i++;
+
                 j--;
             }
         }
-        if (left < j)
-            _quickSortProposalsByVotes(arr, left, j);
-        if (i < right)
-            _quickSortProposalsByVotes(arr, i, right);
     }
 
 }
