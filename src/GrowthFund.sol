@@ -2,24 +2,23 @@
 
 pragma solidity 0.8.16;
 
-import { Checkpoints } from "@oz/utils/Checkpoints.sol";
+import "@oz/governance/Governor.sol";
+import "@oz/governance/extensions/GovernorVotes.sol";
+import "@oz/governance/extensions/GovernorVotesQuorumFraction.sol";
+import "@oz/governance/IGovernor.sol";
+import "@oz/governance/utils/IVotes.sol";
+import "@oz/security/ReentrancyGuard.sol";
+import "@oz/token/ERC20/IERC20.sol";
+import "@oz/utils/Checkpoints.sol";
 
-import { IERC20 } from "@oz/token/ERC20/IERC20.sol";
+import "./libraries/Maths.sol";
 
-import { Governor } from "@oz/governance/Governor.sol";
-import { GovernorVotes } from "@oz/governance/extensions/GovernorVotes.sol";
-import { GovernorVotesQuorumFraction } from "@oz/governance/extensions/GovernorVotesQuorumFraction.sol";
-import { IGovernor } from "@oz/governance/IGovernor.sol";
-import { IVotes } from "@oz/governance/utils/IVotes.sol";
+import "./interfaces/IGrowthFund.sol";
 
-import { Maths } from "./libraries/Maths.sol";
-
-import { IGrowthFund } from "./interfaces/IGrowthFund.sol";
-
-import { AjnaToken } from "./AjnaToken.sol";
+import "./AjnaToken.sol";
 
 
-contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
+contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, ReentrancyGuard {
 
     using Checkpoints for Checkpoints.History;
 
@@ -344,7 +343,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @dev    Calls out to Governor.execute()
      * @return proposalId of the executed proposal.
      */
-    function execute(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash) public payable override(Governor) returns (uint256) {
+    function execute(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash) public payable override(Governor) nonReentrant returns (uint256) {
         uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash);
         Proposal storage proposal = proposals[proposalId];
 

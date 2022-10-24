@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "forge-std/Test.sol";
+import "@std/Test.sol";
 
-import { AjnaToken } from "../src/AjnaToken.sol";
+import "../src/AjnaToken.sol";
 
-import { SigUtils } from "./utils/SigUtils.sol";
+import "./utils/SigUtils.sol";
 
 contract AjnaTokenTest is Test {
 

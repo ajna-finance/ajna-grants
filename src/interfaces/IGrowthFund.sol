@@ -83,11 +83,6 @@ interface IGrowthFund {
      */
     error ProposalNotFunded();
 
-    /**
-     * @notice Proposal requests more tokens than the previous maximum quarterly distribution.
-     */
-    error RequestedTooManyTokens();
-
     /***************/
     /*** Structs ***/
     /***************/
