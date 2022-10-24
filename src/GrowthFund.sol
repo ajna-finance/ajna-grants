@@ -36,7 +36,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @notice Maximum percentage of tokens that can be distributed by the treasury in a quarter.
      * @dev Stored as a Wad percentage.
      */
-    uint256 public globalBudgetConstraint = Maths.wdiv(Maths.wad(2), Maths.wad(100));
+    uint256 public constant globalBudgetConstraint = 20000000000000000;
 
     /**
      * @notice Length of the distribution period in blocks.
@@ -178,7 +178,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     }
 
     /**
-     * @notice Start a new Distribution Period and reset appropiate state.
+     * @notice Start a new Distribution Period and reset appropriate state.
      * @dev    Can be kicked off by anyone assuming a distribution period isn't already active.
      */
     function startNewDistributionPeriod() external returns (uint256) {
@@ -304,6 +304,14 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     /*** Proposal Functions ***/
     /**************************/
 
+    /**
+     * @notice Submit a new proposal to the Growth Coordination Fund
+     * @dev    All proposals can be submitted by anyone. There can only be one value in each array. Interface inherits from OZ.propose().
+     * @param  targets List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
+     * @param  values List of values to be sent with the proposal calldata. Should be 0 for all proposals.
+     * @param  calldatas List of calldata to be executed. Should be the transfer() method.
+     * @return proposalId The id of the newly created proposal.
+     */
     function propose(
         address[] memory targets,
         uint256[] memory values,
@@ -510,6 +518,11 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
      * @notice Calculates the number of votes available to an account depending on the current stage of the Distribution Period.
      * @dev    Overrides OpenZeppelin _getVotes implementation to ensure appropriate voting weight is always returned.
      * @dev    Snapshot checks are built into this function to ensure accurate power is returned regardless of the caller.
+     * @dev    Number of votes available is equivalent to the usage of voting weight in the super class.
+     * @param  account_     The voting account.
+     * @param  blockNumber_ The block number to check the snapshot at.
+     * @param  stage_       The stage of the distribution period, or signifier of the vote being part of the extraordinary funding mechanism.
+     * @return The number of votes available to an account in a given stage.
      */
     function _getVotes(address account_, uint256 blockNumber_, bytes memory stage_) internal view override(Governor, GovernorVotes) returns (uint256) {
         QuarterlyDistribution memory currentDistribution = distributions[getDistributionId()];
@@ -559,13 +572,13 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction {
     }
 
     /**
-     * @notice Required ovveride; not currently used due to divergence in voting logic.
+     * @notice Required override; not currently used due to divergence in voting logic.
      * @dev    See {IGovernor-_countVote}.
      */
     function _countVote(uint256 proposalId, address account, uint8 support, uint256 weight, bytes memory) internal override(Governor) {}
 
     /**
-     * @notice Required ovveride used in Governor.state()
+     * @notice Required override used in Governor.state()
      * @dev See {IGovernor-quorumReached}.
      */
     function _quorumReached(uint256) internal pure override(Governor) returns (bool) {
