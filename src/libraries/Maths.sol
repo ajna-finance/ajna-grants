@@ -7,6 +7,10 @@ library Maths {
     uint256 public constant RAY = 10**27;
     uint256 public constant RAD = 10**45;
 
+    function abs(int x) internal pure returns (int) {
+        return x >= 0 ? x : -x;
+    }
+
     function wmul(uint256 x, uint256 y) internal pure returns (uint256) {
         return (x * y + 10**18 / 2) / 10**18;
     }

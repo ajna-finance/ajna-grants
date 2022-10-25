@@ -139,7 +139,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     /**
      * @notice Retrieve the current QuarterlyDistribution distributionId.
      */
-    function getDistributionId() public view returns (uint256) {
+    function getDistributionId() external view returns (uint256) {
         return _distributionIdCheckpoints.latest();
     }
 
@@ -180,7 +180,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @return newDistributionId_ The new distribution period Id.
      */
     function startNewDistributionPeriod() external returns (uint256 newDistributionId_) {
-        QuarterlyDistribution memory lastDistribution = distributions[getDistributionId()];
+        QuarterlyDistribution memory lastDistribution = distributions[_distributionIdCheckpoints.latest()];
 
         // check that there isn't currently an active distribution period
         if (block.number <= lastDistribution.endBlock) revert DistributionPeriodStillActive();
@@ -342,14 +342,15 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     function execute(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable override(Governor) nonReentrant returns (uint256) {
         uint256 proposalId = hashProposal(targets_, values_, calldatas_, descriptionHash_);
         Proposal storage proposal = proposals[proposalId];
+        uint256 distributionId = proposal.distributionId;
 
         // check if propsal is in the fundedProposalSlates list
-        if (_findProposalIndex(proposalId, fundedProposalSlates[proposal.distributionId][distributions[proposal.distributionId].fundedSlateHash]) == -1) {
+        if (_findProposalIndex(proposalId, fundedProposalSlates[distributionId][distributions[distributionId].fundedSlateHash]) == -1) {
             revert ProposalNotFunded();
         }
 
         // check that the distribution period has ended, and it hasn't already been executed
-        if (block.number <= distributions[proposal.distributionId].endBlock + 50400 || proposals[proposalId].executed) revert ExecuteProposalInvalid();
+        if (block.number <= distributions[distributionId].endBlock + 50400 || proposals[proposalId].executed) revert ExecuteProposalInvalid();
 
         // update proposal state
         proposal.succeeded = true;
@@ -388,11 +389,10 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
 
         // screening stage
         if (block.number >= currentDistribution.startBlock && block.number <= screeningPeriodEndBlock) {
-            Proposal[] storage currentTopTenProposals = topTenProposals[proposal.distributionId];
             stage = bytes("Screening");
             votes = _getVotes(account_, block.number, stage);
 
-            return _screeningVote(currentTopTenProposals, account_, proposal, votes);
+            return _screeningVote(account_, proposal, votes);
         }
 
         // funding stage
@@ -429,78 +429,74 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @return The amount of votes allocated to the proposal.
      */
     function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 budgetAllocation_) internal returns (uint256) {
-        int256 allocationUsed = 0;
         uint8  support = 1;
 
         // case where voter is voting against the proposal
         if (budgetAllocation_ < 0) {
-            allocationUsed -= budgetAllocation_;
             support = 0;
 
-            // update voter and proposal vote tracking
-            voter_.budgetRemaining -= allocationUsed;
-            proposal_.qvBudgetAllocated -= allocationUsed;
+            // update voter budget remaining
+            voter_.budgetRemaining += budgetAllocation_;
         }
         // voter is voting in support of the proposal
         else {
-            allocationUsed = budgetAllocation_;
-
-            // update voter and proposal vote tracking
-            voter_.budgetRemaining -= allocationUsed;
-            proposal_.qvBudgetAllocated += allocationUsed;
+            // update voter budget remaining
+            voter_.budgetRemaining -= budgetAllocation_;
         }
+
+        // update proposal vote tracking
+        proposal_.qvBudgetAllocated += budgetAllocation_;
 
         // update proposal vote tracking in top ten array
         topTenProposals[proposal_.distributionId][uint256(_findProposalIndex(proposal_.proposalId, topTenProposals[proposal_.distributionId]))].qvBudgetAllocated = proposal_.qvBudgetAllocated;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
-        emit VoteCast(account_, proposal_.proposalId, support, uint256(allocationUsed), "");
-        return uint256(allocationUsed);
+        uint256 budgetAllocated = uint256(Maths.abs(budgetAllocation_));
+        emit VoteCast(account_, proposal_.proposalId, support, budgetAllocated, "");
+        return budgetAllocated;
     }
 
     /**
      * @notice Vote on a proposal in the screening stage of the Distribution Period.
-     * @param currentTopTenProposals_ List of top ten vote receiving proposals that made it through the screening round.
      * @param account_                The voting account.
      * @param proposal_               The current proposal being voted upon.
      * @param votes_                  The amount of votes being cast.
      * @return                        The amount of votes cast.
      */
-    function _screeningVote(Proposal[] storage currentTopTenProposals_, address account_, Proposal storage proposal_, uint256 votes_) internal returns (uint256) {
+    function _screeningVote(address account_, Proposal storage proposal_, uint256 votes_) internal returns (uint256) {
         if (hasScreened[account_]) revert AlreadyVoted();
+
+        Proposal[] storage currentTopTenProposals = topTenProposals[proposal_.distributionId];
 
         // update proposal votes counter
         proposal_.votesReceived += votes_;
 
         // check if proposal was already screened
-        int indexInArray = _findProposalIndex(proposal_.proposalId, currentTopTenProposals_);
-        uint256 screenedProposalsLength = currentTopTenProposals_.length;
+        int indexInArray = _findProposalIndex(proposal_.proposalId, currentTopTenProposals);
+        uint256 screenedProposalsLength = currentTopTenProposals.length;
 
         // check if the proposal should be added to the top ten list for the first time
         if (screenedProposalsLength < 10 && indexInArray == -1) {
-            currentTopTenProposals_.push(proposal_);
+            currentTopTenProposals.push(proposal_);
         }
         else {
             // proposal is already in the array
             if (indexInArray != -1) {
-                currentTopTenProposals_[uint256(indexInArray)] = proposal_;
+                currentTopTenProposals[uint256(indexInArray)] = proposal_;
 
                 // sort top ten proposals
-                _insertionSortProposalsByVotes(currentTopTenProposals_);
+                _insertionSortProposalsByVotes(currentTopTenProposals);
             }
             // proposal isn't already in the array
-            else if(currentTopTenProposals_[screenedProposalsLength - 1].votesReceived < proposal_.votesReceived) {
+            else if(currentTopTenProposals[screenedProposalsLength - 1].votesReceived < proposal_.votesReceived) {
                 // replace least supported proposal with the new proposal
-                currentTopTenProposals_.pop();
-                currentTopTenProposals_.push(proposal_);
+                currentTopTenProposals.pop();
+                currentTopTenProposals.push(proposal_);
 
                 // sort top ten proposals
-                _insertionSortProposalsByVotes(currentTopTenProposals_);
+                _insertionSortProposalsByVotes(currentTopTenProposals);
             }
         }
-
-        // ensure proposal list is within expected bounds
-        require(topTenProposals[proposal_.distributionId].length <= 10 && topTenProposals[proposal_.distributionId].length > 0, "CV:LIST_MALFORMED");
 
         // record voters vote
         hasScreened[account_] = true;
@@ -520,7 +516,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @return The number of votes available to an account in a given stage.
      */
     function _getVotes(address account_, uint256 blockNumber_, bytes memory stage_) internal view override(Governor, GovernorVotes) returns (uint256) {
-        QuarterlyDistribution memory currentDistribution = distributions[getDistributionId()];
+        QuarterlyDistribution memory currentDistribution = distributions[_distributionIdCheckpoints.latest()];
 
         // within screening period 1 token 1 vote
         if (keccak256(stage_) == keccak256(bytes("Screening"))) {
@@ -597,7 +593,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @return The remaining number of blocks.
      */
     function votingPeriod() public view override(IGovernor) returns (uint256) {
-        QuarterlyDistribution memory currentDistribution = distributions[getDistributionId()];
+        QuarterlyDistribution memory currentDistribution = distributions[_distributionIdCheckpoints.latest()];
         uint256 screeningPeriodEndBlock = getScreeningPeriodEndBlock(currentDistribution);
 
         if (block.number < screeningPeriodEndBlock) {

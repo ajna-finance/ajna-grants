@@ -299,7 +299,6 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertEq(maximumQuarterlyDistribution, 10_000_000 * 1e18);
     }
 
-    // TODO: check negative votes - second fixture?
     /**
      *  @notice 14 voters consider 18 different proposals. 10 Make it through to the funding stage.
      */
