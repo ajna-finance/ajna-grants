@@ -89,7 +89,6 @@ interface IGrowthFund {
 
     /**
      * @notice Contains proposals that made it through the screening process to the funding stage.
-     * @dev Mapping and uint array used for tracking proposals in the distribution as typed arrays (like Proposal[]) can't be nested.
      */
     struct QuarterlyDistribution {
         uint256 id;                 // id of the current quarterly distribution
@@ -99,6 +98,9 @@ interface IGrowthFund {
         bytes32 fundedSlateHash;    // hash of list of proposals to fund
     }
 
+    /**
+     * @notice Contains information about proposals in a distribution period.
+     */
     struct Proposal {
         uint256 proposalId;       // OZ.Governor proposalId
         uint256 distributionId;   // Id of the distribution period in which the proposal was made
@@ -109,16 +111,12 @@ interface IGrowthFund {
         bool executed;            // whether or not the proposal has been executed
     }
 
+    /**
+     * @notice Contains information about voters during a distribution period's funding stage.
+     */
     struct QuadraticVoter {
         uint256 votingWeight;   // amount of votes originally available to the voter
         int256 budgetRemaining; // remaining voting budget in the given period
-    }
-
-    // TODO: use this enum instead of block number calculations?
-    enum DistributionPhase {
-        Screening,
-        Funding,
-        Pending // TODO: rename - indicate the period between phases and a new distribution period
     }
 
 }

@@ -360,7 +360,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     /*** Voting Functions ***/
     /************************/
 
-    // TODO: may want to replace the conditional checks of stage here with the DistributionPhase enum
     /**
      * @notice Vote on a proposal in the screening or funding stage of the Distribution Period.
      * @dev Override channels all other castVote methods through here.
@@ -605,10 +604,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     function getDistributionIdAtBlock(uint256 blockNumber) external view returns (uint256) {
         return _distributionIdCheckpoints.getAtBlock(blockNumber);
     }
-
-    // TODO: implement this -> uses enums instead of block number to determine what phase for voting
-    //         DistributionPhase phase = distributionPhase()
-    function getDistributionPhase(uint256 distributionId_) external view returns (DistributionPhase) {}
 
     function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, bytes32) {
         QuarterlyDistribution memory distribution = distributions[distributionId_];
