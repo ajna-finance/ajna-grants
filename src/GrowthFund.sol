@@ -147,7 +147,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @notice Calculate the block at which the screening period of a distribution ends.
      * @dev    Screening period is 80 days, funding period is 10 days. Total distribution is 90 days.
      */
-    function getScreeningPeriodEndBlock(QuarterlyDistribution memory currentDistribution_) public pure returns (uint256) {
+    function getScreeningPeriodEndBlock(QuarterlyDistribution memory currentDistribution_) external pure returns (uint256) {
         // 10 days is equivalent to 72,000 blocks (12 seconds per block, 86400 seconds per day)
         return currentDistribution_.endBlock - 72000;
     }
@@ -157,7 +157,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @param  proposals_ Array of proposals to hash.
      * @return Bytes32 hash of the list of proposals.
      */
-    function getSlateHash(Proposal[] calldata proposals_) public pure returns (bytes32) {
+    function getSlateHash(Proposal[] calldata proposals_) external pure returns (bytes32) {
         return keccak256(abi.encode(proposals_));
     }
 
@@ -253,15 +253,16 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
 
         // get pointers for comparing proposal slates
         bytes32 currentSlateHash = currentDistribution.fundedSlateHash;
-        bytes32 newSlateHash = getSlateHash(fundedProposals_);
+        bytes32 newSlateHash = keccak256(abi.encode(fundedProposals_));
 
         bool newTopSlate = currentSlateHash == 0 ||
             (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[distributionId_][currentSlateHash]));
 
         if (newTopSlate) {
+            Proposal[] storage existingSlate = fundedProposalSlates[distributionId_][newSlateHash];
             for (uint i = 0; i < fundedProposals_.length; ) {
                 // update list of proposals to fund
-                fundedProposalSlates[distributionId_][newSlateHash].push(fundedProposals_[i]);
+                existingSlate.push(fundedProposals_[i]);
 
                 unchecked {
                     ++i;
@@ -294,15 +295,16 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @param  targets_ List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
      * @param  values_ List of values to be sent with the proposal calldata. Should be 0 for all proposals.
      * @param  calldatas_ List of calldata to be executed. Should be the transfer() method.
-     * @return proposalId The id of the newly created proposal.
+     * @return proposalId_ The id of the newly created proposal.
      */
     function propose(
         address[] memory targets_,
         uint256[] memory values_,
         bytes[] memory calldatas_,
         string memory description_
-    ) public override(Governor) checkProposal(targets_, values_, calldatas_) returns (uint256) {
-        uint256 proposalId = hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
+    ) public override(Governor) checkProposal(targets_, values_, calldatas_) returns (uint256 proposalId_) {
+        // hash proposalId according to IGovernor-hashProposal
+        proposalId_ = uint256(keccak256(abi.encode(targets_, values_, calldatas_, keccak256(bytes(description_)))));
 
         // https://github.com/ethereum/solidity/issues/9439
         // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
@@ -315,8 +317,8 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
         }
 
         // store new proposal information
-        Proposal storage newProposal = proposals[proposalId];
-        newProposal.proposalId = proposalId;
+        Proposal storage newProposal = proposals[proposalId_];
+        newProposal.proposalId = proposalId_;
         newProposal.distributionId = _distributionIdCheckpoints.latest();
         newProposal.tokensRequested = tokensRequested;
 
@@ -326,27 +328,28 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     /**
      * @notice Execute a proposal that has been approved by the community.
      * @dev    Calls out to Governor.execute()
-     * @return proposalId of the executed proposal.
+     * @return proposalId_ of the executed proposal.
      */
-    function execute(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable override(Governor) nonReentrant returns (uint256) {
-        uint256 proposalId = hashProposal(targets_, values_, calldatas_, descriptionHash_);
-        Proposal storage proposal = proposals[proposalId];
+    function execute(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable override(Governor) nonReentrant returns (uint256 proposalId_) {
+        // hash proposalId according to IGovernor-hashProposal
+        proposalId_ = uint256(keccak256(abi.encode(targets_, values_, calldatas_, descriptionHash_)));
+
+        Proposal storage proposal = proposals[proposalId_];
         uint256 distributionId = proposal.distributionId;
 
         // check if propsal is in the fundedProposalSlates list
-        if (_findProposalIndex(proposalId, fundedProposalSlates[distributionId][distributions[distributionId].fundedSlateHash]) == -1) {
+        if (_findProposalIndex(proposalId_, fundedProposalSlates[distributionId][distributions[distributionId].fundedSlateHash]) == -1) {
             revert ProposalNotFunded();
         }
 
         // check that the distribution period has ended, and it hasn't already been executed
-        if (block.number <= distributions[distributionId].endBlock + 50400 || proposals[proposalId].executed) revert ExecuteProposalInvalid();
+        if (block.number <= distributions[distributionId].endBlock + 50400 || proposals[proposalId_].executed) revert ExecuteProposalInvalid();
 
         // update proposal state
         proposal.succeeded = true;
         proposal.executed = true;
 
         super.execute(targets_, values_, calldatas_, descriptionHash_);
-        return proposalId;
     }
 
     /**
@@ -372,7 +375,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
         Proposal storage proposal = proposals[proposalId_];
         QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
 
-        uint256 screeningPeriodEndBlock = getScreeningPeriodEndBlock(currentDistribution);
+        uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
         bytes memory stage;
         uint256 votes;
 
@@ -392,7 +395,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
 
             // this is the first time a voter has attempted to vote this period
             if (voter.votingWeight == 0) {
-                voter.votingWeight = Maths.wpow(super._getVotes(account_, getScreeningPeriodEndBlock(currentDistribution) - 33, ""), 2);
+                voter.votingWeight = Maths.wpow(super._getVotes(account_, screeningPeriodEndBlock - 33, ""), 2);
                 voter.budgetRemaining = int256(voter.votingWeight);
             }
 
@@ -515,7 +518,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
             QuadraticVoter memory voter = quadraticVoters[currentDistribution.id][account_];
             // this is the first time a voter has attempted to vote this period
             if (voter.votingWeight == 0) {
-                return Maths.wpow(super._getVotes(account_, getScreeningPeriodEndBlock(currentDistribution) - 33, ""), 2);
+                return Maths.wpow(super._getVotes(account_, currentDistribution.endBlock - 72033, ""), 2);
             }
             // voter has already allocated some of their budget this period
             else {
@@ -581,7 +584,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      */
     function votingPeriod() public view override(IGovernor) returns (uint256) {
         QuarterlyDistribution memory currentDistribution = distributions[_distributionIdCheckpoints.latest()];
-        uint256 screeningPeriodEndBlock = getScreeningPeriodEndBlock(currentDistribution);
+        uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
 
         if (block.number < screeningPeriodEndBlock) {
             return screeningPeriodEndBlock - block.number;
