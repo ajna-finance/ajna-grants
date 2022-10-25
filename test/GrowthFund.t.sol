@@ -393,7 +393,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertEq(id, currentDistributionId);
         assertEq(votesCast, 0);
         assertEq(startBlock, block.number);
-        assertEq(endBlock, block.number + _growthFund.DISTRIBUTION_PERIOD_LENGTH());
+        assertEq(endBlock, block.number + 648000);
 
         // check a new distribution period can't be started if already active
         vm.expectRevert(IGrowthFund.DistributionPeriodStillActive.selector);

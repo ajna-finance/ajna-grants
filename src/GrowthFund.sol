@@ -8,7 +8,6 @@ import "@oz/governance/extensions/GovernorVotesQuorumFraction.sol";
 import "@oz/governance/IGovernor.sol";
 import "@oz/governance/utils/IVotes.sol";
 import "@oz/security/ReentrancyGuard.sol";
-import "@oz/token/ERC20/IERC20.sol";
 import "@oz/utils/Checkpoints.sol";
 
 import "./libraries/Maths.sol";
@@ -35,13 +34,13 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @notice Maximum percentage of tokens that can be distributed by the treasury in a quarter.
      * @dev Stored as a Wad percentage.
      */
-    uint256 public constant globalBudgetConstraint = 20000000000000000;
+    uint256 internal constant globalBudgetConstraint = 20000000000000000;
 
     /**
      * @notice Length of the distribution period in blocks.
      * @dev    Equivalent to the number of blocks in 90 days. Blocks come every 12 seconds.
      */
-    uint256 public constant DISTRIBUTION_PERIOD_LENGTH = 648000; // 90 days
+    uint256 internal constant DISTRIBUTION_PERIOD_LENGTH = 648000; // 90 days
 
     /**
      * @notice ID of the current distribution period.
@@ -146,7 +145,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
 
     /**
      * @notice Calculate the block at which the screening period of a distribution ends.
-     * @dev    Screening period is 80 days, funding period is 10 days. Total distributin is 90 days.
+     * @dev    Screening period is 80 days, funding period is 10 days. Total distribution is 90 days.
      */
     function getScreeningPeriodEndBlock(QuarterlyDistribution memory currentDistribution_) public pure returns (uint256) {
         // 10 days is equivalent to 72,000 blocks (12 seconds per block, 86400 seconds per day)
@@ -165,22 +164,22 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     /**
      * @notice Set a new DistributionPeriod Id.
      * @dev    Increments the previous Id nonce by 1, and sets a checkpoint at the calling block.number.
-     * @return The new distribution period Id.
+     * @return newId_ The new distribution period Id.
      */
-    function _setNewDistributionId() private returns (uint256) {
+    function _setNewDistributionId() private returns (uint256 newId_) {
         // retrieve current distribution Id
-        uint256 currentDistributionId = getDistributionId();
+        uint256 currentDistributionId = _distributionIdCheckpoints.latest();
 
         // set the current block number as the checkpoint for the current block
-        (uint256 prevId, uint256 newId) = _distributionIdCheckpoints.push(currentDistributionId + 1);
-        return newId;
+        (, newId_) = _distributionIdCheckpoints.push(currentDistributionId + 1);
     }
 
     /**
      * @notice Start a new Distribution Period and reset appropriate state.
      * @dev    Can be kicked off by anyone assuming a distribution period isn't already active.
+     * @return newDistributionId_ The new distribution period Id.
      */
-    function startNewDistributionPeriod() external returns (uint256) {
+    function startNewDistributionPeriod() external returns (uint256 newDistributionId_) {
         QuarterlyDistribution memory lastDistribution = distributions[getDistributionId()];
 
         // check that there isn't currently an active distribution period
@@ -191,18 +190,15 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
         uint256 endBlock = startBlock + DISTRIBUTION_PERIOD_LENGTH;
 
         // set new value for currentDistributionId
-        _setNewDistributionId();
-
-        uint256 newDistributionId = getDistributionId();
+        newDistributionId_ = _setNewDistributionId();
 
         // create QuarterlyDistribution struct
-        QuarterlyDistribution storage newDistributionPeriod = distributions[newDistributionId];
-        newDistributionPeriod.id =  newDistributionId;
+        QuarterlyDistribution storage newDistributionPeriod = distributions[newDistributionId_];
+        newDistributionPeriod.id = newDistributionId_;
         newDistributionPeriod.startBlock = startBlock;
         newDistributionPeriod.endBlock = endBlock;
 
-        emit QuarterlyDistributionStarted(newDistributionId, startBlock, endBlock);
-        return newDistributionPeriod.id;
+        emit QuarterlyDistributionStarted(newDistributionId_, startBlock, endBlock);
     }
 
     function _sumBudgetAllocated(Proposal[] memory proposalSubset_) internal pure returns (uint256 sum) {
@@ -251,7 +247,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
 
         for (uint i = 0; i < fundedProposals_.length; ) {
             // check if Proposal is in the topTenProposals list
-            if (_findInArray(fundedProposals_[i].proposalId, topTenProposals[distributionId_]) == -1) return false;
+            if (_findProposalIndex(fundedProposals_[i].proposalId, topTenProposals[distributionId_]) == -1) return false;
 
             // account for qvBudgetAllocated possibly being negative
             if (fundedProposals_[i].qvBudgetAllocated < 0) return false;
@@ -306,22 +302,22 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     /**
      * @notice Submit a new proposal to the Growth Coordination Fund
      * @dev    All proposals can be submitted by anyone. There can only be one value in each array. Interface inherits from OZ.propose().
-     * @param  targets List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
-     * @param  values List of values to be sent with the proposal calldata. Should be 0 for all proposals.
-     * @param  calldatas List of calldata to be executed. Should be the transfer() method.
+     * @param  targets_ List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
+     * @param  values_ List of values to be sent with the proposal calldata. Should be 0 for all proposals.
+     * @param  calldatas_ List of calldata to be executed. Should be the transfer() method.
      * @return proposalId The id of the newly created proposal.
      */
     function propose(
-        address[] memory targets,
-        uint256[] memory values,
-        bytes[] memory calldatas,
-        string memory description
-    ) public override(Governor) checkProposal(targets, values, calldatas) returns (uint256) {
-        uint256 proposalId = hashProposal(targets, values, calldatas, keccak256(bytes(description)));
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory calldatas_,
+        string memory description_
+    ) public override(Governor) checkProposal(targets_, values_, calldatas_) returns (uint256) {
+        uint256 proposalId = hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
 
         // https://github.com/ethereum/solidity/issues/9439
         // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
-        bytes memory dataWithSig = calldatas[0];
+        bytes memory dataWithSig = calldatas_[0];
         uint256 tokensRequested;
 
         //slither-disable-next-line assembly
@@ -332,10 +328,10 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
         // store new proposal information
         Proposal storage newProposal = proposals[proposalId];
         newProposal.proposalId = proposalId;
-        newProposal.distributionId = getDistributionId();
+        newProposal.distributionId = _distributionIdCheckpoints.latest();
         newProposal.tokensRequested = tokensRequested;
 
-        return super.propose(targets, values, calldatas, description);
+        return super.propose(targets_, values_, calldatas_, description_);
     }
 
     /**
@@ -343,12 +339,12 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @dev    Calls out to Governor.execute()
      * @return proposalId of the executed proposal.
      */
-    function execute(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash) public payable override(Governor) nonReentrant returns (uint256) {
-        uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash);
+    function execute(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable override(Governor) nonReentrant returns (uint256) {
+        uint256 proposalId = hashProposal(targets_, values_, calldatas_, descriptionHash_);
         Proposal storage proposal = proposals[proposalId];
 
         // check if propsal is in the fundedProposalSlates list
-        if (_findInArray(proposalId, fundedProposalSlates[proposal.distributionId][distributions[proposal.distributionId].fundedSlateHash]) == -1) {
+        if (_findProposalIndex(proposalId, fundedProposalSlates[proposal.distributionId][distributions[proposal.distributionId].fundedSlateHash]) == -1) {
             revert ProposalNotFunded();
         }
 
@@ -359,7 +355,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
         proposal.succeeded = true;
         proposal.executed = true;
 
-        super.execute(targets, values, calldatas, descriptionHash);
+        super.execute(targets_, values_, calldatas_, descriptionHash_);
         return proposalId;
     }
 
@@ -383,8 +379,8 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @param params_     The amount of votes being allocated in the funding stage.
      */
      function _castVote(uint256 proposalId_, address account_, uint8, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
-        QuarterlyDistribution memory currentDistribution = distributions[getDistributionId()];
         Proposal storage proposal = proposals[proposalId_];
+        QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
 
         uint256 screeningPeriodEndBlock = getScreeningPeriodEndBlock(currentDistribution);
         bytes memory stage;
@@ -392,7 +388,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
 
         // screening stage
         if (block.number >= currentDistribution.startBlock && block.number <= screeningPeriodEndBlock) {
-            Proposal[] storage currentTopTenProposals = topTenProposals[getDistributionId()];
+            Proposal[] storage currentTopTenProposals = topTenProposals[proposal.distributionId];
             stage = bytes("Screening");
             votes = _getVotes(account_, block.number, stage);
 
@@ -455,8 +451,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
         }
 
         // update proposal vote tracking in top ten array
-        uint256 distributionId = getDistributionId();
-        topTenProposals[distributionId][uint256(_findInArray(proposal_.proposalId, topTenProposals[distributionId]))].qvBudgetAllocated = proposal_.qvBudgetAllocated;
+        topTenProposals[proposal_.distributionId][uint256(_findProposalIndex(proposal_.proposalId, topTenProposals[proposal_.distributionId]))].qvBudgetAllocated = proposal_.qvBudgetAllocated;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(account_, proposal_.proposalId, support, uint256(allocationUsed), "");
@@ -472,16 +467,17 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @return                        The amount of votes cast.
      */
     function _screeningVote(Proposal[] storage currentTopTenProposals_, address account_, Proposal storage proposal_, uint256 votes_) internal returns (uint256) {
-        if (hasVoted(proposal_.proposalId, account_)) revert AlreadyVoted();
+        if (hasScreened[account_]) revert AlreadyVoted();
 
         // update proposal votes counter
         proposal_.votesReceived += votes_;
 
         // check if proposal was already screened
-        int indexInArray = _findInArray(proposal_.proposalId, currentTopTenProposals_);
+        int indexInArray = _findProposalIndex(proposal_.proposalId, currentTopTenProposals_);
+        uint256 screenedProposalsLength = currentTopTenProposals_.length;
 
         // check if the proposal should be added to the top ten list for the first time
-        if (currentTopTenProposals_.length < 10 && indexInArray == -1) {
+        if (screenedProposalsLength < 10 && indexInArray == -1) {
             currentTopTenProposals_.push(proposal_);
         }
         else {
@@ -493,7 +489,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
                 _insertionSortProposalsByVotes(currentTopTenProposals_);
             }
             // proposal isn't already in the array
-            else if(currentTopTenProposals_[currentTopTenProposals_.length - 1].votesReceived < proposal_.votesReceived) {
+            else if(currentTopTenProposals_[screenedProposalsLength - 1].votesReceived < proposal_.votesReceived) {
                 // replace least supported proposal with the new proposal
                 currentTopTenProposals_.pop();
                 currentTopTenProposals_.push(proposal_);
@@ -504,7 +500,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
         }
 
         // ensure proposal list is within expected bounds
-        require(topTenProposals[getDistributionId()].length <= 10 && topTenProposals[getDistributionId()].length > 0, "CV:LIST_MALFORMED");
+        require(topTenProposals[proposal_.distributionId].length <= 10 && topTenProposals[proposal_.distributionId].length > 0, "CV:LIST_MALFORMED");
 
         // record voters vote
         hasScreened[account_] = true;
@@ -566,8 +562,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @dev    See {IGovernor-hasVoted}.
      */
     function hasVoted(uint256, address account_) public view override(IGovernor) returns (bool) {
-        if (hasScreened[account_]) return true;
-        else return false;
+        return hasScreened[account_];
     }
 
     /**
@@ -702,13 +697,14 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     /*************************/
 
     // return the index of the proposalId in the array, else -1
-    function _findInArray(uint256 proposalId, Proposal[] storage array) internal view returns (int256 index) {
-        index = -1; // default value indicating proposalId not in the array
+    function _findProposalIndex(uint256 proposalId, Proposal[] memory array) internal pure returns (int256 index_) {
+        index_ = -1; // default value indicating proposalId not in the array
 
-        for (int i = 0; i < int(array.length);) {
+        for (int256 i = 0; i < int256(array.length);) {
             //slither-disable-next-line incorrect-equality
             if (array[uint256(i)].proposalId == proposalId) {
-                index = i;
+                index_ = i;
+                break;
             }
 
             unchecked {

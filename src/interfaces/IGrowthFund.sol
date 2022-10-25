@@ -94,8 +94,8 @@ interface IGrowthFund {
     struct QuarterlyDistribution {
         uint256 id;                 // id of the current quarterly distribution
         uint256 votesCast;          // total number of votes cast that quarter
-        uint256 startBlock;         // block number of the quarterly distrubtions start
-        uint256 endBlock;           // block number of the quarterly distrubtions end
+        uint256 startBlock;         // block number of the quarterly distributions start
+        uint256 endBlock;           // block number of the quarterly distributions end
         bytes32 fundedSlateHash;    // hash of list of proposals to fund
     }
 
