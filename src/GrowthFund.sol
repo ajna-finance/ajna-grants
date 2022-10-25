@@ -212,21 +212,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
         }
     }
 
-    function _updateFundedSlate(Proposal[] calldata fundedProposals_, QuarterlyDistribution storage currentDistribution_, bytes32 slateHash_) internal {
-        for (uint i = 0; i < fundedProposals_.length; ) {
-
-            // update list of proposals to fund
-            fundedProposalSlates[currentDistribution_.id][slateHash_].push(fundedProposals_[i]);
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        // update hash to point to the new leading slate of proposals
-        currentDistribution_.fundedSlateHash = slateHash_;
-    }
-
     /**
      * @notice Check if a slate of proposals meets requirements, and maximizes votes. If so, update QuarterlyDistribution.
      * @param  fundedProposals_ Array of proposals to check.
@@ -270,21 +255,25 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
         bytes32 currentSlateHash = currentDistribution.fundedSlateHash;
         bytes32 newSlateHash = getSlateHash(fundedProposals_);
 
-        // check if current slate received more support than the current leading slate
-        if (currentSlateHash != 0) {
-            if (sum > _sumBudgetAllocated(fundedProposalSlates[distributionId_][currentSlateHash])) {
+        bool newTopSlate = currentSlateHash == 0 ||
+            (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[distributionId_][currentSlateHash]));
 
-                _updateFundedSlate(fundedProposals_, currentDistribution, newSlateHash);
-                return true;
+        if (newTopSlate) {
+            for (uint i = 0; i < fundedProposals_.length; ) {
+                // update list of proposals to fund
+                fundedProposalSlates[distributionId_][newSlateHash].push(fundedProposals_[i]);
+
+                unchecked {
+                    ++i;
+                }
             }
-        }
-        // set as first slate of funded proposals
-        else {
-            _updateFundedSlate(fundedProposals_, currentDistribution, newSlateHash);
-            return true;
+
+            // update hash to point to the new leading slate of proposals
+            currentDistribution.fundedSlateHash = newSlateHash;
+            emit FundedSlateUpdated(distributionId_, newSlateHash);
         }
 
-        return false;
+        return newTopSlate;
     }
 
     /**
@@ -446,8 +435,6 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
 
         // update proposal vote tracking
         proposal_.qvBudgetAllocated += budgetAllocation_;
-
-        // update proposal vote tracking in top ten array
         topTenProposals[proposal_.distributionId][uint256(_findProposalIndex(proposal_.proposalId, topTenProposals[proposal_.distributionId]))].qvBudgetAllocated = proposal_.qvBudgetAllocated;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally

@@ -13,11 +13,11 @@ interface IGrowthFund {
     /**************/
 
     /**
-     *  @notice Emitted at the end of a distribution period.
+     *  @notice Emitted when a new top ten slate is submitted and set as the leading optimized slate.
      *  @param  distributionId_  Id of the distribution period.
      *  @param  fundedSlateHash_ Hash of the proposals to be funded.
      */
-    event FinalizeDistribution(uint256 indexed distributionId_, bytes32 indexed fundedSlateHash_);
+    event FundedSlateUpdated(uint256 indexed distributionId_, bytes32 indexed fundedSlateHash_);
 
     /**
      *  @notice Emitted at the beginning of a new quarterly distribution period.

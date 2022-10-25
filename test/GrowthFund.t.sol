@@ -528,6 +528,8 @@ contract GrowthFundTest is GrowthFundTestHelper {
         // ensure checkSlate will allow a valid slate
         potentialProposalSlate = new GrowthFund.Proposal[](1);
         potentialProposalSlate[0] = screenedProposals[3];
+        vm.expectEmit(true, true, false, true);
+        emit FundedSlateUpdated(distributionId, _growthFund.getSlateHash(potentialProposalSlate));
         validSlate = _growthFund.checkSlate(potentialProposalSlate, distributionId);
         assertTrue(validSlate);
         // check slate hash
@@ -542,6 +544,8 @@ contract GrowthFundTest is GrowthFundTestHelper {
         potentialProposalSlate = new GrowthFund.Proposal[](2);
         potentialProposalSlate[0] = screenedProposals[3];
         potentialProposalSlate[1] = screenedProposals[4];
+        vm.expectEmit(true, true, false, true);
+        emit FundedSlateUpdated(distributionId, _growthFund.getSlateHash(potentialProposalSlate));
         validSlate = _growthFund.checkSlate(potentialProposalSlate, distributionId);
         assertTrue(validSlate);
         // check slate hash
@@ -557,6 +561,8 @@ contract GrowthFundTest is GrowthFundTestHelper {
         potentialProposalSlate = new GrowthFund.Proposal[](2);
         potentialProposalSlate[0] = screenedProposals[0];
         potentialProposalSlate[1] = screenedProposals[4];
+        vm.expectEmit(true, true, false, true);
+        emit FundedSlateUpdated(distributionId, _growthFund.getSlateHash(potentialProposalSlate));
         validSlate = _growthFund.checkSlate(potentialProposalSlate, distributionId);
         assertTrue(validSlate);
         // check slate hash

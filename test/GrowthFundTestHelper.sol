@@ -44,7 +44,7 @@ abstract contract GrowthFundTestHelper is Test {
     /*** Growth Fund Events ***/
     /**************************/
 
-    event FinalizeDistribution(uint256 indexed distributionId_, uint256 tokensBurned);
+    event FundedSlateUpdated(uint256 indexed distributionId_, bytes32 indexed fundedSlateHash_);
     event QuarterlyDistributionStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
 
     /***********************/
