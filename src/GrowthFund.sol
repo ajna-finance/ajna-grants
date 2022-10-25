@@ -8,13 +8,12 @@ import "@oz/governance/extensions/GovernorVotesQuorumFraction.sol";
 import "@oz/governance/IGovernor.sol";
 import "@oz/governance/utils/IVotes.sol";
 import "@oz/security/ReentrancyGuard.sol";
+import "@oz/token/ERC20/IERC20.sol";
 import "@oz/utils/Checkpoints.sol";
 
 import "./libraries/Maths.sol";
 
 import "./interfaces/IGrowthFund.sol";
-
-import "./AjnaToken.sol";
 
 
 contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, ReentrancyGuard {
@@ -25,10 +24,11 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     /*** State Variables ***/
     /***********************/
 
-    uint256 internal extraordinaryFundingBaseQuorum;
+    //  base quorum percentage required for extraordinary funding is 50%
+    uint256 internal immutable extraordinaryFundingBaseQuorum = 50;
 
-    address public   votingTokenAddress;
-    AjnaToken  internal ajnaToken;
+    // address of the ajna token used in growth coordination
+    address public ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
 
     /**
      * @notice Maximum percentage of tokens that can be distributed by the treasury in a quarter.
@@ -103,7 +103,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
             revert InvalidProposal();
         }
 
-        if (targets_[0] != votingTokenAddress) revert InvalidTarget();
+        if (targets_[0] != ajnaTokenAddress) revert InvalidTarget();
         if (values_[0] != 0) revert InvalidValues();
 
         // check calldata function selector is transfer()
@@ -126,10 +126,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
         GovernorVotes(token_) // token that will be used for voting
         GovernorVotesQuorumFraction(4) // percentage of total voting power required; updateable via governance proposal
     {
-        extraordinaryFundingBaseQuorum = 50; // initialize base quorum percentrage required for extraordinary funding to 50%
-
-        votingTokenAddress = address(token_);
-        ajnaToken          = AjnaToken(address(token_));
+        ajnaTokenAddress = address(token_);
     }
 
     /*****************************************/
@@ -281,7 +278,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
      */
     function maximumQuarterlyDistribution() public view returns (uint256) {
-        uint256 growthFundBalance = ajnaToken.balanceOf(address(this));
+        uint256 growthFundBalance = IERC20(ajnaTokenAddress).balanceOf(address(this));
         return Maths.wmul(growthFundBalance, globalBudgetConstraint);
     }
 
