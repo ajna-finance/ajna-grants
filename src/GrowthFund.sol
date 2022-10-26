@@ -328,17 +328,11 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @dev    Check for proposal being succesfully funded or previously executed is handled by Governor.execute().
      * @return proposalId_ of the executed proposal.
      */
-    function execute(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable override(Governor) nonReentrant returns (uint256 proposalId_) {
-        // hash proposalId according to IGovernor-hashProposal
-        proposalId_ = uint256(keccak256(abi.encode(targets_, values_, calldatas_, descriptionHash_)));
-
-        Proposal storage proposal = proposals[proposalId_];
-        uint256 distributionId = proposal.distributionId;
-
+    function execute(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable override(Governor) nonReentrant returns (uint256) {
         // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
-        if (block.number <= distributions[distributionId].endBlock + 50400) revert ExecuteProposalInvalid();
+        if (block.number <= distributions[_distributionIdCheckpoints.latest()].endBlock + 50400) revert ExecuteProposalInvalid();
 
-        super.execute(targets_, values_, calldatas_, descriptionHash_);
+        return super.execute(targets_, values_, calldatas_, descriptionHash_);
     }
 
     /**
