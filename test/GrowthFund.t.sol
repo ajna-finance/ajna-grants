@@ -201,9 +201,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
             uint256 distributionId,
             uint256 votesReceived,
             uint256 tokensRequested,
-            int256 fundingReceived,
-            bool succeeded,
-            bool executed
+            int256 fundingReceived
         ) = _growthFund.getProposalInfo(proposal.proposalId);
 
         assertEq(proposalId, proposal.proposalId);
@@ -211,8 +209,6 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertEq(votesReceived, 0);
         assertEq(tokensRequested, 1 * 1e18);
         assertEq(fundingReceived, 0);
-        assertEq(succeeded, false);
-        assertEq(executed, false);
     }
 
     function testInvalidProposal() external {
@@ -412,8 +408,8 @@ contract GrowthFundTest is GrowthFundTestHelper {
      *  @dev    Funded slate is executed.
      *  @dev    Reverts:
      *              - IGrowthFund.InsufficientBudget
-     *              - IGrowthFund.ProposalNotFunded
      *              - IGrowthFund.ExecuteProposalInvalid
+     *              - "Governor: proposal not successful"
      */
     function testDistributionPeriodEndToEnd() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
@@ -534,7 +530,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertTrue(validSlate);
         // check slate hash
         (, , , , bytes32 slateHash2) = _growthFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash2, 0x66add00dcf55b40812c015cb43f6448e193756eb92a1bad6ccdf330bdf247d07);
+        assertEq(slateHash2, 0xb8ab10db80cd4e7329a27445cd2f8bbc77242d7f10ebd02eab95cfdb905aeaa7);
         // check funded proposal slate matches expected state
         GrowthFund.Proposal[] memory fundedProposalSlate = _growthFund.getFundedProposalSlate(distributionId, slateHash2);
         assertEq(fundedProposalSlate.length, 1);
@@ -550,7 +546,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertTrue(validSlate);
         // check slate hash
         (, , , , bytes32 slateHash3) = _growthFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash3, 0x7bcdbd18e8ffe0a1ca31429dd71072cb9455bf1135902f06c2154a8729dfcfc4);
+        assertEq(slateHash3, 0xef474f89c6f96a9af0025dd70e06814b2cb60bf389bc9a67b5a21312fe0ddaaa);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _growthFund.getFundedProposalSlate(distributionId, slateHash3);
         assertEq(fundedProposalSlate.length, 2);
@@ -567,7 +563,7 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertTrue(validSlate);
         // check slate hash
         (, , , , bytes32 slateHash4) = _growthFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash4, 0x6a0dd1a8da53d04b863aed7ff5c62423d7d05eeb956899bf7679b79e68464d28);
+        assertEq(slateHash4, 0x070ee4d600f6978ad85cf9e26dd9ea03458a17c45d29acf88253272c1f53c6e6);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _growthFund.getFundedProposalSlate(distributionId, slateHash4);
         assertEq(fundedProposalSlate.length, 2);
@@ -586,6 +582,10 @@ contract GrowthFundTest is GrowthFundTestHelper {
         assertEq(fundedProposalSlate[0].proposalId, screenedProposals[0].proposalId);
         assertEq(fundedProposalSlate[1].proposalId, screenedProposals[4].proposalId);
 
+        // check can't execute proposals prior to the end of the challenge period
+        vm.expectRevert(IGrowthFund.ExecuteProposalInvalid.selector);
+        _growthFund.execute(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
+
         // skip to the end of the DistributionPeriod
         vm.roll(700_000);
 
@@ -594,11 +594,11 @@ contract GrowthFundTest is GrowthFundTestHelper {
         _executeProposal(_growthFund, _token, testProposals[4]);
 
         // check that shouldn't be able to execute unfunded proposals
-        vm.expectRevert(IGrowthFund.ProposalNotFunded.selector);
+        vm.expectRevert("Governor: proposal not successful");
         _growthFund.execute(testProposals[1].targets, testProposals[1].values, testProposals[1].calldatas, keccak256(bytes(testProposals[1].description)));
 
         // check that shouldn't be able to execute a proposal twice
-        vm.expectRevert(IGrowthFund.ExecuteProposalInvalid.selector);
+        vm.expectRevert("Governor: proposal not successful");
         _growthFund.execute(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
     }
 

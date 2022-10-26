@@ -325,6 +325,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     /**
      * @notice Execute a proposal that has been approved by the community.
      * @dev    Calls out to Governor.execute()
+     * @dev    Check for proposal being succesfully funded or previously executed is handled by Governor.execute().
      * @return proposalId_ of the executed proposal.
      */
     function execute(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable override(Governor) nonReentrant returns (uint256 proposalId_) {
@@ -334,17 +335,8 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
         Proposal storage proposal = proposals[proposalId_];
         uint256 distributionId = proposal.distributionId;
 
-        // check if propsal is in the fundedProposalSlates list
-        if (_findProposalIndex(proposalId_, fundedProposalSlates[distributionId][distributions[distributionId].fundedSlateHash]) == -1) {
-            revert ProposalNotFunded();
-        }
-
-        // check that the distribution period has ended, and it hasn't already been executed
-        if (block.number <= distributions[distributionId].endBlock + 50400 || proposals[proposalId_].executed) revert ExecuteProposalInvalid();
-
-        // update proposal state
-        proposal.succeeded = true;
-        proposal.executed = true;
+        // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
+        if (block.number <= distributions[distributionId].endBlock + 50400) revert ExecuteProposalInvalid();
 
         super.execute(targets_, values_, calldatas_, descriptionHash_);
     }
@@ -562,7 +554,8 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     }
 
     function _voteSucceeded(uint256 proposalId_) internal view override(Governor) returns (bool) {
-        return proposals[proposalId_].succeeded;
+        uint256 distributionId = _distributionIdCheckpoints.latest();
+        return _findProposalIndex(proposalId_, fundedProposalSlates[distributionId][distributions[distributionId].fundedSlateHash]) != -1;
     }
 
     /**
@@ -626,16 +619,14 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     /**
      * @notice Get the current state of a given proposal.
      */
-    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256, bool, bool) {
+    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256) {
         Proposal memory proposal = proposals[proposalId_];
         return (
             proposal.proposalId,
             proposal.distributionId,
             proposal.votesReceived,
             proposal.tokensRequested,
-            proposal.qvBudgetAllocated,
-            proposal.succeeded,
-            proposal.executed
+            proposal.qvBudgetAllocated
         );
     }
 

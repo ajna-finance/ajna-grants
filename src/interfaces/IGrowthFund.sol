@@ -78,11 +78,6 @@ interface IGrowthFund {
      */
     error InvalidProposal();
 
-    /**
-     * @notice User attempted to execute a proposal that wasn't succesfully funded.
-     */
-    error ProposalNotFunded();
-
     /***************/
     /*** Structs ***/
     /***************/
@@ -107,8 +102,6 @@ interface IGrowthFund {
         uint256 votesReceived;    // accumulator of screening votes received by a proposal
         uint256 tokensRequested;  // number of Ajna tokens requested in the proposal
         int256 qvBudgetAllocated; // accumulator of QV budget allocated
-        bool succeeded;           // whether or not the proposal was fully funded
-        bool executed;            // whether or not the proposal has been executed
     }
 
     /**
