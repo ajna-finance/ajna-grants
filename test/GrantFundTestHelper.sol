@@ -2,8 +2,8 @@
 pragma solidity 0.8.16;
 
 import "../src/AjnaToken.sol";
-import "../src/GrowthFund.sol";
-import "../src/interfaces/IGrowthFund.sol";
+import "../src/GrantFund.sol";
+import "../src/interfaces/IGrantFund.sol";
 
 import "./utils/SigUtils.sol";
 
@@ -14,7 +14,7 @@ import "@oz/utils/Strings.sol"; // used for createNProposals
 import "@std/StdJson.sol";
 import "@std/Test.sol";
 
-abstract contract GrowthFundTestHelper is Test {
+abstract contract GrantFundTestHelper is Test {
 
     using SafeCast for uint256;
     using Strings for string;
@@ -73,11 +73,11 @@ abstract contract GrowthFundTestHelper is Test {
     /*** Test Helper Functions ***/
     /*****************************/
 
-    function _createProposal(GrowthFund growthFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (TestProposal memory) {
+    function _createProposal(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (TestProposal memory) {
         // generate expected proposal state
-        uint256 expectedProposalId = growthFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
-        uint256 startBlock = block.number.toUint64() + growthFund_.votingDelay().toUint64();
-        uint256 endBlock   = startBlock + growthFund_.votingPeriod().toUint64();
+        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
+        uint256 startBlock = block.number.toUint64() + grantFund_.votingDelay().toUint64();
+        uint256 endBlock   = startBlock + grantFund_.votingPeriod().toUint64();
 
         // submit proposal
         changePrank(proposer_);
@@ -93,7 +93,7 @@ abstract contract GrowthFundTestHelper is Test {
             endBlock,
             description
         );
-        uint256 proposalId = growthFund_.propose(targets_, values_, proposalCalldatas_, description);
+        uint256 proposalId = grantFund_.propose(targets_, values_, proposalCalldatas_, description);
         assertEq(proposalId, expectedProposalId);
 
         // https://github.com/ethereum/solidity/issues/6012
@@ -105,7 +105,7 @@ abstract contract GrowthFundTestHelper is Test {
         return TestProposal(proposalId, targets_, values_, proposalCalldatas_, description, recipient, tokensRequested);
     }
 
-    function _createNProposals(GrowthFund growthFund_, AjnaToken token_, TestProposalParams[] memory testProposalParams_) internal returns (TestProposal[] memory) {
+    function _createNProposals(GrantFund grantFund_, AjnaToken token_, TestProposalParams[] memory testProposalParams_) internal returns (TestProposal[] memory) {
         // generate proposal targets
         address[] memory ajnaTokenTargets = new address[](1);
         ajnaTokenTargets[0] = address(token_);
@@ -132,7 +132,7 @@ abstract contract GrowthFundTestHelper is Test {
                 testProposalParams_[i].tokensRequested
             );
 
-            TestProposal memory proposal = _createProposal(growthFund_, testProposalParams_[i].recipient, ajnaTokenTargets, values, proposalCalldata, description);
+            TestProposal memory proposal = _createProposal(grantFund_, testProposalParams_[i].recipient, ajnaTokenTargets, values, proposalCalldata, description);
             testProposals[i] = proposal;
         }
         return testProposals;
@@ -153,43 +153,43 @@ abstract contract GrowthFundTestHelper is Test {
         }
     }
 
-    function _executeProposal(GrowthFund growthFund_, AjnaToken token_, TestProposal memory testProposal_) internal {
+    function _executeProposal(GrantFund grantFund_, AjnaToken token_, TestProposal memory testProposal_) internal {
         // calculate starting balances
         uint256 voterStartingBalance = token_.balanceOf(testProposal_.recipient);
-        uint256 growthFundStartingBalance = token_.balanceOf(address(growthFund_));
+        uint256 growthFundStartingBalance = token_.balanceOf(address(grantFund_));
 
         // execute proposal
         changePrank(testProposal_.recipient);
         vm.expectEmit(true, true, false, true);
         emit ProposalExecuted(testProposal_.proposalId);
         vm.expectEmit(true, true, false, true);
-        emit Transfer(address(growthFund_), testProposal_.recipient, testProposal_.tokensRequested);
+        emit Transfer(address(grantFund_), testProposal_.recipient, testProposal_.tokensRequested);
         vm.expectEmit(true, true, false, true);
         emit DelegateVotesChanged(testProposal_.recipient, voterStartingBalance, voterStartingBalance + testProposal_.tokensRequested);
-        growthFund_.execute(testProposal_.targets, testProposal_.values, testProposal_.calldatas, keccak256(bytes(testProposal_.description)));
+        grantFund_.execute(testProposal_.targets, testProposal_.values, testProposal_.calldatas, keccak256(bytes(testProposal_.description)));
 
         // check ending token balances
         assertEq(token_.balanceOf(testProposal_.recipient), voterStartingBalance + testProposal_.tokensRequested);
-        assertEq(token_.balanceOf(address(growthFund_)), growthFundStartingBalance - testProposal_.tokensRequested);
+        assertEq(token_.balanceOf(address(grantFund_)), growthFundStartingBalance - testProposal_.tokensRequested);
     }
 
-    function _startDistributionPeriod(GrowthFund growthFund_) internal {
+    function _startDistributionPeriod(GrantFund grantFund_) internal {
         vm.expectEmit(true, true, false, true);
-        emit QuarterlyDistributionStarted(growthFund_.getDistributionId() + 1, block.number, block.number + 648000);
-        growthFund_.startNewDistributionPeriod();
+        emit QuarterlyDistributionStarted(grantFund_.getDistributionId() + 1, block.number, block.number + 648000);
+        grantFund_.startNewDistributionPeriod();
     }
 
-    function _vote(GrowthFund growthFund_, address voter_, uint256 proposalId_, uint8 support_, uint256 votingWeightSnapshotBlock_) internal {
-        uint256 votingWeight = growthFund_.getVotes(voter_, votingWeightSnapshotBlock_);
+    function _vote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_, uint256 votingWeightSnapshotBlock_) internal {
+        uint256 votingWeight = grantFund_.getVotes(voter_, votingWeightSnapshotBlock_);
 
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support_, votingWeight, "");
-        growthFund_.castVote(proposalId_, support_);
+        grantFund_.castVote(proposalId_, support_);
     }
 
     // TODO: determine how to handle support vs passing in a negative votesAllocated number
-    function _fundingVote(GrowthFund growthFund_, address voter_, uint256 proposalId_, uint8 support_, int256 votesAllocated_) internal {
+    function _fundingVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_, int256 votesAllocated_) internal {
         string memory reason = "";
         bytes memory params = abi.encode(votesAllocated_);
 
@@ -205,19 +205,19 @@ abstract contract GrowthFundTestHelper is Test {
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support_, voteAllocatedEmit, "");
-        growthFund_.castVoteWithReasonAndParams(proposalId_, support_, reason, params);
+        grantFund_.castVoteWithReasonAndParams(proposalId_, support_, reason, params);
     }
 
     // expects a list of Proposal structs
     // filepath expected to be defined from root
-    function _loadProposalSlateJSON(string memory filePath) internal returns (IGrowthFund.Proposal[] memory) {
+    function _loadProposalSlateJSON(string memory filePath) internal returns (IGrantFund.Proposal[] memory) {
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, filePath);
 
         string memory json = vm.readFile(path);
         bytes memory encodedProposals = vm.parseJson(json, ".Proposals");
 
-        (IGrowthFund.Proposal[] memory proposals) = abi.decode(encodedProposals, (IGrowthFund.Proposal[]));
+        (IGrantFund.Proposal[] memory proposals) = abi.decode(encodedProposals, (IGrantFund.Proposal[]));
         return proposals;
     }
 

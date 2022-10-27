@@ -13,10 +13,10 @@ import "@oz/utils/Checkpoints.sol";
 
 import "./libraries/Maths.sol";
 
-import "./interfaces/IGrowthFund.sol";
+import "./interfaces/IGrantFund.sol";
 
 
-contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, ReentrancyGuard {
+contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, ReentrancyGuard {
 
     using Checkpoints for Checkpoints.History;
 
@@ -27,7 +27,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     //  base quorum percentage required for extraordinary funding is 50%
     uint256 internal immutable extraordinaryFundingBaseQuorum = 50;
 
-    // address of the ajna token used in growth coordination
+    // address of the ajna token used in grant coordination
     address public ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
 
     /**
@@ -50,7 +50,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     Checkpoints.History private _distributionIdCheckpoints;
 
     /**
-     * @notice Mapping of quarterly distributions from the growth fund.
+     * @notice Mapping of quarterly distributions from the grant fund.
      * @dev distributionId => QuarterlyDistribution
      */
     mapping(uint256 => QuarterlyDistribution) distributions;
@@ -62,7 +62,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     mapping(address => bool) hasScreened;
 
     /**
-     * @dev Mapping of all proposals that have ever been submitted to the growth fund for screening.
+     * @dev Mapping of all proposals that have ever been submitted to the grant fund for screening.
      * @dev distribution.id => proposalId => Proposal
      */
     mapping(uint256 => Proposal) proposals;
@@ -91,7 +91,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     /*****************/
 
     /**
-     * @notice Ensure a proposal matches GrowthFund specifications.
+     * @notice Ensure a proposal matches GrantFund specifications.
      * @dev Targets_ should be the Ajna token contract, values_ should be 0, and calldatas_ should be transfer().
      * @param targets_   List of contract addresses the proposal interacts with.
      * @param values_    List of wei amounts to call the target address with.
@@ -122,7 +122,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     /*******************/
 
     constructor(IVotes token_)
-        Governor("AjnaEcosystemGrowthFund")
+        Governor("AjnaEcosystemGrantFund")
         GovernorVotes(token_) // token that will be used for voting
         GovernorVotesQuorumFraction(4) // percentage of total voting power required; updateable via governance proposal
     {
@@ -278,8 +278,8 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
      * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
      */
     function maximumQuarterlyDistribution() public view returns (uint256) {
-        uint256 growthFundBalance = IERC20(ajnaTokenAddress).balanceOf(address(this));
-        return Maths.wmul(growthFundBalance, globalBudgetConstraint);
+        uint256 GrantFundBalance = IERC20(ajnaTokenAddress).balanceOf(address(this));
+        return Maths.wmul(GrantFundBalance, globalBudgetConstraint);
     }
 
     /**************************/
@@ -287,7 +287,7 @@ contract GrowthFund is IGrowthFund, Governor, GovernorVotesQuorumFraction, Reent
     /**************************/
 
     /**
-     * @notice Submit a new proposal to the Growth Coordination Fund
+     * @notice Submit a new proposal to the Grant Coordination Fund
      * @dev    All proposals can be submitted by anyone. There can only be one value in each array. Interface inherits from OZ.propose().
      * @param  targets_ List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
      * @param  values_ List of values to be sent with the proposal calldata. Should be 0 for all proposals.

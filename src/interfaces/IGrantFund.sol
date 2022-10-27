@@ -6,7 +6,7 @@ pragma solidity 0.8.16;
 /**
  * @title Ajna Growth Coordination Fund
  */
-interface IGrowthFund {
+interface IGrantFund {
 
     /**************/
     /*** Events ***/
@@ -63,7 +63,7 @@ interface IGrowthFund {
 
     /**
      * @notice Non-zero amount specified in values array.
-     * @dev This parameter is only used for sending ETH which the GrowthFund doesn't utilize.
+     * @dev This parameter is only used for sending ETH which the GrantFund doesn't utilize.
      */
     error InvalidValues();
 
