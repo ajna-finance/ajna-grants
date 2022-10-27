@@ -4,7 +4,7 @@
 pragma solidity 0.8.16;
 
 /**
- * @title Ajna Growth Coordination Fund
+ * @title Ajna Grant Coordination Fund
  */
 interface IGrantFund {
 
@@ -101,7 +101,7 @@ interface IGrantFund {
         uint256 distributionId;   // Id of the distribution period in which the proposal was made
         uint256 votesReceived;    // accumulator of screening votes received by a proposal
         uint256 tokensRequested;  // number of Ajna tokens requested in the proposal
-        int256 qvBudgetAllocated; // accumulator of QV budget allocated
+        int256  qvBudgetAllocated; // accumulator of QV budget allocated
     }
 
     /**

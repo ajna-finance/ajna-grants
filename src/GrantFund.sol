@@ -99,7 +99,7 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
      */
     modifier checkProposal(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_) {
         // check proposal can only execute one calldata, with one target
-        if (targets_.length != 1 || values_.length != 1 || calldatas_.length != 1) {
+        if (targets_.length != 1) {
             revert InvalidProposal();
         }
 
@@ -300,8 +300,7 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
         bytes[] memory calldatas_,
         string memory description_
     ) public override(Governor) checkProposal(targets_, values_, calldatas_) returns (uint256 proposalId_) {
-        // hash proposalId according to IGovernor-hashProposal
-        proposalId_ = uint256(keccak256(abi.encode(targets_, values_, calldatas_, keccak256(bytes(description_)))));
+        proposalId_ = super.propose(targets_, values_, calldatas_, description_);
 
         // https://github.com/ethereum/solidity/issues/9439
         // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
@@ -318,8 +317,6 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
         newProposal.proposalId = proposalId_;
         newProposal.distributionId = _distributionIdCheckpoints.latest();
         newProposal.tokensRequested = tokensRequested;
-
-        return super.propose(targets_, values_, calldatas_, description_);
     }
 
     /**
@@ -404,6 +401,7 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
      */
     function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 budgetAllocation_) internal returns (uint256) {
         uint8  support = 1;
+        uint256 proposalId = proposal_.proposalId;
 
         // case where voter is voting against the proposal
         if (budgetAllocation_ < 0) {
@@ -420,11 +418,15 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
 
         // update proposal vote tracking
         proposal_.qvBudgetAllocated += budgetAllocation_;
-        topTenProposals[proposal_.distributionId][uint256(_findProposalIndex(proposal_.proposalId, topTenProposals[proposal_.distributionId]))].qvBudgetAllocated = proposal_.qvBudgetAllocated;
+
+        // update top ten proposals
+        Proposal[] storage topTen = topTenProposals[proposal_.distributionId];
+        uint256 proposalIndex = uint256(_findProposalIndex(proposalId, topTen));
+        topTen[proposalIndex].qvBudgetAllocated = proposal_.qvBudgetAllocated;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         uint256 budgetAllocated = uint256(Maths.abs(budgetAllocation_));
-        emit VoteCast(account_, proposal_.proposalId, support, budgetAllocated, "");
+        emit VoteCast(account_, proposalId, support, budgetAllocated, "");
         return budgetAllocated;
     }
 
@@ -541,6 +543,7 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
 
     /**
      * @notice Required override used in Governor.state()
+     * @dev Since no quorum is used, but this is called as part of state(), this is hardcoded to true.
      * @dev See {IGovernor-quorumReached}.
      */
     function _quorumReached(uint256) internal pure override(Governor) returns (bool) {
