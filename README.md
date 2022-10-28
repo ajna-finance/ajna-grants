@@ -83,4 +83,41 @@ WARNING: THE RPC_URL PASSED IN WILL DETERMINE WHAT NETWORK YOUR CONTRACT IS DEPL
 make deploy-contract contract=<CONTRACT_NAME_HERE> RPC_URL=<RPC_URL_HERE>
 ```
 
-TODO: Create documentation regarding methods
+
+### Governance Design Research:
+*OpenZeppelin Guides*
+- https://docs.openzeppelin.com/contracts/4.x/governance
+- https://wizard.openzeppelin.com/#governor
+- https://twitter.com/OpenZeppelin/status/1448054190631051266
+
+*ENS*
+- https://github.com/ensdomains/governance-docs/blob/main/process/README.md
+- https://github.com/ensdomains/governance 
+
+*HOP*
+- https://github.com/hop-protocol/governance
+
+*OP*
+- https://github.com/ethereum-optimism/optimism/tree/develop/packages/contracts-governance
+
+*Multichain Governance*
+- https://doseofdefi.substack.com/p/multichain-governance-how-can-daos
+- https://github.com/gnosis/zodiac
+- https://ethereum-magicians.org/t/eip-draft-multi-chain-governance/9284
+
+*General Governance Research*
+- https://github.com/D3LAB-DAO/Governor-C
+
+*Potential Vote Counting structures*
+- https://github.com/bokkypoobah/BokkyPooBahsRedBlackTreeLibrary
+
+
+*QV*
+- https://github.com/VirginiaBlockchain/QuadraticVotingDapp
+- https://blog.tally.xyz/a-simple-guide-to-quadratic-voting-327b52addde1
+
+*Tally*
+- https://docs.tally.xyz/user-guides/tally-contract-compatibility
+
+
+*https://www.daomasters.xyz/*
