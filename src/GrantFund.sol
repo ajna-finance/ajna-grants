@@ -15,6 +15,7 @@ import "./libraries/Maths.sol";
 
 import "./interfaces/IGrantFund.sol";
 
+import "@std/console.sol";
 
 contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, ReentrancyGuard {
 
@@ -85,37 +86,6 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
      * @dev distributionId => voter address => QuadraticVoter 
      */
     mapping (uint256 => mapping(address => QuadraticVoter)) quadraticVoters;
-
-    /*****************/
-    /*** Modifiers ***/
-    /*****************/
-
-    /**
-     * @notice Ensure a proposal matches GrantFund specifications.
-     * @dev Targets_ should be the Ajna token contract, values_ should be 0, and calldatas_ should be transfer().
-     * @param targets_   List of contract addresses the proposal interacts with.
-     * @param values_    List of wei amounts to call the target address with.
-     * @param calldatas_ List of calldatas to execute if the proposal is successful.
-     */
-    modifier checkProposal(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_) {
-        // check proposal can only execute one calldata, with one target
-        if (targets_.length != 1) {
-            revert InvalidProposal();
-        }
-
-        if (targets_[0] != ajnaTokenAddress) revert InvalidTarget();
-        if (values_[0] != 0) revert InvalidValues();
-
-        // check calldata function selector is transfer()
-        bytes memory dataWithSig = calldatas_[0];
-        bytes4 selector;
-        //slither-disable-next-line assembly
-        assembly {
-            selector := mload(add(dataWithSig, 0x20))
-        }
-        if (selector != bytes4(0xa9059cbb)) revert InvalidSignature();
-        _;
-    }
 
     /*******************/
     /*** Constructor ***/
@@ -299,24 +269,47 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
         uint256[] memory values_,
         bytes[] memory calldatas_,
         string memory description_
-    ) public override(Governor) checkProposal(targets_, values_, calldatas_) returns (uint256 proposalId_) {
+    ) public override(Governor) returns (uint256 proposalId_) {
         proposalId_ = super.propose(targets_, values_, calldatas_, description_);
-
-        // https://github.com/ethereum/solidity/issues/9439
-        // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
-        bytes memory dataWithSig = calldatas_[0];
-        uint256 tokensRequested;
-
-        //slither-disable-next-line assembly
-        assembly {
-            tokensRequested := mload(add(dataWithSig, 68))
-        }
 
         // store new proposal information
         Proposal storage newProposal = proposals[proposalId_];
         newProposal.proposalId = proposalId_;
         newProposal.distributionId = _distributionIdCheckpoints.latest();
-        newProposal.tokensRequested = tokensRequested;
+
+        // check proposal parameters are valid and update tokensRequested
+        for (uint256 i = 0; i < targets_.length;) {
+
+            // check  targets and values are valid
+            if (targets_[i] != ajnaTokenAddress) revert InvalidTarget();
+            if (values_[i] != 0) revert InvalidValues();
+
+            // check calldata function selector is transfer()
+            bytes memory selDataWithSig = calldatas_[i];
+
+            bytes4 selector;
+            //slither-disable-next-line assembly
+            assembly {
+                selector := mload(add(selDataWithSig, 0x20))
+            }
+            if (selector != bytes4(0xa9059cbb)) revert InvalidSignature();
+
+            // https://github.com/ethereum/solidity/issues/9439
+            // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
+            uint256 tokensRequested;
+            bytes memory tokenDataWithSig = calldatas_[i];
+            //slither-disable-next-line assembly
+            assembly {
+                tokensRequested := mload(add(tokenDataWithSig, 68))
+            }
+
+            // update tokens requested for additional calldata
+            newProposal.tokensRequested += tokensRequested;
+
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /**

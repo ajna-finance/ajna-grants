@@ -211,33 +211,10 @@ contract GrantFundTest is GrantFundTestHelper {
         assertEq(fundingReceived, 0);
     }
 
-    function testInvalidProposal() external {
-        // generate proposal targets
-        address[] memory targets = new address[](2);
-        targets[0] = _tokenHolder1;
-        targets[1] = address(_token);
-
-        // generate proposal values
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        // generate proposal calldata
-        bytes[] memory proposalCalldata = new bytes[](1);
-        proposalCalldata[0] = abi.encodeWithSignature(
-            "transfer(address,uint256)",
-            _tokenHolder1,
-            1 * 1e18
-        );
-
-        // generate proposal message
-        string memory description = "Proposal for Ajna token transfer to tester address";
-
-        // create proposal should revert since multiple targets were listed
-        vm.expectRevert(IGrantFund.InvalidProposal.selector);
-        _grantFund.propose(targets, values, proposalCalldata, description);
-    }
-
     function testInvalidProposalCalldata() external {
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+
         // generate proposal targets
         address[] memory targets = new address[](1);
         targets[0] = address(_token);
@@ -264,6 +241,9 @@ contract GrantFundTest is GrantFundTestHelper {
     }
 
     function testInvalidProposalTarget() external {
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+
         // generate proposal targets
         address[] memory targets = new address[](1);
         targets[0] = _tokenHolder1;
@@ -600,16 +580,6 @@ contract GrantFundTest is GrantFundTestHelper {
         // check that shouldn't be able to execute a proposal twice
         vm.expectRevert("Governor: proposal not successful");
         _grantFund.execute(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
-    }
-
-    // TODO: finish implementing
-    function xtestSlateHash() external {
-        IGrantFund.Proposal[] memory proposals = _loadProposalSlateJSON("/test/fixtures/FundedSlate.json");
-
-        bytes32 slateHash = _grantFund.getSlateHash(proposals);
-        assertEq(slateHash, 0x782d39817b3256245278e90dcc253aec40e6834480269e4442be665f6f2944a9);
-
-        // check a similar slate results in a different hash
     }
 
 }
