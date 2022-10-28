@@ -15,8 +15,10 @@ import "./libraries/Maths.sol";
 
 import "./interfaces/IGrantFund.sol";
 
+import "./base/ExtraordinaryFunding.sol";
 
-contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, ReentrancyGuard {
+
+contract GrantFund is IGrantFund, ExtraordinaryFunding, GovernorVotesQuorumFraction, ReentrancyGuard {
 
     using Checkpoints for Checkpoints.History;
 
@@ -378,8 +380,13 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
 
             return _fundingVote(proposal, account_, voter, budgetAllocation);
         }
-
-        // TODO: implement extraordinary funding mechanism pathway
+        else {
+            // TODO: finsih implementing extraordinary funding mechanism pathway
+            // if (abi.decode(params_, (string)) == bytes("Extraordinary")) {
+                // TODO: set support_ variable
+                _extraordinaryFundingVote(proposalId_, account_, 1);
+            // }
+        }
     }
 
     /**
