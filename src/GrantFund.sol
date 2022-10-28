@@ -389,9 +389,9 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
      * @param  account_  The voting account.
      * @param  voter_    The voter data struct tracking available votes.
      * @param  budgetAllocation_ The amount of votes being allocated to the proposal.
-     * @return The amount of votes allocated to the proposal.
+     * @return budgetAllocated_ The amount of votes allocated to the proposal.
      */
-    function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 budgetAllocation_) internal returns (uint256) {
+    function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 budgetAllocation_) internal returns (uint256 budgetAllocated_) {
         uint8  support = 1;
         uint256 proposalId = proposal_.proposalId;
 
@@ -417,9 +417,8 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
         topTen[proposalIndex].qvBudgetAllocated = proposal_.qvBudgetAllocated;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
-        uint256 budgetAllocated = uint256(Maths.abs(budgetAllocation_));
-        emit VoteCast(account_, proposalId, support, budgetAllocated, "");
-        return budgetAllocated;
+        budgetAllocated_ = uint256(Maths.abs(budgetAllocation_));
+        emit VoteCast(account_, proposalId, support, budgetAllocated_, "");
     }
 
     /**
