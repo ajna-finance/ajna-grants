@@ -15,7 +15,6 @@ import "./libraries/Maths.sol";
 
 import "./interfaces/IGrantFund.sol";
 
-import "@std/console.sol";
 
 contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, ReentrancyGuard {
 
