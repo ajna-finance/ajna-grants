@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import "../src/AjnaToken.sol";
 import "../src/GrantFund.sol";
-import "../src/interfaces/IGrantFund.sol";
+import "../src/interfaces/IStandardFunding.sol";
 
 import "./utils/SigUtils.sol";
 import "./GrantFundTestHelper.sol";
@@ -14,7 +14,7 @@ import "@oz/utils/math/SafeCast.sol";
 import "@std/StdJson.sol";
 import "@std/Test.sol";
 
-contract GrantFundTest is GrantFundTestHelper {
+contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     // used to cast 256 to uint64 to match emit expectations
     using SafeCast for uint256;
@@ -236,7 +236,7 @@ contract GrantFundTest is GrantFundTestHelper {
         string memory description = "Proposal for Ajna token burn from the growth fund";
 
         // create proposal should revert since invalid burn operation was attempted
-        vm.expectRevert(IGrantFund.InvalidSignature.selector);
+        vm.expectRevert(IStandardFunding.InvalidSignature.selector);
         _grantFund.propose(targets, values, proposalCalldata, description);
     }
 
@@ -264,7 +264,7 @@ contract GrantFundTest is GrantFundTestHelper {
         string memory description = "Proposal for Ajna token transfer to tester address";
 
         // create proposal should revert since a non Ajna token contract target was used
-        vm.expectRevert(IGrantFund.InvalidTarget.selector);
+        vm.expectRevert(IStandardFunding.InvalidTarget.selector);
         _grantFund.propose(targets, values, proposalCalldata, description);
     }
 
@@ -352,7 +352,7 @@ contract GrantFundTest is GrantFundTestHelper {
 
         // should revert if voter attempts to cast a screeningVote twice
         changePrank(_tokenHolder15);
-        vm.expectRevert(IGrantFund.AlreadyVoted.selector);
+        vm.expectRevert(IStandardFunding.AlreadyVoted.selector);
         _grantFund.castVote(testProposals[11].proposalId, voteYes);
     }
 
@@ -371,7 +371,7 @@ contract GrantFundTest is GrantFundTestHelper {
         assertEq(endBlock, block.number + 648000);
 
         // check a new distribution period can't be started if already active
-        vm.expectRevert(IGrantFund.DistributionPeriodStillActive.selector);
+        vm.expectRevert(IStandardFunding.DistributionPeriodStillActive.selector);
         _grantFund.startNewDistributionPeriod();
 
         // skip forward past the end of the distribution period to allow starting anew
@@ -387,8 +387,8 @@ contract GrantFundTest is GrantFundTestHelper {
      *  @dev    Maximum quarterly distribution is 10_000_000.
      *  @dev    Funded slate is executed.
      *  @dev    Reverts:
-     *              - IGrantFund.InsufficientBudget
-     *              - IGrantFund.ExecuteProposalInvalid
+     *              - IStandardFunding.InsufficientBudget
+     *              - IStandardFunding.ExecuteProposalInvalid
      *              - "Governor: proposal not successful"
      */
     function testDistributionPeriodEndToEnd() external {
@@ -462,7 +462,7 @@ contract GrantFundTest is GrantFundTestHelper {
         _fundingVote(_grantFund, _tokenHolder4, screenedProposals[5].proposalId, voteNo, -500_000_000_000_000 * 1e18);
         screenedProposals = _grantFund.getTopTenProposals(distributionId);
 
-        vm.expectRevert(IGrantFund.InsufficientBudget.selector);
+        vm.expectRevert(IStandardFunding.InsufficientBudget.selector);
         _grantFund.castVoteWithReasonAndParams(screenedProposals[3].proposalId, 1, "", abi.encode(2_500_000_000_000_000 * 1e18));
 
         // check tokerHolder partial vote budget calculations
@@ -563,7 +563,7 @@ contract GrantFundTest is GrantFundTestHelper {
         assertEq(fundedProposalSlate[1].proposalId, screenedProposals[4].proposalId);
 
         // check can't execute proposals prior to the end of the challenge period
-        vm.expectRevert(IGrantFund.ExecuteProposalInvalid.selector);
+        vm.expectRevert(IStandardFunding.ExecuteProposalInvalid.selector);
         _grantFund.execute(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
 
         // skip to the end of the DistributionPeriod

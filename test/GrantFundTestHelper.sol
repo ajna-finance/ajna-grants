@@ -4,6 +4,7 @@ pragma solidity 0.8.16;
 import "../src/AjnaToken.sol";
 import "../src/GrantFund.sol";
 import "../src/interfaces/IGrantFund.sol";
+import "../src/interfaces/IStandardFunding.sol";
 
 import "./utils/SigUtils.sol";
 
@@ -210,14 +211,14 @@ abstract contract GrantFundTestHelper is Test {
 
     // expects a list of Proposal structs
     // filepath expected to be defined from root
-    function _loadProposalSlateJSON(string memory filePath) internal returns (IGrantFund.Proposal[] memory) {
+    function _loadProposalSlateJSON(string memory filePath) internal returns (IStandardFunding.Proposal[] memory) {
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, filePath);
 
         string memory json = vm.readFile(path);
         bytes memory encodedProposals = vm.parseJson(json, ".Proposals");
 
-        (IGrantFund.Proposal[] memory proposals) = abi.decode(encodedProposals, (IGrantFund.Proposal[]));
+        (IStandardFunding.Proposal[] memory proposals) = abi.decode(encodedProposals, (IStandardFunding.Proposal[]));
         return proposals;
     }
 
