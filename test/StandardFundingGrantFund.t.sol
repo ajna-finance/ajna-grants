@@ -184,7 +184,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _startDistributionPeriod(_grantFund);
 
         // create and submit proposal
-        TestProposal memory proposal = _createProposal(_grantFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
+        TestProposal memory proposal = _createProposalStandard(_grantFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
 
         vm.roll(10);
 
@@ -198,7 +198,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             uint256 distributionId,
             uint256 votesReceived,
             uint256 tokensRequested,
-            int256 fundingReceived
+            int256 fundingReceived,
+            bool executed
         ) = _grantFund.getProposalInfo(proposal.proposalId);
 
         assertEq(proposalId, proposal.proposalId);
@@ -206,6 +207,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(votesReceived, 0);
         assertEq(tokensRequested, 1 * 1e18);
         assertEq(fundingReceived, 0);
+        assertFalse(executed);
     }
 
     function testInvalidProposalCalldata() external {
@@ -234,7 +236,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // create proposal should revert since invalid burn operation was attempted
         vm.expectRevert(Funding.InvalidSignature.selector);
-        _grantFund.propose(targets, values, proposalCalldata, description);
+        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
     }
 
     function testInvalidProposalTarget() external {
@@ -262,7 +264,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // create proposal should revert since a non Ajna token contract target was used
         vm.expectRevert(Funding.InvalidTarget.selector);
-        _grantFund.propose(targets, values, proposalCalldata, description);
+        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
     }
 
     function testHasVoted() external {
@@ -511,7 +513,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertTrue(validSlate);
         // check slate hash
         (, , , , bytes32 slateHash2) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash2, 0xb8ab10db80cd4e7329a27445cd2f8bbc77242d7f10ebd02eab95cfdb905aeaa7);
+        assertEq(slateHash2, 0x8546b85d326f37e382f7191b8634030f1a99e83e5fffee168d362bdd80cb0ee7);
         // check funded proposal slate matches expected state
         GrantFund.Proposal[] memory fundedProposalSlate = _grantFund.getFundedProposalSlate(distributionId, slateHash2);
         assertEq(fundedProposalSlate.length, 1);
@@ -527,7 +529,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertTrue(validSlate);
         // check slate hash
         (, , , , bytes32 slateHash3) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash3, 0xef474f89c6f96a9af0025dd70e06814b2cb60bf389bc9a67b5a21312fe0ddaaa);
+        assertEq(slateHash3, 0xc62d17691538dd00f228329f7b485088e3a4853db966dd6e7becc975d3e00442);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _grantFund.getFundedProposalSlate(distributionId, slateHash3);
         assertEq(fundedProposalSlate.length, 2);
@@ -544,7 +546,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertTrue(validSlate);
         // check slate hash
         (, , , , bytes32 slateHash4) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash4, 0x070ee4d600f6978ad85cf9e26dd9ea03458a17c45d29acf88253272c1f53c6e6);
+        assertEq(slateHash4, 0xfa74749b75fb2b65ee0f757da034d5c89dc50efef96ce210ac70ee479a631006);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _grantFund.getFundedProposalSlate(distributionId, slateHash4);
         assertEq(fundedProposalSlate.length, 2);

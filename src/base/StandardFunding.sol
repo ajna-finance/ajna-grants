@@ -48,7 +48,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev Mapping of all proposals that have ever been submitted to the grant fund for screening.
      * @dev distribution.id => proposalId => Proposal
      */
-    mapping(uint256 => Proposal) proposals;
+    mapping(uint256 => Proposal) standardFundingProposals;
 
     /**
      * @dev Mapping of distributionId to a sorted array of 10 proposals with the most votes in the screening period.
@@ -227,13 +227,78 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**************************/
 
     /**
-     * @notice Submit a new proposal to the Grant Coordination Fund
+     * @notice Submit a new proposal to the Grant Coordination Fund Standard Funding mechanism.
      * @dev    All proposals can be submitted by anyone. There can only be one value in each array. Interface inherits from OZ.propose().
      * @param  targets_ List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
      * @param  values_ List of values to be sent with the proposal calldata. Should be 0 for all proposals.
      * @param  calldatas_ List of calldata to be executed. Should be the transfer() method.
      * @return proposalId_ The id of the newly created proposal.
+     */
+    function proposeStandard(
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory calldatas_,
+        string memory description_
+    ) public returns (uint256 proposalId_) {
+        proposalId_ = hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
 
+        // check for duplicate proposals
+        if (standardFundingProposals[proposalId_].proposalId != 0) revert ProposalAlreadyExists();
+
+        // check params have matching lengths
+        if (targets_.length != values_.length || targets_.length != calldatas_.length || targets_.length == 0) revert InvalidProposal();
+
+        // store new proposal information
+        Proposal storage newProposal = standardFundingProposals[proposalId_];
+        newProposal.proposalId = proposalId_;
+        newProposal.distributionId = _distributionIdCheckpoints.latest();
+
+        // TODO: convert this into an internal function that returns tokensRequested sum and use for both propose<>()
+        // check proposal parameters are valid and update tokensRequested
+        for (uint256 i = 0; i < targets_.length;) {
+
+            // check  targets and values are valid
+            if (targets_[i] != ajnaTokenAddress) revert InvalidTarget();
+            if (values_[i] != 0) revert InvalidValues();
+
+            // check calldata function selector is transfer()
+            bytes memory selDataWithSig = calldatas_[i];
+
+            bytes4 selector;
+            //slither-disable-next-line assembly
+            assembly {
+                selector := mload(add(selDataWithSig, 0x20))
+            }
+            if (selector != bytes4(0xa9059cbb)) revert InvalidSignature();
+
+            // https://github.com/ethereum/solidity/issues/9439
+            // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
+            uint256 tokensRequested;
+            bytes memory tokenDataWithSig = calldatas_[i];
+            //slither-disable-next-line assembly
+            assembly {
+                tokensRequested := mload(add(tokenDataWithSig, 68))
+            }
+
+            // update tokens requested for additional calldata
+            newProposal.tokensRequested += tokensRequested;
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        emit ProposalCreated(
+            proposalId_,
+            msg.sender,
+            targets_,
+            values_,
+            new string[](targets_.length),
+            calldatas_,
+            block.number,
+            distributions[newProposal.distributionId].endBlock,
+            description_);
+    }
 
     /************************/
     /*** Voting Functions ***/
@@ -327,6 +392,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return super._castVote(proposal_.proposalId, account_, 1, "", "");
     }
 
+    /**
+     * @notice Check to see if a proposal is in the current funded slate hash of proposals.
+     */
+    function _standardFundingVoteSucceeded(uint256 proposalId_) internal view returns (bool) {
+        uint256 distributionId = _distributionIdCheckpoints.latest();
+        return _findProposalIndex(proposalId_, fundedProposalSlates[distributionId][distributions[distributionId].fundedSlateHash]) != -1;
+    }
+
     /**************************/
     /*** External Functions ***/
     /**************************/
@@ -359,14 +432,15 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**
      * @notice Get the current state of a given proposal.
      */
-    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256) {
-        Proposal memory proposal = proposals[proposalId_];
+    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256, bool) {
+        Proposal memory proposal = standardFundingProposals[proposalId_];
         return (
             proposal.proposalId,
             proposal.distributionId,
             proposal.votesReceived,
             proposal.tokensRequested,
-            proposal.qvBudgetAllocated
+            proposal.qvBudgetAllocated,
+            proposal.executed
         );
     }
 

@@ -32,6 +32,14 @@ abstract contract Funding is Governor {
      */
     error InvalidSignature();
 
+    // TODO: move this to IGrantFund?
+    /**
+     * @notice User attempted to submit a proposal with too many target, values or calldatas, or to the wrong method.
+     */
+    error InvalidProposal();
+
+    error ProposalAlreadyExists();
+
     /***********************/
     /*** State Variables ***/
     /***********************/
@@ -45,4 +53,15 @@ abstract contract Funding is Governor {
      */
     mapping(uint256 => mapping(address => bool)) hasScreened;
 
+    /**********************/
+    /*** View Functions ***/
+    /**********************/
+
+    /**
+     * @notice Restrict voter to only voting once during the screening stage.
+     * @dev    See {IGovernor-hasVoted}.
+     */
+    function hasVoted(uint256 proposalId_, address account_) public view override(IGovernor) returns (bool) {
+        return hasScreened[proposalId_][account_];
+    }
 }

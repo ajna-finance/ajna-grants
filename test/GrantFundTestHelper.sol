@@ -74,11 +74,12 @@ abstract contract GrantFundTestHelper is Test {
     /*** Test Helper Functions ***/
     /*****************************/
 
-    function _createProposal(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (TestProposal memory) {
+    function _createProposalStandard(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (TestProposal memory) {
         // generate expected proposal state
         uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
         uint256 startBlock = block.number.toUint64() + grantFund_.votingDelay().toUint64();
-        uint256 endBlock   = startBlock + grantFund_.votingPeriod().toUint64();
+
+        (, , , uint256 endBlock, ) = grantFund_.getDistributionPeriodInfo(grantFund_.getDistributionId());
 
         // submit proposal
         changePrank(proposer_);
@@ -94,7 +95,7 @@ abstract contract GrantFundTestHelper is Test {
             endBlock,
             description
         );
-        uint256 proposalId = grantFund_.propose(targets_, values_, proposalCalldatas_, description);
+        uint256 proposalId = grantFund_.proposeStandard(targets_, values_, proposalCalldatas_, description);
         assertEq(proposalId, expectedProposalId);
 
         // https://github.com/ethereum/solidity/issues/6012
@@ -133,7 +134,7 @@ abstract contract GrantFundTestHelper is Test {
                 testProposalParams_[i].tokensRequested
             );
 
-            TestProposal memory proposal = _createProposal(grantFund_, testProposalParams_[i].recipient, ajnaTokenTargets, values, proposalCalldata, description);
+            TestProposal memory proposal = _createProposalStandard(grantFund_, testProposalParams_[i].recipient, ajnaTokenTargets, values, proposalCalldata, description);
             testProposals[i] = proposal;
         }
         return testProposals;

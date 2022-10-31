@@ -32,11 +32,6 @@ interface IStandardFunding {
      */
     error InsufficientBudget();
 
-    /**
-     * @notice User attempted to submit a proposal with too many target, values or calldatas.
-     */
-    error InvalidProposal();
-
     /**************/
     /*** Events ***/
     /**************/
@@ -80,6 +75,7 @@ interface IStandardFunding {
         uint256 votesReceived;    // accumulator of screening votes received by a proposal
         uint256 tokensRequested;  // number of Ajna tokens requested in the proposal
         int256  qvBudgetAllocated; // accumulator of QV budget allocated
+        bool    executed;         // whether the proposal has been executed
     }
 
     /**

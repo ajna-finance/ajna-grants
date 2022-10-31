@@ -36,7 +36,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         bytes[] memory calldatas_,
         string memory description_) public returns (uint256 proposalId_) {
 
-        proposalId_ = super.propose(targets_, values_, calldatas_, description_);
+        proposalId_ = hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
 
         // check proposal length is within limits of 1 month maximum
         if (block.number + MAX_EFM_PROPOSAL_LENGTH < endBlock_) {

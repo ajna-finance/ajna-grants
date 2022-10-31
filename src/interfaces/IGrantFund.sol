@@ -13,5 +13,6 @@ interface IGrantFund {
      */
     error InvalidStage();
 
+    error ProposalNotFound();
 
 }

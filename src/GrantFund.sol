@@ -40,83 +40,63 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
     /**************************/
 
     /**
-     * @notice Submit a new proposal to the Grant Coordination Fund
-     * @dev    All proposals can be submitted by anyone. There can only be one value in each array. Interface inherits from OZ.propose().
-     * @param  targets_ List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
-     * @param  values_ List of values to be sent with the proposal calldata. Should be 0 for all proposals.
-     * @param  calldatas_ List of calldata to be executed. Should be the transfer() method.
-     * @return proposalId_ The id of the newly created proposal.
+     * @notice Overide the default proposal function to ensure all proposal submission travel through expected mechanisms.
      */
     function propose(
         address[] memory targets_,
         uint256[] memory values_,
         bytes[] memory calldatas_,
         string memory description_
-    ) public override(Governor) returns (uint256 proposalId_) {
-        proposalId_ = super.propose(targets_, values_, calldatas_, description_);
-
-        // store new proposal information
-        Proposal storage newProposal = proposals[proposalId_];
-        newProposal.proposalId = proposalId_;
-        newProposal.distributionId = _distributionIdCheckpoints.latest();
-
-        // check proposal parameters are valid and update tokensRequested
-        for (uint256 i = 0; i < targets_.length;) {
-
-            // check  targets and values are valid
-            if (targets_[i] != ajnaTokenAddress) revert InvalidTarget();
-            if (values_[i] != 0) revert InvalidValues();
-
-            // check calldata function selector is transfer()
-            bytes memory selDataWithSig = calldatas_[i];
-
-            bytes4 selector;
-            //slither-disable-next-line assembly
-            assembly {
-                selector := mload(add(selDataWithSig, 0x20))
-            }
-            if (selector != bytes4(0xa9059cbb)) revert InvalidSignature();
-
-            // https://github.com/ethereum/solidity/issues/9439
-            // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
-            uint256 tokensRequested;
-            bytes memory tokenDataWithSig = calldatas_[i];
-            //slither-disable-next-line assembly
-            assembly {
-                tokensRequested := mload(add(tokenDataWithSig, 68))
-            }
-
-            // update tokens requested for additional calldata
-            newProposal.tokensRequested += tokensRequested;
-
-            unchecked {
-                ++i;
-            }
-        }
+    ) public override(Governor) returns (uint256) {
+        revert InvalidProposal();
     }
 
+    // TODO: rename to executeStandard
     /**
      * @notice Execute a proposal that has been approved by the community.
      * @dev    Calls out to Governor.execute()
      * @dev    Check for proposal being succesfully funded or previously executed is handled by Governor.execute().
      * @return proposalId_ of the executed proposal.
      */
-    function execute(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable override(Governor) nonReentrant returns (uint256) {
+    function execute(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable override(Governor) nonReentrant returns (uint256 proposalId_) {
         // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
         if (block.number <= distributions[_distributionIdCheckpoints.latest()].endBlock + 50400) revert ExecuteProposalInvalid();
 
-        return super.execute(targets_, values_, calldatas_, descriptionHash_);
+        proposalId_ = super.execute(targets_, values_, calldatas_, descriptionHash_);
+        standardFundingProposals[proposalId_].executed = true;
     }
 
     /**
-     * @dev Required override; we don't currently have a threshold to create a proposal so this returns the default value of 0
+     * @notice Given a proposalId, find if it is a standard or extraordinary proposal.
      */
-    function proposalThreshold() public view override(Governor) returns (uint256) {
-        return super.proposalThreshold();
+    function findMechanismOfProposal(uint256 proposalId_) public view returns (uint8) {
+        if (standardFundingProposals[proposalId_].proposalId != 0) return 0; // 0 = standard funding proposal
+        else if (extraordinaryFundingProposals[proposalId_].proposalId != 0) return 1; // 1 = extraordinary funding proposal
+        else revert ProposalNotFound();
     }
 
+    /**
+     * @notice Find the status of a given proposal.
+     * @dev Overrides Governor.state() to check proposal status based upon Grant Fund specific logic.
+     * @param proposalId_ The id of the proposal to query the status of.
+     * @return ProposalState of the given proposal.
+     */
     function state(uint256 proposalId_) public view override(Governor) returns (IGovernor.ProposalState) {
-        return super.state(proposalId_);
+        uint8 mechanism = findMechanismOfProposal(proposalId_);
+
+        // standard proposal state checks
+        if (mechanism == 0) {
+            Proposal memory proposal = standardFundingProposals[proposalId_];
+            QuarterlyDistribution memory distribution = distributions[_distributionIdCheckpoints.latest()];
+
+            if (proposal.executed) return IGovernor.ProposalState.Executed;
+            else if (distribution.endBlock >= block.number) return IGovernor.ProposalState.Active;
+            else if (_standardFundingVoteSucceeded(proposalId_)) return IGovernor.ProposalState.Succeeded;
+            else return IGovernor.ProposalState.Defeated;
+        }
+        else if (mechanism == 1) {
+            // TODO: finish implementing
+        }
     }
 
     /************************/
@@ -132,7 +112,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
      * @param params_     The amount of votes being allocated in the funding stage.
      */
      function _castVote(uint256 proposalId_, address account_, uint8 support_, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
-        Proposal storage proposal = proposals[proposalId_];
+        Proposal storage proposal = standardFundingProposals[proposalId_];
         QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
 
         uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
@@ -206,6 +186,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
                 return uint256(voter.budgetRemaining);
             }
         }
+        // TODO: add snapshot?
         // one token one vote for extraordinary funding
         else if (keccak256(stage_) == keccak256(bytes("Extraordinary"))) {
             return super._getVotes(account_, blockNumber_, "");
@@ -216,20 +197,16 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
         }
     }
 
+    /**************************/
+    /*** Required Overrides ***/
+    /**************************/
+
     /**
      * @dev See {IGovernor-COUNTING_MODE}.
      */
     //slither-disable-next-line naming-convention
     function COUNTING_MODE() public pure override(IGovernor) returns (string memory) {
         return "support=bravo&quorum=for,abstain";
-    }
-
-    /**
-     * @notice Restrict voter to only voting once during the screening stage.
-     * @dev    See {IGovernor-hasVoted}.
-     */
-    function hasVoted(uint256 proposalId_, address account_) public view override(IGovernor) returns (bool) {
-        return hasScreened[proposalId_][account_];
     }
 
     /**
@@ -247,9 +224,15 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
         return true;
     }
 
-    function _voteSucceeded(uint256 proposalId_) internal view override(Governor) returns (bool) {
-        uint256 distributionId = _distributionIdCheckpoints.latest();
-        return _findProposalIndex(proposalId_, fundedProposalSlates[distributionId][distributions[distributionId].fundedSlateHash]) != -1;
+    // TODO: move to abstract contract
+    // TODO: finish implementing
+    function _extraordinaryFundingVoteSucceeded(uint256 proposalId_) internal view returns (bool) {
+
+    }
+
+    // REQUIRED OVERRIDE
+    function _voteSucceeded(uint256 proposalId) internal view override(Governor) returns (bool) {
+
     }
 
     /**
@@ -275,7 +258,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
         else if (block.number > screeningPeriodEndBlock && block.number < currentDistribution.endBlock) {
             return currentDistribution.endBlock - block.number;
         }
-        // TODO: implement exraordinary funding mechanism
+        // TODO: determine how to implement exraordinary funding mechanism...
         else {
             return 0;
         }
