@@ -176,6 +176,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(startBlock, block.number);
         assertEq(endBlock, endBlockParam);
         assertEq(votesReceived, 0);
+        assertFalse(succeeded);
         assertFalse(executed);
     }
 
@@ -223,8 +224,31 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         vm.roll(150);
 
-        // token holder 1 votes for the proposal
+        // TODO: check status is active but not succesful
+        // token holders vote on the proposal to pass it
         _extraordinaryVote(_grantFund, _tokenHolder1, testProposal.proposalId, 1);
+        _extraordinaryVote(_grantFund, _tokenHolder2, testProposal.proposalId, 1);
+        _extraordinaryVote(_grantFund, _tokenHolder3, testProposal.proposalId, 1);
+        _extraordinaryVote(_grantFund, _tokenHolder4, testProposal.proposalId, 1);
+        _extraordinaryVote(_grantFund, _tokenHolder5, testProposal.proposalId, 1);
+        _extraordinaryVote(_grantFund, _tokenHolder6, testProposal.proposalId, 1);
+        _extraordinaryVote(_grantFund, _tokenHolder7, testProposal.proposalId, 1);
+        _extraordinaryVote(_grantFund, _tokenHolder8, testProposal.proposalId, 1);
+        _extraordinaryVote(_grantFund, _tokenHolder9, testProposal.proposalId, 1);
+        _extraordinaryVote(_grantFund, _tokenHolder10, testProposal.proposalId, 1);
+        _extraordinaryVote(_grantFund, _tokenHolder11, testProposal.proposalId, 1);
+
+        // check proposal status
+        IGovernor.ProposalState proposalState = _grantFund.state(testProposal.proposalId);
+        assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Succeeded));
+
+        // TODO: check proposal state
+
+        // execute proposal
+        _grantFund.executeExtraordinary(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));
+
+        // TODO: check state updated as expected
+
     }
 
 }

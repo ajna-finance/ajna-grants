@@ -102,6 +102,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             description_);
     }
 
+    // TODO: add reentrancy check
     // TODO: finish cleaning up this function
     function executeExtraordinary(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public returns (uint256 proposalId_) {
         proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
@@ -112,18 +113,17 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             revert ExecuteExtraordinaryProposalInvalid();
         }
 
-        proposal.executed = true;
         fundedExtraordinaryProposals.push(proposal);
 
         super.execute(targets_, values_, calldatas_, descriptionHash_);
+        proposal.executed = true;
     }
 
     /************************/
     /*** Voting Functions ***/
     /************************/
 
-    function _extraordinaryFundingVote(uint256 proposalId_, address account_, uint8 support_) internal {
-        console.log("in efv");
+    function _extraordinaryFundingVote(uint256 proposalId_, address account_, uint8 support_) internal returns (uint256 votes_) {
         if (hasScreened[proposalId_][account_]) revert AlreadyVoted();
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
@@ -132,16 +132,17 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             revert ExtraordinaryFundingProposalInactive();
         }
 
-        uint256 votes = _getVotes(account_, block.number, bytes("Extraordinary"));
+        // check voting power at snapshot block
+        votes_ = _getVotes(account_, proposal.startBlock - 33, bytes("Extraordinary"));
 
         if (support_ == 1) {
-            proposal.votesReceived += int256(votes);
+            proposal.votesReceived += int256(votes_);
         } else if (support_ == 0) {
-            proposal.votesReceived -= int256(votes);
+            proposal.votesReceived -= int256(votes_);
         }
 
         // TODO: update this to check amounts in absolute vs percentage terms
-        if (proposal.votesReceived >= int256(proposal.percentageRequested + getMinimumThresholdPercentage())) {
+        if (uint256(proposal.votesReceived) >= getPercentageOfTreasury(proposal.percentageRequested + getMinimumThresholdPercentage())) {
             proposal.succeeded = true;
         }
         else {
@@ -151,7 +152,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         // record that voter has voted on this extraorindary funding proposal
         hasScreened[proposalId_][account_] = true;
 
-        emit VoteCast(account_, proposalId_, support_, votes, "");
+        emit VoteCast(account_, proposalId_, support_, votes_, "");
     }
 
     // TODO: finish implementing

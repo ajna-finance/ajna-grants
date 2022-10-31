@@ -90,18 +90,22 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
             Proposal memory proposal = standardFundingProposals[proposalId_];
             QuarterlyDistribution memory distribution = distributions[_distributionIdCheckpoints.latest()];
 
+            bool voteSucceeded = _standardFundingVoteSucceeded(proposalId_);
+
             if (proposal.executed) return IGovernor.ProposalState.Executed;
-            else if (distribution.endBlock >= block.number) return IGovernor.ProposalState.Active;
-            else if (_standardFundingVoteSucceeded(proposalId_)) return IGovernor.ProposalState.Succeeded;
+            else if (distribution.endBlock >= block.number && !voteSucceeded) return IGovernor.ProposalState.Active;
+            else if (voteSucceeded) return IGovernor.ProposalState.Succeeded;
             else return IGovernor.ProposalState.Defeated;
         }
         // extraordinary funding proposal state checks
         else if (mechanism == 1) {
             ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
 
+            bool voteSucceeded = _extraordinaryFundingVoteSucceeded(proposalId_);
+
             if (proposal.executed) return IGovernor.ProposalState.Executed;
-            else if (proposal.endBlock >= block.number) return IGovernor.ProposalState.Active;
-            else if (_extraordinaryFundingVoteSucceeded(proposalId_)) return IGovernor.ProposalState.Succeeded;
+            else if (proposal.endBlock >= block.number && !voteSucceeded) return IGovernor.ProposalState.Active;
+            else if (voteSucceeded) return IGovernor.ProposalState.Succeeded;
             else return IGovernor.ProposalState.Defeated;
         }
     }
@@ -119,50 +123,44 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
      * @param params_     The amount of votes being allocated in the funding stage.
      */
      function _castVote(uint256 proposalId_, address account_, uint8 support_, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
-        Proposal storage proposal = standardFundingProposals[proposalId_];
-        QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
+        uint8 mechanism = findMechanismOfProposal(proposalId_);
 
-        console.log("in here");
+        // standard funding mechanism
+        if (mechanism == 0) {
+            Proposal storage proposal = standardFundingProposals[proposalId_];
+            QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
+            uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
 
-        uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
-        bytes memory stage;
-        uint256 votes;
+            // screening stage
+            if (block.number >= currentDistribution.startBlock && block.number <= screeningPeriodEndBlock) {
+                uint256 votes = _getVotes(account_, block.number, bytes("Screening"));
 
-        // screening stage
-        if (block.number >= currentDistribution.startBlock && block.number <= screeningPeriodEndBlock) {
-            stage = bytes("Screening");
-            votes = _getVotes(account_, block.number, stage);
-
-            return _screeningVote(account_, proposal, votes);
-        }
-
-        // funding stage
-        else if (block.number > screeningPeriodEndBlock && block.number <= currentDistribution.endBlock) {
-            stage = bytes("Funding");
-
-            QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
-
-            // this is the first time a voter has attempted to vote this period
-            if (voter.votingWeight == 0) {
-                voter.votingWeight = Maths.wpow(super._getVotes(account_, screeningPeriodEndBlock - 33, ""), 2);
-                voter.budgetRemaining = int256(voter.votingWeight);
+                return _screeningVote(account_, proposal, votes);
             }
 
-            // amount of quadratic budget to allocated to the proposal
-            int256 budgetAllocation = abi.decode(params_, (int256));
+            // funding stage
+            else if (block.number > screeningPeriodEndBlock && block.number <= currentDistribution.endBlock) {
+                QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
 
-            // check if the voter has enough budget remaining to allocate to the proposal
-            if (voter.budgetRemaining == 0 || budgetAllocation > voter.budgetRemaining) revert InsufficientBudget();
+                // this is the first time a voter has attempted to vote this period
+                if (voter.votingWeight == 0) {
+                    voter.votingWeight = Maths.wpow(super._getVotes(account_, screeningPeriodEndBlock - 33, ""), 2);
+                    voter.budgetRemaining = int256(voter.votingWeight);
+                }
 
-            return _fundingVote(proposal, account_, voter, budgetAllocation);
+                // amount of quadratic budget to allocated to the proposal
+                int256 budgetAllocation = abi.decode(params_, (int256));
+
+                // check if the voter has enough budget remaining to allocate to the proposal
+                if (voter.budgetRemaining == 0 || budgetAllocation > voter.budgetRemaining) revert InsufficientBudget();
+
+                return _fundingVote(proposal, account_, voter, budgetAllocation);
+            }
         }
+
         // extraordinary funding mechanism
-        else if (keccak256(abi.decode(params_, (bytes))) == keccak256(bytes("Extraordinary"))) {
-            console.log("in _castVote switch");
-            _extraordinaryFundingVote(proposalId_, account_, support_);
-        }
-        else {
-            revert InvalidStage();
+        else if (mechanism == 1) {
+            return _extraordinaryFundingVote(proposalId_, account_, support_);
         }
     }
 
@@ -247,6 +245,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
         return 0;
     }
 
+    // FIXME:
     /**
      * @notice Calculates the remaining blocks left in the current voting period
      * @dev    Required ovverride; see {IGovernor-votingPeriod}.
@@ -266,21 +265,6 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
         else {
             return 0;
         }
-    }
-
-    /*****************************/
-    /*** Extraordinary Funding ***/
-    /*****************************/
-
-    /**
-     * @notice Get the current extraordinaryFundingBaseQuorum required to pass an extraordinary funding proposal.
-     */
-    function getExtraordinaryFundingQuorum(uint256 blockNumber, uint256 tokensRequested) external view returns (uint256) {
-    }
-
-    // TODO: implement custom override - need to support both regular votes, and the extraordinaryFunding mechanism
-    function quorum(uint256 blockNumber) public view override(IGovernor, GovernorVotesQuorumFraction) returns (uint256) {
-        return super.quorum(blockNumber);
     }
 
 }
