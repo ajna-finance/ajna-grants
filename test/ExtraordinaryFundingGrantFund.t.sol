@@ -85,7 +85,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _token.transfer(address(_grantFund), 500_000_000 * 1e18);
     }
 
-    function testGetVotingPowerExtraordinary() external {
+    function xtestGetVotingPowerExtraordinary() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _selfDelegatedVotersArr);
 
@@ -123,8 +123,8 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(100);
 
         // set proposal params
-        uint256 percentageRequested = 0.100000000000000000 * 1e18;
-        uint256 endBlock = block.number + 100_000;
+        uint256 percentageRequestedParam = 0.100000000000000000 * 1e18;
+        uint256 endBlockParam = block.number + 100_000;
 
         // generate proposal targets
         address[] memory targets = new address[](1);
@@ -139,19 +139,92 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         calldatas[0] = abi.encodeWithSignature(
             "transfer(address,uint256)",
             _tokenHolder1,
-            1 * 1e18
+            50_000_000 * 1e18
         );
 
-        // generate proposal message
-        string memory description = "Extraordinary Proposal for Ajna token transfer to tester address";
+        // create and submit proposal
+        TestProposalExtraordinary memory testProposal = _createProposalExtraordinary(
+            _grantFund,
+            _tokenHolder1,
+            percentageRequestedParam,
+            endBlockParam,
+            targets,
+            values,
+            calldatas,
+            "Extraordinary Proposal for Ajna token transfer to tester address"
+        );
 
-        _grantFund.proposeExtraordinary(percentageRequested, endBlock, targets, values, calldatas, description);
+
+        // check proposal status
+        IGovernor.ProposalState proposalState = _grantFund.state(testProposal.proposalId);
+        assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Active));
+
+        // check proposal state
+        (
+            uint256 proposalId,
+            uint256 percentageRequested,
+            uint256 startBlock,
+            uint256 endBlock,
+            int256 votesReceived,
+            bool succeeded,
+            bool executed
+        ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
+
+        assertEq(proposalId, testProposal.proposalId);
+        assertEq(percentageRequested, percentageRequestedParam);
+        assertEq(_grantFund.getPercentageOfTreasury(percentageRequested), testProposal.tokensRequested);
+        assertEq(startBlock, block.number);
+        assertEq(endBlock, endBlockParam);
+        assertEq(votesReceived, 0);
+        assertFalse(executed);
     }
 
     function testProposeExtraordinaryInvalid() external {
         // _grantFund.proposeExtraordinary();
     }
 
+    function testProposeAndExecuteExtraordinary() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
 
+        vm.roll(100);
+
+        // set proposal params
+        uint256 percentageRequestedParam = 0.100000000000000000 * 1e18;
+        uint256 endBlockParam = block.number + 100_000;
+
+        // generate proposal targets
+        address[] memory targets = new address[](1);
+        targets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            50_000_000 * 1e18
+        );
+
+        // create and submit proposal
+        TestProposalExtraordinary memory testProposal = _createProposalExtraordinary(
+            _grantFund,
+            _tokenHolder1,
+            percentageRequestedParam,
+            endBlockParam,
+            targets,
+            values,
+            calldatas,
+            "Extraordinary Proposal for Ajna token transfer to tester address"
+        );
+
+        vm.roll(150);
+
+        // token holder 1 votes for the proposal
+        _extraordinaryVote(_grantFund, _tokenHolder1, testProposal.proposalId, 1);
+    }
 
 }

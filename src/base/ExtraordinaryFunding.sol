@@ -10,6 +10,8 @@ import "../interfaces/IExtraordinaryFunding.sol";
 
 import "../libraries/Maths.sol";
 
+import "@std/console.sol";
+
 abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
     /***********************/
@@ -88,7 +90,16 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         newProposal.endBlock = endBlock_;
         newProposal.percentageRequested = percentageRequested_;
 
-        
+        emit ProposalCreated(
+            proposalId_,
+            msg.sender,
+            targets_,
+            values_,
+            new string[](targets_.length),
+            calldatas_,
+            block.number,
+            endBlock_,
+            description_);
     }
 
     // TODO: finish cleaning up this function
@@ -112,6 +123,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /************************/
 
     function _extraordinaryFundingVote(uint256 proposalId_, address account_, uint8 support_) internal {
+        console.log("in efv");
         if (hasScreened[proposalId_][account_]) revert AlreadyVoted();
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
@@ -142,13 +154,14 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         emit VoteCast(account_, proposalId_, support_, votes, "");
     }
 
+    // TODO: finish implementing
+    function _extraordinaryFundingVoteSucceeded(uint256 proposalId_) internal view returns (bool) {
+        return extraordinaryFundingProposals[proposalId_].succeeded;
+    }
+
     /***********************/
     /*** View Functions ****/
     /***********************/
-
-    function getExtraordinaryFundingProposal(uint256 proposalId) public view returns (ExtraordinaryFundingProposal memory) {
-        return extraordinaryFundingProposals[proposalId];
-    }
 
     function getMinimumThresholdPercentage() public view returns (uint256) {
         // default minimum threshold is 50
@@ -168,6 +181,19 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      */
     function getPercentageOfTreasury(uint256 percentage_) public view returns (uint256) {
         return Maths.wmul(IERC20(ajnaTokenAddress).balanceOf(address(this)), percentage_);
+    }
+
+    function getExtraordinaryProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256, bool, bool) {
+        ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
+        return (
+            proposal.proposalId,
+            proposal.percentageRequested,
+            proposal.startBlock,
+            proposal.endBlock,
+            proposal.votesReceived,
+            proposal.succeeded,
+            proposal.executed
+        );
     }
 
 }

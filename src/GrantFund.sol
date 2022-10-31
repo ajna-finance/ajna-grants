@@ -18,6 +18,7 @@ import "./interfaces/IGrantFund.sol";
 import "./base/ExtraordinaryFunding.sol";
 import "./base/StandardFunding.sol";
 
+import "@std/console.sol";
 
 contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, GovernorVotesQuorumFraction, ReentrancyGuard {
 
@@ -43,11 +44,11 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
      * @notice Overide the default proposal function to ensure all proposal submission travel through expected mechanisms.
      */
     function propose(
-        address[] memory targets_,
-        uint256[] memory values_,
-        bytes[] memory calldatas_,
-        string memory description_
-    ) public override(Governor) returns (uint256) {
+        address[] memory,
+        uint256[] memory,
+        bytes[] memory,
+        string memory
+    ) public pure override(Governor) returns (uint256) {
         revert InvalidProposal();
     }
 
@@ -94,8 +95,14 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
             else if (_standardFundingVoteSucceeded(proposalId_)) return IGovernor.ProposalState.Succeeded;
             else return IGovernor.ProposalState.Defeated;
         }
+        // extraordinary funding proposal state checks
         else if (mechanism == 1) {
-            // TODO: finish implementing
+            ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
+
+            if (proposal.executed) return IGovernor.ProposalState.Executed;
+            else if (proposal.endBlock >= block.number) return IGovernor.ProposalState.Active;
+            else if (_extraordinaryFundingVoteSucceeded(proposalId_)) return IGovernor.ProposalState.Succeeded;
+            else return IGovernor.ProposalState.Defeated;
         }
     }
 
@@ -114,6 +121,8 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
      function _castVote(uint256 proposalId_, address account_, uint8 support_, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
         Proposal storage proposal = standardFundingProposals[proposalId_];
         QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
+
+        console.log("in here");
 
         uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
         bytes memory stage;
@@ -149,6 +158,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
         }
         // extraordinary funding mechanism
         else if (keccak256(abi.decode(params_, (bytes))) == keccak256(bytes("Extraordinary"))) {
+            console.log("in _castVote switch");
             _extraordinaryFundingVote(proposalId_, account_, support_);
         }
         else {
@@ -186,7 +196,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
                 return uint256(voter.budgetRemaining);
             }
         }
-        // TODO: add snapshot?
+        // TODO: add snapshot based upon encoding proposalId into params
         // one token one vote for extraordinary funding
         else if (keccak256(stage_) == keccak256(bytes("Extraordinary"))) {
             return super._getVotes(account_, blockNumber_, "");
@@ -222,12 +232,6 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
      */
     function _quorumReached(uint256) internal pure override(Governor) returns (bool) {
         return true;
-    }
-
-    // TODO: move to abstract contract
-    // TODO: finish implementing
-    function _extraordinaryFundingVoteSucceeded(uint256 proposalId_) internal view returns (bool) {
-
     }
 
     // REQUIRED OVERRIDE

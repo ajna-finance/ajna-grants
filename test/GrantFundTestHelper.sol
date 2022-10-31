@@ -62,6 +62,18 @@ abstract contract GrantFundTestHelper is Test {
         uint256 tokensRequested;
     }
 
+    struct TestProposalExtraordinary {
+        uint256 proposalId;
+        address[] targets;
+        uint256[] values;
+        bytes[] calldatas;
+        string description;
+        address recipient;
+        uint256 tokensRequested;
+        uint256 percentageRequested;
+        uint256 endBlock;
+    }
+
     struct TestProposalParams {
         address recipient;
         uint256 tokensRequested;
@@ -73,6 +85,46 @@ abstract contract GrantFundTestHelper is Test {
     /*****************************/
     /*** Test Helper Functions ***/
     /*****************************/
+
+    function _createProposalExtraordinary(
+        GrantFund grantFund_,
+        address proposer_,
+        uint256 percentageRequested,
+        uint256 endBlock,
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory proposalCalldatas_,
+        string memory description
+    ) internal returns (TestProposalExtraordinary memory) {
+        // generate expected proposal state
+        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
+        uint256 startBlock = block.number;
+
+        // submit proposal
+        changePrank(proposer_);
+        vm.expectEmit(true, true, false, true);
+        emit ProposalCreated(
+            expectedProposalId,
+            proposer_,
+            targets_,
+            values_,
+            new string[](targets_.length),
+            proposalCalldatas_,
+            startBlock,
+            endBlock,
+            description
+        );
+        uint256 proposalId = grantFund_.proposeExtraordinary(percentageRequested, endBlock, targets_, values_, proposalCalldatas_, description);
+        assertEq(proposalId, expectedProposalId);
+
+        // https://github.com/ethereum/solidity/issues/6012
+        (, address recipient, uint256 tokensRequested) = abi.decode(
+            abi.encodePacked(bytes28(0), proposalCalldatas_[0]),
+            (bytes32,address,uint256)
+        );
+
+        return TestProposalExtraordinary(proposalId, targets_, values_, proposalCalldatas_, description, recipient, tokensRequested, percentageRequested, endBlock);
+    }
 
     function _createProposalStandard(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (TestProposal memory) {
         // generate expected proposal state
@@ -207,6 +259,21 @@ abstract contract GrantFundTestHelper is Test {
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support_, voteAllocatedEmit, "");
+        grantFund_.castVoteWithReasonAndParams(proposalId_, support_, reason, params);
+    }
+
+    function _extraordinaryVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_) internal {
+        string memory reason = "";
+        bytes memory params = bytes("Extraordinary");
+
+        // TODO: replace this
+        uint256 blockNumberToCheckWeightAt = block.number - 1;
+
+        uint256 votingWeight = grantFund_.getVotesWithParams(voter_, blockNumberToCheckWeightAt, params);
+
+        changePrank(voter_);
+        vm.expectEmit(true, true, false, true);
+        emit VoteCast(voter_, proposalId_, support_, votingWeight, "");
         grantFund_.castVoteWithReasonAndParams(proposalId_, support_, reason, params);
     }
 
