@@ -117,6 +117,38 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
     }
 
     function testProposeExtraordinary() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
+
+        vm.roll(100);
+
+        // set proposal params
+        uint256 percentageRequested = 0.100000000000000000 * 1e18;
+        uint256 endBlock = block.number + 100_000;
+
+        // generate proposal targets
+        address[] memory targets = new address[](1);
+        targets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            1 * 1e18
+        );
+
+        // generate proposal message
+        string memory description = "Extraordinary Proposal for Ajna token transfer to tester address";
+
+        _grantFund.proposeExtraordinary(percentageRequested, endBlock, targets, values, calldatas, description);
+    }
+
+    function testProposeExtraordinaryInvalid() external {
         // _grantFund.proposeExtraordinary();
     }
 

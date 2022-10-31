@@ -115,6 +115,10 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
         return super.proposalThreshold();
     }
 
+    function state(uint256 proposalId_) public view override(Governor) returns (IGovernor.ProposalState) {
+        return super.state(proposalId_);
+    }
+
     /************************/
     /*** Voting Functions ***/
     /************************/

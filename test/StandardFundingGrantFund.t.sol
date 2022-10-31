@@ -233,7 +233,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         string memory description = "Proposal for Ajna token burn from the growth fund";
 
         // create proposal should revert since invalid burn operation was attempted
-        vm.expectRevert(IStandardFunding.InvalidSignature.selector);
+        vm.expectRevert(Funding.InvalidSignature.selector);
         _grantFund.propose(targets, values, proposalCalldata, description);
     }
 
@@ -261,7 +261,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         string memory description = "Proposal for Ajna token transfer to tester address";
 
         // create proposal should revert since a non Ajna token contract target was used
-        vm.expectRevert(IStandardFunding.InvalidTarget.selector);
+        vm.expectRevert(Funding.InvalidTarget.selector);
         _grantFund.propose(targets, values, proposalCalldata, description);
     }
 

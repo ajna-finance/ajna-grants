@@ -12,6 +12,9 @@ interface IExtraordinaryFunding {
     /*** Custom Errors ***/
     /*********************/
 
+    /**
+     * @notice User attempted to submit a proposal with invalid parameters.
+     */
     error ExtraordinaryFundingProposalInvalid();
 
     /**
@@ -20,7 +23,6 @@ interface IExtraordinaryFunding {
     error ExtraordinaryFundingProposalInactive();
 
     error ExecuteExtraordinaryProposalInvalid();
-
 
     /***************/
     /*** Structs ***/

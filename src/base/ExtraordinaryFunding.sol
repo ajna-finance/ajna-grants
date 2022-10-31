@@ -20,12 +20,16 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
     ExtraordinaryFundingProposal[] public fundedExtraordinaryProposals;
 
-    uint256 public constant MAX_EFM_PROPOSAL_LENGTH = 216000; // number of blocks in one month
+    uint256 public constant MAX_EFM_PROPOSAL_LENGTH = 216_000; // number of blocks in one month
 
     uint256 internal immutable extraordinaryFundingBaseQuorum = 50;
 
+    /**************************/
+    /*** Proposal Functions ***/
+    /**************************/
+
     function proposeExtraordinary(
-        uint256 percentageRequested_,
+        uint256 percentageRequested_, // WAD
         uint256 endBlock_,
         address[] memory targets_,
         uint256[] memory values_,
@@ -39,7 +43,44 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             revert ExtraordinaryFundingProposalInvalid();
         }
 
-        // TODO: check calldatas_ matches percentageRequested_
+        uint256 totalTokensRequested = 0;
+
+        // check proposal attributes are valid
+        for (uint256 i = 0; i < targets_.length;) {
+
+            // check  targets and values are valid
+            if (targets_[i] != ajnaTokenAddress) revert InvalidTarget();
+            if (values_[i] != 0) revert InvalidValues();
+
+            // check calldata function selector is transfer()
+            bytes memory selDataWithSig = calldatas_[i];
+
+            bytes4 selector;
+            //slither-disable-next-line assembly
+            assembly {
+                selector := mload(add(selDataWithSig, 0x20))
+            }
+            if (selector != bytes4(0xa9059cbb)) revert InvalidSignature();
+
+            // https://github.com/ethereum/solidity/issues/9439
+            // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
+            uint256 tokensRequested;
+            bytes memory tokenDataWithSig = calldatas_[i];
+            //slither-disable-next-line assembly
+            assembly {
+                tokensRequested := mload(add(tokenDataWithSig, 68))
+            }
+
+            // update tokens requested for additional calldata
+            totalTokensRequested += tokensRequested;
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // check calldatas_ matches percentageRequested_
+        if (totalTokensRequested != getPercentageOfTreasury(percentageRequested_)) revert ExtraordinaryFundingProposalInvalid();
 
         ExtraordinaryFundingProposal storage newProposal = extraordinaryFundingProposals[proposalId_];
         newProposal.proposalId = proposalId_;
@@ -51,7 +92,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     }
 
     // TODO: finish cleaning up this function
-    function executeExtraordinaryFundingProposal(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public returns (uint256 proposalId_) {
+    function executeExtraordinary(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public returns (uint256 proposalId_) {
         proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
@@ -65,6 +106,10 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         super.execute(targets_, values_, calldatas_, descriptionHash_);
     }
+
+    /************************/
+    /*** Voting Functions ***/
+    /************************/
 
     function _extraordinaryFundingVote(uint256 proposalId_, address account_, uint8 support_) internal {
         if (hasScreened[proposalId_][account_]) revert AlreadyVoted();

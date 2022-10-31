@@ -33,23 +33,6 @@ interface IStandardFunding {
     error InsufficientBudget();
 
     /**
-     * @notice Non Ajna token contract address specified in target list.
-     */
-    error InvalidTarget();
-
-    /**
-     * @notice Non-zero amount specified in values array.
-     * @dev This parameter is only used for sending ETH which the GrantFund doesn't utilize.
-     */
-    error InvalidValues();
-
-    /**
-     * @notice Calldata for a method other than `transfer(address,uint256) was provided in a proposal.
-     * @dev seth sig "transfer(address,uint256)" == 0xa9059cbb.
-     */
-    error InvalidSignature();
-
-    /**
      * @notice User attempted to submit a proposal with too many target, values or calldatas.
      */
     error InvalidProposal();
