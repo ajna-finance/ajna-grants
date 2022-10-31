@@ -4,8 +4,8 @@ pragma solidity 0.8.16;
 import "../src/AjnaToken.sol";
 import "../src/GrantFund.sol";
 import "../src/interfaces/IStandardFunding.sol";
+import "../src/base/Funding.sol";
 
-import "./utils/SigUtils.sol";
 import "./GrantFundTestHelper.sol";
 
 import "@oz/governance/IGovernor.sol";
@@ -23,7 +23,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     AjnaToken          internal  _token;
     IVotes             internal  _votingToken;
     GrantFund         internal  _grantFund;
-    SigUtils           internal  _sigUtils;
 
     address internal _tokenDeployer  = makeAddr("tokenDeployer");
     address internal _tokenHolder1   = makeAddr("_tokenHolder1");
@@ -65,8 +64,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     function setUp() external {
         vm.startPrank(_tokenDeployer);
         _token = new AjnaToken(_tokenDeployer);
-
-        _sigUtils = new SigUtils(_token.DOMAIN_SEPARATOR());
 
         // deploy voting token wrapper
         _votingToken = IVotes(address(_token));
@@ -268,6 +265,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.propose(targets, values, proposalCalldata, description);
     }
 
+    function testHasVoted() external {
+        // TODO: FINISH IMPLEMENTING
+    }
+
     function testMaximumQuarterlyDistribution() external {
         uint256 maximumQuarterlyDistribution = _grantFund.maximumQuarterlyDistribution();
 
@@ -352,7 +353,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // should revert if voter attempts to cast a screeningVote twice
         changePrank(_tokenHolder15);
-        vm.expectRevert(IStandardFunding.AlreadyVoted.selector);
+        vm.expectRevert(Funding.AlreadyVoted.selector);
         _grantFund.castVote(testProposals[11].proposalId, voteYes);
     }
 

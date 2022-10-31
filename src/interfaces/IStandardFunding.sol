@@ -13,11 +13,6 @@ interface IStandardFunding {
     /*********************/
 
     /**
-     * @notice Voter has already voted on a proposal in the screening stage in a quarter.
-     */
-    error AlreadyVoted();
-
-    /**
      * @notice User attempted to execute a proposal before the distribution period ended.
      */
      error DistributionPeriodStillActive();

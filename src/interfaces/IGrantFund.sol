@@ -8,6 +8,10 @@ pragma solidity 0.8.16;
  */
 interface IGrantFund {
 
+    /**
+        User attempted to vote in a non-specified pathyway.
+     */
+    error InvalidStage();
 
 
 }

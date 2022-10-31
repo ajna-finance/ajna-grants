@@ -2,9 +2,19 @@
 
 pragma solidity 0.8.16;
 
-import "@oz/governance/Governor.sol";
+import "@oz/token/ERC20/IERC20.sol";
 
-abstract contract ExtraordinaryFunding is Governor {
+import "./Funding.sol";
+
+import "../interfaces/IExtraordinaryFunding.sol";
+
+import "../libraries/Maths.sol";
+
+abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
+
+    /***********************/
+    /*** State Variables ***/
+    /***********************/
 
     mapping (uint256 => ExtraordinaryFundingProposal) public extraordinaryFundingProposals;
 
@@ -12,26 +22,9 @@ abstract contract ExtraordinaryFunding is Governor {
 
     uint256 public constant MAX_EFM_PROPOSAL_LENGTH = 216000; // number of blocks in one month
 
-    error ExtraordinaryFundingProposalInvalid();
+    uint256 internal immutable extraordinaryFundingBaseQuorum = 50;
 
-    /**
-     * @notice The current block isn't in the specified range of active blocks.
-     */
-    error ExtraordinaryFundingProposalInactive();
-
-    error ExecuteExtraordinaryProposalInvalid();
-
-    struct ExtraordinaryFundingProposal {
-        uint256 proposalId;
-        uint256 percentageRequested; // Percentage of the total treasury of AJNA tokens requested.
-        uint256 startBlock;          // Block number of the start of the extraordinary funding proposal voting period.
-        uint256 endBlock;
-        int256  votesReceived;       // Total votes received for this proposal.
-        bool    succeeded;
-        bool    executed;
-    }
-
-    function extraorindaryFundingProposal(
+    function proposeExtraordinary(
         uint256 percentageRequested_,
         uint256 endBlock_,
         address[] memory targets_,
@@ -73,30 +66,8 @@ abstract contract ExtraordinaryFunding is Governor {
         super.execute(targets_, values_, calldatas_, descriptionHash_);
     }
 
-    function getExtraordinaryFundingProposal(uint256 proposalId) public view returns (ExtraordinaryFundingProposal memory) {
-        return extraordinaryFundingProposals[proposalId];
-    }
-
-    function getMinimumThresholdPercentage() public view returns (uint256) {
-        // default minimum threshold is 50
-        if (fundedExtraordinaryProposals.length == 0) {
-            return 50;
-        }
-        // minimum threshold increases according to the number of funded EFM proposals
-        else {
-            return 50 + (fundedExtraordinaryProposals.length * 5);
-        }
-    }
-
-    // TODO: add this to _castVote()
-    // else {
-        // if (abi.decode(params_, (string)) == "Extraordinary") {
-            // _extraordinaryFundingVote(proposalId, account_, support_);
-        // }
-    // }
-
     function _extraordinaryFundingVote(uint256 proposalId_, address account_, uint8 support_) internal {
-        // if (hasScreened[account_]) revert AlreadyVoted();
+        if (hasScreened[proposalId_][account_]) revert AlreadyVoted();
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
 
@@ -120,10 +91,38 @@ abstract contract ExtraordinaryFunding is Governor {
             proposal.succeeded = false;
         }
 
-        // record that voter has already voted on this extraorindary funding proposal
-        // hasScreened[account_] = true;
+        // record that voter has voted on this extraorindary funding proposal
+        hasScreened[proposalId_][account_] = true;
 
         emit VoteCast(account_, proposalId_, support_, votes, "");
+    }
+
+    /***********************/
+    /*** View Functions ****/
+    /***********************/
+
+    function getExtraordinaryFundingProposal(uint256 proposalId) public view returns (ExtraordinaryFundingProposal memory) {
+        return extraordinaryFundingProposals[proposalId];
+    }
+
+    function getMinimumThresholdPercentage() public view returns (uint256) {
+        // default minimum threshold is 50
+        if (fundedExtraordinaryProposals.length == 0) {
+            return 50;
+        }
+        // minimum threshold increases according to the number of funded EFM proposals
+        else {
+            return 50 + (fundedExtraordinaryProposals.length * 5);
+        }
+    }
+
+    /**
+     * @notice Get the number of ajna tokens equivalent to a given percentage.
+     * @param percentage_ The percentage of the treasury to retrieve, in WAD.
+     * @return The number of tokens, in WAD.
+     */
+    function getPercentageOfTreasury(uint256 percentage_) public view returns (uint256) {
+        return Maths.wmul(IERC20(ajnaTokenAddress).balanceOf(address(this)), percentage_);
     }
 
 }

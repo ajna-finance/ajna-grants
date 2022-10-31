@@ -23,16 +23,6 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
 
     using Checkpoints for Checkpoints.History;
 
-    /***********************/
-    /*** State Variables ***/
-    /***********************/
-
-    //  base quorum percentage required for extraordinary funding is 50%
-    uint256 internal immutable extraordinaryFundingBaseQuorum = 50;
-
-    // // address of the ajna token used in grant coordination
-    // address public ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
-
     /*******************/
     /*** Constructor ***/
     /*******************/
@@ -134,9 +124,10 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
      * @dev Override channels all other castVote methods through here.
      * @param proposalId_ The current proposal being voted upon.
      * @param account_    The voting account.
+     * @param support_    The vote choice.
      * @param params_     The amount of votes being allocated in the funding stage.
      */
-     function _castVote(uint256 proposalId_, address account_, uint8, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
+     function _castVote(uint256 proposalId_, address account_, uint8 support_, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
         Proposal storage proposal = proposals[proposalId_];
         QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
 
@@ -172,12 +163,12 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
 
             return _fundingVote(proposal, account_, voter, budgetAllocation);
         }
+        // extraordinary funding mechanism
+        else if (keccak256(abi.decode(params_, (bytes))) == keccak256(bytes("Extraordinary"))) {
+            _extraordinaryFundingVote(proposalId_, account_, support_);
+        }
         else {
-            // TODO: finsih implementing extraordinary funding mechanism pathway
-            // if (abi.decode(params_, (string)) == bytes("Extraordinary")) {
-                // TODO: set support_ variable
-                _extraordinaryFundingVote(proposalId_, account_, 1);
-            // }
+            revert InvalidStage();
         }
     }
 
@@ -233,8 +224,8 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
      * @notice Restrict voter to only voting once during the screening stage.
      * @dev    See {IGovernor-hasVoted}.
      */
-    function hasVoted(uint256, address account_) public view override(IGovernor) returns (bool) {
-        return hasScreened[account_];
+    function hasVoted(uint256 proposalId_, address account_) public view override(IGovernor) returns (bool) {
+        return hasScreened[proposalId_][account_];
     }
 
     /**

@@ -2,25 +2,22 @@
 
 pragma solidity 0.8.16;
 
-import "@oz/governance/Governor.sol";
 import "@oz/token/ERC20/IERC20.sol";
 import "@oz/utils/Checkpoints.sol";
 
-import "../libraries/Maths.sol";
+import "./Funding.sol";
 
 import "../interfaces/IStandardFunding.sol";
 
-abstract contract StandardFunding is Governor, IStandardFunding {
+import "../libraries/Maths.sol";
+
+abstract contract StandardFunding is Funding, IStandardFunding {
 
     using Checkpoints for Checkpoints.History;
 
     /***********************/
     /*** State Variables ***/
     /***********************/
-
-    // TODO: move this to common base contract?
-    // address of the ajna token used in grant coordination
-    address public ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
 
     /**
      * @notice Maximum percentage of tokens that can be distributed by the treasury in a quarter.
@@ -46,13 +43,6 @@ abstract contract StandardFunding is Governor, IStandardFunding {
      * @dev distributionId => QuarterlyDistribution
      */
     mapping(uint256 => QuarterlyDistribution) distributions;
-
-    // TODO: move this into a base class to share between standard and extraordinary funding?
-    /**
-     * @notice Mapping checking if a voter has voted on a proposal during the screening stage in a quarter.
-     * @dev Reset to false at the start of each new quarter.
-     */
-    mapping(address => bool) hasScreened;
 
     /**
      * @dev Mapping of all proposals that have ever been submitted to the grant fund for screening.
@@ -296,7 +286,7 @@ abstract contract StandardFunding is Governor, IStandardFunding {
      * @return                        The amount of votes cast.
      */
     function _screeningVote(address account_, Proposal storage proposal_, uint256 votes_) internal returns (uint256) {
-        if (hasScreened[account_]) revert AlreadyVoted();
+        if (hasScreened[proposal_.proposalId][account_]) revert AlreadyVoted();
 
         Proposal[] storage currentTopTenProposals = topTenProposals[proposal_.distributionId];
 
@@ -331,7 +321,7 @@ abstract contract StandardFunding is Governor, IStandardFunding {
         }
 
         // record voters vote
-        hasScreened[account_] = true;
+        hasScreened[proposal_.proposalId][account_] = true;
 
         // vote for the given proposal
         return super._castVote(proposal_.proposalId, account_, 1, "", "");
