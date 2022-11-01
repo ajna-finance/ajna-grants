@@ -119,10 +119,9 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
      * @dev Override channels all other castVote methods through here.
      * @param proposalId_ The current proposal being voted upon.
      * @param account_    The voting account.
-     * @param support_    The vote choice.
      * @param params_     The amount of votes being allocated in the funding stage.
      */
-     function _castVote(uint256 proposalId_, address account_, uint8 support_, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
+     function _castVote(uint256 proposalId_, address account_, uint8, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
         uint8 mechanism = findMechanismOfProposal(proposalId_);
 
         // standard funding mechanism
@@ -160,7 +159,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
 
         // extraordinary funding mechanism
         else if (mechanism == 1) {
-            return _extraordinaryFundingVote(proposalId_, account_, support_);
+            return _extraordinaryFundingVote(proposalId_, account_);
         }
     }
 

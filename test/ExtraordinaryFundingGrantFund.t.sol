@@ -187,7 +187,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             "Extraordinary Proposal for Ajna token transfer to tester address"
         );
 
-
         // check proposal status
         IGovernor.ProposalState proposalState = _grantFund.state(testProposal.proposalId);
         assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Active));
@@ -198,7 +197,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             uint256 percentageRequested,
             uint256 startBlock,
             uint256 endBlock,
-            int256 votesReceived,
+            uint256 votesReceived,
             bool succeeded,
             bool executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
@@ -213,8 +212,38 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertFalse(executed);
     }
 
-    function testProposeExtraordinaryInvalid() external {
-        // _grantFund.proposeExtraordinary();
+    // TODO: finish implementing test
+    function xtestProposeExtraordinaryInvalid() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
+
+        vm.roll(100);
+
+        // set proposal params
+        uint256 percentageRequestedParam = 0.600000000000000000 * 1e18;
+        uint256 endBlockParam = block.number + 100_000;
+
+        // generate proposal targets
+        address[] memory targets = new address[](1);
+        targets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // TODO: check can't create proposal with invalid percentage requested
+
+        // generate proposal calldata
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            50_000_000 * 1e18
+        );
+
+        // TODO: check can't invoke with invalid calldata
+
+
     }
 
     function testProposeAndExecuteExtraordinary() external {
@@ -294,7 +323,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             uint256 percentageRequested,
             ,
             ,
-            int256 votesReceived,
+            uint256 votesReceived,
             bool succeeded,
             bool executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
