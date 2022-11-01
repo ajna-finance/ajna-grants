@@ -85,14 +85,14 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _token.transfer(address(_grantFund), 500_000_000 * 1e18);
     }
 
-    function xtestGetVotingPowerExtraordinary() external {
+    function testGetVotingPowerExtraordinary() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _selfDelegatedVotersArr);
 
         vm.roll(50);
 
         // check voting power is 0 whenn no proposal is available for voting
-        uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number - 1, "Extraordinary");
+        uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number - 1, "");
         assertEq(votingPower, 0);
 
         // generate proposal targets
@@ -112,7 +112,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         );
 
         // create and submit proposal
-        _createProposalExtraordinary(
+        TestProposalExtraordinary memory testProposal = _createProposalExtraordinary(
             _grantFund,
             _tokenHolder1,
             0.100000000000000000 * 1e18,
@@ -123,7 +123,9 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             "Extraordinary Proposal for Ajna token transfer to tester address"
         );
 
-        // TODO: check voting power is non 0 for extant proposal
+        // check voting power is greater than 0 for extant proposal
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, abi.encode(testProposal.proposalId));
+        assertEq(votingPower, 50_000_000 * 1e18);
     }
 
     function testGetMinimumThresholdPercentage() external {

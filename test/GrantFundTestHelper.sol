@@ -263,18 +263,12 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     function _extraordinaryVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_) internal {
-        string memory reason = "";
-        bytes memory params = bytes("Extraordinary");
-
-        // TODO: replace this
-        uint256 blockNumberToCheckWeightAt = block.number - 1;
-
-        uint256 votingWeight = grantFund_.getVotesWithParams(voter_, blockNumberToCheckWeightAt, params);
+        uint256 votingWeight = grantFund_.getVotesWithParams(voter_, block.number, abi.encode(proposalId_));
 
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support_, votingWeight, "");
-        grantFund_.castVoteWithReasonAndParams(proposalId_, support_, reason, params);
+        grantFund_.castVote(proposalId_, support_);
     }
 
     // expects a list of Proposal structs

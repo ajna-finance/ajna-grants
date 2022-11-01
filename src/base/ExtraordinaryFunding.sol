@@ -133,7 +133,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         }
 
         // check voting power at snapshot block
-        votes_ = _getVotes(account_, proposal.startBlock - 33, bytes("Extraordinary"));
+        votes_ = _getVotes(account_, block.number, abi.encode(proposalId_));
 
         if (support_ == 1) {
             proposal.votesReceived += int256(votes_);

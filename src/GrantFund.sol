@@ -170,11 +170,10 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
      * @dev    Snapshot checks are built into this function to ensure accurate power is returned regardless of the caller.
      * @dev    Number of votes available is equivalent to the usage of voting weight in the super class.
      * @param  account_     The voting account.
-     * @param  blockNumber_ The block number to check the snapshot at.
      * @param  params_      Params used to pass stage for Standard, and proposalId for extraordinary.
      * @return The number of votes available to an account in a given stage.
      */
-    function _getVotes(address account_, uint256 blockNumber_, bytes memory params_) internal view override(Governor, GovernorVotes) returns (uint256) {
+    function _getVotes(address account_, uint256, bytes memory params_) internal view override(Governor, GovernorVotes) returns (uint256) {
         QuarterlyDistribution memory currentDistribution = distributions[_distributionIdCheckpoints.latest()];
 
         // within screening period 1 token 1 vote
@@ -194,14 +193,20 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
                 return uint256(voter.budgetRemaining);
             }
         }
-        // TODO: add snapshot based upon encoding proposalId into params
-        // one token one vote for extraordinary funding
-        else if (keccak256(params_) == keccak256(bytes("Extraordinary"))) {
-            return super._getVotes(account_, blockNumber_, "");
-        }
-        // voting is not possible for non-specified pathways
         else {
-            return 0;
+            if (params_.length != 0) {
+                // attempt to decode a proposalId from the params
+                uint256 proposalId = abi.decode(params_, (uint256));
+
+                // one token one vote for extraordinary funding
+                if (extraordinaryFundingProposals[proposalId].proposalId != 0) {
+                    return super._getVotes(account_, extraordinaryFundingProposals[proposalId].startBlock - 33, "");
+                }
+            }
+            // voting is not possible for non-specified pathways
+            else {
+                return 0;
+            }
         }
     }
 
