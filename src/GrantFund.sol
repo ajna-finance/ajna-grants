@@ -171,19 +171,19 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
      * @dev    Number of votes available is equivalent to the usage of voting weight in the super class.
      * @param  account_     The voting account.
      * @param  blockNumber_ The block number to check the snapshot at.
-     * @param  stage_       The stage of the distribution period, or signifier of the vote being part of the extraordinary funding mechanism.
+     * @param  params_      Params used to pass stage for Standard, and proposalId for extraordinary.
      * @return The number of votes available to an account in a given stage.
      */
-    function _getVotes(address account_, uint256 blockNumber_, bytes memory stage_) internal view override(Governor, GovernorVotes) returns (uint256) {
+    function _getVotes(address account_, uint256 blockNumber_, bytes memory params_) internal view override(Governor, GovernorVotes) returns (uint256) {
         QuarterlyDistribution memory currentDistribution = distributions[_distributionIdCheckpoints.latest()];
 
         // within screening period 1 token 1 vote
-        if (keccak256(stage_) == keccak256(bytes("Screening"))) {
+        if (keccak256(params_) == keccak256(bytes("Screening"))) {
             // calculate voting weight based on the number of tokens held before the start of the distribution period
             return currentDistribution.startBlock == 0 ? 0 : super._getVotes(account_, currentDistribution.startBlock - 33, "");
         }
         // else if in funding period quadratic formula squares the number of votes
-        else if (keccak256(stage_) == keccak256(bytes("Funding"))) {
+        else if (keccak256(params_) == keccak256(bytes("Funding"))) {
             QuadraticVoter memory voter = quadraticVoters[currentDistribution.id][account_];
             // this is the first time a voter has attempted to vote this period
             if (voter.votingWeight == 0) {
@@ -196,7 +196,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, Governo
         }
         // TODO: add snapshot based upon encoding proposalId into params
         // one token one vote for extraordinary funding
-        else if (keccak256(stage_) == keccak256(bytes("Extraordinary"))) {
+        else if (keccak256(params_) == keccak256(bytes("Extraordinary"))) {
             return super._getVotes(account_, blockNumber_, "");
         }
         // voting is not possible for non-specified pathways

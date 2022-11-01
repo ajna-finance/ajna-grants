@@ -91,14 +91,45 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         vm.roll(50);
 
-        uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Extraordinary");
+        // check voting power is 0 whenn no proposal is available for voting
+        uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number - 1, "Extraordinary");
         assertEq(votingPower, 0);
+
+        // generate proposal targets
+        address[] memory targets = new address[](1);
+        targets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            50_000_000 * 1e18
+        );
+
+        // create and submit proposal
+        _createProposalExtraordinary(
+            _grantFund,
+            _tokenHolder1,
+            0.100000000000000000 * 1e18,
+            block.number + 100_000,
+            targets,
+            values,
+            calldatas,
+            "Extraordinary Proposal for Ajna token transfer to tester address"
+        );
+
+        // TODO: check voting power is non 0 for extant proposal
     }
 
     function testGetMinimumThresholdPercentage() external {
         // default threshold percentage is 50
         uint256 minimumThresholdPercentage = _grantFund.getMinimumThresholdPercentage();
-        assertEq(minimumThresholdPercentage, 50);
+        assertEq(minimumThresholdPercentage, 0.500000000000000000 * 1e18);
 
         // TODO: check percentage updates after proposal is passed
     }
@@ -224,9 +255,22 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         vm.roll(150);
 
-        // TODO: check status is active but not succesful
+        // check can't execute unsuccessful proposal
+        vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
+        _grantFund.executeExtraordinary(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));
+
+        // check proposal status
+        IGovernor.ProposalState proposalState = _grantFund.state(testProposal.proposalId);
+        assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Active));
+
         // token holders vote on the proposal to pass it
         _extraordinaryVote(_grantFund, _tokenHolder1, testProposal.proposalId, 1);
+
+        // partial votes should leave the proposal as active, not succeed
+        proposalState = _grantFund.state(testProposal.proposalId);
+        assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Active));
+
+        // additional votes push the proposal over the threshold
         _extraordinaryVote(_grantFund, _tokenHolder2, testProposal.proposalId, 1);
         _extraordinaryVote(_grantFund, _tokenHolder3, testProposal.proposalId, 1);
         _extraordinaryVote(_grantFund, _tokenHolder4, testProposal.proposalId, 1);
@@ -239,16 +283,55 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _extraordinaryVote(_grantFund, _tokenHolder11, testProposal.proposalId, 1);
 
         // check proposal status
-        IGovernor.ProposalState proposalState = _grantFund.state(testProposal.proposalId);
+        proposalState = _grantFund.state(testProposal.proposalId);
         assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Succeeded));
 
-        // TODO: check proposal state
+        // check proposal state
+        (
+            uint256 proposalId,
+            uint256 percentageRequested,
+            ,
+            ,
+            int256 votesReceived,
+            bool succeeded,
+            bool executed
+        ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
+        assertEq(proposalId, testProposal.proposalId);
+        assertEq(percentageRequested, percentageRequestedParam);
+        assertEq(votesReceived, 11 * 50_000_000 * 1e18);
+        assertTrue(succeeded);
+        assertFalse(executed);
+
+        // minimum threshold percentage should be at default levels before the succesful proposal is executed
+        uint256 minimumThresholdPercentage = _grantFund.getMinimumThresholdPercentage();
+        assertEq(minimumThresholdPercentage, 0.500000000000000000 * 1e18);
 
         // execute proposal
         _grantFund.executeExtraordinary(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));
 
-        // TODO: check state updated as expected
+        // check state updated as expected
+        proposalState = _grantFund.state(testProposal.proposalId);
+        assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Executed));
+        (
+            ,
+            ,
+            ,
+            ,
+            votesReceived,
+            succeeded,
+            executed
+        ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
+        assertEq(votesReceived, 11 * 50_000_000 * 1e18);
+        assertTrue(succeeded);
+        assertTrue(executed);
 
+        // check can't execute proposal twice
+        vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
+        _grantFund.executeExtraordinary(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));
+
+        // minimum threshold percentage should increase after the succesful proposal is executed
+        minimumThresholdPercentage = _grantFund.getMinimumThresholdPercentage();
+        assertEq(minimumThresholdPercentage, 0.550000000000000000 * 1e18);
     }
 
 }
