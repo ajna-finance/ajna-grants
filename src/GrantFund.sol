@@ -4,7 +4,6 @@ pragma solidity 0.8.16;
 
 import "@oz/governance/Governor.sol";
 import "@oz/governance/extensions/GovernorVotes.sol";
-import "@oz/governance/extensions/GovernorVotesQuorumFraction.sol";
 import "@oz/governance/IGovernor.sol";
 import "@oz/governance/utils/IVotes.sol";
 import "@oz/security/ReentrancyGuard.sol";
@@ -18,7 +17,7 @@ import "./base/StandardFunding.sol";
 
 import "@std/console.sol";
 
-contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotesQuorumFraction, ReentrancyGuard {
+contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotes, ReentrancyGuard {
 
     using Checkpoints for Checkpoints.History;
 
@@ -29,7 +28,6 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotesQuorum
     constructor(IVotes token_)
         Governor("AjnaEcosystemGrantFund")
         GovernorVotes(token_) // token that will be used for voting
-        GovernorVotesQuorumFraction(4) // percentage of total voting power required; updateable via governance proposal
     {
         ajnaTokenAddress = address(token_);
     }
@@ -234,39 +232,30 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotesQuorum
         return true;
     }
 
-    // REQUIRED OVERRIDE
-    function _voteSucceeded(uint256 proposalId) internal view override(Governor) returns (bool) {
+   /**
+     * @notice Required override; not currently used due to divergence in voting logic.
+     * @dev    See {IGovernor-quorum}.
+     */
+    function quorum(uint256) public pure override(IGovernor) returns (uint256) {}
 
-    }
+   /**
+     * @notice Required override; not currently used due to divergence in voting logic.
+     * @dev    Replaced by mechanism specific voteSucceeded functions.
+     * @dev    See {IGovernor-quorum}.
+     */
+     function _voteSucceeded(uint256 proposalId) internal view override(Governor) returns (bool) {}
 
     /**
-     * @notice Required ovverride.
+     * @notice Required override.
      * @dev    Since no voting delay is implemented, this is hardcoded to 0.
      */
     function votingDelay() public pure override(IGovernor) returns (uint256) {
         return 0;
     }
 
-    // FIXME:
     /**
-     * @notice Calculates the remaining blocks left in the current voting period
-     * @dev    Required ovverride; see {IGovernor-votingPeriod}.
-     * @return The remaining number of blocks.
+     * @notice    Required override; see {IGovernor-votingPeriod}.
      */
-    function votingPeriod() public view override(IGovernor) returns (uint256) {
-        QuarterlyDistribution memory currentDistribution = distributions[_distributionIdCheckpoints.latest()];
-        uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
-
-        if (block.number < screeningPeriodEndBlock) {
-            return screeningPeriodEndBlock - block.number;
-        }
-        else if (block.number > screeningPeriodEndBlock && block.number < currentDistribution.endBlock) {
-            return currentDistribution.endBlock - block.number;
-        }
-        // TODO: determine how to implement exraordinary funding mechanism...
-        else {
-            return 0;
-        }
-    }
+    function votingPeriod() public view override(IGovernor) returns (uint256) {}
 
 }

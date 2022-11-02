@@ -131,8 +131,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // default threshold percentage is 50
         uint256 minimumThresholdPercentage = _grantFund.getMinimumThresholdPercentage();
         assertEq(minimumThresholdPercentage, 0.500000000000000000 * 1e18);
-
-        // TODO: check percentage updates after proposal is passed
     }
 
     /** 

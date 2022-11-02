@@ -10,8 +10,6 @@ import "../interfaces/IExtraordinaryFunding.sol";
 
 import "../libraries/Maths.sol";
 
-import "@std/console.sol";
-
 abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
     /***********************/
