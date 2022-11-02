@@ -227,6 +227,20 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**************************/
 
     /**
+     * @notice Execute a proposal that has been approved by the community.
+     * @dev    Calls out to Governor.execute()
+     * @dev    Check for proposal being succesfully funded or previously executed is handled by Governor.execute().
+     * @return proposalId_ of the executed proposal.
+     */
+    function executeStandard(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable nonReentrant returns (uint256 proposalId_) {
+        // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
+        if (block.number <= distributions[_distributionIdCheckpoints.latest()].endBlock + 50400) revert ExecuteProposalInvalid();
+
+        proposalId_ = super.execute(targets_, values_, calldatas_, descriptionHash_);
+        standardFundingProposals[proposalId_].executed = true;
+    }
+
+    /**
      * @notice Submit a new proposal to the Grant Coordination Fund Standard Funding mechanism.
      * @dev    All proposals can be submitted by anyone. There can only be one value in each array. Interface inherits from OZ.propose().
      * @param  targets_ List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.

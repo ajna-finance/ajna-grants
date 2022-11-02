@@ -3,8 +3,9 @@
 pragma solidity 0.8.16;
 
 import "@oz/governance/Governor.sol";
+import "@oz/security/ReentrancyGuard.sol";
 
-abstract contract Funding is Governor {
+abstract contract Funding is Governor, ReentrancyGuard {
 
     /*********************/
     /*** Custom Errors ***/
@@ -37,6 +38,11 @@ abstract contract Funding is Governor {
      * @notice User attempted to submit a proposal with too many target, values or calldatas, or to the wrong method.
      */
     error InvalidProposal();
+
+    /**
+     * @notice User attempted to interacted with a method not implemented in the GrantFund.
+     */
+    error MethodNotImplemented();
 
     error ProposalAlreadyExists();
 

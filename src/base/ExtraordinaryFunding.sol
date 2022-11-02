@@ -36,7 +36,29 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /*** Proposal Functions ***/
     /**************************/
 
-    // TODO: remove percentage requested argument and calculate it from the proposal calldata
+    /**
+     * @notice Execute an extraordinary funding proposal.
+     * @param targets_         The addresses of the contracts to call.
+     * @param values_          The amounts of ETH to send to each target.
+     * @param calldatas_       The calldata to send to each target.
+     * @param descriptionHash_ The hash of the proposal's description.
+     * @return proposalId_ The ID of the executed proposal.
+     */
+    function executeExtraordinary(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public nonReentrant returns (uint256 proposalId_) {
+        proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
+
+        ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
+
+        if (proposal.executed != false || proposal.succeeded != true) {
+            revert ExecuteExtraordinaryProposalInvalid();
+        }
+
+        fundedExtraordinaryProposals.push(proposal);
+
+        super.execute(targets_, values_, calldatas_, descriptionHash_);
+        proposal.executed = true;
+    }
+
     /**
      * @notice Submit a proposal to the extraordinary funding flow.
      * @param endBlock_            Block number of the end of the extraordinary funding proposal voting period.
@@ -116,23 +138,6 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             block.number,
             endBlock_,
             description_);
-    }
-
-    // TODO: add reentrancy check
-    // TODO: finish cleaning up this function
-    function executeExtraordinary(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public returns (uint256 proposalId_) {
-        proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
-
-        ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
-
-        if (proposal.executed != false || proposal.succeeded != true) {
-            revert ExecuteExtraordinaryProposalInvalid();
-        }
-
-        fundedExtraordinaryProposals.push(proposal);
-
-        super.execute(targets_, values_, calldatas_, descriptionHash_);
-        proposal.executed = true;
     }
 
     /************************/

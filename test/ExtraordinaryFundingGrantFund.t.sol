@@ -206,6 +206,9 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(votesReceived, 0);
         assertFalse(succeeded);
         assertFalse(executed);
+
+        // check findMechanism identifies it as an extraOrdinary proposal
+        assertEq(_grantFund.findMechanismOfProposal(proposalId), 1);
     }
 
     function testProposeExtraordinaryMultipleCalldata() external {
@@ -373,6 +376,10 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(votesReceived, 11 * 50_000_000 * 1e18);
         assertTrue(succeeded);
         assertTrue(executed);
+
+        // check tokens transferred to the recipient address
+        assertEq(_token.balanceOf(_tokenHolder1), 100_000_000 * 1e18);
+        assertEq(_token.balanceOf(address(_grantFund)), 450_000_000 * 1e18);
 
         // check can't execute proposal twice
         vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);

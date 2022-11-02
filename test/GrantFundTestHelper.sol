@@ -204,6 +204,9 @@ abstract contract GrantFundTestHelper is Test {
         }
     }
 
+    /**
+     * @notice Helper function to execute a standard funding mechanism proposal.
+     */
     function _executeProposal(GrantFund grantFund_, AjnaToken token_, TestProposal memory testProposal_) internal {
         // calculate starting balances
         uint256 voterStartingBalance = token_.balanceOf(testProposal_.recipient);
@@ -217,7 +220,7 @@ abstract contract GrantFundTestHelper is Test {
         emit Transfer(address(grantFund_), testProposal_.recipient, testProposal_.tokensRequested);
         vm.expectEmit(true, true, false, true);
         emit DelegateVotesChanged(testProposal_.recipient, voterStartingBalance, voterStartingBalance + testProposal_.tokensRequested);
-        grantFund_.execute(testProposal_.targets, testProposal_.values, testProposal_.calldatas, keccak256(bytes(testProposal_.description)));
+        grantFund_.executeStandard(testProposal_.targets, testProposal_.values, testProposal_.calldatas, keccak256(bytes(testProposal_.description)));
 
         // check ending token balances
         assertEq(token_.balanceOf(testProposal_.recipient), voterStartingBalance + testProposal_.tokensRequested);

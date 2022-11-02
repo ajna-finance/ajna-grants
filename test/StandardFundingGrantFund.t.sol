@@ -208,6 +208,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(tokensRequested, 1 * 1e18);
         assertEq(fundingReceived, 0);
         assertFalse(executed);
+
+        // check findMechanism identifies it as a standard proposal
+        assertEq(_grantFund.findMechanismOfProposal(proposalId), 0);
     }
 
     function testInvalidProposalCalldata() external {
@@ -567,7 +570,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check can't execute proposals prior to the end of the challenge period
         vm.expectRevert(IStandardFunding.ExecuteProposalInvalid.selector);
-        _grantFund.execute(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
+        _grantFund.executeStandard(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
 
         // skip to the end of the DistributionPeriod
         vm.roll(700_000);
@@ -578,11 +581,11 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check that shouldn't be able to execute unfunded proposals
         vm.expectRevert("Governor: proposal not successful");
-        _grantFund.execute(testProposals[1].targets, testProposals[1].values, testProposals[1].calldatas, keccak256(bytes(testProposals[1].description)));
+        _grantFund.executeStandard(testProposals[1].targets, testProposals[1].values, testProposals[1].calldatas, keccak256(bytes(testProposals[1].description)));
 
         // check that shouldn't be able to execute a proposal twice
         vm.expectRevert("Governor: proposal not successful");
-        _grantFund.execute(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
+        _grantFund.executeStandard(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
     }
 
 }

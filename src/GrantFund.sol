@@ -6,7 +6,6 @@ import "@oz/governance/Governor.sol";
 import "@oz/governance/extensions/GovernorVotes.sol";
 import "@oz/governance/IGovernor.sol";
 import "@oz/governance/utils/IVotes.sol";
-import "@oz/security/ReentrancyGuard.sol";
 import "@oz/token/ERC20/IERC20.sol";
 import "@oz/utils/Checkpoints.sol";
 
@@ -15,9 +14,7 @@ import "./libraries/Maths.sol";
 import "./base/ExtraordinaryFunding.sol";
 import "./base/StandardFunding.sol";
 
-import "@std/console.sol";
-
-contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotes, ReentrancyGuard {
+contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotes {
 
     using Checkpoints for Checkpoints.History;
 
@@ -48,19 +45,11 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotes, Reen
         revert InvalidProposal();
     }
 
-    // TODO: rename to executeStandard
     /**
-     * @notice Execute a proposal that has been approved by the community.
-     * @dev    Calls out to Governor.execute()
-     * @dev    Check for proposal being succesfully funded or previously executed is handled by Governor.execute().
-     * @return proposalId_ of the executed proposal.
+     * @notice Overriding the default execute function to ensure all proposals travel through expected mechanisms.
      */
-    function execute(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable override(Governor) nonReentrant returns (uint256 proposalId_) {
-        // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
-        if (block.number <= distributions[_distributionIdCheckpoints.latest()].endBlock + 50400) revert ExecuteProposalInvalid();
-
-        proposalId_ = super.execute(targets_, values_, calldatas_, descriptionHash_);
-        standardFundingProposals[proposalId_].executed = true;
+    function execute(address[] memory, uint256[] memory, bytes[] memory, bytes32) public payable override(Governor) returns (uint256) {
+        revert MethodNotImplemented();
     }
 
     /**
