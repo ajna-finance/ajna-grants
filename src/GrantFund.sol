@@ -13,14 +13,12 @@ import "@oz/utils/Checkpoints.sol";
 
 import "./libraries/Maths.sol";
 
-import "./interfaces/IGrantFund.sol";
-
 import "./base/ExtraordinaryFunding.sol";
 import "./base/StandardFunding.sol";
 
 import "@std/console.sol";
 
-contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding, GovernorVotesQuorumFraction, ReentrancyGuard {
+contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotesQuorumFraction, ReentrancyGuard {
 
     using Checkpoints for Checkpoints.History;
 

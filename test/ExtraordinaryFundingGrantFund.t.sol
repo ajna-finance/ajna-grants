@@ -115,7 +115,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         TestProposalExtraordinary memory testProposal = _createProposalExtraordinary(
             _grantFund,
             _tokenHolder1,
-            0.100000000000000000 * 1e18,
             block.number + 100_000,
             targets,
             values,
@@ -156,8 +155,8 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(100);
 
         // set proposal params
-        uint256 percentageRequestedParam = 0.100000000000000000 * 1e18;
         uint256 endBlockParam = block.number + 100_000;
+        uint256 tokensRequestedParam = 50_000_000 * 1e18;
 
         // generate proposal targets
         address[] memory targets = new address[](1);
@@ -172,14 +171,13 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         calldatas[0] = abi.encodeWithSignature(
             "transfer(address,uint256)",
             _tokenHolder1,
-            50_000_000 * 1e18
+            tokensRequestedParam
         );
 
         // create and submit proposal
         TestProposalExtraordinary memory testProposal = _createProposalExtraordinary(
             _grantFund,
             _tokenHolder1,
-            percentageRequestedParam,
             endBlockParam,
             targets,
             values,
@@ -194,7 +192,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // check proposal state
         (
             uint256 proposalId,
-            uint256 percentageRequested,
+            uint256 tokensRequested,
             uint256 startBlock,
             uint256 endBlock,
             uint256 votesReceived,
@@ -203,8 +201,8 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
 
         assertEq(proposalId, testProposal.proposalId);
-        assertEq(percentageRequested, percentageRequestedParam);
-        assertEq(_grantFund.getPercentageOfTreasury(percentageRequested), testProposal.tokensRequested);
+        assertEq(tokensRequested, tokensRequestedParam);
+        assertEq(tokensRequested, testProposal.tokensRequested);
         assertEq(startBlock, block.number);
         assertEq(endBlock, endBlockParam);
         assertEq(votesReceived, 0);
@@ -223,7 +221,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(100);
 
         // set proposal params
-        uint256 percentageRequestedParam = 1.000000000000000000 * 1e18;
         uint256 endBlockParam = block.number + 100_000;
 
         // generate proposal targets
@@ -243,7 +240,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         );
 
         vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInvalid.selector);
-        _grantFund.proposeExtraordinary(percentageRequestedParam, endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
+        _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
 
         // check can't invoke with invalid calldata
         calldatas = new bytes[](1);
@@ -253,9 +250,8 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             50_000_000 * 1e18
         );
 
-        percentageRequestedParam = 0.100000000000000000 * 1e18;
         vm.expectRevert(Funding.InvalidSignature.selector);
-        _grantFund.proposeExtraordinary(percentageRequestedParam, endBlockParam, targets, values, calldatas, "burn extraordinary");
+        _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "burn extraordinary");
 
         // check can't submit proposal with end block higher than limit
         endBlockParam = 500_000;
@@ -268,7 +264,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             50_000_000 * 1e18
         );
         vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInvalid.selector);
-        _grantFund.proposeExtraordinary(percentageRequestedParam, endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
+        _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
     }
 
     function testProposeAndExecuteExtraordinary() external {
@@ -278,8 +274,8 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(100);
 
         // set proposal params
-        uint256 percentageRequestedParam = 0.100000000000000000 * 1e18;
         uint256 endBlockParam = block.number + 100_000;
+        uint256 tokensRequestedParam = 50_000_000 * 1e18;
 
         // generate proposal targets
         address[] memory targets = new address[](1);
@@ -301,7 +297,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         TestProposalExtraordinary memory testProposal = _createProposalExtraordinary(
             _grantFund,
             _tokenHolder1,
-            percentageRequestedParam,
             endBlockParam,
             targets,
             values,
@@ -345,7 +340,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // check proposal state
         (
             uint256 proposalId,
-            uint256 percentageRequested,
+            uint256 tokensRequested,
             ,
             ,
             uint256 votesReceived,
@@ -353,7 +348,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             bool executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
         assertEq(proposalId, testProposal.proposalId);
-        assertEq(percentageRequested, percentageRequestedParam);
+        assertEq(tokensRequested, tokensRequestedParam);
         assertEq(votesReceived, 11 * 50_000_000 * 1e18);
         assertTrue(succeeded);
         assertFalse(executed);

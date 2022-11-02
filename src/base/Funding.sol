@@ -40,6 +40,8 @@ abstract contract Funding is Governor {
 
     error ProposalAlreadyExists();
 
+    error ProposalNotFound();
+
     /***********************/
     /*** State Variables ***/
     /***********************/

@@ -3,7 +3,6 @@ pragma solidity 0.8.16;
 
 import "../src/AjnaToken.sol";
 import "../src/GrantFund.sol";
-import "../src/interfaces/IGrantFund.sol";
 import "../src/interfaces/IStandardFunding.sol";
 
 import "./utils/SigUtils.sol";
@@ -70,7 +69,6 @@ abstract contract GrantFundTestHelper is Test {
         string description;
         address recipient;
         uint256 tokensRequested;
-        uint256 percentageRequested;
         uint256 endBlock;
     }
 
@@ -89,7 +87,6 @@ abstract contract GrantFundTestHelper is Test {
     function _createProposalExtraordinary(
         GrantFund grantFund_,
         address proposer_,
-        uint256 percentageRequested,
         uint256 endBlock,
         address[] memory targets_,
         uint256[] memory values_,
@@ -114,7 +111,7 @@ abstract contract GrantFundTestHelper is Test {
             endBlock,
             description
         );
-        uint256 proposalId = grantFund_.proposeExtraordinary(percentageRequested, endBlock, targets_, values_, proposalCalldatas_, description);
+        uint256 proposalId = grantFund_.proposeExtraordinary(endBlock, targets_, values_, proposalCalldatas_, description);
         assertEq(proposalId, expectedProposalId);
 
         // https://github.com/ethereum/solidity/issues/6012
@@ -123,7 +120,7 @@ abstract contract GrantFundTestHelper is Test {
             (bytes32,address,uint256)
         );
 
-        return TestProposalExtraordinary(proposalId, targets_, values_, proposalCalldatas_, description, recipient, tokensRequested, percentageRequested, endBlock);
+        return TestProposalExtraordinary(proposalId, targets_, values_, proposalCalldatas_, description, recipient, tokensRequested, endBlock);
     }
 
     function _createProposalStandard(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (TestProposal memory) {

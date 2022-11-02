@@ -30,10 +30,10 @@ interface IExtraordinaryFunding {
 
     struct ExtraordinaryFundingProposal {
         uint256  proposalId;
-        uint256  percentageRequested; // Percentage of the total treasury of AJNA tokens requested.
-        uint256  startBlock;          // Block number of the start of the extraordinary funding proposal voting period.
+        uint256  tokensRequested; // Number of AJNA tokens requested.
+        uint256  startBlock;      // Block number of the start of the extraordinary funding proposal voting period.
         uint256  endBlock;
-        uint256  votesReceived;       // Total votes received for this proposal.
+        uint256  votesReceived;   // Total votes received for this proposal.
         bool     succeeded;
         bool     executed;
     }

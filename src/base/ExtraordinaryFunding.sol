@@ -41,7 +41,6 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     // TODO: remove percentage requested argument and calculate it from the proposal calldata
     /**
      * @notice Submit a proposal to the extraordinary funding flow.
-     * @param percentageRequested_ Percentage of the total treasury of AJNA tokens requested.
      * @param endBlock_            Block number of the end of the extraordinary funding proposal voting period.
      * @param targets_             Array of addresses to send transactions to.
      * @param values_              Array of values to send with transactions.
@@ -50,7 +49,6 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @return proposalId_         ID of the newly submitted proposal.
      */
     function proposeExtraordinary(
-        uint256 percentageRequested_, // WAD
         uint256 endBlock_,
         address[] memory targets_,
         uint256[] memory values_,
@@ -100,18 +98,15 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             }
         }
 
-        // check percentage requested is within limits
+        // check tokens requested is within limits
         if (totalTokensRequested > getPercentageOfTreasury(Maths.WAD - getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
 
-        // TODO: remove this check and use amount greater than minimum threshold to set percentageRequested
-        // check calldatas_ matches percentageRequested_
-        // if (totalTokensRequested != getPercentageOfTreasury(percentageRequested_)) revert ExtraordinaryFundingProposalInvalid();
-
+        // store newly created proposal
         ExtraordinaryFundingProposal storage newProposal = extraordinaryFundingProposals[proposalId_];
         newProposal.proposalId = proposalId_;
         newProposal.startBlock = block.number;
         newProposal.endBlock = endBlock_;
-        newProposal.percentageRequested = percentageRequested_;
+        newProposal.tokensRequested = totalTokensRequested;
 
         emit ProposalCreated(
             proposalId_,
@@ -167,7 +162,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         proposal.votesReceived += votes_;
 
         // check if the proposal has received more votes than minimumThreshold and tokensRequestedPercentage of all tokens
-        if (proposal.votesReceived >= getPercentageOfTreasury(proposal.percentageRequested + getMinimumThresholdPercentage())) {
+        if (proposal.votesReceived >= proposal.tokensRequested + getPercentageOfTreasury(getMinimumThresholdPercentage())) {
             proposal.succeeded = true;
         }
         else {
@@ -216,7 +211,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
         return (
             proposal.proposalId,
-            proposal.percentageRequested,
+            proposal.tokensRequested,
             proposal.startBlock,
             proposal.endBlock,
             proposal.votesReceived,
