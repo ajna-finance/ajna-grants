@@ -38,6 +38,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /*** Proposal Functions ***/
     /**************************/
 
+    // TODO: remove percentage requested argument and calculate it from the proposal calldata
     /**
      * @notice Submit a proposal to the extraordinary funding flow.
      * @param percentageRequested_ Percentage of the total treasury of AJNA tokens requested.
@@ -99,8 +100,12 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             }
         }
 
+        // check percentage requested is within limits
+        if (totalTokensRequested > getPercentageOfTreasury(Maths.WAD - getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
+
+        // TODO: remove this check and use amount greater than minimum threshold to set percentageRequested
         // check calldatas_ matches percentageRequested_
-        if (totalTokensRequested != getPercentageOfTreasury(percentageRequested_)) revert ExtraordinaryFundingProposalInvalid();
+        // if (totalTokensRequested != getPercentageOfTreasury(percentageRequested_)) revert ExtraordinaryFundingProposalInvalid();
 
         ExtraordinaryFundingProposal storage newProposal = extraordinaryFundingProposals[proposalId_];
         newProposal.proposalId = proposalId_;

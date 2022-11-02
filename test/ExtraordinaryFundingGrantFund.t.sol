@@ -212,15 +212,18 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertFalse(executed);
     }
 
-    // TODO: finish implementing test
-    function xtestProposeExtraordinaryInvalid() external {
+    function testProposeExtraordinaryMultipleCalldata() external {
+        // TODO: finish implementing this test
+    }
+
+    function testProposeExtraordinaryInvalid() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _selfDelegatedVotersArr);
 
         vm.roll(100);
 
         // set proposal params
-        uint256 percentageRequestedParam = 0.600000000000000000 * 1e18;
+        uint256 percentageRequestedParam = 1.000000000000000000 * 1e18;
         uint256 endBlockParam = block.number + 100_000;
 
         // generate proposal targets
@@ -231,19 +234,41 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
 
-        // TODO: check can't create proposal with invalid percentage requested
-
-        // generate proposal calldata
+        // check can't request more than minium threshold amount of tokens
         bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            500_000_000 * 1e18
+        );
+
+        vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInvalid.selector);
+        _grantFund.proposeExtraordinary(percentageRequestedParam, endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
+
+        // check can't invoke with invalid calldata
+        calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "burn(address,uint256)",
+            _tokenHolder1,
+            50_000_000 * 1e18
+        );
+
+        percentageRequestedParam = 0.100000000000000000 * 1e18;
+        vm.expectRevert(Funding.InvalidSignature.selector);
+        _grantFund.proposeExtraordinary(percentageRequestedParam, endBlockParam, targets, values, calldatas, "burn extraordinary");
+
+        // check can't submit proposal with end block higher than limit
+        endBlockParam = 500_000;
+
+        // check can't request more than minium threshold amount of tokens
+        calldatas = new bytes[](1);
         calldatas[0] = abi.encodeWithSignature(
             "transfer(address,uint256)",
             _tokenHolder1,
             50_000_000 * 1e18
         );
-
-        // TODO: check can't invoke with invalid calldata
-
-
+        vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInvalid.selector);
+        _grantFund.proposeExtraordinary(percentageRequestedParam, endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
     }
 
     function testProposeAndExecuteExtraordinary() external {
