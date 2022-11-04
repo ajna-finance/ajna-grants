@@ -14,9 +14,11 @@ import "./libraries/Maths.sol";
 import "./base/ExtraordinaryFunding.sol";
 import "./base/StandardFunding.sol";
 
-contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotes {
+contract GrantFund is ExtraordinaryFunding, StandardFunding {
 
     using Checkpoints for Checkpoints.History;
+
+    IVotes public immutable token;
 
     /*******************/
     /*** Constructor ***/
@@ -24,9 +26,9 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotes {
 
     constructor(IVotes token_)
         Governor("AjnaEcosystemGrantFund")
-        GovernorVotes(token_) // token that will be used for voting
     {
         ajnaTokenAddress = address(token_);
+        token = token_;
     }
 
     /**************************/
@@ -128,7 +130,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotes {
 
                 // this is the first time a voter has attempted to vote this period
                 if (voter.votingWeight == 0) {
-                    voter.votingWeight = Maths.wpow(super._getVotes(account_, screeningPeriodEndBlock - 33, ""), 2);
+                    voter.votingWeight = Maths.wpow(_getVotesSinceSnapshot(account_, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
                     voter.budgetRemaining = int256(voter.votingWeight);
                 }
 
@@ -157,20 +159,20 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotes {
      * @param  params_      Params used to pass stage for Standard, and proposalId for extraordinary.
      * @return The number of votes available to an account in a given stage.
      */
-    function _getVotes(address account_, uint256, bytes memory params_) internal view override(Governor, GovernorVotes) returns (uint256) {
+    function _getVotes(address account_, uint256, bytes memory params_) internal view override(Governor) returns (uint256) {
         QuarterlyDistribution memory currentDistribution = distributions[_distributionIdCheckpoints.latest()];
 
         // within screening period 1 token 1 vote
         if (keccak256(params_) == keccak256(bytes("Screening"))) {
             // calculate voting weight based on the number of tokens held before the start of the distribution period
-            return currentDistribution.startBlock == 0 ? 0 : super._getVotes(account_, currentDistribution.startBlock - 33, "");
+            return currentDistribution.startBlock == 0 ? 0 : _getVotesSinceSnapshot(account_, currentDistribution.startBlock - 33, currentDistribution.startBlock);
         }
         // else if in funding period quadratic formula squares the number of votes
         else if (keccak256(params_) == keccak256(bytes("Funding"))) {
             QuadraticVoter memory voter = quadraticVoters[currentDistribution.id][account_];
             // this is the first time a voter has attempted to vote this period
             if (voter.votingWeight == 0) {
-                return Maths.wpow(super._getVotes(account_, currentDistribution.endBlock - 72033, ""), 2);
+                return Maths.wpow(_getVotesSinceSnapshot(account_, currentDistribution.endBlock - 72033, currentDistribution.endBlock - 72000), 2);
             }
             // voter has already allocated some of their budget this period
             else {
@@ -182,9 +184,11 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotes {
                 // attempt to decode a proposalId from the params
                 uint256 proposalId = abi.decode(params_, (uint256));
 
+                ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId];
+
                 // one token one vote for extraordinary funding
-                if (extraordinaryFundingProposals[proposalId].proposalId != 0) {
-                    return super._getVotes(account_, extraordinaryFundingProposals[proposalId].startBlock - 33, "");
+                if (proposal.proposalId != 0) {
+                    return _getVotesSinceSnapshot(account_, proposal.startBlock - 33, proposal.startBlock);
                 }
             }
             // voting is not possible for non-specified pathways
@@ -192,6 +196,16 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding, GovernorVotes {
                 return 0;
             }
         }
+    }
+
+    function _getVotesSinceSnapshot(address account_, uint256 snapshot_, uint256 voteStartBlock_) internal view returns (uint256) {
+        uint256 votes1 = token.getPastVotes(account_, snapshot_);
+
+        // enable voting weight to be calculated during the voting period's start block
+        voteStartBlock_ = voteStartBlock_ == block.number ? block.number - 1 : voteStartBlock_;
+        uint256 votes2 = token.getPastVotes(account_, voteStartBlock_);
+
+        return Maths.min(votes2, votes1);
     }
 
     /**************************/

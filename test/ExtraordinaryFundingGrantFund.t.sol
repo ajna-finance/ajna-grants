@@ -127,6 +127,73 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(votingPower, 50_000_000 * 1e18);
     }
 
+    function testGetVotingPowerDelegateTokens() external {
+        // token holder 1 self delegates
+        _delegateVotes(_token, _tokenHolder1, _tokenHolder1);
+        _delegateVotes(_token, _tokenHolder2, _tokenHolder2);
+
+        vm.roll(17);
+
+        // check voting power is 0 whenn no proposal is available for voting
+        uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number - 1, "");
+        assertEq(votingPower, 0);
+
+        // generate proposal targets
+        address[] memory targets = new address[](1);
+        targets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            50_000_000 * 1e18
+        );
+
+        // voter transfers some of their tokens after the snapshot block
+        vm.roll(25);
+        changePrank(_tokenHolder1);
+        _token.transfer(_tokenHolder2, 25_000_000 * 1e18);
+
+        // create and submit proposal at block 50
+        vm.roll(50);
+        TestProposalExtraordinary memory testProposal = _createProposalExtraordinary(
+            _grantFund,
+            _tokenHolder1,
+            block.number + 100_000,
+            targets,
+            values,
+            calldatas,
+            "Extraordinary Proposal for Ajna token transfer to tester address"
+        );
+
+        // check voting power at vote start
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, abi.encode(testProposal.proposalId));
+        assertEq(votingPower, 25_000_000 * 1e18);
+
+        vm.roll(100);
+
+        // token holder transfers their remaining delegated tokens to a different address after vote start
+        changePrank(_tokenHolder1);
+        _token.transfer(_tokenHolder2, 20_000_000 * 1e18);
+
+        // check voting power of tokenHolder1 matches minimum of snapshot period
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, abi.encode(testProposal.proposalId));
+        assertEq(votingPower, 25_000_000 * 1e18);
+
+        // check voting power of tokenHolder2 is 50_000_000, since received tokens during the snapshot period need to be redelegated
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder2, block.number, abi.encode(testProposal.proposalId));
+        assertEq(votingPower, 50_000_000 * 1e18);
+
+        // check voting power of tokenHolder3 is 0, since they missed the snapshot
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder3, block.number, abi.encode(testProposal.proposalId));
+        assertEq(votingPower, 0);
+    }
+
     function testGetMinimumThresholdPercentage() external {
         // default threshold percentage is 50
         uint256 minimumThresholdPercentage = _grantFund.getMinimumThresholdPercentage();
