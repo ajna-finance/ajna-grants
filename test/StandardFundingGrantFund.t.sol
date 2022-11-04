@@ -102,19 +102,24 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _selfDelegatedVotersArr);
 
-        // check voting power before screening stage has started
         vm.roll(50);
-
-        uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Screening");
-        assertEq(votingPower, 0);
-
-        // skip forward 50 blocks to ensure voters made it into the voting power snapshot
-        vm.roll(100);
 
         // start distribution period
         _startDistributionPeriod(_grantFund);
 
-        // check voting power
+        // check voting power after screening stage has started
+        vm.roll(100);
+
+        uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Screening");
+        assertEq(votingPower, 50_000_000 * 1e18);
+
+        // skip forward 150 blocks and transfer some tokens after voting power was determined
+        vm.roll(150);
+
+        changePrank(_tokenHolder1);
+        _token.transfer(_tokenHolder2, 25_000_000 * 1e18);
+
+        // check voting power is unchanged
         votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Screening");
         assertEq(votingPower, 50_000_000 * 1e18);
 

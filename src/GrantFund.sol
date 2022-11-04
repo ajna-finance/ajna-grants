@@ -165,7 +165,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
         // within screening period 1 token 1 vote
         if (keccak256(params_) == keccak256(bytes("Screening"))) {
             // calculate voting weight based on the number of tokens held before the start of the distribution period
-            return currentDistribution.startBlock == 0 ? 0 : _getVotesSinceSnapshot(account_, currentDistribution.startBlock - 33, currentDistribution.startBlock);
+            return _getVotesSinceSnapshot(account_, currentDistribution.startBlock - 33, currentDistribution.startBlock);
         }
         // else if in funding period quadratic formula squares the number of votes
         else if (keccak256(params_) == keccak256(bytes("Funding"))) {
