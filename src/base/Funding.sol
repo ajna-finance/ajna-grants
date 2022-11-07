@@ -61,6 +61,55 @@ abstract contract Funding is Governor, ReentrancyGuard {
      */
     mapping(uint256 => mapping(address => bool)) hasScreened;
 
+    /**************************/
+    /*** Internal Functions ***/
+    /**************************/
+
+    /**
+     * @notice Verifies proposal's targets, values, and calldatas match specifications.
+     * @param targets_         The addresses of the contracts to call.
+     * @param values_          The amounts of ETH to send to each target.
+     * @param calldatas_       The calldata to send to each target.
+     * @return tokensRequested_ The amount of tokens requested in the calldata.
+     */
+    function _validateCallDatas(address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory calldatas_) internal view returns (uint256 tokensRequested_) {
+
+        for (uint256 i = 0; i < targets_.length;) {
+
+            // check  targets and values are valid
+            if (targets_[i] != ajnaTokenAddress) revert InvalidTarget();
+            if (values_[i] != 0) revert InvalidValues();
+
+            // check calldata function selector is transfer()
+            bytes memory selDataWithSig = calldatas_[i];
+
+            bytes4 selector;
+            //slither-disable-next-line assembly
+            assembly {
+                selector := mload(add(selDataWithSig, 0x20))
+            }
+            if (selector != bytes4(0xa9059cbb)) revert InvalidSignature();
+
+            // https://github.com/ethereum/solidity/issues/9439
+            // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
+            uint256 tokensRequested;
+            bytes memory tokenDataWithSig = calldatas_[i];
+            //slither-disable-next-line assembly
+            assembly {
+                tokensRequested := mload(add(tokenDataWithSig, 68))
+            }
+
+            // update tokens requested for additional calldata
+            tokensRequested_ += tokensRequested;
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /**********************/
     /*** View Functions ***/
     /**********************/

@@ -267,40 +267,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         newProposal.proposalId = proposalId_;
         newProposal.distributionId = _distributionIdCheckpoints.latest();
 
-        // TODO: convert this into an internal function that returns tokensRequested sum and use for both propose<>()
         // check proposal parameters are valid and update tokensRequested
-        for (uint256 i = 0; i < targets_.length;) {
-
-            // check  targets and values are valid
-            if (targets_[i] != ajnaTokenAddress) revert InvalidTarget();
-            if (values_[i] != 0) revert InvalidValues();
-
-            // check calldata function selector is transfer()
-            bytes memory selDataWithSig = calldatas_[i];
-
-            bytes4 selector;
-            //slither-disable-next-line assembly
-            assembly {
-                selector := mload(add(selDataWithSig, 0x20))
-            }
-            if (selector != bytes4(0xa9059cbb)) revert InvalidSignature();
-
-            // https://github.com/ethereum/solidity/issues/9439
-            // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
-            uint256 tokensRequested;
-            bytes memory tokenDataWithSig = calldatas_[i];
-            //slither-disable-next-line assembly
-            assembly {
-                tokensRequested := mload(add(tokenDataWithSig, 68))
-            }
-
-            // update tokens requested for additional calldata
-            newProposal.tokensRequested += tokensRequested;
-
-            unchecked {
-                ++i;
-            }
-        }
+        newProposal.tokensRequested = _validateCallDatas(targets_, values_, calldatas_);
 
         emit ProposalCreated(
             proposalId_,

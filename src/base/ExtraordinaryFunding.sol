@@ -82,41 +82,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             revert ExtraordinaryFundingProposalInvalid();
         }
 
-        uint256 totalTokensRequested = 0;
-
-        // check proposal attributes are valid
-        for (uint256 i = 0; i < targets_.length;) {
-
-            // check  targets and values are valid
-            if (targets_[i] != ajnaTokenAddress) revert InvalidTarget();
-            if (values_[i] != 0) revert InvalidValues();
-
-            // check calldata function selector is transfer()
-            bytes memory selDataWithSig = calldatas_[i];
-
-            bytes4 selector;
-            //slither-disable-next-line assembly
-            assembly {
-                selector := mload(add(selDataWithSig, 0x20))
-            }
-            if (selector != bytes4(0xa9059cbb)) revert InvalidSignature();
-
-            // https://github.com/ethereum/solidity/issues/9439
-            // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
-            uint256 tokensRequested;
-            bytes memory tokenDataWithSig = calldatas_[i];
-            //slither-disable-next-line assembly
-            assembly {
-                tokensRequested := mload(add(tokenDataWithSig, 68))
-            }
-
-            // update tokens requested for additional calldata
-            totalTokensRequested += tokensRequested;
-
-            unchecked {
-                ++i;
-            }
-        }
+        uint256 totalTokensRequested = _validateCallDatas(targets_, values_, calldatas_);
 
         // check tokens requested is within limits
         if (totalTokensRequested > getPercentageOfTreasury(Maths.WAD - getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
@@ -167,8 +133,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         // check if the proposal has received more votes than minimumThreshold and tokensRequestedPercentage of all tokens
         if (proposal.votesReceived >= proposal.tokensRequested + getPercentageOfTreasury(getMinimumThresholdPercentage())) {
             proposal.succeeded = true;
-        }
-        else {
+        } else {
             proposal.succeeded = false;
         }
 
