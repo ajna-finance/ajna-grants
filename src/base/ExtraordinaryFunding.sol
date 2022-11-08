@@ -85,7 +85,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         uint256 totalTokensRequested = _validateCallDatas(targets_, values_, calldatas_);
 
         // check tokens requested is within limits
-        if (totalTokensRequested > getPercentageOfTreasury(Maths.WAD - getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
+        if (totalTokensRequested > getSliceOfTreasury(Maths.WAD - getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
 
         // store newly created proposal
         ExtraordinaryFundingProposal storage newProposal = extraordinaryFundingProposals[proposalId_];
@@ -131,7 +131,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         proposal.votesReceived += votes_;
 
         // check if the proposal has received more votes than minimumThreshold and tokensRequestedPercentage of all tokens
-        if (proposal.votesReceived >= proposal.tokensRequested + getPercentageOfTreasury(getMinimumThresholdPercentage())) {
+        if (proposal.votesReceived >= proposal.tokensRequested + getSliceOfTreasury(getMinimumThresholdPercentage())) {
             proposal.succeeded = true;
         } else {
             proposal.succeeded = false;
@@ -171,7 +171,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @param percentage_ The percentage of the treasury to retrieve, in WAD.
      * @return The number of tokens, in WAD.
      */
-    function getPercentageOfTreasury(uint256 percentage_) public view returns (uint256) {
+    function getSliceOfTreasury(uint256 percentage_) public view returns (uint256) {
         return Maths.wmul(IERC20(ajnaTokenAddress).balanceOf(address(this)), percentage_);
     }
 

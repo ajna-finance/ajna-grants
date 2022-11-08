@@ -80,7 +80,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
             bool voteSucceeded = _standardFundingVoteSucceeded(proposalId_);
 
             if (proposal.executed) return IGovernor.ProposalState.Executed;
-            else if (distribution.endBlock >= block.number && !voteSucceeded) return IGovernor.ProposalState.Active;
+            else if (distribution.endBlock >= block.number) return IGovernor.ProposalState.Active;
             else if (voteSucceeded) return IGovernor.ProposalState.Succeeded;
             else return IGovernor.ProposalState.Defeated;
         }

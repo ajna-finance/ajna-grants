@@ -203,13 +203,13 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
     /** 
      * @notice Calculate the number of tokens equivalent to various percentages assuming a treasury balance of 500,000,000.
      */
-    function testGetPercentageOfTreasury() external {
+    function testGetSliceOfTreasury() external {
         uint256 percentageRequested = 0.100000000000000000 * 1e18;
-        uint256 percentageOfTreasury = _grantFund.getPercentageOfTreasury(percentageRequested);
+        uint256 percentageOfTreasury = _grantFund.getSliceOfTreasury(percentageRequested);
         assertEq(percentageOfTreasury, 50_000_000 * 1e18);
 
         percentageRequested = 0.055000000000000000 * 1e18;
-        percentageOfTreasury = _grantFund.getPercentageOfTreasury(percentageRequested);
+        percentageOfTreasury = _grantFund.getSliceOfTreasury(percentageRequested);
         assertEq(percentageOfTreasury, 27_500_000 * 1e18);
     }
 
