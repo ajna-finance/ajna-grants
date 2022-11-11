@@ -1,19 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "@std/Test.sol";
-import { IERC20 }         from "@oz/token/ERC20/IERC20.sol";
+import { Test }   from "@std/Test.sol";
+import { IERC20 } from "@oz/token/ERC20/IERC20.sol";
 
-import "../src/AjnaToken.sol";
+import { AjnaToken }       from "../src/AjnaToken.sol";
 import { BurnWrappedAjna } from "../src/BurnWrapper.sol";
-
-import "./utils/SigUtils.sol";
 
 contract BurnWrappedTokenTest is Test {
 
     AjnaToken internal _token;
     BurnWrappedAjna internal _wrappedToken;
-    SigUtils  internal _sigUtils;
 
     address internal _tokenDeployer = makeAddr("tokenDeployer");
     address internal _tokenHolder = makeAddr("_tokenHolder");
@@ -27,8 +24,6 @@ contract BurnWrappedTokenTest is Test {
         vm.startPrank(_tokenDeployer);
         _token = new AjnaToken(_tokenDeployer);
         _wrappedToken = new BurnWrappedAjna(IERC20(address(_token)));
-
-        _sigUtils = new SigUtils(_token.DOMAIN_SEPARATOR());
     }
 
    function approveAndWrapTokens(address account_, uint256 amount_) internal {
