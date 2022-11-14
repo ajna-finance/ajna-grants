@@ -3,9 +3,9 @@ pragma solidity 0.8.16;
 
 import "../src/AjnaToken.sol";
 import "../src/GrantFund.sol";
-import "../src/interfaces/IGrantFund.sol";
+import "../src/interfaces/IStandardFunding.sol";
+import "../src/base/Funding.sol";
 
-import "./utils/SigUtils.sol";
 import "./GrantFundTestHelper.sol";
 
 import "@oz/governance/IGovernor.sol";
@@ -14,7 +14,7 @@ import "@oz/utils/math/SafeCast.sol";
 import "@std/StdJson.sol";
 import "@std/Test.sol";
 
-contract GrantFundTest is GrantFundTestHelper {
+contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     // used to cast 256 to uint64 to match emit expectations
     using SafeCast for uint256;
@@ -23,7 +23,6 @@ contract GrantFundTest is GrantFundTestHelper {
     AjnaToken          internal  _token;
     IVotes             internal  _votingToken;
     GrantFund         internal  _grantFund;
-    SigUtils           internal  _sigUtils;
 
     address internal _tokenDeployer  = makeAddr("tokenDeployer");
     address internal _tokenHolder1   = makeAddr("_tokenHolder1");
@@ -66,8 +65,6 @@ contract GrantFundTest is GrantFundTestHelper {
         vm.startPrank(_tokenDeployer);
         _token = new AjnaToken(_tokenDeployer);
 
-        _sigUtils = new SigUtils(_token.DOMAIN_SEPARATOR());
-
         // deploy voting token wrapper
         _votingToken = IVotes(address(_token));
 
@@ -105,19 +102,24 @@ contract GrantFundTest is GrantFundTestHelper {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _selfDelegatedVotersArr);
 
-        // check voting power before screening stage has started
         vm.roll(50);
-
-        uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Screening");
-        assertEq(votingPower, 0);
-
-        // skip forward 50 blocks to ensure voters made it into the voting power snapshot
-        vm.roll(100);
 
         // start distribution period
         _startDistributionPeriod(_grantFund);
 
-        // check voting power
+        // check voting power after screening stage has started
+        vm.roll(100);
+
+        uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Screening");
+        assertEq(votingPower, 50_000_000 * 1e18);
+
+        // skip forward 150 blocks and transfer some tokens after voting power was determined
+        vm.roll(150);
+
+        changePrank(_tokenHolder1);
+        _token.transfer(_tokenHolder2, 25_000_000 * 1e18);
+
+        // check voting power is unchanged
         votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Screening");
         assertEq(votingPower, 50_000_000 * 1e18);
 
@@ -187,7 +189,7 @@ contract GrantFundTest is GrantFundTestHelper {
         _startDistributionPeriod(_grantFund);
 
         // create and submit proposal
-        TestProposal memory proposal = _createProposal(_grantFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
+        TestProposal memory proposal = _createProposalStandard(_grantFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
 
         vm.roll(10);
 
@@ -201,14 +203,19 @@ contract GrantFundTest is GrantFundTestHelper {
             uint256 distributionId,
             uint256 votesReceived,
             uint256 tokensRequested,
-            int256 fundingReceived
+            int256 qvBudgetAllocated,
+            bool executed
         ) = _grantFund.getProposalInfo(proposal.proposalId);
 
         assertEq(proposalId, proposal.proposalId);
         assertEq(distributionId, 1);
         assertEq(votesReceived, 0);
         assertEq(tokensRequested, 1 * 1e18);
-        assertEq(fundingReceived, 0);
+        assertEq(qvBudgetAllocated, 0);
+        assertFalse(executed);
+
+        // check findMechanism identifies it as a standard proposal
+        assert(_grantFund.findMechanismOfProposal(proposalId) == Funding.FundingMechanism.Standard);
     }
 
     function testInvalidProposalCalldata() external {
@@ -236,8 +243,8 @@ contract GrantFundTest is GrantFundTestHelper {
         string memory description = "Proposal for Ajna token burn from the growth fund";
 
         // create proposal should revert since invalid burn operation was attempted
-        vm.expectRevert(IGrantFund.InvalidSignature.selector);
-        _grantFund.propose(targets, values, proposalCalldata, description);
+        vm.expectRevert(Funding.InvalidSignature.selector);
+        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
     }
 
     function testInvalidProposalTarget() external {
@@ -264,8 +271,12 @@ contract GrantFundTest is GrantFundTestHelper {
         string memory description = "Proposal for Ajna token transfer to tester address";
 
         // create proposal should revert since a non Ajna token contract target was used
-        vm.expectRevert(IGrantFund.InvalidTarget.selector);
-        _grantFund.propose(targets, values, proposalCalldata, description);
+        vm.expectRevert(Funding.InvalidTarget.selector);
+        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
+    }
+
+    function testHasVoted() external {
+        // TODO: FINISH IMPLEMENTING
     }
 
     function testMaximumQuarterlyDistribution() external {
@@ -308,11 +319,6 @@ contract GrantFundTest is GrantFundTestHelper {
 
         TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
 
-        // TODO: why was this 300 necessary?
-        emit log_uint(_grantFund.proposalDeadline(testProposals[0].proposalId));
-        emit log_uint(block.number);
-        vm.roll(300);
-
         // screen proposals
         _vote(_grantFund, _tokenHolder1, testProposals[0].proposalId, voteYes, 100);
         _vote(_grantFund, _tokenHolder2, testProposals[1].proposalId, voteYes, 100);
@@ -326,14 +332,14 @@ contract GrantFundTest is GrantFundTestHelper {
         _vote(_grantFund, _tokenHolder10, testProposals[9].proposalId, voteYes, 100);
 
         // check top ten proposals
-        GrantFund.Proposal[] memory screenedProposals = _grantFund.getTopTenProposals(distributionId);
+        GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         assertEq(screenedProposals.length, 10);
 
         // one of the non-current top 10 is moved up to the top spot
         _vote(_grantFund, _tokenHolder11, testProposals[10].proposalId, voteYes, 100);
         _vote(_grantFund, _tokenHolder12, testProposals[10].proposalId, voteYes, 100);
 
-        screenedProposals = _grantFund.getTopTenProposals(distributionId);
+        screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         assertEq(screenedProposals.length, 10);
         assertEq(screenedProposals[0].proposalId, testProposals[10].proposalId);
         assertEq(screenedProposals[0].votesReceived, 100_000_000 * 1e18);
@@ -343,7 +349,7 @@ contract GrantFundTest is GrantFundTestHelper {
         _vote(_grantFund, _tokenHolder14, testProposals[11].proposalId, voteYes, 100);
         _vote(_grantFund, _tokenHolder15, testProposals[11].proposalId, voteYes, 100);
 
-        screenedProposals = _grantFund.getTopTenProposals(distributionId);
+        screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         assertEq(screenedProposals.length, 10);
         assertEq(screenedProposals[0].proposalId, testProposals[11].proposalId);
         assertEq(screenedProposals[0].votesReceived, 150_000_000 * 1e18);
@@ -352,7 +358,7 @@ contract GrantFundTest is GrantFundTestHelper {
 
         // should revert if voter attempts to cast a screeningVote twice
         changePrank(_tokenHolder15);
-        vm.expectRevert(IGrantFund.AlreadyVoted.selector);
+        vm.expectRevert(Funding.AlreadyVoted.selector);
         _grantFund.castVote(testProposals[11].proposalId, voteYes);
     }
 
@@ -371,7 +377,7 @@ contract GrantFundTest is GrantFundTestHelper {
         assertEq(endBlock, block.number + 648000);
 
         // check a new distribution period can't be started if already active
-        vm.expectRevert(IGrantFund.DistributionPeriodStillActive.selector);
+        vm.expectRevert(IStandardFunding.DistributionPeriodStillActive.selector);
         _grantFund.startNewDistributionPeriod();
 
         // skip forward past the end of the distribution period to allow starting anew
@@ -387,8 +393,8 @@ contract GrantFundTest is GrantFundTestHelper {
      *  @dev    Maximum quarterly distribution is 10_000_000.
      *  @dev    Funded slate is executed.
      *  @dev    Reverts:
-     *              - IGrantFund.InsufficientBudget
-     *              - IGrantFund.ExecuteProposalInvalid
+     *              - IStandardFunding.InsufficientBudget
+     *              - IStandardFunding.ExecuteProposalInvalid
      *              - "Governor: proposal not successful"
      */
     function testDistributionPeriodEndToEnd() external {
@@ -433,7 +439,7 @@ contract GrantFundTest is GrantFundTestHelper {
         vm.roll(600_000);
 
         // check topTenProposals array is correct after screening period - only four should have advanced
-        GrantFund.Proposal[] memory screenedProposals = _grantFund.getTopTenProposals(distributionId);
+        GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         assertEq(screenedProposals.length, 6);
         assertEq(screenedProposals[0].proposalId, testProposals[0].proposalId);
         assertEq(screenedProposals[0].votesReceived, 150_000_000 * 1e18);
@@ -450,24 +456,24 @@ contract GrantFundTest is GrantFundTestHelper {
 
         // funding period votes for two competing slates, 1, or 2 and 3
         _fundingVote(_grantFund, _tokenHolder1, screenedProposals[0].proposalId, voteYes, 2_500_000_000_000_000 * 1e18);
-        screenedProposals = _grantFund.getTopTenProposals(distributionId);
+        screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         _fundingVote(_grantFund, _tokenHolder2, screenedProposals[1].proposalId, voteYes, 2_500_000_000_000_000 * 1e18);
-        screenedProposals = _grantFund.getTopTenProposals(distributionId);
+        screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         _fundingVote(_grantFund, _tokenHolder3, screenedProposals[2].proposalId, voteYes, 1_250_000_000_000_000 * 1e18);
-        screenedProposals = _grantFund.getTopTenProposals(distributionId);
+        screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         _fundingVote(_grantFund, _tokenHolder3, screenedProposals[4].proposalId, voteYes, 1_250_000_000_000_000 * 1e18);
-        screenedProposals = _grantFund.getTopTenProposals(distributionId);
+        screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         _fundingVote(_grantFund, _tokenHolder4, screenedProposals[3].proposalId, voteYes, 2_000_000_000_000_000 * 1e18);
-        screenedProposals = _grantFund.getTopTenProposals(distributionId);
+        screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         _fundingVote(_grantFund, _tokenHolder4, screenedProposals[5].proposalId, voteNo, -500_000_000_000_000 * 1e18);
-        screenedProposals = _grantFund.getTopTenProposals(distributionId);
+        screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
 
-        vm.expectRevert(IGrantFund.InsufficientBudget.selector);
+        vm.expectRevert(IStandardFunding.InsufficientBudget.selector);
         _grantFund.castVoteWithReasonAndParams(screenedProposals[3].proposalId, 1, "", abi.encode(2_500_000_000_000_000 * 1e18));
 
         // check tokerHolder partial vote budget calculations
         _fundingVote(_grantFund, _tokenHolder5, screenedProposals[5].proposalId, voteNo, -500_000_000_000_000 * 1e18);
-        screenedProposals = _grantFund.getTopTenProposals(distributionId);
+        screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
 
         // check remaining votes available to the above token holders
         (uint256 voterWeight, int256 budgetRemaining) = _grantFund.getVoterInfo(distributionId, _tokenHolder1);
@@ -498,8 +504,8 @@ contract GrantFundTest is GrantFundTestHelper {
         // ensure checkSlate won't allow exceeding the GBC
         bool validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
         assertFalse(validSlate);
-        (, , , , bytes32 slateHash1) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash1, 0);
+        (, , , , bytes32 slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+        assertEq(slateHash, 0);
 
         // ensure checkSlate will allow a valid slate
         potentialProposalSlate = new GrantFund.Proposal[](1);
@@ -509,10 +515,10 @@ contract GrantFundTest is GrantFundTestHelper {
         validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
         assertTrue(validSlate);
         // check slate hash
-        (, , , , bytes32 slateHash2) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash2, 0xb8ab10db80cd4e7329a27445cd2f8bbc77242d7f10ebd02eab95cfdb905aeaa7);
+        (, , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+        assertEq(slateHash, 0x8546b85d326f37e382f7191b8634030f1a99e83e5fffee168d362bdd80cb0ee7);
         // check funded proposal slate matches expected state
-        GrantFund.Proposal[] memory fundedProposalSlate = _grantFund.getFundedProposalSlate(distributionId, slateHash2);
+        GrantFund.Proposal[] memory fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(distributionId, slateHash));
         assertEq(fundedProposalSlate.length, 1);
         assertEq(fundedProposalSlate[0].proposalId, screenedProposals[3].proposalId);
 
@@ -525,10 +531,10 @@ contract GrantFundTest is GrantFundTestHelper {
         validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
         assertTrue(validSlate);
         // check slate hash
-        (, , , , bytes32 slateHash3) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash3, 0xef474f89c6f96a9af0025dd70e06814b2cb60bf389bc9a67b5a21312fe0ddaaa);
+        (, , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+        assertEq(slateHash, 0xc62d17691538dd00f228329f7b485088e3a4853db966dd6e7becc975d3e00442);
         // check funded proposal slate matches expected state
-        fundedProposalSlate = _grantFund.getFundedProposalSlate(distributionId, slateHash3);
+        fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(distributionId, slateHash));
         assertEq(fundedProposalSlate.length, 2);
         assertEq(fundedProposalSlate[0].proposalId, screenedProposals[3].proposalId);
         assertEq(fundedProposalSlate[1].proposalId, screenedProposals[4].proposalId);
@@ -542,10 +548,10 @@ contract GrantFundTest is GrantFundTestHelper {
         validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
         assertTrue(validSlate);
         // check slate hash
-        (, , , , bytes32 slateHash4) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash4, 0x070ee4d600f6978ad85cf9e26dd9ea03458a17c45d29acf88253272c1f53c6e6);
+        (, , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+        assertEq(slateHash, 0xfa74749b75fb2b65ee0f757da034d5c89dc50efef96ce210ac70ee479a631006);
         // check funded proposal slate matches expected state
-        fundedProposalSlate = _grantFund.getFundedProposalSlate(distributionId, slateHash4);
+        fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(distributionId, slateHash));
         assertEq(fundedProposalSlate.length, 2);
         assertEq(fundedProposalSlate[0].proposalId, screenedProposals[0].proposalId);
         assertEq(fundedProposalSlate[1].proposalId, screenedProposals[4].proposalId);
@@ -557,14 +563,16 @@ contract GrantFundTest is GrantFundTestHelper {
         validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
         assertFalse(validSlate);
         // check funded proposal slate wasn't updated
-        fundedProposalSlate = _grantFund.getFundedProposalSlate(distributionId, slateHash4);
+        (, , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+        assertEq(slateHash, 0xfa74749b75fb2b65ee0f757da034d5c89dc50efef96ce210ac70ee479a631006);
+        fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(distributionId, slateHash));
         assertEq(fundedProposalSlate.length, 2);
         assertEq(fundedProposalSlate[0].proposalId, screenedProposals[0].proposalId);
         assertEq(fundedProposalSlate[1].proposalId, screenedProposals[4].proposalId);
 
         // check can't execute proposals prior to the end of the challenge period
-        vm.expectRevert(IGrantFund.ExecuteProposalInvalid.selector);
-        _grantFund.execute(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
+        vm.expectRevert(IStandardFunding.ExecuteProposalInvalid.selector);
+        _grantFund.executeStandard(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
 
         // skip to the end of the DistributionPeriod
         vm.roll(700_000);
@@ -575,11 +583,11 @@ contract GrantFundTest is GrantFundTestHelper {
 
         // check that shouldn't be able to execute unfunded proposals
         vm.expectRevert("Governor: proposal not successful");
-        _grantFund.execute(testProposals[1].targets, testProposals[1].values, testProposals[1].calldatas, keccak256(bytes(testProposals[1].description)));
+        _grantFund.executeStandard(testProposals[1].targets, testProposals[1].values, testProposals[1].calldatas, keccak256(bytes(testProposals[1].description)));
 
         // check that shouldn't be able to execute a proposal twice
         vm.expectRevert("Governor: proposal not successful");
-        _grantFund.execute(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
+        _grantFund.executeStandard(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
     }
 
 }

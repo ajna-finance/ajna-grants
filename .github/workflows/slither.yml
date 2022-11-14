@@ -23,8 +23,8 @@ jobs:
           slither src/AjnaToken.sol
         id: token_analyzer
 
-      - name: Analyze GrowthFund
+      - name: Analyze GrantFund
         run: |
-          slither src/GrowthFund.sol
+          slither src/GrantFund.sol
         continue-on-error: true
         id: fund_analyzer

@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import "../src/AjnaToken.sol";
 import "../src/GrantFund.sol";
-import "../src/interfaces/IGrantFund.sol";
+import "../src/interfaces/IStandardFunding.sol";
 
 import "./utils/SigUtils.sol";
 
@@ -61,6 +61,17 @@ abstract contract GrantFundTestHelper is Test {
         uint256 tokensRequested;
     }
 
+    struct TestProposalExtraordinary {
+        uint256 proposalId;
+        address[] targets;
+        uint256[] values;
+        bytes[] calldatas;
+        string description;
+        address recipient;
+        uint256 tokensRequested;
+        uint256 endBlock;
+    }
+
     struct TestProposalParams {
         address recipient;
         uint256 tokensRequested;
@@ -73,11 +84,18 @@ abstract contract GrantFundTestHelper is Test {
     /*** Test Helper Functions ***/
     /*****************************/
 
-    function _createProposal(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (TestProposal memory) {
+    function _createProposalExtraordinary(
+        GrantFund grantFund_,
+        address proposer_,
+        uint256 endBlock,
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory proposalCalldatas_,
+        string memory description
+    ) internal returns (TestProposalExtraordinary memory) {
         // generate expected proposal state
         uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
-        uint256 startBlock = block.number.toUint64() + grantFund_.votingDelay().toUint64();
-        uint256 endBlock   = startBlock + grantFund_.votingPeriod().toUint64();
+        uint256 startBlock = block.number;
 
         // submit proposal
         changePrank(proposer_);
@@ -93,7 +111,40 @@ abstract contract GrantFundTestHelper is Test {
             endBlock,
             description
         );
-        uint256 proposalId = grantFund_.propose(targets_, values_, proposalCalldatas_, description);
+        uint256 proposalId = grantFund_.proposeExtraordinary(endBlock, targets_, values_, proposalCalldatas_, description);
+        assertEq(proposalId, expectedProposalId);
+
+        // https://github.com/ethereum/solidity/issues/6012
+        (, address recipient, uint256 tokensRequested) = abi.decode(
+            abi.encodePacked(bytes28(0), proposalCalldatas_[0]),
+            (bytes32,address,uint256)
+        );
+
+        return TestProposalExtraordinary(proposalId, targets_, values_, proposalCalldatas_, description, recipient, tokensRequested, endBlock);
+    }
+
+    function _createProposalStandard(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (TestProposal memory) {
+        // generate expected proposal state
+        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
+        uint256 startBlock = block.number.toUint64() + grantFund_.votingDelay().toUint64();
+
+        (, , , uint256 endBlock, ) = grantFund_.getDistributionPeriodInfo(grantFund_.getDistributionId());
+
+        // submit proposal
+        changePrank(proposer_);
+        vm.expectEmit(true, true, false, true);
+        emit ProposalCreated(
+            expectedProposalId,
+            proposer_,
+            targets_,
+            values_,
+            new string[](targets_.length),
+            proposalCalldatas_,
+            startBlock,
+            endBlock,
+            description
+        );
+        uint256 proposalId = grantFund_.proposeStandard(targets_, values_, proposalCalldatas_, description);
         assertEq(proposalId, expectedProposalId);
 
         // https://github.com/ethereum/solidity/issues/6012
@@ -132,7 +183,7 @@ abstract contract GrantFundTestHelper is Test {
                 testProposalParams_[i].tokensRequested
             );
 
-            TestProposal memory proposal = _createProposal(grantFund_, testProposalParams_[i].recipient, ajnaTokenTargets, values, proposalCalldata, description);
+            TestProposal memory proposal = _createProposalStandard(grantFund_, testProposalParams_[i].recipient, ajnaTokenTargets, values, proposalCalldata, description);
             testProposals[i] = proposal;
         }
         return testProposals;
@@ -153,6 +204,9 @@ abstract contract GrantFundTestHelper is Test {
         }
     }
 
+    /**
+     * @notice Helper function to execute a standard funding mechanism proposal.
+     */
     function _executeProposal(GrantFund grantFund_, AjnaToken token_, TestProposal memory testProposal_) internal {
         // calculate starting balances
         uint256 voterStartingBalance = token_.balanceOf(testProposal_.recipient);
@@ -166,7 +220,7 @@ abstract contract GrantFundTestHelper is Test {
         emit Transfer(address(grantFund_), testProposal_.recipient, testProposal_.tokensRequested);
         vm.expectEmit(true, true, false, true);
         emit DelegateVotesChanged(testProposal_.recipient, voterStartingBalance, voterStartingBalance + testProposal_.tokensRequested);
-        grantFund_.execute(testProposal_.targets, testProposal_.values, testProposal_.calldatas, keccak256(bytes(testProposal_.description)));
+        grantFund_.executeStandard(testProposal_.targets, testProposal_.values, testProposal_.calldatas, keccak256(bytes(testProposal_.description)));
 
         // check ending token balances
         assertEq(token_.balanceOf(testProposal_.recipient), voterStartingBalance + testProposal_.tokensRequested);
@@ -208,16 +262,40 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.castVoteWithReasonAndParams(proposalId_, support_, reason, params);
     }
 
+    function _extraordinaryVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_) internal {
+        uint256 votingWeight = grantFund_.getVotesWithParams(voter_, block.number, abi.encode(proposalId_));
+
+        changePrank(voter_);
+        vm.expectEmit(true, true, false, true);
+        emit VoteCast(voter_, proposalId_, support_, votingWeight, "");
+        grantFund_.castVote(proposalId_, support_);
+    }
+
+    function _getProposalListFromProposalIds(GrantFund grantFund_, uint256[] memory proposalIds_) internal view returns (GrantFund.Proposal[] memory) {
+        GrantFund.Proposal[] memory proposals = new GrantFund.Proposal[](proposalIds_.length);
+        for (uint256 i = 0; i < proposalIds_.length; ++i) {
+            (
+                proposals[i].proposalId,
+                proposals[i].distributionId,
+                proposals[i].votesReceived,
+                proposals[i].tokensRequested,
+                proposals[i].qvBudgetAllocated,
+                proposals[i].executed
+            ) = grantFund_.getProposalInfo(proposalIds_[i]);
+        }
+        return proposals;
+    }
+
     // expects a list of Proposal structs
     // filepath expected to be defined from root
-    function _loadProposalSlateJSON(string memory filePath) internal returns (IGrantFund.Proposal[] memory) {
+    function _loadProposalSlateJSON(string memory filePath) internal returns (IStandardFunding.Proposal[] memory) {
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, filePath);
 
         string memory json = vm.readFile(path);
         bytes memory encodedProposals = vm.parseJson(json, ".Proposals");
 
-        (IGrantFund.Proposal[] memory proposals) = abi.decode(encodedProposals, (IGrantFund.Proposal[]));
+        (IStandardFunding.Proposal[] memory proposals) = abi.decode(encodedProposals, (IStandardFunding.Proposal[]));
         return proposals;
     }
 

@@ -4,87 +4,21 @@ pragma solidity 0.8.16;
 
 import "@oz/governance/Governor.sol";
 import "@oz/governance/extensions/GovernorVotes.sol";
-import "@oz/governance/extensions/GovernorVotesQuorumFraction.sol";
 import "@oz/governance/IGovernor.sol";
 import "@oz/governance/utils/IVotes.sol";
-import "@oz/security/ReentrancyGuard.sol";
 import "@oz/token/ERC20/IERC20.sol";
 import "@oz/utils/Checkpoints.sol";
 
 import "./libraries/Maths.sol";
 
-import "./interfaces/IGrantFund.sol";
+import "./base/ExtraordinaryFunding.sol";
+import "./base/StandardFunding.sol";
 
-
-contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, ReentrancyGuard {
+contract GrantFund is ExtraordinaryFunding, StandardFunding {
 
     using Checkpoints for Checkpoints.History;
 
-    /***********************/
-    /*** State Variables ***/
-    /***********************/
-
-    //  base quorum percentage required for extraordinary funding is 50%
-    uint256 internal immutable extraordinaryFundingBaseQuorum = 50;
-
-    // address of the ajna token used in grant coordination
-    address public ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
-
-    /**
-     * @notice Maximum percentage of tokens that can be distributed by the treasury in a quarter.
-     * @dev Stored as a Wad percentage.
-     */
-    uint256 internal constant globalBudgetConstraint = 20000000000000000;
-
-    /**
-     * @notice Length of the distribution period in blocks.
-     * @dev    Equivalent to the number of blocks in 90 days. Blocks come every 12 seconds.
-     */
-    uint256 internal constant DISTRIBUTION_PERIOD_LENGTH = 648000; // 90 days
-
-    /**
-     * @notice ID of the current distribution period.
-     * @dev Used to access information on the status of an ongoing distribution.
-     * @dev Updated at the start of each quarter.
-     */
-    Checkpoints.History private _distributionIdCheckpoints;
-
-    /**
-     * @notice Mapping of quarterly distributions from the grant fund.
-     * @dev distributionId => QuarterlyDistribution
-     */
-    mapping(uint256 => QuarterlyDistribution) distributions;
-
-    /**
-     * @notice Mapping checking if a voter has voted on a proposal during the screening stage in a quarter.
-     * @dev Reset to false at the start of each new quarter.
-     */
-    mapping(address => bool) hasScreened;
-
-    /**
-     * @dev Mapping of all proposals that have ever been submitted to the grant fund for screening.
-     * @dev distribution.id => proposalId => Proposal
-     */
-    mapping(uint256 => Proposal) proposals;
-
-    /**
-     * @dev Mapping of distributionId to a sorted array of 10 proposals with the most votes in the screening period.
-     * @dev distribution.id => Proposal[]
-     * @dev A new array is created for each distribution period
-     */
-    mapping(uint256 => Proposal[]) topTenProposals;
-
-    /**
-     * @notice Mapping of quarterly distributions to a hash of a proposal slate to a list of funded proposals.
-     * @dev distributionId => slate hash => Proposal[]
-     */
-    mapping(uint256 => mapping(bytes32 => Proposal[])) fundedProposalSlates;
-
-    /**
-     * @notice Mapping of quarterly distributions to voters to a Quadratic Voter info struct.
-     * @dev distributionId => voter address => QuadraticVoter 
-     */
-    mapping (uint256 => mapping(address => QuadraticVoter)) quadraticVoters;
+    IVotes public immutable token;
 
     /*******************/
     /*** Constructor ***/
@@ -92,163 +26,9 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
 
     constructor(IVotes token_)
         Governor("AjnaEcosystemGrantFund")
-        GovernorVotes(token_) // token that will be used for voting
-        GovernorVotesQuorumFraction(4) // percentage of total voting power required; updateable via governance proposal
     {
         ajnaTokenAddress = address(token_);
-    }
-
-    /*****************************************/
-    /*** Distribution Management Functions ***/
-    /*****************************************/
-
-    /**
-     * @notice Retrieve the current QuarterlyDistribution distributionId.
-     */
-    function getDistributionId() external view returns (uint256) {
-        return _distributionIdCheckpoints.latest();
-    }
-
-    /**
-     * @notice Calculate the block at which the screening period of a distribution ends.
-     * @dev    Screening period is 80 days, funding period is 10 days. Total distribution is 90 days.
-     */
-    function getScreeningPeriodEndBlock(QuarterlyDistribution memory currentDistribution_) external pure returns (uint256) {
-        // 10 days is equivalent to 72,000 blocks (12 seconds per block, 86400 seconds per day)
-        return currentDistribution_.endBlock - 72000;
-    }
-
-    /**
-     * @notice Generate a unique hash of a list of proposals for usage as a key for comparing proposal slates.
-     * @param  proposals_ Array of proposals to hash.
-     * @return Bytes32 hash of the list of proposals.
-     */
-    function getSlateHash(Proposal[] calldata proposals_) external pure returns (bytes32) {
-        return keccak256(abi.encode(proposals_));
-    }
-
-    /**
-     * @notice Set a new DistributionPeriod Id.
-     * @dev    Increments the previous Id nonce by 1, and sets a checkpoint at the calling block.number.
-     * @return newId_ The new distribution period Id.
-     */
-    function _setNewDistributionId() private returns (uint256 newId_) {
-        // retrieve current distribution Id
-        uint256 currentDistributionId = _distributionIdCheckpoints.latest();
-
-        // set the current block number as the checkpoint for the current block
-        (, newId_) = _distributionIdCheckpoints.push(currentDistributionId + 1);
-    }
-
-    /**
-     * @notice Start a new Distribution Period and reset appropriate state.
-     * @dev    Can be kicked off by anyone assuming a distribution period isn't already active.
-     * @return newDistributionId_ The new distribution period Id.
-     */
-    function startNewDistributionPeriod() external returns (uint256 newDistributionId_) {
-        QuarterlyDistribution memory lastDistribution = distributions[_distributionIdCheckpoints.latest()];
-
-        // check that there isn't currently an active distribution period
-        if (block.number <= lastDistribution.endBlock) revert DistributionPeriodStillActive();
-
-        // set the distribution period to start at the current block
-        uint256 startBlock = block.number;
-        uint256 endBlock = startBlock + DISTRIBUTION_PERIOD_LENGTH;
-
-        // set new value for currentDistributionId
-        newDistributionId_ = _setNewDistributionId();
-
-        // create QuarterlyDistribution struct
-        QuarterlyDistribution storage newDistributionPeriod = distributions[newDistributionId_];
-        newDistributionPeriod.id = newDistributionId_;
-        newDistributionPeriod.startBlock = startBlock;
-        newDistributionPeriod.endBlock = endBlock;
-
-        emit QuarterlyDistributionStarted(newDistributionId_, startBlock, endBlock);
-    }
-
-    function _sumBudgetAllocated(Proposal[] memory proposalSubset_) internal pure returns (uint256 sum) {
-        sum = 0;
-        for (uint i = 0; i < proposalSubset_.length;) {
-            sum += uint256(proposalSubset_[i].qvBudgetAllocated);
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
-     * @notice Check if a slate of proposals meets requirements, and maximizes votes. If so, update QuarterlyDistribution.
-     * @param  fundedProposals_ Array of proposals to check.
-     * @param  distributionId_ Id of the current quarterly distribution.
-     * @return Boolean indicating whether the new proposal slate was set as the new top slate for distribution.
-     */
-    function checkSlate(Proposal[] calldata fundedProposals_, uint256 distributionId_) external returns (bool) {
-        QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
-
-        // check that the function is being called within the challenge period
-        if (block.number <= currentDistribution.endBlock || block.number > currentDistribution.endBlock + 50400) {
-            return false;
-        }
-
-        uint256 gbc = maximumQuarterlyDistribution();
-        uint256 sum = 0;
-        uint256 totalTokensRequested = 0;
-
-        for (uint i = 0; i < fundedProposals_.length; ) {
-            // check if Proposal is in the topTenProposals list
-            if (_findProposalIndex(fundedProposals_[i].proposalId, topTenProposals[distributionId_]) == -1) return false;
-
-            // account for qvBudgetAllocated possibly being negative
-            if (fundedProposals_[i].qvBudgetAllocated < 0) return false;
-
-            // update counters
-            sum += uint256(fundedProposals_[i].qvBudgetAllocated);
-            totalTokensRequested += fundedProposals_[i].tokensRequested;
-
-            // check if slate of proposals exceeded budget constraint
-            if (totalTokensRequested > gbc) {
-                return false;
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        // get pointers for comparing proposal slates
-        bytes32 currentSlateHash = currentDistribution.fundedSlateHash;
-        bytes32 newSlateHash = keccak256(abi.encode(fundedProposals_));
-
-        bool newTopSlate = currentSlateHash == 0 ||
-            (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[distributionId_][currentSlateHash]));
-
-        if (newTopSlate) {
-            Proposal[] storage existingSlate = fundedProposalSlates[distributionId_][newSlateHash];
-            for (uint i = 0; i < fundedProposals_.length; ) {
-                // update list of proposals to fund
-                existingSlate.push(fundedProposals_[i]);
-
-                unchecked {
-                    ++i;
-                }
-            }
-
-            // update hash to point to the new leading slate of proposals
-            currentDistribution.fundedSlateHash = newSlateHash;
-            emit FundedSlateUpdated(distributionId_, newSlateHash);
-        }
-
-        return newTopSlate;
-    }
-
-    /**
-     * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
-     */
-    function maximumQuarterlyDistribution() public view returns (uint256) {
-        uint256 GrantFundBalance = IERC20(ajnaTokenAddress).balanceOf(address(this));
-        return Maths.wmul(GrantFundBalance, globalBudgetConstraint);
+        token = token_;
     }
 
     /**************************/
@@ -256,79 +36,58 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
     /**************************/
 
     /**
-     * @notice Submit a new proposal to the Grant Coordination Fund
-     * @dev    All proposals can be submitted by anyone. There can only be one value in each array. Interface inherits from OZ.propose().
-     * @param  targets_ List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
-     * @param  values_ List of values to be sent with the proposal calldata. Should be 0 for all proposals.
-     * @param  calldatas_ List of calldata to be executed. Should be the transfer() method.
-     * @return proposalId_ The id of the newly created proposal.
+     * @notice Overide the default proposal function to ensure all proposal submission travel through expected mechanisms.
      */
     function propose(
-        address[] memory targets_,
-        uint256[] memory values_,
-        bytes[] memory calldatas_,
-        string memory description_
-    ) public override(Governor) returns (uint256 proposalId_) {
-        proposalId_ = super.propose(targets_, values_, calldatas_, description_);
+        address[] memory,
+        uint256[] memory,
+        bytes[] memory,
+        string memory
+    ) public pure override(Governor) returns (uint256) {
+        revert InvalidProposal();
+    }
 
-        // store new proposal information
-        Proposal storage newProposal = proposals[proposalId_];
-        newProposal.proposalId = proposalId_;
-        newProposal.distributionId = _distributionIdCheckpoints.latest();
+    /**
+     * @notice Overriding the default execute function to ensure all proposals travel through expected mechanisms.
+     */
+    function execute(address[] memory, uint256[] memory, bytes[] memory, bytes32) public payable override(Governor) returns (uint256) {
+        revert MethodNotImplemented();
+    }
 
-        // check proposal parameters are valid and update tokensRequested
-        for (uint256 i = 0; i < targets_.length;) {
+    /**
+     * @notice Given a proposalId, find if it is a standard or extraordinary proposal.
+     */
+    function findMechanismOfProposal(uint256 proposalId_) public view returns (FundingMechanism) {
+        if (standardFundingProposals[proposalId_].proposalId != 0) return FundingMechanism.Standard;
+        else if (extraordinaryFundingProposals[proposalId_].proposalId != 0) return FundingMechanism.Extraordinary;
+        else revert ProposalNotFound();
+    }
 
-            // check  targets and values are valid
-            if (targets_[i] != ajnaTokenAddress) revert InvalidTarget();
-            if (values_[i] != 0) revert InvalidValues();
+    /**
+     * @notice Find the status of a given proposal.
+     * @dev Overrides Governor.state() to check proposal status based upon Grant Fund specific logic.
+     * @param proposalId_ The id of the proposal to query the status of.
+     * @return ProposalState of the given proposal.
+     */
+    function state(uint256 proposalId_) public view override(Governor) returns (IGovernor.ProposalState) {
+        FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
 
-            // check calldata function selector is transfer()
-            bytes memory selDataWithSig = calldatas_[i];
-
-            bytes4 selector;
-            //slither-disable-next-line assembly
-            assembly {
-                selector := mload(add(selDataWithSig, 0x20))
-            }
-            if (selector != bytes4(0xa9059cbb)) revert InvalidSignature();
-
-            // https://github.com/ethereum/solidity/issues/9439
-            // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
-            uint256 tokensRequested;
-            bytes memory tokenDataWithSig = calldatas_[i];
-            //slither-disable-next-line assembly
-            assembly {
-                tokensRequested := mload(add(tokenDataWithSig, 68))
-            }
-
-            // update tokens requested for additional calldata
-            newProposal.tokensRequested += tokensRequested;
-
-            unchecked {
-                ++i;
-            }
+        // standard proposal state checks
+        if (mechanism == FundingMechanism.Standard) {
+            if (standardFundingProposals[proposalId_].executed) return IGovernor.ProposalState.Executed;
+            else if (distributions[_distributionIdCheckpoints.latest()].endBlock >= block.number) return IGovernor.ProposalState.Active;
+            else if (_standardFundingVoteSucceeded(proposalId_)) return IGovernor.ProposalState.Succeeded;
+            else return IGovernor.ProposalState.Defeated;
         }
-    }
+        // extraordinary funding proposal state checks
+        else if (mechanism == FundingMechanism.Extraordinary) {
+            bool voteSucceeded = _extraordinaryFundingVoteSucceeded(proposalId_);
 
-    /**
-     * @notice Execute a proposal that has been approved by the community.
-     * @dev    Calls out to Governor.execute()
-     * @dev    Check for proposal being succesfully funded or previously executed is handled by Governor.execute().
-     * @return proposalId_ of the executed proposal.
-     */
-    function execute(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable override(Governor) nonReentrant returns (uint256) {
-        // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
-        if (block.number <= distributions[_distributionIdCheckpoints.latest()].endBlock + 50400) revert ExecuteProposalInvalid();
-
-        return super.execute(targets_, values_, calldatas_, descriptionHash_);
-    }
-
-    /**
-     * @dev Required override; we don't currently have a threshold to create a proposal so this returns the default value of 0
-     */
-    function proposalThreshold() public view override(Governor) returns (uint256) {
-        return super.proposalThreshold();
+            if (extraordinaryFundingProposals[proposalId_].executed) return IGovernor.ProposalState.Executed;
+            else if (extraordinaryFundingProposals[proposalId_].endBlock >= block.number && !voteSucceeded) return IGovernor.ProposalState.Active;
+            else if (voteSucceeded) return IGovernor.ProposalState.Succeeded;
+            else return IGovernor.ProposalState.Defeated;
+        }
     }
 
     /************************/
@@ -343,131 +102,45 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
      * @param params_     The amount of votes being allocated in the funding stage.
      */
      function _castVote(uint256 proposalId_, address account_, uint8, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
-        Proposal storage proposal = proposals[proposalId_];
-        QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
+        FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
 
-        uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
-        bytes memory stage;
-        uint256 votes;
+        // standard funding mechanism
+        if (mechanism == FundingMechanism.Standard) {
+            Proposal storage proposal = standardFundingProposals[proposalId_];
+            QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
+            uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
 
-        // screening stage
-        if (block.number >= currentDistribution.startBlock && block.number <= screeningPeriodEndBlock) {
-            stage = bytes("Screening");
-            votes = _getVotes(account_, block.number, stage);
+            // screening stage
+            if (block.number >= currentDistribution.startBlock && block.number <= screeningPeriodEndBlock) {
+                uint256 votes = _getVotes(account_, block.number, bytes("Screening"));
 
-            return _screeningVote(account_, proposal, votes);
-        }
-
-        // funding stage
-        else if (block.number > screeningPeriodEndBlock && block.number <= currentDistribution.endBlock) {
-            stage = bytes("Funding");
-
-            QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
-
-            // this is the first time a voter has attempted to vote this period
-            if (voter.votingWeight == 0) {
-                voter.votingWeight = Maths.wpow(super._getVotes(account_, screeningPeriodEndBlock - 33, ""), 2);
-                voter.budgetRemaining = int256(voter.votingWeight);
+                return _screeningVote(account_, proposal, votes);
             }
 
-            // amount of quadratic budget to allocated to the proposal
-            int256 budgetAllocation = abi.decode(params_, (int256));
+            // funding stage
+            else if (block.number > screeningPeriodEndBlock && block.number <= currentDistribution.endBlock) {
+                QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
 
-            // check if the voter has enough budget remaining to allocate to the proposal
-            if (voter.budgetRemaining == 0 || budgetAllocation > voter.budgetRemaining) revert InsufficientBudget();
+                // this is the first time a voter has attempted to vote this period
+                if (voter.votingWeight == 0) {
+                    voter.votingWeight = Maths.wpow(_getVotesSinceSnapshot(account_, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
+                    voter.budgetRemaining = int256(voter.votingWeight);
+                }
 
-            return _fundingVote(proposal, account_, voter, budgetAllocation);
-        }
+                // amount of quadratic budget to allocated to the proposal
+                int256 budgetAllocation = abi.decode(params_, (int256));
 
-        // TODO: implement extraordinary funding mechanism pathway
-    }
+                // check if the voter has enough budget remaining to allocate to the proposal
+                if (voter.budgetRemaining == 0 || budgetAllocation > voter.budgetRemaining) revert InsufficientBudget();
 
-    /**
-     * @notice Vote on a proposal in the funding stage of the Distribution Period.
-     * @dev    Votes can be allocated to multiple proposals, quadratically, for or against.
-     * @param  proposal_ The current proposal being voted upon.
-     * @param  account_  The voting account.
-     * @param  voter_    The voter data struct tracking available votes.
-     * @param  budgetAllocation_ The amount of votes being allocated to the proposal.
-     * @return budgetAllocated_ The amount of votes allocated to the proposal.
-     */
-    function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 budgetAllocation_) internal returns (uint256 budgetAllocated_) {
-        uint8  support = 1;
-        uint256 proposalId = proposal_.proposalId;
-
-        // case where voter is voting against the proposal
-        if (budgetAllocation_ < 0) {
-            support = 0;
-
-            // update voter budget remaining
-            voter_.budgetRemaining += budgetAllocation_;
-        }
-        // voter is voting in support of the proposal
-        else {
-            // update voter budget remaining
-            voter_.budgetRemaining -= budgetAllocation_;
-        }
-
-        // update proposal vote tracking
-        proposal_.qvBudgetAllocated += budgetAllocation_;
-
-        // update top ten proposals
-        Proposal[] storage topTen = topTenProposals[proposal_.distributionId];
-        uint256 proposalIndex = uint256(_findProposalIndex(proposalId, topTen));
-        topTen[proposalIndex].qvBudgetAllocated = proposal_.qvBudgetAllocated;
-
-        // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
-        budgetAllocated_ = uint256(Maths.abs(budgetAllocation_));
-        emit VoteCast(account_, proposalId, support, budgetAllocated_, "");
-    }
-
-    /**
-     * @notice Vote on a proposal in the screening stage of the Distribution Period.
-     * @param account_                The voting account.
-     * @param proposal_               The current proposal being voted upon.
-     * @param votes_                  The amount of votes being cast.
-     * @return                        The amount of votes cast.
-     */
-    function _screeningVote(address account_, Proposal storage proposal_, uint256 votes_) internal returns (uint256) {
-        if (hasScreened[account_]) revert AlreadyVoted();
-
-        Proposal[] storage currentTopTenProposals = topTenProposals[proposal_.distributionId];
-
-        // update proposal votes counter
-        proposal_.votesReceived += votes_;
-
-        // check if proposal was already screened
-        int indexInArray = _findProposalIndex(proposal_.proposalId, currentTopTenProposals);
-        uint256 screenedProposalsLength = currentTopTenProposals.length;
-
-        // check if the proposal should be added to the top ten list for the first time
-        if (screenedProposalsLength < 10 && indexInArray == -1) {
-            currentTopTenProposals.push(proposal_);
-        }
-        else {
-            // proposal is already in the array
-            if (indexInArray != -1) {
-                currentTopTenProposals[uint256(indexInArray)] = proposal_;
-
-                // sort top ten proposals
-                _insertionSortProposalsByVotes(currentTopTenProposals);
-            }
-            // proposal isn't already in the array
-            else if(currentTopTenProposals[screenedProposalsLength - 1].votesReceived < proposal_.votesReceived) {
-                // replace least supported proposal with the new proposal
-                currentTopTenProposals.pop();
-                currentTopTenProposals.push(proposal_);
-
-                // sort top ten proposals
-                _insertionSortProposalsByVotes(currentTopTenProposals);
+                return _fundingVote(proposal, account_, voter, budgetAllocation);
             }
         }
 
-        // record voters vote
-        hasScreened[account_] = true;
-
-        // vote for the given proposal
-        return super._castVote(proposal_.proposalId, account_, 1, "", "");
+        // extraordinary funding mechanism
+        else if (mechanism == FundingMechanism.Extraordinary) {
+            return _extraordinaryFundingVote(proposalId_, account_);
+        }
     }
 
     /**
@@ -476,39 +149,60 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
      * @dev    Snapshot checks are built into this function to ensure accurate power is returned regardless of the caller.
      * @dev    Number of votes available is equivalent to the usage of voting weight in the super class.
      * @param  account_     The voting account.
-     * @param  blockNumber_ The block number to check the snapshot at.
-     * @param  stage_       The stage of the distribution period, or signifier of the vote being part of the extraordinary funding mechanism.
+     * @param  params_      Params used to pass stage for Standard, and proposalId for extraordinary.
      * @return The number of votes available to an account in a given stage.
      */
-    function _getVotes(address account_, uint256 blockNumber_, bytes memory stage_) internal view override(Governor, GovernorVotes) returns (uint256) {
+    function _getVotes(address account_, uint256, bytes memory params_) internal view override(Governor) returns (uint256) {
         QuarterlyDistribution memory currentDistribution = distributions[_distributionIdCheckpoints.latest()];
 
         // within screening period 1 token 1 vote
-        if (keccak256(stage_) == keccak256(bytes("Screening"))) {
+        if (keccak256(params_) == keccak256(bytes("Screening"))) {
             // calculate voting weight based on the number of tokens held before the start of the distribution period
-            return currentDistribution.startBlock == 0 ? 0 : super._getVotes(account_, currentDistribution.startBlock - 33, "");
+            return _getVotesSinceSnapshot(account_, currentDistribution.startBlock - 33, currentDistribution.startBlock);
         }
         // else if in funding period quadratic formula squares the number of votes
-        else if (keccak256(stage_) == keccak256(bytes("Funding"))) {
+        else if (keccak256(params_) == keccak256(bytes("Funding"))) {
             QuadraticVoter memory voter = quadraticVoters[currentDistribution.id][account_];
             // this is the first time a voter has attempted to vote this period
             if (voter.votingWeight == 0) {
-                return Maths.wpow(super._getVotes(account_, currentDistribution.endBlock - 72033, ""), 2);
+                return Maths.wpow(_getVotesSinceSnapshot(account_, currentDistribution.endBlock - 72033, currentDistribution.endBlock - 72000), 2);
             }
             // voter has already allocated some of their budget this period
             else {
                 return uint256(voter.budgetRemaining);
             }
         }
-        // one token one vote for extraordinary funding
-        else if (keccak256(stage_) == keccak256(bytes("Extraordinary"))) {
-            return super._getVotes(account_, blockNumber_, "");
-        }
-        // voting is not possible for non-specified pathways
         else {
-            return 0;
+            if (params_.length != 0) {
+                // attempt to decode a proposalId from the params
+                uint256 proposalId = abi.decode(params_, (uint256));
+
+                // one token one vote for extraordinary funding
+                if (proposalId != 0) {
+                    uint256 startBlock = extraordinaryFundingProposals[proposalId].startBlock;
+                    return _getVotesSinceSnapshot(account_, startBlock - 33, startBlock);
+                }
+            }
+            // voting is not possible for non-specified pathways
+            else {
+                return 0;
+            }
         }
     }
+
+    function _getVotesSinceSnapshot(address account_, uint256 snapshot_, uint256 voteStartBlock_) internal view returns (uint256) {
+        uint256 votes1 = token.getPastVotes(account_, snapshot_);
+
+        // enable voting weight to be calculated during the voting period's start block
+        voteStartBlock_ = voteStartBlock_ == block.number ? block.number - 1 : voteStartBlock_;
+        uint256 votes2 = token.getPastVotes(account_, voteStartBlock_);
+
+        return Maths.min(votes2, votes1);
+    }
+
+    /**************************/
+    /*** Required Overrides ***/
+    /**************************/
 
     /**
      * @dev See {IGovernor-COUNTING_MODE}.
@@ -516,14 +210,6 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
     //slither-disable-next-line naming-convention
     function COUNTING_MODE() public pure override(IGovernor) returns (string memory) {
         return "support=bravo&quorum=for,abstain";
-    }
-
-    /**
-     * @notice Restrict voter to only voting once during the screening stage.
-     * @dev    See {IGovernor-hasVoted}.
-     */
-    function hasVoted(uint256, address account_) public view override(IGovernor) returns (bool) {
-        return hasScreened[account_];
     }
 
     /**
@@ -541,13 +227,21 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
         return true;
     }
 
-    function _voteSucceeded(uint256 proposalId_) internal view override(Governor) returns (bool) {
-        uint256 distributionId = _distributionIdCheckpoints.latest();
-        return _findProposalIndex(proposalId_, fundedProposalSlates[distributionId][distributions[distributionId].fundedSlateHash]) != -1;
-    }
+   /**
+     * @notice Required override; not currently used due to divergence in voting logic.
+     * @dev    See {IGovernor-quorum}.
+     */
+    function quorum(uint256) public pure override(IGovernor) returns (uint256) {}
+
+   /**
+     * @notice Required override; not currently used due to divergence in voting logic.
+     * @dev    Replaced by mechanism specific voteSucceeded functions.
+     * @dev    See {IGovernor-quorum}.
+     */
+     function _voteSucceeded(uint256 proposalId) internal view override(Governor) returns (bool) {}
 
     /**
-     * @notice Required ovverride.
+     * @notice Required override.
      * @dev    Since no voting delay is implemented, this is hardcoded to 0.
      */
     function votingDelay() public pure override(IGovernor) returns (uint256) {
@@ -555,139 +249,8 @@ contract GrantFund is IGrantFund, Governor, GovernorVotesQuorumFraction, Reentra
     }
 
     /**
-     * @notice Calculates the remaining blocks left in the current voting period
-     * @dev    Required ovverride; see {IGovernor-votingPeriod}.
-     * @return The remaining number of blocks.
+     * @notice    Required override; see {IGovernor-votingPeriod}.
      */
-    function votingPeriod() public view override(IGovernor) returns (uint256) {
-        QuarterlyDistribution memory currentDistribution = distributions[_distributionIdCheckpoints.latest()];
-        uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
-
-        if (block.number < screeningPeriodEndBlock) {
-            return screeningPeriodEndBlock - block.number;
-        }
-        else if (block.number > screeningPeriodEndBlock && block.number < currentDistribution.endBlock) {
-            return currentDistribution.endBlock - block.number;
-        }
-        // TODO: implement exraordinary funding mechanism
-        else {
-            return 0;
-        }
-    }
-
-    /**************************/
-    /*** External Functions ***/
-    /**************************/
-
-    /**
-     * @notice Retrieve the QuarterlyDistribution distributionId at a given block.
-     */
-    function getDistributionIdAtBlock(uint256 blockNumber) external view returns (uint256) {
-        return _distributionIdCheckpoints.getAtBlock(blockNumber);
-    }
-
-    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, bytes32) {
-        QuarterlyDistribution memory distribution = distributions[distributionId_];
-        return (
-            distribution.id,
-            distribution.votesCast,
-            distribution.startBlock,
-            distribution.endBlock,
-            distribution.fundedSlateHash
-        );
-    }
-
-    /**
-     * @notice Get the funded proposal slate for a given distributionId, and slate hash
-     */
-    function getFundedProposalSlate(uint256 distributionId_, bytes32 slateHash_) external view returns (Proposal[] memory) {
-        return fundedProposalSlates[distributionId_][slateHash_];
-    }
-
-    /**
-     * @notice Get the current state of a given proposal.
-     */
-    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256) {
-        Proposal memory proposal = proposals[proposalId_];
-        return (
-            proposal.proposalId,
-            proposal.distributionId,
-            proposal.votesReceived,
-            proposal.tokensRequested,
-            proposal.qvBudgetAllocated
-        );
-    }
-
-    /**
-     * @notice Get the current state of a given voter in the funding stage.
-     */
-    function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, int256) {
-        QuadraticVoter memory voter = quadraticVoters[distributionId_][account_];
-        return (
-            voter.votingWeight,
-            voter.budgetRemaining
-        );
-    }
-
-    function getTopTenProposals(uint256 distributionId_) external view returns (Proposal[] memory) {
-        return topTenProposals[distributionId_];
-    }
-
-    /*****************************/
-    /*** Extraordinary Funding ***/
-    /*****************************/
-
-    /**
-     * @notice Get the current extraordinaryFundingBaseQuorum required to pass an extraordinary funding proposal.
-     */
-    function getExtraordinaryFundingQuorum(uint256 blockNumber, uint256 tokensRequested) external view returns (uint256) {
-    }
-
-    // TODO: implement custom override - need to support both regular votes, and the extraordinaryFunding mechanism
-    function quorum(uint256 blockNumber) public view override(IGovernor, GovernorVotesQuorumFraction) returns (uint256) {
-        return super.quorum(blockNumber);
-    }
-
-    // TODO: move this into a sort library; investigate replacement with simple iterative sort
-    /*************************/
-    /*** Sorting Functions ***/
-    /*************************/
-
-    // return the index of the proposalId in the array, else -1
-    function _findProposalIndex(uint256 proposalId, Proposal[] memory array) internal pure returns (int256 index_) {
-        index_ = -1; // default value indicating proposalId not in the array
-
-        for (int256 i = 0; i < int256(array.length);) {
-            //slither-disable-next-line incorrect-equality
-            if (array[uint256(i)].proposalId == proposalId) {
-                index_ = i;
-                break;
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
-     * @notice Sort the 10 proposals which will make it through screening and move on to the funding round.
-     * @dev    Implements the descending insertion sort algorithm.
-     */
-    function _insertionSortProposalsByVotes(Proposal[] storage arr) internal {
-        for (int i = 1; i < int(arr.length); i++) {
-            Proposal memory key = arr[uint(i)];
-            int j = i;
-
-            while (j > 0 && key.votesReceived > arr[uint(j - 1)].votesReceived) {
-                // swap values if left item < right item
-                Proposal memory temp = arr[uint(j - 1)];
-                arr[uint(j - 1)] = arr[uint(j)];
-                arr[uint(j)] = temp;
-
-                j--;
-            }
-        }
-    }
+    function votingPeriod() public view override(IGovernor) returns (uint256) {}
 
 }

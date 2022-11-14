@@ -4,37 +4,13 @@
 pragma solidity 0.8.16;
 
 /**
- * @title Ajna Grant Coordination Fund
+ * @title Ajna Grant Coordination Fund Standard Proposal flow.
  */
-interface IGrantFund {
-
-    /**************/
-    /*** Events ***/
-    /**************/
-
-    /**
-     *  @notice Emitted when a new top ten slate is submitted and set as the leading optimized slate.
-     *  @param  distributionId_  Id of the distribution period.
-     *  @param  fundedSlateHash_ Hash of the proposals to be funded.
-     */
-    event FundedSlateUpdated(uint256 indexed distributionId_, bytes32 indexed fundedSlateHash_);
-
-    /**
-     *  @notice Emitted at the beginning of a new quarterly distribution period.
-     *  @param  distributionId_ Id of the new distribution period.
-     *  @param  startBlock_     Block number of the quarterly distrubtions start.
-     *  @param  endBlock_       Block number of the quarterly distrubtions end.
-     */
-    event QuarterlyDistributionStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
+interface IStandardFunding {
 
     /*********************/
     /*** Custom Errors ***/
     /*********************/
-
-    /**
-     * @notice Voter has already voted on a proposal in the screening stage in a quarter.
-     */
-    error AlreadyVoted();
 
     /**
      * @notice User attempted to execute a proposal before the distribution period ended.
@@ -56,27 +32,24 @@ interface IGrantFund {
      */
     error InsufficientBudget();
 
-    /**
-     * @notice Non Ajna token contract address specified in target list.
-     */
-    error InvalidTarget();
+    /**************/
+    /*** Events ***/
+    /**************/
 
     /**
-     * @notice Non-zero amount specified in values array.
-     * @dev This parameter is only used for sending ETH which the GrantFund doesn't utilize.
+     *  @notice Emitted when a new top ten slate is submitted and set as the leading optimized slate.
+     *  @param  distributionId_  Id of the distribution period.
+     *  @param  fundedSlateHash_ Hash of the proposals to be funded.
      */
-    error InvalidValues();
+    event FundedSlateUpdated(uint256 indexed distributionId_, bytes32 indexed fundedSlateHash_);
 
     /**
-     * @notice Calldata for a method other than `transfer(address,uint256) was provided in a proposal.
-     * @dev seth sig "transfer(address,uint256)" == 0xa9059cbb.
+     *  @notice Emitted at the beginning of a new quarterly distribution period.
+     *  @param  distributionId_ Id of the new distribution period.
+     *  @param  startBlock_     Block number of the quarterly distrubtions start.
+     *  @param  endBlock_       Block number of the quarterly distrubtions end.
      */
-    error InvalidSignature();
-
-    /**
-     * @notice User attempted to submit a proposal with too many target, values or calldatas.
-     */
-    error InvalidProposal();
+    event QuarterlyDistributionStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
 
     /***************/
     /*** Structs ***/
@@ -102,6 +75,7 @@ interface IGrantFund {
         uint256 votesReceived;    // accumulator of screening votes received by a proposal
         uint256 tokensRequested;  // number of Ajna tokens requested in the proposal
         int256  qvBudgetAllocated; // accumulator of QV budget allocated
+        bool    executed;         // whether the proposal has been executed
     }
 
     /**
