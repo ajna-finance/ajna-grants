@@ -46,22 +46,22 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @dev Mapping of all proposals that have ever been submitted to the grant fund for screening.
-     * @dev distribution.id => proposalId => Proposal
+     * @dev proposalId => Proposal
      */
     mapping(uint256 => Proposal) standardFundingProposals;
 
     /**
-     * @dev Mapping of distributionId to a sorted array of 10 proposals with the most votes in the screening period.
-     * @dev distribution.id => Proposal[]
+     * @dev Mapping of distributionId to a sorted array of 10 proposalIds with the most votes in the screening period.
+     * @dev distribution.id => proposalId[]
      * @dev A new array is created for each distribution period
      */
-    mapping(uint256 => Proposal[]) topTenProposals;
+    mapping(uint256 => uint256[]) topTenProposals;
 
     /**
      * @notice Mapping of quarterly distributions to a hash of a proposal slate to a list of funded proposals.
-     * @dev distributionId => slate hash => Proposal[]
+     * @dev distributionId => slate hash => proposalId[]
      */
-    mapping(uint256 => mapping(bytes32 => Proposal[])) fundedProposalSlates;
+    mapping(uint256 => mapping(bytes32 => uint256[])) fundedProposalSlates;
 
     /**
      * @notice Mapping of quarterly distributions to voters to a Quadratic Voter info struct.
@@ -138,10 +138,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         emit QuarterlyDistributionStarted(newDistributionId_, startBlock, endBlock);
     }
 
-    function _sumBudgetAllocated(Proposal[] memory proposalSubset_) internal pure returns (uint256 sum) {
+    function _sumBudgetAllocated(uint256[] memory proposalIdSubset_) internal view returns (uint256 sum) {
         sum = 0;
-        for (uint i = 0; i < proposalSubset_.length;) {
-            sum += uint256(proposalSubset_[i].qvBudgetAllocated);
+        for (uint i = 0; i < proposalIdSubset_.length;) {
+            sum += uint256(standardFundingProposals[proposalIdSubset_[i]].qvBudgetAllocated);
 
             unchecked {
                 ++i;
@@ -196,10 +196,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[distributionId_][currentSlateHash]));
 
         if (newTopSlate) {
-            Proposal[] storage existingSlate = fundedProposalSlates[distributionId_][newSlateHash];
+            uint256[] storage existingSlate = fundedProposalSlates[distributionId_][newSlateHash];
             for (uint i = 0; i < fundedProposals_.length; ) {
                 // update list of proposals to fund
-                existingSlate.push(fundedProposals_[i]);
+                existingSlate.push(fundedProposals_[i].proposalId);
 
                 unchecked {
                     ++i;
@@ -316,9 +316,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         proposal_.qvBudgetAllocated += budgetAllocation_;
 
         // update top ten proposals
-        Proposal[] storage topTen = topTenProposals[proposal_.distributionId];
+        uint256[] memory topTen = topTenProposals[proposal_.distributionId];
         uint256 proposalIndex = uint256(_findProposalIndex(proposalId, topTen));
-        topTen[proposalIndex].qvBudgetAllocated = proposal_.qvBudgetAllocated;
+        standardFundingProposals[topTen[proposalIndex]].qvBudgetAllocated = proposal_.qvBudgetAllocated;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         budgetAllocated_ = uint256(Maths.abs(budgetAllocation_));
@@ -335,7 +335,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function _screeningVote(address account_, Proposal storage proposal_, uint256 votes_) internal returns (uint256) {
         if (hasScreened[proposal_.proposalId][account_]) revert AlreadyVoted();
 
-        Proposal[] storage currentTopTenProposals = topTenProposals[proposal_.distributionId];
+        uint256[] storage currentTopTenProposals = topTenProposals[proposal_.distributionId];
 
         // update proposal votes counter
         proposal_.votesReceived += votes_;
@@ -346,21 +346,21 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // check if the proposal should be added to the top ten list for the first time
         if (screenedProposalsLength < 10 && indexInArray == -1) {
-            currentTopTenProposals.push(proposal_);
+            currentTopTenProposals.push(proposal_.proposalId);
         }
         else {
             // proposal is already in the array
             if (indexInArray != -1) {
-                currentTopTenProposals[uint256(indexInArray)] = proposal_;
+                currentTopTenProposals[uint256(indexInArray)] = proposal_.proposalId;
 
                 // sort top ten proposals
                 _insertionSortProposalsByVotes(currentTopTenProposals);
             }
             // proposal isn't already in the array
-            else if(currentTopTenProposals[screenedProposalsLength - 1].votesReceived < proposal_.votesReceived) {
+            else if(standardFundingProposals[currentTopTenProposals[screenedProposalsLength - 1]].votesReceived < proposal_.votesReceived) {
                 // replace least supported proposal with the new proposal
                 currentTopTenProposals.pop();
-                currentTopTenProposals.push(proposal_);
+                currentTopTenProposals.push(proposal_.proposalId);
 
                 // sort top ten proposals
                 _insertionSortProposalsByVotes(currentTopTenProposals);
@@ -407,7 +407,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**
      * @notice Get the funded proposal slate for a given distributionId, and slate hash
      */
-    function getFundedProposalSlate(uint256 distributionId_, bytes32 slateHash_) external view returns (Proposal[] memory) {
+    function getFundedProposalSlate(uint256 distributionId_, bytes32 slateHash_) external view returns (uint256[] memory) {
         return fundedProposalSlates[distributionId_][slateHash_];
     }
 
@@ -437,7 +437,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         );
     }
 
-    function getTopTenProposals(uint256 distributionId_) external view returns (Proposal[] memory) {
+    function getTopTenProposals(uint256 distributionId_) external view returns (uint256[] memory) {
         return topTenProposals[distributionId_];
     }
 
@@ -446,12 +446,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /*************************/
 
     // return the index of the proposalId in the array, else -1
-    function _findProposalIndex(uint256 proposalId, Proposal[] memory array) internal pure returns (int256 index_) {
+    function _findProposalIndex(uint256 proposalId, uint256[] memory array) internal pure returns (int256 index_) {
         index_ = -1; // default value indicating proposalId not in the array
 
         for (int256 i = 0; i < int256(array.length);) {
             //slither-disable-next-line incorrect-equality
-            if (array[uint256(i)].proposalId == proposalId) {
+            if (array[uint256(i)] == proposalId) {
                 index_ = i;
                 break;
             }
@@ -466,14 +466,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Sort the 10 proposals which will make it through screening and move on to the funding round.
      * @dev    Implements the descending insertion sort algorithm.
      */
-    function _insertionSortProposalsByVotes(Proposal[] storage arr) internal {
+    function _insertionSortProposalsByVotes(uint256[] storage arr) internal {
         for (int i = 1; i < int(arr.length); i++) {
-            Proposal memory key = arr[uint(i)];
+            Proposal memory key = standardFundingProposals[arr[uint(i)]];
             int j = i;
 
-            while (j > 0 && key.votesReceived > arr[uint(j - 1)].votesReceived) {
+            while (j > 0 && key.votesReceived > standardFundingProposals[arr[uint(j - 1)]].votesReceived) {
                 // swap values if left item < right item
-                Proposal memory temp = arr[uint(j - 1)];
+                uint256 temp = arr[uint(j - 1)];
                 arr[uint(j - 1)] = arr[uint(j)];
                 arr[uint(j)] = temp;
 

@@ -23,9 +23,9 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     mapping (uint256 => ExtraordinaryFundingProposal) public extraordinaryFundingProposals;
 
     /**
-     * @notice The list of extraordinary funding proposals that have been executed.
+     * @notice The list of extraordinary funding proposalIds that have been executed.
      */
-    ExtraordinaryFundingProposal[] public fundedExtraordinaryProposals;
+    uint256[] public fundedExtraordinaryProposals;
 
     /**
      * @notice The maximum length of a proposal's voting period, in blocks.
@@ -53,7 +53,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             revert ExecuteExtraordinaryProposalInvalid();
         }
 
-        fundedExtraordinaryProposals.push(proposal);
+        fundedExtraordinaryProposals.push(proposal.proposalId);
 
         super.execute(targets_, values_, calldatas_, descriptionHash_);
         proposal.executed = true;

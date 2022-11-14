@@ -271,6 +271,21 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.castVote(proposalId_, support_);
     }
 
+    function _getProposalListFromProposalIds(GrantFund grantFund_, uint256[] memory proposalIds_) internal view returns (GrantFund.Proposal[] memory) {
+        GrantFund.Proposal[] memory proposals = new GrantFund.Proposal[](proposalIds_.length);
+        for (uint256 i = 0; i < proposalIds_.length; ++i) {
+            (
+                proposals[i].proposalId,
+                proposals[i].distributionId,
+                proposals[i].votesReceived,
+                proposals[i].tokensRequested,
+                proposals[i].qvBudgetAllocated,
+                proposals[i].executed
+            ) = grantFund_.getProposalInfo(proposalIds_[i]);
+        }
+        return proposals;
+    }
+
     // expects a list of Proposal structs
     // filepath expected to be defined from root
     function _loadProposalSlateJSON(string memory filePath) internal returns (IStandardFunding.Proposal[] memory) {
