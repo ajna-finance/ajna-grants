@@ -57,9 +57,9 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
     /**
      * @notice Given a proposalId, find if it is a standard or extraordinary proposal.
      */
-    function findMechanismOfProposal(uint256 proposalId_) public view returns (uint8) {
-        if (standardFundingProposals[proposalId_].proposalId != 0) return 0; // 0 = standard funding proposal
-        else if (extraordinaryFundingProposals[proposalId_].proposalId != 0) return 1; // 1 = extraordinary funding proposal
+    function findMechanismOfProposal(uint256 proposalId_) public view returns (FundingMechanism) {
+        if (standardFundingProposals[proposalId_].proposalId != 0) return FundingMechanism.Standard;
+        else if (extraordinaryFundingProposals[proposalId_].proposalId != 0) return FundingMechanism.Extraordinary;
         else revert ProposalNotFound();
     }
 
@@ -70,10 +70,10 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
      * @return ProposalState of the given proposal.
      */
     function state(uint256 proposalId_) public view override(Governor) returns (IGovernor.ProposalState) {
-        uint8 mechanism = findMechanismOfProposal(proposalId_);
+        FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
 
         // standard proposal state checks
-        if (mechanism == 0) {
+        if (mechanism == FundingMechanism.Standard) {
             Proposal memory proposal = standardFundingProposals[proposalId_];
             QuarterlyDistribution memory distribution = distributions[_distributionIdCheckpoints.latest()];
 
@@ -85,7 +85,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
             else return IGovernor.ProposalState.Defeated;
         }
         // extraordinary funding proposal state checks
-        else if (mechanism == 1) {
+        else if (mechanism == FundingMechanism.Extraordinary) {
             ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
 
             bool voteSucceeded = _extraordinaryFundingVoteSucceeded(proposalId_);
@@ -109,10 +109,10 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
      * @param params_     The amount of votes being allocated in the funding stage.
      */
      function _castVote(uint256 proposalId_, address account_, uint8, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
-        uint8 mechanism = findMechanismOfProposal(proposalId_);
+        FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
 
         // standard funding mechanism
-        if (mechanism == 0) {
+        if (mechanism == FundingMechanism.Standard) {
             Proposal storage proposal = standardFundingProposals[proposalId_];
             QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
             uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
@@ -145,7 +145,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
         }
 
         // extraordinary funding mechanism
-        else if (mechanism == 1) {
+        else if (mechanism == FundingMechanism.Extraordinary) {
             return _extraordinaryFundingVote(proposalId_, account_);
         }
     }

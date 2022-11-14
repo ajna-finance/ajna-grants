@@ -56,6 +56,14 @@ abstract contract Funding is Governor, ReentrancyGuard {
     address public ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
 
     /**
+     * @notice Enum listing available proposal types.
+     */
+    enum FundingMechanism {
+        Standard,
+        Extraordinary
+    }
+
+    /**
      * @notice Mapping checking if a voter has voted on a given proposal.
      * @dev proposalId => address => bool.
      */

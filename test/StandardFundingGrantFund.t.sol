@@ -215,7 +215,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertFalse(executed);
 
         // check findMechanism identifies it as a standard proposal
-        assertEq(_grantFund.findMechanismOfProposal(proposalId), 0);
+        assert(_grantFund.findMechanismOfProposal(proposalId) == Funding.FundingMechanism.Standard);
     }
 
     function testInvalidProposalCalldata() external {

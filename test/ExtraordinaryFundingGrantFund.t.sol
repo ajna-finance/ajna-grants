@@ -275,7 +275,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertFalse(executed);
 
         // check findMechanism identifies it as an extraOrdinary proposal
-        assertEq(_grantFund.findMechanismOfProposal(proposalId), 1);
+        assert(_grantFund.findMechanismOfProposal(proposalId) == Funding.FundingMechanism.Extraordinary);
     }
 
     function testProposeExtraordinaryMultipleCalldata() external {
