@@ -177,11 +177,10 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
                 // attempt to decode a proposalId from the params
                 uint256 proposalId = abi.decode(params_, (uint256));
 
-                ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId];
-
                 // one token one vote for extraordinary funding
-                if (proposal.proposalId != 0) {
-                    return _getVotesSinceSnapshot(account_, proposal.startBlock - 33, proposal.startBlock);
+                if (proposalId != 0) {
+                    uint256 startBlock = extraordinaryFundingProposals[proposalId].startBlock;
+                    return _getVotesSinceSnapshot(account_, startBlock - 33, startBlock);
                 }
             }
             // voting is not possible for non-specified pathways

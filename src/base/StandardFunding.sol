@@ -117,10 +117,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @return newDistributionId_ The new distribution period Id.
      */
     function startNewDistributionPeriod() external returns (uint256 newDistributionId_) {
-        QuarterlyDistribution memory lastDistribution = distributions[_distributionIdCheckpoints.latest()];
-
         // check that there isn't currently an active distribution period
-        if (block.number <= lastDistribution.endBlock) revert DistributionPeriodStillActive();
+        if (block.number <= distributions[_distributionIdCheckpoints.latest()].endBlock) revert DistributionPeriodStillActive();
 
         // set the distribution period to start at the current block
         uint256 startBlock = block.number;
@@ -131,9 +129,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // create QuarterlyDistribution struct
         QuarterlyDistribution storage newDistributionPeriod = distributions[newDistributionId_];
-        newDistributionPeriod.id = newDistributionId_;
+        newDistributionPeriod.id         = newDistributionId_;
         newDistributionPeriod.startBlock = startBlock;
-        newDistributionPeriod.endBlock = endBlock;
+        newDistributionPeriod.endBlock   = endBlock;
 
         emit QuarterlyDistributionStarted(newDistributionId_, startBlock, endBlock);
     }
@@ -218,8 +216,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
      */
     function maximumQuarterlyDistribution() public view returns (uint256) {
-        uint256 GrantFundBalance = IERC20(ajnaTokenAddress).balanceOf(address(this));
-        return Maths.wmul(GrantFundBalance, globalBudgetConstraint);
+        return Maths.wmul(IERC20(ajnaTokenAddress).balanceOf(address(this)), globalBudgetConstraint);
     }
 
     /**************************/
@@ -264,11 +261,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // store new proposal information
         Proposal storage newProposal = standardFundingProposals[proposalId_];
-        newProposal.proposalId = proposalId_;
-        newProposal.distributionId = _distributionIdCheckpoints.latest();
+        newProposal.proposalId       = proposalId_;
+        newProposal.distributionId   = _distributionIdCheckpoints.latest();
 
         // check proposal parameters are valid and update tokensRequested
-        newProposal.tokensRequested = _validateCallDatas(targets_, values_, calldatas_);
+        newProposal.tokensRequested  = _validateCallDatas(targets_, values_, calldatas_);
 
         emit ProposalCreated(
             proposalId_,

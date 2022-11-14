@@ -89,9 +89,9 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         // store newly created proposal
         ExtraordinaryFundingProposal storage newProposal = extraordinaryFundingProposals[proposalId_];
-        newProposal.proposalId = proposalId_;
-        newProposal.startBlock = block.number;
-        newProposal.endBlock = endBlock_;
+        newProposal.proposalId      = proposalId_;
+        newProposal.startBlock      = block.number;
+        newProposal.endBlock        = endBlock_;
         newProposal.tokensRequested = totalTokensRequested;
 
         emit ProposalCreated(
