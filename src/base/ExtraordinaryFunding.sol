@@ -20,17 +20,17 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @notice Mapping of extant extraordinary funding proposals.
      * @dev proposalId => ExtraordinaryFundingProposal.
      */
-    mapping (uint256 => ExtraordinaryFundingProposal) public extraordinaryFundingProposals;
+    mapping (uint256 => ExtraordinaryFundingProposal) internal extraordinaryFundingProposals;
 
     /**
      * @notice The list of extraordinary funding proposalIds that have been executed.
      */
-    uint256[] public fundedExtraordinaryProposals;
+    uint256[] internal fundedExtraordinaryProposals;
 
     /**
      * @notice The maximum length of a proposal's voting period, in blocks.
      */
-    uint256 public constant MAX_EFM_PROPOSAL_LENGTH = 216_000; // number of blocks in one month
+    uint256 internal constant MAX_EFM_PROPOSAL_LENGTH = 216_000; // number of blocks in one month
 
     /**************************/
     /*** Proposal Functions ***/
@@ -76,6 +76,8 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         string memory description_) public returns (uint256 proposalId_) {
 
         proposalId_ = hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
+
+        if (extraordinaryFundingProposals[proposalId_].proposalId != 0) revert ProposalAlreadyExists();
 
         // check proposal length is within limits of 1 month maximum and it hasn't already been submitted
         if (block.number + MAX_EFM_PROPOSAL_LENGTH < endBlock_ || extraordinaryFundingProposals[proposalId_].proposalId != 0) {

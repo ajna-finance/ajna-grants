@@ -42,32 +42,32 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Mapping of quarterly distributions from the grant fund.
      * @dev distributionId => QuarterlyDistribution
      */
-    mapping(uint256 => QuarterlyDistribution) distributions;
+    mapping(uint256 => QuarterlyDistribution) internal distributions;
 
     /**
      * @dev Mapping of all proposals that have ever been submitted to the grant fund for screening.
      * @dev proposalId => Proposal
      */
-    mapping(uint256 => Proposal) standardFundingProposals;
+    mapping(uint256 => Proposal) internal standardFundingProposals;
 
     /**
      * @dev Mapping of distributionId to a sorted array of 10 proposalIds with the most votes in the screening period.
      * @dev distribution.id => proposalId[]
      * @dev A new array is created for each distribution period
      */
-    mapping(uint256 => uint256[]) topTenProposals;
+    mapping(uint256 => uint256[]) internal topTenProposals;
 
     /**
      * @notice Mapping of quarterly distributions to a hash of a proposal slate to a list of funded proposals.
      * @dev distributionId => slate hash => proposalId[]
      */
-    mapping(uint256 => mapping(bytes32 => uint256[])) fundedProposalSlates;
+    mapping(uint256 => mapping(bytes32 => uint256[])) internal fundedProposalSlates;
 
     /**
      * @notice Mapping of quarterly distributions to voters to a Quadratic Voter info struct.
      * @dev distributionId => voter address => QuadraticVoter 
      */
-    mapping (uint256 => mapping(address => QuadraticVoter)) quadraticVoters;
+    mapping (uint256 => mapping(address => QuadraticVoter)) internal quadraticVoters;
 
     /*****************************************/
     /*** Distribution Management Functions ***/

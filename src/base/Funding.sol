@@ -33,7 +33,6 @@ abstract contract Funding is Governor, ReentrancyGuard {
      */
     error InvalidSignature();
 
-    // TODO: move this to IGrantFund?
     /**
      * @notice User attempted to submit a proposal with too many target, values or calldatas, or to the wrong method.
      */
@@ -44,8 +43,14 @@ abstract contract Funding is Governor, ReentrancyGuard {
      */
     error MethodNotImplemented();
 
+    /**
+     * @notice User attempted to submit a duplicate proposal.
+     */
     error ProposalAlreadyExists();
 
+    /**
+     * @notice Provided proposalId isn't present in either funding mechanisms storage mappings.
+     */
     error ProposalNotFound();
 
     /***********************/
@@ -67,7 +72,7 @@ abstract contract Funding is Governor, ReentrancyGuard {
      * @notice Mapping checking if a voter has voted on a given proposal.
      * @dev proposalId => address => bool.
      */
-    mapping(uint256 => mapping(address => bool)) hasScreened;
+    mapping(uint256 => mapping(address => bool)) internal hasScreened;
 
     /**************************/
     /*** Internal Functions ***/
