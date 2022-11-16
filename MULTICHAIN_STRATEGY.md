@@ -6,7 +6,7 @@ Ajna deployments to each chain are sovereign and independant. Each chain will ut
 
 ### **Rollups**
 
-Ajna pool factories will be deployed on every Ethereum L2 rollup, with each pool pointing at the token address created by each rollups canonical bridge. This token address is deterministic and tied to the L1 address, so it doesn't matter who bridges the token first. This behaviour is the same across rollups (Arbitrum, Optimism, Zksync). 
+Ajna pool factories will be deployed on every Ethereum L2 rollup, with each pool pointing at the token address created by each rollup's canonical bridge. This token address is deterministic and tied to the L1 address, so it doesn't matter who bridges the token first. This behaviour is the same across rollups (Arbitrum, Optimism, Zksync). 
 
 Third party bridges can be used as support is added via bridge governance. Third party bridges point at the token address created by the standard token bridges.
 
@@ -16,7 +16,7 @@ NOTE (11/16/22): Starknet doesn't currently support non-whitelisted ERC20 tokens
 
 ### **Sidechains**
 
-Due to the lower safety of sidechain bridges, Ajna tokens must first be wrapped in the `BurnWrapper.sol` contract. Pools in the sidechains will point to the sidechain token address created by mapping the BurnWrapped tokens to the sidechain token. Each sidechain will have it's own BurnWrapper instance. This design prevents double-spends due to sidechain bridges being compromised and releasing L1 tokens incorrectly, artifically increasing the token supply available for burn-and-buy. 
+Due to the lower safety of sidechain bridges, Ajna tokens must first be wrapped in the `BurnWrapper.sol` contract. The BurnWrapper contract enables L1 Ajna tokens to be wrapped via OpenZeppelin's ERC20Wrapper extension, and converted into BurnWrapped tokens. Tokens wrapped this way cannot be unwrapped. Pools in the sidechains will point to the sidechain token address created by mapping the BurnWrapped tokens to the sidechain token. Each sidechain will have it's own BurnWrapper instance. This design prevents double-spends due to sidechain bridges being compromised and releasing L1 tokens incorrectly, artifically increasing the token supply available for burn-and-buy. 
 
 #### Polygon 
 
@@ -24,7 +24,7 @@ Tokens must be mapped to the polygon sidechain prior to bridging. This mapping w
 
 #### Binance
 
-Requires a binance account to use the canonical binance bridge. Third-party bridges rely on the binance bridge as a source of truth. Don't necessarily have to be listed to use the bridge, but unclear.
+Requires a Binance account to use the canonical binance bridge. Third-party bridges rely on the binance bridge as a source of truth. Don't necessarily have to be listed to use the bridge, but unclear.
 
 <br>
 

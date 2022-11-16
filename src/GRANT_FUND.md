@@ -1,6 +1,6 @@
 # Ajna Grant Coordination Fund
 
-As a decentralized protocol with no external governance, Ajna requires a sustainable mechanism by which to coordinate ecosystem growth in a scalable and decentralized way. The grant coordination mechanism is premised upon the idea that the AJNA token has value from the buy and burn mechanism. Upon launch, the Ajna community will be given a fixed portion of the total AJNA token supply, which will be held and distributed by the Grant Coordinartion Fund.
+As a decentralized protocol with no external governance, Ajna requires a sustainable mechanism by which to coordinate ecosystem growth in a scalable and decentralized way. The grant coordination mechanism is premised upon the idea that the AJNA token has value from the buy and burn mechanism. Upon launch, the Ajna community will be given a fixed portion of the total AJNA token supply, which will be held and distributed by the Grant Coordination Fund.
 
 ## Design
 
@@ -43,24 +43,18 @@ For more information, see the Ajna Protocol Whitepaper.
 *OP*
 - https://github.com/ethereum-optimism/optimism/tree/develop/packages/contracts-governance
 
+*General Governance Research*
+- https://github.com/D3LAB-DAO/Governor-C
+- https://www.daomasters.xyz/
+
 *Multichain Governance*
 - https://doseofdefi.substack.com/p/multichain-governance-how-can-daos
 - https://github.com/gnosis/zodiac
 - https://ethereum-magicians.org/t/eip-draft-multi-chain-governance/9284
 
-*General Governance Research*
-- https://github.com/D3LAB-DAO/Governor-C
-
-*Potential Vote Counting structures*
-- https://github.com/bokkypoobah/BokkyPooBahsRedBlackTreeLibrary
-
-
-*QV*
+*Quadratic Voting*
 - https://github.com/VirginiaBlockchain/QuadraticVotingDapp
 - https://blog.tally.xyz/a-simple-guide-to-quadratic-voting-327b52addde1
 
 *Tally*
 - https://docs.tally.xyz/user-guides/tally-contract-compatibility
-
-
-*https://www.daomasters.xyz/*
