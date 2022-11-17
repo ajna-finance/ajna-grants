@@ -2,7 +2,7 @@
 
 ## **Contracts**
 
-## [GRANT COORDINATION FUND](./src/GRANT_FUND.md)
+## [Grant Coordination Fund](./src/GRANT_FUND.md)
 
 ## [Ajna Token](./src/AJNA_TOKEN.md)
 
