@@ -2,6 +2,25 @@
 
 Ajna ERC20 Token contract
 
+## Deployment
+Configure environment with `ETH_RPC_URL` pointing to the target chain for deployment.  Set `DEPLOY_ADDRESS` to the deployment address and `DEPLOY_KEY` to the JSON keystore file.  If you want initial tokens to go to a different address than the deploying address, update constructor arguments accordingly.
+
+Run
+```
+forge create --rpc-url ${ETH_RPC_URL} \
+	--keystore ${DEPLOY_KEY} src/AjnaToken.sol:AjnaToken \
+	--constructor-args ${DEPLOY_ADDRESS}
+```
+and interactively enter your password.  Add `--verify` switch once repository has been made public.
+
+Record the `Deployed to` address returned, exporting to your environment as `AJNA_TOKEN`.
+
+Run the following to validate AJNA token balance:
+```
+cast call ${AJNA_TOKEN} "balanceOf(address)" ${DEPLOY_ADDRESS} --rpc-url ${ETH_RPC_URL}
+```
+
+
 <br>
 
 # Design
