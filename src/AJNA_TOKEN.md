@@ -2,6 +2,11 @@
 
 Ajna ERC20 Token contract
 
+| Deployment | Address |
+| ------: | ------- |
+| Mainnet | [0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079](https://etherscan.io/address/0x9a96ec9b57fb64fbc60b423d1f4da7691bd35079) |
+| Goerli  | [0xaadebCF61AA7Da0573b524DE57c67aDa797D46c5](https://goerli.etherscan.io/address/0xaadebCF61AA7Da0573b524DE57c67aDa797D46c5) |
+
 <br>
 
 ## Design
