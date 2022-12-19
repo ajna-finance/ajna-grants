@@ -188,6 +188,20 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // start distribution period
         _startDistributionPeriod(_grantFund);
 
+        changePrank(_tokenHolder2);
+        // Should revert if Propose of Governer Contract is called
+        vm.expectRevert(Funding.InvalidProposal.selector);
+        _grantFund.propose(ajnaTokenTargets, values, proposalCalldata, description);
+
+        // Skips to funding period
+        vm.roll(576_002);
+        changePrank(_tokenHolder2);
+        // should revert to submit proposal
+        vm.expectRevert(IStandardFunding.ScreeningPeriodEnded.selector);
+        _grantFund.proposeStandard(ajnaTokenTargets, values, proposalCalldata, description);
+
+        vm.roll(10);
+
         // create and submit proposal
         TestProposal memory proposal = _createProposalStandard(_grantFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
 

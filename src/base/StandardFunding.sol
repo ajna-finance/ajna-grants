@@ -346,13 +346,18 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check for duplicate proposals
         if (standardFundingProposals[proposalId_].proposalId != 0) revert ProposalAlreadyExists();
 
+        QuarterlyDistribution memory currentDistribution = distributions[_distributionIdCheckpoints.latest()];
+
+        // cannot add new proposal after end of screening period
+        if (block.number > currentDistribution.endBlock - 72000 ) revert ScreeningPeriodEnded();
+
         // check params have matching lengths
         if (targets_.length != values_.length || targets_.length != calldatas_.length || targets_.length == 0) revert InvalidProposal();
 
         // store new proposal information
         Proposal storage newProposal = standardFundingProposals[proposalId_];
         newProposal.proposalId       = proposalId_;
-        newProposal.distributionId   = _distributionIdCheckpoints.latest();
+        newProposal.distributionId   = currentDistribution.id;
 
         // check proposal parameters are valid and update tokensRequested
         newProposal.tokensRequested  = _validateCallDatas(targets_, values_, calldatas_);
