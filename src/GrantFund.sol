@@ -206,6 +206,38 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
     /*** Required Overrides ***/
     /**************************/
 
+     /**
+     * @notice Restrict voter to only voting once during the screening stage.
+     * @dev    See {IGovernor-hasVoted}.
+     */
+    function hasVoted(uint256 proposalId_, address account_) public view override(IGovernor) returns (bool) {
+        FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
+
+        if (mechanism == FundingMechanism.Standard) {
+            Proposal memory proposal = standardFundingProposals[proposalId_]; 
+            QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
+            uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
+
+            // screening stage
+            if (block.number >= currentDistribution.startBlock && block.number <= screeningPeriodEndBlock) {
+                return hasVotedInScreening[proposal.distributionId][account_];
+            }
+
+            // funding stage
+            else if (block.number > screeningPeriodEndBlock && block.number <= currentDistribution.endBlock) {
+                QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
+
+                if (voter.votingWeight == 0 || voter.budgetRemaining > 0) {
+                    return false;
+                }
+            }
+        }
+
+        else if ( mechanism == FundingMechanism.Extraordinary ) {
+            return hasScreened[proposalId_][account_];
+        }
+    }
+
     /**
      * @dev See {IGovernor-COUNTING_MODE}.
      */

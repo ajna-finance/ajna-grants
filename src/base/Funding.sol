@@ -133,16 +133,4 @@ abstract contract Funding is Governor, ReentrancyGuard {
             }
         }
     }
-
-    /**********************/
-    /*** View Functions ***/
-    /**********************/
-
-    /**
-     * @notice Restrict voter to only voting once during the screening stage.
-     * @dev    See {IGovernor-hasVoted}.
-     */
-    function hasVoted(uint256 proposalId_, address account_) public view override(IGovernor) returns (bool) {
-        return hasScreened[proposalId_][account_];
-    }
 }
