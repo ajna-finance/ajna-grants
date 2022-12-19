@@ -320,10 +320,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @return proposalId_ of the executed proposal.
      */
     function executeStandard(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable nonReentrant returns (uint256 proposalId_) {
-        // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
-        if (block.number <= distributions[_distributionIdCheckpoints.latest()].endBlock + 50400) revert ExecuteProposalInvalid();
 
-        proposalId_ = super.execute(targets_, values_, calldatas_, descriptionHash_);
+        proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
+        Proposal memory proposal = standardFundingProposals[proposalId_];
+
+        // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
+        if (block.number <= distributions[proposal.distributionId].endBlock + 50400) revert ExecuteProposalInvalid();
+
+        super.execute(targets_, values_, calldatas_, descriptionHash_);
         standardFundingProposals[proposalId_].executed = true;
     }
 
@@ -476,7 +480,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Check to see if a proposal is in the current funded slate hash of proposals.
      */
     function _standardFundingVoteSucceeded(uint256 proposalId_) internal view returns (bool) {
-        uint256 distributionId = _distributionIdCheckpoints.latest();
+        Proposal memory proposal = standardFundingProposals[proposalId_];
+        uint256 distributionId = proposal.distributionId;
         return _findProposalIndex(proposalId_, fundedProposalSlates[distributionId][distributions[distributionId].fundedSlateHash]) != -1;
     }
 

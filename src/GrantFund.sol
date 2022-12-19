@@ -75,8 +75,9 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
 
         // standard proposal state checks
         if (mechanism == FundingMechanism.Standard) {
-            if (standardFundingProposals[proposalId_].executed) return IGovernor.ProposalState.Executed;
-            else if (distributions[_distributionIdCheckpoints.latest()].endBlock >= block.number) return IGovernor.ProposalState.Active;
+            Proposal memory proposal = standardFundingProposals[proposalId_];
+            if (proposal.executed) return IGovernor.ProposalState.Executed;
+            else if (distributions[proposal.distributionId].endBlock >= block.number) return IGovernor.ProposalState.Active;
             else if (_standardFundingVoteSucceeded(proposalId_)) return IGovernor.ProposalState.Succeeded;
             else return IGovernor.ProposalState.Defeated;
         }
