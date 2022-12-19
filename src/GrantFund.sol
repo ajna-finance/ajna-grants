@@ -24,11 +24,12 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
     /*** Constructor ***/
     /*******************/
 
-    constructor(IVotes token_)
+    constructor(IVotes token_, uint256 treasury_)
         Governor("AjnaEcosystemGrantFund")
     {
         ajnaTokenAddress = address(token_);
         token = token_;
+        treasury = treasury_;
     }
 
     /**************************/

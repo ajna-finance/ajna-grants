@@ -60,7 +60,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _votingToken = IVotes(address(_token));
 
         // deploy growth fund contract
-        _grantFund = new GrantFund(_votingToken);
+        _grantFund = new GrantFund(_votingToken, 500_000_000 * 1e18);
 
         // TODO: replace with for loop -> test address initializer method that created array and transfers tokens given n?
         // initial minter distributes tokens to test addresses

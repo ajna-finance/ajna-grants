@@ -128,7 +128,7 @@ abstract contract GrantFundTestHelper is Test {
         uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
         uint256 startBlock = block.number.toUint64() + grantFund_.votingDelay().toUint64();
 
-        (, , , uint256 endBlock, ) = grantFund_.getDistributionPeriodInfo(grantFund_.getDistributionId());
+        (, , , uint256 endBlock, , ) = grantFund_.getDistributionPeriodInfo(grantFund_.getDistributionId());
 
         // submit proposal
         changePrank(proposer_);
@@ -260,6 +260,13 @@ abstract contract GrantFundTestHelper is Test {
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support_, voteAllocatedEmit, "");
         grantFund_.castVoteWithReasonAndParams(proposalId_, support_, reason, params);
+    }
+
+    function _claimDelegateReward(GrantFund grantFund_, address voter_, uint256 distributionId_, uint256 claimedReward_) internal {
+        changePrank(voter_);
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(address(grantFund_), voter_, claimedReward_);
+        grantFund_.claimDelegateReward(distributionId_);
     }
 
     function _extraordinaryVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_) internal {

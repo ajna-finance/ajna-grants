@@ -57,6 +57,9 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         super.execute(targets_, values_, calldatas_, descriptionHash_);
         proposal.executed = true;
+
+        // update treasury
+        treasury -= proposal.tokensRequested;
     }
 
     /**
@@ -174,7 +177,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @return The number of tokens, in WAD.
      */
     function getSliceOfTreasury(uint256 percentage_) public view returns (uint256) {
-        return Maths.wmul(IERC20(ajnaTokenAddress).balanceOf(address(this)), percentage_);
+        return Maths.wmul(treasury, percentage_);
     }
 
     function getExtraordinaryProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, uint256, bool, bool) {

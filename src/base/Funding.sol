@@ -80,6 +80,11 @@ abstract contract Funding is Governor, ReentrancyGuard {
      */
     mapping(uint256 => mapping(address => bool)) internal hasVotedInScreening;
 
+    /**
+     * @notice Total funds available for Funding Mechanism
+    */
+    uint256 public treasury;
+
     /**************************/
     /*** Internal Functions ***/
     /**************************/
