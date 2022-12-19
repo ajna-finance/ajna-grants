@@ -438,7 +438,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // skip time to move from screening period to funding period
         vm.roll(600_000);
 
-        // check topTenProposals array is correct after screening period - only four should have advanced
+        // check topTenProposals array is correct after screening period - only six should have advanced
         GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         assertEq(screenedProposals.length, 6);
         assertEq(screenedProposals[0].proposalId, testProposals[0].proposalId);
@@ -470,6 +470,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         vm.expectRevert(IStandardFunding.InsufficientBudget.selector);
         _grantFund.castVoteWithReasonAndParams(screenedProposals[3].proposalId, 1, "", abi.encode(2_500_000_000_000_000 * 1e18));
+
+        changePrank(_tokenHolder5);
+        vm.expectRevert(IStandardFunding.InsufficientBudget.selector);
+        _grantFund.castVoteWithReasonAndParams(screenedProposals[3].proposalId, 0, "", abi.encode(-2_600_000_000_000_000 * 1e18));
 
         // check tokerHolder partial vote budget calculations
         _fundingVote(_grantFund, _tokenHolder5, screenedProposals[5].proposalId, voteNo, -500_000_000_000_000 * 1e18);

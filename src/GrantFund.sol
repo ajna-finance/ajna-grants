@@ -131,7 +131,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
                 int256 budgetAllocation = abi.decode(params_, (int256));
 
                 // check if the voter has enough budget remaining to allocate to the proposal
-                if (voter.budgetRemaining == 0 || budgetAllocation > voter.budgetRemaining) revert InsufficientBudget();
+                if (Maths.abs(budgetAllocation) > voter.budgetRemaining) revert InsufficientBudget();
 
                 return _fundingVote(proposal, account_, voter, budgetAllocation);
             }
