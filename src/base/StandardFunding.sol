@@ -330,7 +330,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @return                        The amount of votes cast.
      */
     function _screeningVote(address account_, Proposal storage proposal_, uint256 votes_) internal returns (uint256) {
-        if (hasScreened[proposal_.proposalId][account_]) revert AlreadyVoted();
+        if (hasVotedInScreening[proposal_.distributionId][account_]) revert AlreadyVoted();
 
         uint256[] storage currentTopTenProposals = topTenProposals[proposal_.distributionId];
 
@@ -365,7 +365,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
 
         // record voters vote
-        hasScreened[proposal_.proposalId][account_] = true;
+        hasVotedInScreening[proposal_.distributionId][account_] = true;
 
         // vote for the given proposal
         return super._castVote(proposal_.proposalId, account_, 1, "", "");
