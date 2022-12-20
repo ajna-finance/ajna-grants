@@ -41,7 +41,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     address internal _tokenHolder14   = makeAddr("_tokenHolder14");
     address internal _tokenHolder15   = makeAddr("_tokenHolder15");
 
-    address[] internal _selfDelegatedVotersArr = [
+    address[] internal _votersArr = [
         _tokenHolder1,
         _tokenHolder2,
         _tokenHolder3,
@@ -73,22 +73,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // TODO: replace with for loop -> test address initializer method that created array and transfers tokens given n?
         // initial minter distributes tokens to test addresses
-        changePrank(_tokenDeployer);
-        _token.transfer(_tokenHolder1, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder2, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder3, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder4, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder5, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder6, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder7, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder8, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder9, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder10, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder11, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder12, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder13, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder14, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder15, 50_000_000 * 1e18);
+        _transferAjnaTokens(_token, _votersArr, 50_000_000 * 1e18, _tokenDeployer);
 
         // initial minter distributes treasury to grantFund
         _token.transfer(address(_grantFund), 500_000_000 * 1e18);
@@ -100,7 +85,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     function testGetVotingPowerScreeningStage() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
-        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
+        _selfDelegateVoters(_token, _votersArr);
 
         vm.roll(50);
 
@@ -136,14 +121,37 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     function testGetVotingPowerFundingStage() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
-        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
+        _selfDelegateVoters(_token, _votersArr);
 
         vm.roll(50);
 
         // start distribution period
         _startDistributionPeriod(_grantFund);
 
-        // TODO: a single proposal is submitted and screened
+        // generate proposal targets
+        address[] memory ajnaTokenTargets = new address[](1);
+        ajnaTokenTargets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory proposalCalldata = new bytes[](1);
+        proposalCalldata[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder2,
+            1 * 1e18
+        );
+
+        // generate proposal message 
+        string memory description = "Proposal for Ajna token transfer to tester address";
+
+        // create and submit proposal
+        TestProposal memory proposal = _createProposalStandard(_grantFund, _tokenHolder1, ajnaTokenTargets, values, proposalCalldata, description);
+
+        // screening period votes
+        _vote(_grantFund, _tokenHolder1, proposal.proposalId, voteYes, 1);
 
         // skip forward to the funding stage
         vm.roll(600_000);
@@ -157,12 +165,16 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         changePrank(_tokenHolder1);
         _token.transfer(nonVotingAddress, 10_000_000 * 1e18);
 
-        votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Funding");
-        assertEq(votingPower, 2_500_000_000_000_000 * 1e18);
         votingPower = _grantFund.getVotesWithParams(nonVotingAddress, block.number, "Funding");
         assertEq(votingPower, 0);
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Funding");
+        assertEq(votingPower, 2_500_000_000_000_000 * 1e18);
 
-        // TODO: check voting power decreases with funding votes cast -> will need to generate single test proposal
+        _fundingVote(_grantFund, _tokenHolder1, proposal.proposalId, voteYes, 500_000_000_000_000 * 1e18);
+        
+        // voting power reduced when voted in funding stage
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Funding");
+        assertEq(votingPower, 2_000_000_000_000_000 * 1e18);
     }
 
     function testPropose() external {
@@ -294,7 +306,51 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     }
 
     function testHasVoted() external {
-        // TODO: FINISH IMPLEMENTING
+        _selfDelegateVoters(_token, _votersArr);
+
+        vm.roll(100);
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+        uint256 distributionId = _grantFund.getDistributionId();
+
+        vm.roll(200);
+
+        TestProposalParams[] memory testProposalParams = new TestProposalParams[](2);
+        testProposalParams[0] = TestProposalParams(_tokenHolder1, 9_000_000 * 1e18);
+        testProposalParams[1] = TestProposalParams(_tokenHolder2, 20_000_000 * 1e18);
+
+        TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
+
+        // ensure that user has not voted
+        bool hasVoted = _grantFund.hasVoted(testProposals[0].proposalId, _tokenHolder1);
+        assertFalse(hasVoted);
+
+        _vote(_grantFund, _tokenHolder1, testProposals[0].proposalId, voteYes, 100);
+        // check that user has voted
+        hasVoted = _grantFund.hasVoted(testProposals[0].proposalId, _tokenHolder1);
+        assertTrue(hasVoted);
+
+        _vote(_grantFund, _tokenHolder2, testProposals[1].proposalId, voteYes, 100);
+        hasVoted = _grantFund.hasVoted(testProposals[1].proposalId, _tokenHolder2);
+        assertTrue(hasVoted);
+
+        changePrank(_tokenHolder1);
+
+        // Should revert if user tries to vote for two proposals in screening period
+        vm.expectRevert(Funding.AlreadyVoted.selector);
+        _grantFund.castVote(testProposals[1].proposalId, voteYes);
+
+        // skip to funding period
+        vm.roll(600_000);
+
+        // should be false if user has not voted in funding stage but voted in screening stage
+        hasVoted = _grantFund.hasVoted(testProposals[1].proposalId, _tokenHolder1);
+        assertFalse(hasVoted);
+
+        _fundingVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, voteYes, 500_000_000_000_000 * 1e18);
+        // check if user vote is updated after voting in funding stage 
+        hasVoted = _grantFund.hasVoted(testProposals[1].proposalId, _tokenHolder1);
+        assertTrue(hasVoted);
     }
 
     function testMaximumQuarterlyDistribution() external {
@@ -309,7 +365,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
      */
     function testScreenProposalsCheckSorting() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
-        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
+        _selfDelegateVoters(_token, _votersArr);
 
         vm.roll(150);
 
@@ -394,11 +450,18 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(startBlock, block.number);
         assertEq(endBlock, block.number + 648000);
 
+        uint256 screeningPeriodEndBlock = _grantFund.getScreeningPeriodEndBlock(currentDistributionId);
+        assertEq(screeningPeriodEndBlock, block.number + 576000);
+        
+        vm.roll(100);
+        currentDistributionId = _grantFund.getDistributionIdAtBlock(block.number - 1);
+        assertEq(currentDistributionId, 1);
+
         // check a new distribution period can't be started if already active
         vm.expectRevert(IStandardFunding.DistributionPeriodStillActive.selector);
         _grantFund.startNewDistributionPeriod();
 
-        // skip forward past the end of the distribution period to allow starting anew
+        // skip forward past the end of the distribution period to allow starting a new distribution
         vm.roll(650_000);
 
         _startDistributionPeriod(_grantFund);
@@ -417,7 +480,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
      */
     function testDistributionPeriodEndToEnd() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
-        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
+        _selfDelegateVoters(_token, _votersArr);
 
         vm.roll(150);
 
@@ -520,15 +583,19 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(budgetRemaining, 2_000_000_000_000_000 * 1e18);
         assertEq(uint256(budgetRemaining), _grantFund.getVotesWithParams(_tokenHolder5, block.number, bytes("Funding")));
 
-        // skip to the DistributionPeriod
-        vm.roll(650_000);
-
         GrantFund.Proposal[] memory potentialProposalSlate = new GrantFund.Proposal[](2);
         potentialProposalSlate[0] = screenedProposals[0];
         potentialProposalSlate[1] = screenedProposals[1];
+        
+        // ensure checkSlate won't allow if called before DistributionPeriod starts
+        bool validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
+        assertFalse(validSlate);
+
+        // skip to the DistributionPeriod
+        vm.roll(650_000);
 
         // ensure checkSlate won't allow exceeding the GBC
-        bool validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
+        validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
         assertFalse(validSlate);
         (, , , , , bytes32 slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
         assertEq(slateHash, 0);
@@ -692,7 +759,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
      */ 
     function testMultipleDistribution() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
-        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
+        _selfDelegateVoters(_token, _votersArr);
 
         vm.roll(150);
 
@@ -842,6 +909,22 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         (, , , , uint256 gbc_distribution4, ) = _grantFund.getDistributionPeriodInfo(distributionId4);
 
         assertEq(gbc_distribution4, 9_526_000 * 1e18);
+    }
+
+    function testGovernerViewMethods() external {
+
+        uint256 delay = _grantFund.votingDelay();
+        assertEq(delay, 0);
+
+        uint256 quorum = _grantFund.quorum(block.number);
+        assertEq(quorum, 0);
+
+        string memory countingMode = _grantFund.COUNTING_MODE();
+        assertEq(countingMode, "support=bravo&quorum=for,abstain");
+
+        uint256 votingPeriod = _grantFund.votingPeriod();
+        assertEq(votingPeriod, 0);
+
     }
 
 }

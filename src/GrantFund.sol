@@ -213,6 +213,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
     function hasVoted(uint256 proposalId_, address account_) public view override(IGovernor) returns (bool) {
         FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
 
+        // Checks if Proposal is Standard
         if (mechanism == FundingMechanism.Standard) {
             Proposal memory proposal = standardFundingProposals[proposalId_]; 
             QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
@@ -220,21 +221,22 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
 
             // screening stage
             if (block.number >= currentDistribution.startBlock && block.number <= screeningPeriodEndBlock) {
-                return hasVotedInScreening[proposal.distributionId][account_];
+                return hasVotedScreening[proposal.distributionId][account_];
             }
 
             // funding stage
             else if (block.number > screeningPeriodEndBlock && block.number <= currentDistribution.endBlock) {
                 QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
 
-                if (voter.votingWeight == 0 || voter.budgetRemaining > 0) {
-                    return false;
+                // Check if voter has voted
+                if (uint256(voter.budgetRemaining) < voter.votingWeight) {
+                    return true;
                 }
             }
         }
 
         else if ( mechanism == FundingMechanism.Extraordinary ) {
-            return hasScreened[proposalId_][account_];
+            return hasVotedExtraordinary[proposalId_][account_];
         }
     }
 

@@ -204,6 +204,13 @@ abstract contract GrantFundTestHelper is Test {
         }
     }
 
+    function _transferAjnaTokens(AjnaToken token_, address[] memory voters_, uint256 amount_, address tokenDeployer_) internal {
+        changePrank(tokenDeployer_);
+        for (uint256 i = 0; i < voters_.length; ++i) {
+            token_.transfer(voters_[i], amount_);
+        }
+    }
+
     /**
      * @notice Helper function to execute a standard funding mechanism proposal.
      */

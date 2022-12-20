@@ -72,13 +72,13 @@ abstract contract Funding is Governor, ReentrancyGuard {
      * @notice Mapping checking if a voter has voted on a given proposal.
      * @dev proposalId => address => bool.
      */
-    mapping(uint256 => mapping(address => bool)) internal hasScreened;
+    mapping(uint256 => mapping(address => bool)) internal hasVotedExtraordinary;
 
     /**
      * @notice Mapping checking if a voter has voted in screening in a given distribution quarter.
      * @dev distributionId => address => bool.
      */
-    mapping(uint256 => mapping(address => bool)) internal hasVotedInScreening;
+    mapping(uint256 => mapping(address => bool)) internal hasVotedScreening;
 
     /**
      * @notice Total funds available for Funding Mechanism

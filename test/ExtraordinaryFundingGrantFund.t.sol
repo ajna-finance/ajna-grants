@@ -32,7 +32,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
     address internal _tokenHolder14   = makeAddr("_tokenHolder14");
     address internal _tokenHolder15   = makeAddr("_tokenHolder15");
 
-    address[] internal _selfDelegatedVotersArr = [
+    address[] internal _votersArr = [
         _tokenHolder1,
         _tokenHolder2,
         _tokenHolder3,
@@ -64,22 +64,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // TODO: replace with for loop -> test address initializer method that created array and transfers tokens given n?
         // initial minter distributes tokens to test addresses
-        changePrank(_tokenDeployer);
-        _token.transfer(_tokenHolder1, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder2, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder3, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder4, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder5, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder6, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder7, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder8, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder9, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder10, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder11, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder12, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder13, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder14, 50_000_000 * 1e18);
-        _token.transfer(_tokenHolder15, 50_000_000 * 1e18);
+        _transferAjnaTokens(_token, _votersArr, 50_000_000 * 1e18, _tokenDeployer);
 
         // initial minter distributes treasury to grantFund
         _token.transfer(address(_grantFund), 500_000_000 * 1e18);
@@ -87,7 +72,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
     function testGetVotingPowerExtraordinary() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
-        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
+        _selfDelegateVoters(_token, _votersArr);
 
         vm.roll(50);
 
@@ -215,7 +200,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
     function testProposeExtraordinary() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
-        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
+        _selfDelegateVoters(_token, _votersArr);
 
         vm.roll(100);
 
@@ -284,7 +269,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
     function testProposeExtraordinaryInvalid() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
-        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
+        _selfDelegateVoters(_token, _votersArr);
 
         vm.roll(100);
 
@@ -337,7 +322,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
     function testProposeAndExecuteExtraordinary() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
-        _selfDelegateVoters(_token, _selfDelegatedVotersArr);
+        _selfDelegateVoters(_token, _votersArr);
 
         vm.roll(100);
 
@@ -424,6 +409,17 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // minimum threshold percentage should be at default levels before the succesful proposal is executed
         uint256 minimumThresholdPercentage = _grantFund.getMinimumThresholdPercentage();
         assertEq(minimumThresholdPercentage, 0.500000000000000000 * 1e18);
+
+        vm.roll(200_000);
+
+        // ensure user has not voted
+        bool hasVoted = _grantFund.hasVoted(proposalId, _tokenHolder12);
+        assertFalse(hasVoted);
+        
+        changePrank(_tokenHolder12);
+        // Should revert if user tries to vote after proposal's end block
+        vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInactive.selector);
+        _grantFund.castVote(proposalId, voteYes);
 
         // execute proposal
         _grantFund.executeExtraordinary(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));

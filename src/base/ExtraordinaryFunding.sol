@@ -123,7 +123,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @return votes_      The amount of votes cast.
      */
     function _extraordinaryFundingVote(uint256 proposalId_, address account_) internal returns (uint256 votes_) {
-        if (hasScreened[proposalId_][account_]) revert AlreadyVoted();
+        if (hasVotedExtraordinary[proposalId_][account_]) revert AlreadyVoted();
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
 
@@ -143,7 +143,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         }
 
         // record that voter has voted on this extraorindary funding proposal
-        hasScreened[proposalId_][account_] = true;
+        hasVotedExtraordinary[proposalId_][account_] = true;
 
         emit VoteCast(account_, proposalId_, 1, votes_, "");
     }
