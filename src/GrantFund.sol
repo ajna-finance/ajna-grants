@@ -81,8 +81,8 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
             else if (_standardFundingVoteSucceeded(proposalId_)) return IGovernor.ProposalState.Succeeded;
             else return IGovernor.ProposalState.Defeated;
         }
-        // extraordinary funding proposal state checks
-        else if (mechanism == FundingMechanism.Extraordinary) {
+        // extraordinary funding proposal state
+        else {
             bool voteSucceeded = _extraordinaryFundingVoteSucceeded(proposalId_);
 
             if (extraordinaryFundingProposals[proposalId_].executed) return IGovernor.ProposalState.Executed;
@@ -140,7 +140,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
         }
 
         // extraordinary funding mechanism
-        else if (mechanism == FundingMechanism.Extraordinary) {
+        else {
             return _extraordinaryFundingVote(proposalId_, account_);
         }
     }
@@ -235,7 +235,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
             }
         }
 
-        else if ( mechanism == FundingMechanism.Extraordinary ) {
+        else {
             return hasVotedExtraordinary[proposalId_][account_];
         }
     }

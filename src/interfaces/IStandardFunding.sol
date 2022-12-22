@@ -35,7 +35,7 @@ interface IStandardFunding {
     /**
      * @notice Delegatee attempted to claim delegate reward before the challenge period ended.
      */
-    error ChallengePeriodStillActive();
+    error ChallengePeriodNotEnded();
 
     /**
      * @notice Delegatee attempted to claim delegate reward when not voted in screening.
@@ -46,6 +46,11 @@ interface IStandardFunding {
      * @notice User attempted to propose after screening period ended
      */
     error ScreeningPeriodEnded();
+
+    /**
+     * @notice User attempted to Claim delegate reward again
+     */
+    error RewardAlreadyClaimed();
 
     /**************/
     /*** Events ***/

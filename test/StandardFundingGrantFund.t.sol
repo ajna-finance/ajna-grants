@@ -184,7 +184,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // generate proposal values
         uint256[] memory values = new uint256[](1);
-        values[0] = 0;
+        // Eth to transfer is non zero
+        values[0] = 1;
 
         // generate proposal calldata
         bytes[] memory proposalCalldata = new bytes[](1);
@@ -205,18 +206,33 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.expectRevert(Funding.InvalidProposal.selector);
         _grantFund.propose(ajnaTokenTargets, values, proposalCalldata, description);
 
+        // should revert if target array is blank
+        vm.expectRevert(Funding.InvalidProposal.selector);
+        address[] memory targets;
+        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
+
         // Skips to funding period
         vm.roll(576_002);
-        changePrank(_tokenHolder2);
         // should revert to submit proposal
         vm.expectRevert(IStandardFunding.ScreeningPeriodEnded.selector);
         _grantFund.proposeStandard(ajnaTokenTargets, values, proposalCalldata, description);
 
         vm.roll(10);
 
+        // should revert if Eth transfer is not zero
+        vm.expectRevert(Funding.InvalidValues.selector);
+        _grantFund.proposeStandard(ajnaTokenTargets, values, proposalCalldata, description);
+
+        // updating Eth value to transfer to 0
+        values[0] = 0;
+
         // create and submit proposal
         TestProposal memory proposal = _createProposalStandard(_grantFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
-
+        
+        // should revert if same proposal is proposed again
+        vm.expectRevert(Funding.ProposalAlreadyExists.selector);
+        _grantFund.proposeStandard(ajnaTokenTargets, values, proposalCalldata, description);
+        
         vm.roll(10);
 
         // check proposal status
@@ -585,7 +601,11 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         GrantFund.Proposal[] memory potentialProposalSlate = new GrantFund.Proposal[](2);
         potentialProposalSlate[0] = screenedProposals[0];
-        potentialProposalSlate[1] = screenedProposals[1];
+
+        // including Proposal in potentialProposalSlate that is not in topTenProposal (funding Stage)
+        uint256[] memory proposalIds = new uint256[](1);
+        proposalIds[0] = testProposals[6].proposalId;
+        potentialProposalSlate[1] = _getProposalListFromProposalIds(_grantFund, proposalIds)[0];
         
         // ensure checkSlate won't allow if called before DistributionPeriod starts
         bool validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
@@ -593,6 +613,13 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // skip to the DistributionPeriod
         vm.roll(650_000);
+
+        // ensure checkSlate won't allow if slate has a proposal that is not in topTenProposal (funding Stage)
+        validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
+        assertFalse(validSlate);
+
+        // Updating potential Proposal Slate to include proposal that is in topTenProposal (funding Stage)
+        potentialProposalSlate[1] = screenedProposals[1];
 
         // ensure checkSlate won't allow exceeding the GBC
         validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
@@ -607,6 +634,11 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         emit FundedSlateUpdated(distributionId, _grantFund.getSlateHash(potentialProposalSlate));
         validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
         assertTrue(validSlate);
+
+        // should not update slate if current funding slate is same as potentialProposalSlate 
+        validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
+        assertFalse(validSlate);
+
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
         assertEq(slateHash, 0x8546b85d326f37e382f7191b8634030f1a99e83e5fffee168d362bdd80cb0ee7);
@@ -666,6 +698,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // check can't execute proposals prior to the end of the challenge period
         vm.expectRevert(IStandardFunding.ExecuteProposalInvalid.selector);
         _grantFund.executeStandard(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
+
+        // should revert if user tries to claim reward in before challenge Period ends
+        vm.expectRevert(IStandardFunding.ChallengePeriodNotEnded.selector);
+        _grantFund.claimDelegateReward(distributionId);
 
         // skip to the end of the DistributionPeriod
         vm.roll(700_000);
@@ -728,15 +764,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
 
-        // transfers 0 ajna Token as _tokenHolder5 already claimed his reward
-        _claimDelegateReward(
-            {
-                grantFund_:        _grantFund,
-                voter_:            _tokenHolder5,
-                distributionId_:   distributionId,
-                claimedReward_:    0
-            }
-        );
+        // should revert as _tokenHolder5 already claimed his reward
+        vm.expectRevert(IStandardFunding.RewardAlreadyClaimed.selector);
+        _grantFund.claimDelegateReward(distributionId);
 
         // transfers 0 ajna Token as _tokenHolder6 has not participated in funding stage
         _claimDelegateReward(

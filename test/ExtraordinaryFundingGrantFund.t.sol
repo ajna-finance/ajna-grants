@@ -259,6 +259,10 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertFalse(succeeded);
         assertFalse(executed);
 
+        // should revert is same proposal is being proposed
+        vm.expectRevert(Funding.ProposalAlreadyExists.selector);
+        _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "Extraordinary Proposal for Ajna token transfer to tester address");
+
         // check findMechanism identifies it as an extraOrdinary proposal
         assert(_grantFund.findMechanismOfProposal(proposalId) == Funding.FundingMechanism.Extraordinary);
     }
@@ -369,6 +373,10 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // token holders vote on the proposal to pass it
         _extraordinaryVote(_grantFund, _tokenHolder1, testProposal.proposalId, 1);
+
+        // should revert if user tries to vote again
+        vm.expectRevert(Funding.AlreadyVoted.selector);
+        _grantFund.castVote(testProposal.proposalId, 1);
 
         // partial votes should leave the proposal as active, not succeed
         proposalState = _grantFund.state(testProposal.proposalId);

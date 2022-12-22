@@ -46,6 +46,7 @@ abstract contract GrantFundTestHelper is Test {
 
     event FundedSlateUpdated(uint256 indexed distributionId_, bytes32 indexed fundedSlateHash_);
     event QuarterlyDistributionStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
+    event DelegateRewardClaimed(address indexed delegateeAddress_, uint256 indexed distributionId_, uint256 rewardClaimed_);
 
     /***********************/
     /*** Testing Structs ***/
@@ -272,7 +273,7 @@ abstract contract GrantFundTestHelper is Test {
     function _claimDelegateReward(GrantFund grantFund_, address voter_, uint256 distributionId_, uint256 claimedReward_) internal {
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
-        emit Transfer(address(grantFund_), voter_, claimedReward_);
+        emit DelegateRewardClaimed(voter_, distributionId_, claimedReward_);
         grantFund_.claimDelegateReward(distributionId_);
     }
 

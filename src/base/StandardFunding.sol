@@ -75,6 +75,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     */
     mapping (uint256 => bool) internal isSurplusFundsUpdated;
 
+    /**
+     * @notice Mapping of distributionId to user address to whether user has claimed his delegate reward
+     * @dev distributionId => address => bool
+    */
+    mapping (uint256 => mapping (address => bool)) public hasClaimedReward;
+
     /*****************************************/
     /*** Distribution Management Functions ***/
     /*****************************************/
@@ -281,7 +287,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
 
         // Check if Challenge Period is still active 
-        if(block.number < currentDistribution.endBlock + 50400) revert ChallengePeriodStillActive();
+        if(block.number < currentDistribution.endBlock + 50400) revert ChallengePeriodNotEnded();
+
+        if(hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
 
         QuadraticVoter storage voter = quadraticVoters[distributionId_][msg.sender];
 
@@ -291,10 +299,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 gbc = currentDistribution.fundsAvailable;
 
         // delegateeReward = 10 % of GBC distributed as per delegatee Vote share    
-        rewardClaimed_ = Maths.wdiv(Maths.wmul(gbc, quadraticVotesUsed), currentDistribution.quadraticVotesCast) / 10;
+        rewardClaimed_ = Maths.wdiv(Maths.wdiv(Maths.wmul(gbc, quadraticVotesUsed), currentDistribution.quadraticVotesCast), 10 * 1e18);
 
-        // prevent multiple claims from delegatee
-        voter.budgetRemaining = int256(voter.votingWeight);
+        hasClaimedReward[distributionId_][msg.sender] = true;
 
         IERC20(ajnaTokenAddress).transfer(msg.sender, rewardClaimed_);
         
