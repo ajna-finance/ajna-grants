@@ -61,6 +61,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     uint256 _initialAjnaTokenSupply   = 2_000_000_000 * 1e18;
 
+    mapping (uint256 => uint256) internal noOfVotesOnProposal;
+    uint256[] internal topTenProposalIds;
+
     function setUp() external {
         vm.startPrank(_tokenDeployer);
         _token = new AjnaToken(_tokenDeployer);
@@ -957,4 +960,113 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     }
 
+    function testFuzzTopTenProposal(uint256 noOfVoters_, uint256 noOfProposals_) external {
+        uint256 noOfVoters = bound(noOfVoters_, 1, 1000);
+        uint256 noOfProposals = bound(noOfProposals_, 1, 100);
+
+        vm.roll(20);
+
+        // Initialize N voter addresses 
+        address[] memory voters = _getVoters(noOfVoters);
+        assertEq(voters.length, noOfVoters);
+
+        // Transfer random ajna tokens to all voters and self delegate
+        uint256[] memory votes = _getVotes(noOfVoters, voters, _token, _tokenDeployer);
+        assertEq(votes.length, noOfVoters);
+
+        vm.roll(block.number + 100);
+
+        _startDistributionPeriod(_grantFund);
+
+        vm.roll(block.number + 100);
+
+        // ensure user gets the vote for screening stage
+        for(uint i = 0; i < noOfVoters; i++) {
+            assertEq(votes[i], _grantFund.getVotesWithParams(voters[i], block.number - 1, "Screening"));
+        }
+
+        uint256 distributionId = _grantFund.getDistributionId();
+
+        // submit N proposals
+        TestProposal[] memory proposals = _getProposals(noOfProposals, _grantFund, _tokenHolder1, _token);
+
+        // Each voter votes on a random proposal from all Proposals
+        for(uint i = 0; i < noOfVoters; i++) {
+            uint256 randomProposalIndex = _getRandomProposal(noOfProposals);
+
+            uint256 randomProposalId = proposals[randomProposalIndex].proposalId;
+
+            noOfVotesOnProposal[randomProposalId] += votes[i];
+
+            changePrank(voters[i]);
+            _grantFund.castVote(randomProposalId, voteYes);
+        }
+
+
+        // calculate top 10 proposals based on total vote casted on each proposal
+        for(uint i = 0; i < noOfProposals; i++) {
+            uint256 currentProposalId = proposals[i].proposalId;
+            uint256 votesOnCurrentProposal = noOfVotesOnProposal[currentProposalId];
+            uint256 lengthOfArray = topTenProposalIds.length;
+
+            // only add proposals having atleast a vote
+            if (votesOnCurrentProposal > 0) {
+
+                // if there are less than 10 proposals in topTenProposalIds , add current proposals and sort topTenProposalIds based on Votes
+                if (lengthOfArray < 10) {
+                    topTenProposalIds.push(currentProposalId);
+
+                    // ensure if there are more than 1 proposalId in topTenProposalIds to sort  
+                    if(topTenProposalIds.length > 1) {
+                        _insertionSortProposalsByVotes(topTenProposalIds); 
+                    }
+                }
+
+                // if there are 10 proposals in topTenProposalIds, check new proposal has more votes than the last proposal in topTenProposalIds
+                else if( noOfVotesOnProposal[topTenProposalIds[lengthOfArray - 1]] <  votesOnCurrentProposal) {
+
+                    // remove last proposal with least no of vote in topTenProposalIds
+                    topTenProposalIds.pop();
+
+                    // add new proposal with more votes than last
+                    topTenProposalIds.push(currentProposalId);
+
+                    // sort topTenProposalIds
+                    _insertionSortProposalsByVotes(topTenProposalIds);
+                }
+            }
+        }
+        
+        // get top ten proposals from contract
+        uint256[] memory topTenProposalIdsFromContract = _grantFund.getTopTenProposals(distributionId);
+
+        // ensure the no of proposals are correct
+        assertEq(topTenProposalIds.length, topTenProposalIdsFromContract.length);
+
+        for (uint i = 0; i < topTenProposalIds.length; i++) {
+            // ensure that each proposal in topTenProposalIdsFromContract is correct
+            assertEq(topTenProposalIds[i], topTenProposalIdsFromContract[i]);
+        }
+    }
+
+    // helper method that sort proposals based on votes on them
+    function _insertionSortProposalsByVotes(uint256[] storage arr) internal {
+        for (uint i = 1; i < arr.length; i++) {
+            uint256 proposalId = arr[i];
+            uint256 votesReceivedOnProposal = noOfVotesOnProposal[proposalId];
+            uint j = i;
+
+            while (j > 0 && votesReceivedOnProposal > noOfVotesOnProposal[arr[j-1]]) {
+                // swap values if left item < right item
+                uint256 temp = arr[j - 1];
+                arr[j - 1] = arr[j];
+                arr[j] = temp;
+
+                j--;
+            }
+        }
+    }
 }
+
+
+

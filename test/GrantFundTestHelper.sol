@@ -314,4 +314,71 @@ abstract contract GrantFundTestHelper is Test {
         return proposals;
     }
 
+    // Returns random votes for a user
+    function _randomVote() internal returns (uint256 votes_) {
+        // calculate random vote between 1 and 1.25 * 1e18
+        votes_ = 1 + uint256(keccak256(abi.encodePacked(block.number, block.difficulty))) % (1.25 * 1e18);
+        vm.roll(block.number + 1);
+    }
+
+    // Returns a random proposal Index from all proposals
+    function _getRandomProposal(uint256 noOfProposals_) internal returns(uint256 proposal_) {
+        // calculate random proposal Index between 0 and noOfProposals_
+        proposal_ = uint256(keccak256(abi.encodePacked(block.number, block.difficulty))) % noOfProposals_;
+        vm.roll(block.number + 1);
+    }
+
+    // Returns a voters address array with N voters 
+    function _getVoters(uint256 noOfVoters_) internal returns(address[] memory) {
+        address[] memory voters_ = new address[](noOfVoters_);
+        for(uint i = 0; i < noOfVoters_; i++) {
+            voters_[i] = makeAddr(string(abi.encodePacked("Voter", Strings.toString(i))));
+        }
+        return voters_;
+    }
+
+    // Transfers a random amount of tokens to N voters and self delegates votes
+    function _getVotes(uint256 noOfVoters_, address[] memory voters_, AjnaToken token_, address tokenDeployer_) internal returns(uint256[] memory) {
+        uint256[] memory votes_ = new uint256[](noOfVoters_);
+        for(uint i = 0; i < noOfVoters_; i++) {
+            uint256 votes = _randomVote();
+            changePrank(tokenDeployer_);
+            token_.transfer(voters_[i], votes);
+            changePrank(voters_[i]);
+            token_.delegate(voters_[i]);
+            votes_[i] = votes;
+        }
+        return votes_;
+    }
+
+    // Submits N Proposal with fixed token requested
+    function _getProposals(uint256 noOfProposals_, GrantFund grantFund_, address proponent_, AjnaToken token_) internal returns(TestProposal[] memory) {
+
+        TestProposal[] memory proposals_ = new TestProposal[](noOfProposals_);
+
+        // generate proposal targets
+        address[] memory ajnaTokenTargets = new address[](1);
+        ajnaTokenTargets[0] = address(token_);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory proposalCalldata = new bytes[](1);
+        proposalCalldata[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            proponent_,
+            1 * 1e18
+        );
+
+        for(uint i = 0; i < noOfProposals_; i++) {
+            // generate proposal message 
+            string memory description = string(abi.encodePacked("Proposal", Strings.toString(i)));
+            proposals_[i] = _createProposalStandard(grantFund_, proponent_, ajnaTokenTargets, values, proposalCalldata, description); 
+        }
+        return proposals_;
+    }
 }
+
+

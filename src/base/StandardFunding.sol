@@ -448,6 +448,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check if the proposal should be added to the top ten list for the first time
         if (screenedProposalsLength < 10 && indexInArray == -1) {
             currentTopTenProposals.push(proposal_.proposalId);
+
+            // sort top ten proposals
+            _insertionSortProposalsByVotes(currentTopTenProposals);
         }
         else {
             // proposal is already in the array
