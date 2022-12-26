@@ -97,7 +97,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev    Screening period is 80 days, funding period is 10 days. Total distribution is 90 days.
      * @param distributionId_ distribution Id of the distribution whose screening period is needed
      */
-    function getScreeningPeriodEndBlock(uint256 distributionId_) external returns (uint256) {
+    function getScreeningPeriodEndBlock(uint256 distributionId_) external view returns (uint256) {
         QuarterlyDistribution memory currentDistribution_ = distributions[distributionId_];
 
         // 10 days is equivalent to 72,000 blocks (12 seconds per block, 86400 seconds per day)
@@ -105,12 +105,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /**
-     * @notice Generate a unique hash of a list of proposals for usage as a key for comparing proposal slates.
-     * @param  proposals_ Array of proposals to hash.
+     * @notice Generate a unique hash of a list of proposal Ids for usage as a key for comparing proposal slates.
+     * @param  proposalIds_ Array of proposal Ids to hash.
      * @return Bytes32 hash of the list of proposals.
      */
-    function getSlateHash(Proposal[] calldata proposals_) external pure returns (bytes32) {
-        return keccak256(abi.encode(proposals_));
+    function getSlateHash(uint256[] calldata proposalIds_) external pure returns (bytes32) {
+        return keccak256(abi.encode(proposalIds_));
     }
 
     /**
@@ -204,11 +204,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Check if a slate of proposals meets requirements, and maximizes votes. If so, update QuarterlyDistribution.
-     * @param  fundedProposals_ Array of proposals to check.
+     * @param  proposalIds_ Array of proposal Ids to check.
      * @param  distributionId_ Id of the current quarterly distribution.
      * @return Boolean indicating whether the new proposal slate was set as the new top slate for distribution.
      */
-    function checkSlate(Proposal[] calldata fundedProposals_, uint256 distributionId_) external returns (bool) {
+    function checkSlate(uint256[] calldata proposalIds_, uint256 distributionId_) external returns (bool) {
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
 
         // check that the function is being called within the challenge period
@@ -220,16 +220,18 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 sum = 0;
         uint256 totalTokensRequested = 0;
 
-        for (uint i = 0; i < fundedProposals_.length; ) {
+        for (uint i = 0; i < proposalIds_.length; ) {
             // check if Proposal is in the topTenProposals list
-            if (_findProposalIndex(fundedProposals_[i].proposalId, topTenProposals[distributionId_]) == -1) return false;
+            if (_findProposalIndex(proposalIds_[i], topTenProposals[distributionId_]) == -1) return false;
+
+            Proposal memory proposal = standardFundingProposals[proposalIds_[i]];
 
             // account for qvBudgetAllocated possibly being negative
-            if (fundedProposals_[i].qvBudgetAllocated < 0) return false;
+            if (proposal.qvBudgetAllocated < 0) return false;
 
             // update counters
-            sum += uint256(fundedProposals_[i].qvBudgetAllocated);
-            totalTokensRequested += fundedProposals_[i].tokensRequested;
+            sum += uint256(proposal.qvBudgetAllocated);
+            totalTokensRequested += proposal.tokensRequested;
 
             // check if slate of proposals exceeded budget constraint ( 90% of GBC )
             if (totalTokensRequested > (gbc * 9 / 10)) {
@@ -243,16 +245,16 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // get pointers for comparing proposal slates
         bytes32 currentSlateHash = currentDistribution.fundedSlateHash;
-        bytes32 newSlateHash = keccak256(abi.encode(fundedProposals_));
+        bytes32 newSlateHash = keccak256(abi.encode(proposalIds_));
 
         bool newTopSlate = currentSlateHash == 0 ||
             (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[distributionId_][currentSlateHash]));
 
         if (newTopSlate) {
             uint256[] storage existingSlate = fundedProposalSlates[distributionId_][newSlateHash];
-            for (uint i = 0; i < fundedProposals_.length; ) {
+            for (uint i = 0; i < proposalIds_.length; ) {
                 // update list of proposals to fund
-                existingSlate.push(fundedProposals_[i].proposalId);
+                existingSlate.push(proposalIds_[i]);
 
                 unchecked {
                     ++i;

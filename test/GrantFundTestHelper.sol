@@ -369,7 +369,7 @@ abstract contract GrantFundTestHelper is Test {
         proposalCalldata[0] = abi.encodeWithSignature(
             "transfer(address,uint256)",
             proponent_,
-            1 * 1e18
+            1_000_000 * 1e18
         );
 
         for(uint i = 0; i < noOfProposals_; i++) {
@@ -378,6 +378,15 @@ abstract contract GrantFundTestHelper is Test {
             proposals_[i] = _createProposalStandard(grantFund_, proponent_, ajnaTokenTargets, values, proposalCalldata, description); 
         }
         return proposals_;
+    }
+
+    // helper method to check if element exists in array
+    function _checkElementExist(uint256 element, uint256[] memory arr) internal returns(bool) {
+        for(uint i = 0; i < arr.length; i++) {
+            if(element == arr[i]){
+                return true;
+            }
+        }
     }
 }
 
