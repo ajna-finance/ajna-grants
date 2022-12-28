@@ -49,7 +49,15 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
 
-        if (proposal.executed != false || proposal.succeeded != true) {
+        if (proposal.executed != false) {
+            revert ExecuteExtraordinaryProposalInvalid();
+        }
+
+        // check if the proposal has received more votes than minimumThreshold and tokensRequestedPercentage of all tokens
+        if (proposal.votesReceived >= proposal.tokensRequested + getSliceOfNonTreasury(getMinimumThresholdPercentage())) {
+            proposal.succeeded = true;
+        } else {
+            proposal.succeeded = false;
             revert ExecuteExtraordinaryProposalInvalid();
         }
 
@@ -135,13 +143,6 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         votes_ = _getVotes(account_, block.number, abi.encode(proposalId_));
         proposal.votesReceived += votes_;
 
-        // check if the proposal has received more votes than minimumThreshold and tokensRequestedPercentage of all tokens
-        if (proposal.votesReceived >= proposal.tokensRequested + getSliceOfTreasury(getMinimumThresholdPercentage())) {
-            proposal.succeeded = true;
-        } else {
-            proposal.succeeded = false;
-        }
-
         // record that voter has voted on this extraorindary funding proposal
         hasVotedExtraordinary[proposalId_][account_] = true;
 
@@ -169,6 +170,16 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         else {
             return 0.500000000000000000 * 1e18 + (fundedExtraordinaryProposals.length * (0.050000000000000000 * 1e18));
         }
+    }
+
+    /**
+     * @notice Get the number of ajna tokens equivalent to a given percentage.
+     * @param percentage_ The percentage of the Non treasury to retrieve, in WAD.
+     * @return The number of tokens, in WAD.
+     */
+    function getSliceOfNonTreasury(uint256 percentage_) public view returns (uint256) {
+        uint256 totalAjnaSupply = IERC20(ajnaTokenAddress).totalSupply();
+        return Maths.wmul(totalAjnaSupply - treasury, percentage_);
     }
 
     /**

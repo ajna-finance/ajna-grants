@@ -388,6 +388,37 @@ abstract contract GrantFundTestHelper is Test {
             }
         }
     }
+
+    // Submits N Extra Ordinary Proposals
+    function _getNExtraOridinaryProposals(uint256 noOfProposals_, GrantFund grantFund_, address proponent_, AjnaToken token_, uint256 tokenRequested_) internal returns(TestProposalExtraordinary[] memory) {
+
+        TestProposalExtraordinary[] memory proposals_ = new TestProposalExtraordinary[](noOfProposals_);
+
+        // generate proposal targets
+        address[] memory ajnaTokenTargets = new address[](1);
+        ajnaTokenTargets[0] = address(token_);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory proposalCalldata = new bytes[](1);
+        proposalCalldata[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            proponent_,
+            tokenRequested_
+        );
+
+        for(uint i = 0; i < noOfProposals_; i++) {
+            // generate proposal message 
+            string memory description = string(abi.encodePacked("Proposal", Strings.toString(i)));
+
+            // submit proposal with 1 month end time
+            proposals_[i] = _createProposalExtraordinary(grantFund_, proponent_, block.number + 216_000, ajnaTokenTargets, values, proposalCalldata, description);
+        }
+        return proposals_;
+    }
 }
 
 
