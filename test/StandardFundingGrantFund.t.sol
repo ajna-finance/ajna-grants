@@ -65,6 +65,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     mapping (uint256 => uint256) internal noOfVotesOnProposal;
     uint256[] internal topTenProposalIds;
     uint256[] internal potentialProposalsSlate;
+    uint256 treasury = 500_000_000 * 1e18;
 
     function setUp() external {
         vm.startPrank(_tokenDeployer);
@@ -74,14 +75,14 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _votingToken = IVotes(address(_token));
 
         // deploy growth fund contract
-        _grantFund = new GrantFund(_votingToken, 500_000_000 * 1e18);
+        _grantFund = new GrantFund(_votingToken, treasury);
 
         // TODO: replace with for loop -> test address initializer method that created array and transfers tokens given n?
         // initial minter distributes tokens to test addresses
         _transferAjnaTokens(_token, _votersArr, 50_000_000 * 1e18, _tokenDeployer);
 
         // initial minter distributes treasury to grantFund
-        _token.transfer(address(_grantFund), 500_000_000 * 1e18);
+        _token.transfer(address(_grantFund), treasury);
     }
 
     /*************/
@@ -1087,14 +1088,18 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // skip to end of challenge period
         vm.roll(block.number + 100_000);
 
-        uint256 gbc = 10_000_000 * 1e18;
+        // gbc = 2% of treasury
+        uint256 gbc = treasury / 50;
+        
+        uint256 totalDelegationReward;
 
         // claim delegate reward for each voter
         for(uint i = 0; i < noOfVoters; i++) {
             uint256 budgetAllocated = Maths.wpow(votes[i], 2);
 
             // calculate delegate reward for each voter
-            uint256 reward = Maths.wdiv(Maths.wdiv(Maths.wmul(gbc, budgetAllocated), totalBudgetAllocated), 10 * 1e18); 
+            uint256 reward = Maths.wdiv(Maths.wmul(gbc, budgetAllocated), totalBudgetAllocated) / 10; 
+            totalDelegationReward += reward; 
 
             // check whether reward calculated is correct
             _claimDelegateReward(
@@ -1106,6 +1111,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
                 }
             );
         }
+
+        // ensure total delegation reward is less than equals to 10% of gbc
+        assertGe(gbc / 10, totalDelegationReward);
 
     }
 

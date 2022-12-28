@@ -98,10 +98,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @param distributionId_ distribution Id of the distribution whose screening period is needed
      */
     function getScreeningPeriodEndBlock(uint256 distributionId_) external view returns (uint256) {
-        QuarterlyDistribution memory currentDistribution_ = distributions[distributionId_];
+        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
 
         // 10 days is equivalent to 72,000 blocks (12 seconds per block, 86400 seconds per day)
-        return currentDistribution_.endBlock - 72000;
+        return currentDistribution.endBlock - 72000;
     }
 
     /**
@@ -301,7 +301,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 gbc = currentDistribution.fundsAvailable;
 
         // delegateeReward = 10 % of GBC distributed as per delegatee Vote share    
-        rewardClaimed_ = Maths.wdiv(Maths.wdiv(Maths.wmul(gbc, quadraticVotesUsed), currentDistribution.quadraticVotesCast), 10 * 1e18);
+        rewardClaimed_ = Maths.wdiv(Maths.wmul(gbc, quadraticVotesUsed), currentDistribution.quadraticVotesCast) / 10;
 
         hasClaimedReward[distributionId_][msg.sender] = true;
 
