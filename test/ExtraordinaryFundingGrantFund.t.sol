@@ -538,7 +538,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         for(uint i = 0; i < noOfProposals; i++) {
             /* first 7 proposals are executed successfully and from 8th proposal each one will fail
              as non-treasury amount and minimum threshold increases with each proposal execution */
-            if (i > 7) {
+            if (i >= 7) {
                 vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
             }
             _grantFund.executeExtraordinary(testProposal[i].targets, testProposal[i].values, testProposal[i].calldatas, keccak256(bytes(testProposal[i].description)));
