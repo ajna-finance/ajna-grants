@@ -32,6 +32,26 @@ interface IStandardFunding {
      */
     error InsufficientBudget();
 
+    /**
+     * @notice Delegatee attempted to claim delegate reward before the challenge period ended.
+     */
+    error ChallengePeriodNotEnded();
+
+    /**
+     * @notice Delegatee attempted to claim delegate reward when not voted in screening.
+     */
+    error DelegateRewardInvalid();
+
+    /**
+     * @notice User attempted to propose after screening period ended
+     */
+    error ScreeningPeriodEnded();
+
+    /**
+     * @notice User attempted to Claim delegate reward again
+     */
+    error RewardAlreadyClaimed();
+
     /**************/
     /*** Events ***/
     /**************/
@@ -51,6 +71,14 @@ interface IStandardFunding {
      */
     event QuarterlyDistributionStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
 
+    /**
+     *  @notice Emitted when delegatee claims his rewards.
+     *  @param  delegateeAddress_ Address of delegatee.
+     *  @param  distributionId_  Id of distribution period.
+     *  @param  rewardClaimed_    Amount of Reward Claimed.
+     */
+    event DelegateRewardClaimed(address indexed delegateeAddress_, uint256 indexed distributionId_, uint256 rewardClaimed_);
+
     /***************/
     /*** Structs ***/
     /***************/
@@ -59,11 +87,12 @@ interface IStandardFunding {
      * @notice Contains proposals that made it through the screening process to the funding stage.
      */
     struct QuarterlyDistribution {
-        uint256 id;                 // id of the current quarterly distribution
-        uint256 votesCast;          // total number of votes cast that quarter
-        uint256 startBlock;         // block number of the quarterly distributions start
-        uint256 endBlock;           // block number of the quarterly distributions end
-        bytes32 fundedSlateHash;    // hash of list of proposals to fund
+        uint256 id;                  // id of the current quarterly distribution
+        uint256 quadraticVotesCast;  // total number of votes cast in funding stage that quarter
+        uint256 startBlock;          // block number of the quarterly distributions start
+        uint256 endBlock;            // block number of the quarterly distributions end
+        uint256 fundsAvailable;      // maximum fund (including delegate reward) that can be taken out that quarter   
+        bytes32 fundedSlateHash;     // hash of list of proposals to fund
     }
 
     /**
