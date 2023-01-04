@@ -69,6 +69,18 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      */
     mapping (uint256 => mapping(address => QuadraticVoter)) internal quadraticVoters;
 
+    /**
+     * @notice Mapping of distributionId to whether surplus funds from distribution updated into treasury
+     * @dev distributionId => bool
+    */
+    mapping (uint256 => bool) internal isSurplusFundsUpdated;
+
+    /**
+     * @notice Mapping of distributionId to user address to whether user has claimed his delegate reward
+     * @dev distributionId => address => bool
+    */
+    mapping (uint256 => mapping (address => bool)) public hasClaimedReward;
+
     /*****************************************/
     /*** Distribution Management Functions ***/
     /*****************************************/
@@ -83,19 +95,22 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**
      * @notice Calculate the block at which the screening period of a distribution ends.
      * @dev    Screening period is 80 days, funding period is 10 days. Total distribution is 90 days.
+     * @param distributionId_ distribution Id of the distribution whose screening period is needed
      */
-    function getScreeningPeriodEndBlock(QuarterlyDistribution memory currentDistribution_) external pure returns (uint256) {
+    function getScreeningPeriodEndBlock(uint256 distributionId_) external view returns (uint256) {
+        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
+
         // 10 days is equivalent to 72,000 blocks (12 seconds per block, 86400 seconds per day)
-        return currentDistribution_.endBlock - 72000;
+        return currentDistribution.endBlock - 72000;
     }
 
     /**
-     * @notice Generate a unique hash of a list of proposals for usage as a key for comparing proposal slates.
-     * @param  proposals_ Array of proposals to hash.
+     * @notice Generate a unique hash of a list of proposal Ids for usage as a key for comparing proposal slates.
+     * @param  proposalIds_ Array of proposal Ids to hash.
      * @return Bytes32 hash of the list of proposals.
      */
-    function getSlateHash(Proposal[] calldata proposals_) external pure returns (bytes32) {
-        return keccak256(abi.encode(proposals_));
+    function getSlateHash(uint256[] calldata proposalIds_) external pure returns (bytes32) {
+        return keccak256(abi.encode(proposalIds_));
     }
 
     /**
@@ -112,13 +127,49 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /**
+     * @notice Updates Treasury with surplus funds from distribution.
+     * @param distributionId_ distribution Id of updating distribution 
+     */
+    function _updateTreasury(uint256 distributionId_) private {
+        QuarterlyDistribution memory currentDistribution =  distributions[distributionId_];
+        uint256[] memory fundingProposalIds = fundedProposalSlates[distributionId_][currentDistribution.fundedSlateHash];
+        uint256 totalTokensRequested;
+        for (uint i = 0; i < fundingProposalIds.length; ) {
+            Proposal memory proposal = standardFundingProposals[fundingProposalIds[i]];
+            totalTokensRequested += proposal.tokensRequested;
+            unchecked {
+                ++i;
+            }
+        }
+        // update treasury with non distributed tokens
+        treasury += (currentDistribution.fundsAvailable - totalTokensRequested);
+        isSurplusFundsUpdated[distributionId_] = true;
+    }
+
+    /**
      * @notice Start a new Distribution Period and reset appropriate state.
      * @dev    Can be kicked off by anyone assuming a distribution period isn't already active.
      * @return newDistributionId_ The new distribution period Id.
      */
     function startNewDistributionPeriod() external returns (uint256 newDistributionId_) {
         // check that there isn't currently an active distribution period
-        if (block.number <= distributions[_distributionIdCheckpoints.latest()].endBlock) revert DistributionPeriodStillActive();
+        uint256 currentDistributionId = _distributionIdCheckpoints.latest();
+        if (block.number <= distributions[currentDistributionId].endBlock) revert DistributionPeriodStillActive();
+
+        // update Treasury with unused funds from last two distributions
+        {   
+            // Check if any last distribution exists and its challenge period is over
+            if ( currentDistributionId > 0 && (block.number > distributions[currentDistributionId].endBlock + 50400)) {
+                // Add unused funds from last distribution to treasury
+                _updateTreasury(currentDistributionId);
+            }
+
+            // checks if any second last distribution exist and its unused funds are not added into treasury
+            if ( currentDistributionId > 1 && !isSurplusFundsUpdated[currentDistributionId - 1]) {
+                // Add unused funds from second last distribution to treasury
+                _updateTreasury(currentDistributionId - 1);
+            }
+        }
 
         // set the distribution period to start at the current block
         uint256 startBlock = block.number;
@@ -129,15 +180,19 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // create QuarterlyDistribution struct
         QuarterlyDistribution storage newDistributionPeriod = distributions[newDistributionId_];
-        newDistributionPeriod.id         = newDistributionId_;
-        newDistributionPeriod.startBlock = startBlock;
-        newDistributionPeriod.endBlock   = endBlock;
+        newDistributionPeriod.id              = newDistributionId_;
+        newDistributionPeriod.startBlock      = startBlock;
+        newDistributionPeriod.endBlock        = endBlock;
+        uint256 gbc                           = Maths.wmul(treasury, globalBudgetConstraint);  
+        newDistributionPeriod.fundsAvailable  = gbc;
+
+        // update treasury
+        treasury -= gbc;
 
         emit QuarterlyDistributionStarted(newDistributionId_, startBlock, endBlock);
     }
 
     function _sumBudgetAllocated(uint256[] memory proposalIdSubset_) internal view returns (uint256 sum) {
-        sum = 0;
         for (uint i = 0; i < proposalIdSubset_.length;) {
             sum += uint256(standardFundingProposals[proposalIdSubset_[i]].qvBudgetAllocated);
 
@@ -149,11 +204,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Check if a slate of proposals meets requirements, and maximizes votes. If so, update QuarterlyDistribution.
-     * @param  fundedProposals_ Array of proposals to check.
+     * @param  proposalIds_ Array of proposal Ids to check.
      * @param  distributionId_ Id of the current quarterly distribution.
      * @return Boolean indicating whether the new proposal slate was set as the new top slate for distribution.
      */
-    function checkSlate(Proposal[] calldata fundedProposals_, uint256 distributionId_) external returns (bool) {
+    function checkSlate(uint256[] calldata proposalIds_, uint256 distributionId_) external returns (bool) {
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
 
         // check that the function is being called within the challenge period
@@ -161,23 +216,25 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             return false;
         }
 
-        uint256 gbc = maximumQuarterlyDistribution();
+        uint256 gbc = currentDistribution.fundsAvailable;
         uint256 sum = 0;
         uint256 totalTokensRequested = 0;
 
-        for (uint i = 0; i < fundedProposals_.length; ) {
+        for (uint i = 0; i < proposalIds_.length; ) {
             // check if Proposal is in the topTenProposals list
-            if (_findProposalIndex(fundedProposals_[i].proposalId, topTenProposals[distributionId_]) == -1) return false;
+            if (_findProposalIndex(proposalIds_[i], topTenProposals[distributionId_]) == -1) return false;
+
+            Proposal memory proposal = standardFundingProposals[proposalIds_[i]];
 
             // account for qvBudgetAllocated possibly being negative
-            if (fundedProposals_[i].qvBudgetAllocated < 0) return false;
+            if (proposal.qvBudgetAllocated < 0) return false;
 
             // update counters
-            sum += uint256(fundedProposals_[i].qvBudgetAllocated);
-            totalTokensRequested += fundedProposals_[i].tokensRequested;
+            sum += uint256(proposal.qvBudgetAllocated);
+            totalTokensRequested += proposal.tokensRequested;
 
-            // check if slate of proposals exceeded budget constraint
-            if (totalTokensRequested > gbc) {
+            // check if slate of proposals exceeded budget constraint ( 90% of GBC )
+            if (totalTokensRequested > (gbc * 9 / 10)) {
                 return false;
             }
 
@@ -188,16 +245,16 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // get pointers for comparing proposal slates
         bytes32 currentSlateHash = currentDistribution.fundedSlateHash;
-        bytes32 newSlateHash = keccak256(abi.encode(fundedProposals_));
+        bytes32 newSlateHash = keccak256(abi.encode(proposalIds_));
 
         bool newTopSlate = currentSlateHash == 0 ||
             (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[distributionId_][currentSlateHash]));
 
         if (newTopSlate) {
             uint256[] storage existingSlate = fundedProposalSlates[distributionId_][newSlateHash];
-            for (uint i = 0; i < fundedProposals_.length; ) {
+            for (uint i = 0; i < proposalIds_.length; ) {
                 // update list of proposals to fund
-                existingSlate.push(fundedProposals_[i].proposalId);
+                existingSlate.push(proposalIds_[i]);
 
                 unchecked {
                     ++i;
@@ -219,6 +276,40 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return Maths.wmul(IERC20(ajnaTokenAddress).balanceOf(address(this)), globalBudgetConstraint);
     }
 
+    /**
+     * @notice distributes delegate reward based on delegatee Vote share
+     * @dev  Can be called by anyone who has voted in both screening and funding period 
+     * @param distributionId_ Id of distribution from which delegatee wants to claim his reward
+     * @return rewardClaimed_ Amount of reward claimed by delegatee
+     */
+    function claimDelegateReward(uint256 distributionId_) external returns(uint256 rewardClaimed_) {
+        // Revert if delegatee didn't vote in screening stage 
+        if(!hasVotedScreening[distributionId_][msg.sender]) revert DelegateRewardInvalid();
+
+        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
+
+        // Check if Challenge Period is still active 
+        if(block.number < currentDistribution.endBlock + 50400) revert ChallengePeriodNotEnded();
+
+        if(hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
+
+        QuadraticVoter storage voter = quadraticVoters[distributionId_][msg.sender];
+
+        // Total no of quadratic votes delegatee has voted
+        uint256 quadraticVotesUsed = voter.votingWeight - uint256(voter.budgetRemaining);
+
+        uint256 gbc = currentDistribution.fundsAvailable;
+
+        // delegateeReward = 10 % of GBC distributed as per delegatee Vote share    
+        rewardClaimed_ = Maths.wdiv(Maths.wmul(gbc, quadraticVotesUsed), currentDistribution.quadraticVotesCast) / 10;
+
+        hasClaimedReward[distributionId_][msg.sender] = true;
+
+        IERC20(ajnaTokenAddress).transfer(msg.sender, rewardClaimed_);
+        
+        emit DelegateRewardClaimed(msg.sender, distributionId_, rewardClaimed_);
+    }
+
     /**************************/
     /*** Proposal Functions ***/
     /**************************/
@@ -230,10 +321,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @return proposalId_ of the executed proposal.
      */
     function executeStandard(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable nonReentrant returns (uint256 proposalId_) {
-        // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
-        if (block.number <= distributions[_distributionIdCheckpoints.latest()].endBlock + 50400) revert ExecuteProposalInvalid();
 
-        proposalId_ = super.execute(targets_, values_, calldatas_, descriptionHash_);
+        proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
+        Proposal memory proposal = standardFundingProposals[proposalId_];
+
+        // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
+        if (block.number <= distributions[proposal.distributionId].endBlock + 50400) revert ExecuteProposalInvalid();
+
+        super.execute(targets_, values_, calldatas_, descriptionHash_);
         standardFundingProposals[proposalId_].executed = true;
     }
 
@@ -256,13 +351,18 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check for duplicate proposals
         if (standardFundingProposals[proposalId_].proposalId != 0) revert ProposalAlreadyExists();
 
+        QuarterlyDistribution memory currentDistribution = distributions[_distributionIdCheckpoints.latest()];
+
+        // cannot add new proposal after end of screening period
+        if (block.number > currentDistribution.endBlock - 72000) revert ScreeningPeriodEnded();
+
         // check params have matching lengths
         if (targets_.length != values_.length || targets_.length != calldatas_.length || targets_.length == 0) revert InvalidProposal();
 
         // store new proposal information
         Proposal storage newProposal = standardFundingProposals[proposalId_];
         newProposal.proposalId       = proposalId_;
-        newProposal.distributionId   = _distributionIdCheckpoints.latest();
+        newProposal.distributionId   = currentDistribution.id;
 
         // check proposal parameters are valid and update tokensRequested
         newProposal.tokensRequested  = _validateCallDatas(targets_, values_, calldatas_);
@@ -293,6 +393,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @return budgetAllocated_ The amount of votes allocated to the proposal.
      */
     function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 budgetAllocation_) internal returns (uint256 budgetAllocated_) {
+
+        uint256 currentDistributionId = _distributionIdCheckpoints.latest();
+        QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
+
         uint8  support = 1;
         uint256 proposalId = proposal_.proposalId;
 
@@ -308,6 +412,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             // update voter budget remaining
             voter_.budgetRemaining -= budgetAllocation_;
         }
+        // update total vote cast
+        currentDistribution.quadraticVotesCast += uint256(Maths.abs(budgetAllocation_));
 
         // update proposal vote tracking
         proposal_.qvBudgetAllocated += budgetAllocation_;
@@ -330,7 +436,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @return                        The amount of votes cast.
      */
     function _screeningVote(address account_, Proposal storage proposal_, uint256 votes_) internal returns (uint256) {
-        if (hasScreened[proposal_.proposalId][account_]) revert AlreadyVoted();
+        if (hasVotedScreening[proposal_.distributionId][account_]) revert AlreadyVoted();
 
         uint256[] storage currentTopTenProposals = topTenProposals[proposal_.distributionId];
 
@@ -344,6 +450,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check if the proposal should be added to the top ten list for the first time
         if (screenedProposalsLength < 10 && indexInArray == -1) {
             currentTopTenProposals.push(proposal_.proposalId);
+
+            // sort top ten proposals
+            _insertionSortProposalsByVotes(currentTopTenProposals);
         }
         else {
             // proposal is already in the array
@@ -365,7 +474,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
 
         // record voters vote
-        hasScreened[proposal_.proposalId][account_] = true;
+        hasVotedScreening[proposal_.distributionId][account_] = true;
 
         // vote for the given proposal
         return super._castVote(proposal_.proposalId, account_, 1, "", "");
@@ -375,7 +484,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Check to see if a proposal is in the current funded slate hash of proposals.
      */
     function _standardFundingVoteSucceeded(uint256 proposalId_) internal view returns (bool) {
-        uint256 distributionId = _distributionIdCheckpoints.latest();
+        Proposal memory proposal = standardFundingProposals[proposalId_];
+        uint256 distributionId = proposal.distributionId;
         return _findProposalIndex(proposalId_, fundedProposalSlates[distributionId][distributions[distributionId].fundedSlateHash]) != -1;
     }
 
@@ -390,13 +500,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return _distributionIdCheckpoints.getAtBlock(blockNumber);
     }
 
-    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, bytes32) {
+    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, uint256, bytes32) {
         QuarterlyDistribution memory distribution = distributions[distributionId_];
         return (
             distribution.id,
-            distribution.votesCast,
+            distribution.quadraticVotesCast,
             distribution.startBlock,
             distribution.endBlock,
+            distribution.fundsAvailable,
             distribution.fundedSlateHash
         );
     }

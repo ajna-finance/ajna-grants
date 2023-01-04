@@ -49,7 +49,15 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
 
-        if (proposal.executed != false || proposal.succeeded != true) {
+        if (proposal.executed != false) {
+            revert ExecuteExtraordinaryProposalInvalid();
+        }
+
+        // check if the proposal has received more votes than minimumThreshold and tokensRequestedPercentage of all tokens
+        if (proposal.votesReceived >= proposal.tokensRequested + getSliceOfNonTreasury(getMinimumThresholdPercentage())) {
+            proposal.succeeded = true;
+        } else {
+            proposal.succeeded = false;
             revert ExecuteExtraordinaryProposalInvalid();
         }
 
@@ -57,6 +65,9 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         super.execute(targets_, values_, calldatas_, descriptionHash_);
         proposal.executed = true;
+
+        // update treasury
+        treasury -= proposal.tokensRequested;
     }
 
     /**
@@ -120,7 +131,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @return votes_      The amount of votes cast.
      */
     function _extraordinaryFundingVote(uint256 proposalId_, address account_) internal returns (uint256 votes_) {
-        if (hasScreened[proposalId_][account_]) revert AlreadyVoted();
+        if (hasVotedExtraordinary[proposalId_][account_]) revert AlreadyVoted();
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
 
@@ -132,15 +143,8 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         votes_ = _getVotes(account_, block.number, abi.encode(proposalId_));
         proposal.votesReceived += votes_;
 
-        // check if the proposal has received more votes than minimumThreshold and tokensRequestedPercentage of all tokens
-        if (proposal.votesReceived >= proposal.tokensRequested + getSliceOfTreasury(getMinimumThresholdPercentage())) {
-            proposal.succeeded = true;
-        } else {
-            proposal.succeeded = false;
-        }
-
         // record that voter has voted on this extraorindary funding proposal
-        hasScreened[proposalId_][account_] = true;
+        hasVotedExtraordinary[proposalId_][account_] = true;
 
         emit VoteCast(account_, proposalId_, 1, votes_, "");
     }
@@ -170,11 +174,21 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
     /**
      * @notice Get the number of ajna tokens equivalent to a given percentage.
+     * @param percentage_ The percentage of the Non treasury to retrieve, in WAD.
+     * @return The number of tokens, in WAD.
+     */
+    function getSliceOfNonTreasury(uint256 percentage_) public view returns (uint256) {
+        uint256 totalAjnaSupply = IERC20(ajnaTokenAddress).totalSupply();
+        return Maths.wmul(totalAjnaSupply - treasury, percentage_);
+    }
+
+    /**
+     * @notice Get the number of ajna tokens equivalent to a given percentage.
      * @param percentage_ The percentage of the treasury to retrieve, in WAD.
      * @return The number of tokens, in WAD.
      */
     function getSliceOfTreasury(uint256 percentage_) public view returns (uint256) {
-        return Maths.wmul(IERC20(ajnaTokenAddress).balanceOf(address(this)), percentage_);
+        return Maths.wmul(treasury, percentage_);
     }
 
     function getExtraordinaryProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, uint256, bool, bool) {

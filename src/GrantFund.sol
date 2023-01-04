@@ -24,11 +24,12 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
     /*** Constructor ***/
     /*******************/
 
-    constructor(IVotes token_)
+    constructor(IVotes token_, uint256 treasury_)
         Governor("AjnaEcosystemGrantFund")
     {
         ajnaTokenAddress = address(token_);
         token = token_;
+        treasury = treasury_;
     }
 
     /**************************/
@@ -74,13 +75,14 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
 
         // standard proposal state checks
         if (mechanism == FundingMechanism.Standard) {
-            if (standardFundingProposals[proposalId_].executed) return IGovernor.ProposalState.Executed;
-            else if (distributions[_distributionIdCheckpoints.latest()].endBlock >= block.number) return IGovernor.ProposalState.Active;
+            Proposal memory proposal = standardFundingProposals[proposalId_];
+            if (proposal.executed) return IGovernor.ProposalState.Executed;
+            else if (distributions[proposal.distributionId].endBlock >= block.number) return IGovernor.ProposalState.Active;
             else if (_standardFundingVoteSucceeded(proposalId_)) return IGovernor.ProposalState.Succeeded;
             else return IGovernor.ProposalState.Defeated;
         }
-        // extraordinary funding proposal state checks
-        else if (mechanism == FundingMechanism.Extraordinary) {
+        // extraordinary funding proposal state
+        else {
             bool voteSucceeded = _extraordinaryFundingVoteSucceeded(proposalId_);
 
             if (extraordinaryFundingProposals[proposalId_].executed) return IGovernor.ProposalState.Executed;
@@ -131,14 +133,14 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
                 int256 budgetAllocation = abi.decode(params_, (int256));
 
                 // check if the voter has enough budget remaining to allocate to the proposal
-                if (voter.budgetRemaining == 0 || budgetAllocation > voter.budgetRemaining) revert InsufficientBudget();
+                if (Maths.abs(budgetAllocation) > voter.budgetRemaining) revert InsufficientBudget();
 
                 return _fundingVote(proposal, account_, voter, budgetAllocation);
             }
         }
 
         // extraordinary funding mechanism
-        else if (mechanism == FundingMechanism.Extraordinary) {
+        else {
             return _extraordinaryFundingVote(proposalId_, account_);
         }
     }
@@ -203,6 +205,40 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
     /**************************/
     /*** Required Overrides ***/
     /**************************/
+
+     /**
+     * @notice Restrict voter to only voting once during the screening stage.
+     * @dev    See {IGovernor-hasVoted}.
+     */
+    function hasVoted(uint256 proposalId_, address account_) public view override(IGovernor) returns (bool) {
+        FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
+
+        // Checks if Proposal is Standard
+        if (mechanism == FundingMechanism.Standard) {
+            Proposal memory proposal = standardFundingProposals[proposalId_]; 
+            QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
+            uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
+
+            // screening stage
+            if (block.number >= currentDistribution.startBlock && block.number <= screeningPeriodEndBlock) {
+                return hasVotedScreening[proposal.distributionId][account_];
+            }
+
+            // funding stage
+            else if (block.number > screeningPeriodEndBlock && block.number <= currentDistribution.endBlock) {
+                QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
+
+                // Check if voter has voted
+                if (uint256(voter.budgetRemaining) < voter.votingWeight) {
+                    return true;
+                }
+            }
+        }
+
+        else {
+            return hasVotedExtraordinary[proposalId_][account_];
+        }
+    }
 
     /**
      * @dev See {IGovernor-COUNTING_MODE}.
