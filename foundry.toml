@@ -5,3 +5,7 @@ libs = ['lib']
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
 fs_permissions = [{ access = "read", path = "./"}]
+
+# auto_detect_solc = true
+# allow_paths = ['0.8.7', '0.8.16']
+# include_paths = ['0.8.7', '0.8.16']

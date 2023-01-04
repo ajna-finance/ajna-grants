@@ -11,6 +11,14 @@ import { Test }     from "@std/Test.sol";
 
 abstract contract GrantFundTestHelper is Test {
 
+    // FIXME: info here:
+    // https://github.com/hbarcelos/forge-multi-version
+    // https://github.com/foundry-rs/foundry/issues/1163
+
+    // Artifact paths for deploying from the deps folder, assumes that the command is run from the project root.
+    // used to enable interaction between contracts with different pragma
+    string constant ajnaTokenArtifact = 'AjnaToken.sol:AjnaToken';
+
     using SafeCast for uint256;
     using Strings for string;
 

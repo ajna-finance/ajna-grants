@@ -66,7 +66,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     function setUp() external {
         vm.startPrank(_tokenDeployer);
-        _token = new AjnaToken(_tokenDeployer);
+
+        address ajnaTokenAddress = deployCode(ajnaTokenArtifact, abi.encode(_tokenDeployer));
+        _token = AjnaToken(ajnaTokenAddress);
 
         // deploy voting token wrapper
         _votingToken = IVotes(address(_token));
