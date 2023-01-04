@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "../src/GrantFund.sol";
-import "../src/interfaces/IExtraordinaryFunding.sol";
+import { AjnaToken }             from "../src/AjnaToken.sol";
+import { Funding }               from "../src/base/Funding.sol";
+import { GrantFund }             from "../src/GrantFund.sol";
+import { IExtraordinaryFunding } from "../src/interfaces/IExtraordinaryFunding.sol";
 
-import "./GrantFundTestHelper.sol";
+import { GrantFundTestHelper } from "./GrantFundTestHelper.sol";
 
-import "../src/libraries/Maths.sol";
-
+import { IGovernor } from "@oz/governance/IGovernor.sol";
+import { IVotes }    from "@oz/governance/utils/IVotes.sol";
 
 contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 

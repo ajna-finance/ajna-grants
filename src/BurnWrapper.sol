@@ -6,7 +6,7 @@ pragma solidity 0.8.16;
 
 import { ERC20 }          from "@oz/token/ERC20/ERC20.sol";
 import { IERC20 }         from "@oz/token/ERC20/IERC20.sol";
-import { ERC20Burnable } from "@oz/token/ERC20/extensions/ERC20Burnable.sol";
+import { ERC20Burnable }  from "@oz/token/ERC20/extensions/ERC20Burnable.sol";
 import { ERC20Permit }    from "@oz/token/ERC20/extensions/draft-ERC20Permit.sol";
 import { ERC20Wrapper }   from "@oz/token/ERC20/extensions/ERC20Wrapper.sol";
 import { IERC20Metadata } from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
