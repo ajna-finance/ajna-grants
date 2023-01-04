@@ -49,7 +49,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
 
-        if (proposal.executed != false) {
+        if (proposal.executed) {
             revert ExecuteExtraordinaryProposalInvalid();
         }
 
@@ -135,7 +135,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
 
-        if (proposal.startBlock > block.number || proposal.endBlock < block.number || proposal.executed == true) {
+        if (proposal.startBlock > block.number || proposal.endBlock < block.number || proposal.executed) {
             revert ExtraordinaryFundingProposalInactive();
         }
 

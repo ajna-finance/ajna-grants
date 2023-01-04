@@ -3,6 +3,7 @@
 pragma solidity 0.8.16;
 
 import { IERC20 }      from "@oz/token/ERC20/IERC20.sol";
+import { SafeERC20 }   from "@oz/token/ERC20/utils/SafeERC20.sol";
 import { Checkpoints } from "@oz/utils/Checkpoints.sol";
 
 import { Funding } from "./Funding.sol";
@@ -14,6 +15,7 @@ import { Maths } from "../libraries/Maths.sol";
 abstract contract StandardFunding is Funding, IStandardFunding {
 
     using Checkpoints for Checkpoints.History;
+    using SafeERC20 for IERC20;
 
     /***********************/
     /*** State Variables ***/
@@ -294,9 +296,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check rewards haven't already been claimed
         if(hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
 
-        QuadraticVoter storage voter = quadraticVoters[distributionId_][msg.sender];
+        QuadraticVoter memory voter = quadraticVoters[distributionId_][msg.sender];
 
-        // Total no of quadratic votes delegatee has voted
+        // Total number of quadratic votes delegatee has voted
         uint256 quadraticVotesUsed = voter.votingWeight - uint256(voter.budgetRemaining);
 
         uint256 gbc = currentDistribution.fundsAvailable;
@@ -308,8 +310,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         hasClaimedReward[distributionId_][msg.sender] = true;
 
-        // transfer rewards to delegate
-        IERC20(ajnaTokenAddress).transfer(msg.sender, rewardClaimed_);        
+        // transfer rewards to delegatee
+        IERC20(ajnaTokenAddress).safeTransfer(msg.sender, rewardClaimed_);
     }
 
     /**************************/

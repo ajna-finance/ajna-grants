@@ -164,13 +164,14 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
         // else if in funding period quadratic formula squares the number of votes
         else if (keccak256(params_) == keccak256(bytes("Funding"))) {
             QuadraticVoter memory voter = quadraticVoters[currentDistribution.id][account_];
-            // this is the first time a voter has attempted to vote this period
-            if (voter.votingWeight == 0) {
-                return Maths.wpow(_getVotesSinceSnapshot(account_, currentDistribution.endBlock - 72033, currentDistribution.endBlock - 72000), 2);
-            }
+
             // voter has already allocated some of their budget this period
-            else {
+            if (voter.votingWeight != 0) {
                 return uint256(voter.budgetRemaining);
+            }
+            // this is the first time a voter has attempted to vote this period
+            else {
+                return Maths.wpow(_getVotesSinceSnapshot(account_, currentDistribution.endBlock - 72033, currentDistribution.endBlock - 72000), 2);
             }
         }
         else {
@@ -195,7 +196,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
         uint256 votes1 = token.getPastVotes(account_, snapshot_);
 
         // enable voting weight to be calculated during the voting period's start block
-        voteStartBlock_ = voteStartBlock_ == block.number ? block.number - 1 : voteStartBlock_;
+        voteStartBlock_ = voteStartBlock_ != block.number ? voteStartBlock_ : block.number - 1;
         uint256 votes2 = token.getPastVotes(account_, voteStartBlock_);
 
         return Maths.min(votes2, votes1);
@@ -242,7 +243,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
     /**
      * @dev See {IGovernor-COUNTING_MODE}.
      */
-    //slither-disable-next-line naming-convention
+    // slither-disable-next-line naming-convention
     function COUNTING_MODE() public pure override(IGovernor) returns (string memory) {
         return "support=bravo&quorum=for,abstain";
     }
@@ -258,6 +259,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
      * @dev Since no quorum is used, but this is called as part of state(), this is hardcoded to true.
      * @dev See {IGovernor-quorumReached}.
      */
+    // slither-disable-next-line dead-code
     function _quorumReached(uint256) internal pure override(Governor) returns (bool) {
         return true;
     }
@@ -273,7 +275,8 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
      * @dev    Replaced by mechanism specific voteSucceeded functions.
      * @dev    See {IGovernor-quorum}.
      */
-     function _voteSucceeded(uint256 proposalId) internal view override(Governor) returns (bool) {}
+    // slither-disable-next-line dead-code
+    function _voteSucceeded(uint256 proposalId) internal view override(Governor) returns (bool) {}
 
     /**
      * @notice Required override.
