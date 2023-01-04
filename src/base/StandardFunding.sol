@@ -2,14 +2,14 @@
 
 pragma solidity 0.8.16;
 
-import "@oz/token/ERC20/IERC20.sol";
-import "@oz/utils/Checkpoints.sol";
+import { IERC20 }      from "@oz/token/ERC20/IERC20.sol";
+import { Checkpoints } from "@oz/utils/Checkpoints.sol";
 
-import "./Funding.sol";
+import { Funding } from "./Funding.sol";
 
-import "../interfaces/IStandardFunding.sol";
+import { IStandardFunding } from "../interfaces/IStandardFunding.sol";
 
-import "../libraries/Maths.sol";
+import { Maths } from "../libraries/Maths.sol";
 
 abstract contract StandardFunding is Funding, IStandardFunding {
 

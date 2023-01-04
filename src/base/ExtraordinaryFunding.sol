@@ -2,13 +2,13 @@
 
 pragma solidity 0.8.16;
 
-import "@oz/token/ERC20/IERC20.sol";
+import { IERC20 } from "@oz/token/ERC20/IERC20.sol";
 
-import "./Funding.sol";
+import { Funding } from "./Funding.sol";
 
-import "../interfaces/IExtraordinaryFunding.sol";
+import { IExtraordinaryFunding } from "../interfaces/IExtraordinaryFunding.sol";
 
-import "../libraries/Maths.sol";
+import { Maths } from "../libraries/Maths.sol";
 
 abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 

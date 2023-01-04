@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.16;
 
-import "@oz/governance/Governor.sol";
-import "@oz/security/ReentrancyGuard.sol";
+import { Governor }        from "@oz/governance/Governor.sol";
+import { ReentrancyGuard } from "@oz/security/ReentrancyGuard.sol";
 
 abstract contract Funding is Governor, ReentrancyGuard {
 
