@@ -44,7 +44,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @param descriptionHash_ The hash of the proposal's description.
      * @return proposalId_ The ID of the executed proposal.
      */
-    function executeExtraordinary(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public nonReentrant returns (uint256 proposalId_) {
+    function executeExtraordinary(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) external nonReentrant returns (uint256 proposalId_) {
         proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
@@ -84,7 +84,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         address[] memory targets_,
         uint256[] memory values_,
         bytes[] memory calldatas_,
-        string memory description_) public returns (uint256 proposalId_) {
+        string memory description_) external returns (uint256 proposalId_) {
 
         proposalId_ = hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
 
@@ -164,11 +164,11 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     function getMinimumThresholdPercentage() public view returns (uint256) {
         // default minimum threshold is 50
         if (fundedExtraordinaryProposals.length == 0) {
-            return 0.500000000000000000 * 1e18;
+            return 0.5 * 1e18;
         }
         // minimum threshold increases according to the number of funded EFM proposals
         else {
-            return 0.500000000000000000 * 1e18 + (fundedExtraordinaryProposals.length * (0.050000000000000000 * 1e18));
+            return 0.5 * 1e18 + (fundedExtraordinaryProposals.length * (0.05 * 1e18));
         }
     }
 

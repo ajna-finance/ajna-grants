@@ -272,7 +272,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**
      * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
      */
-    function maximumQuarterlyDistribution() public view returns (uint256) {
+    function maximumQuarterlyDistribution() external view returns (uint256) {
         return Maths.wmul(IERC20(ajnaTokenAddress).balanceOf(address(this)), globalBudgetConstraint);
     }
 
@@ -320,7 +320,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev    Check for proposal being succesfully funded or previously executed is handled by Governor.execute().
      * @return proposalId_ of the executed proposal.
      */
-    function executeStandard(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) public payable nonReentrant returns (uint256 proposalId_) {
+    function executeStandard(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) external payable nonReentrant returns (uint256 proposalId_) {
 
         proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
         Proposal memory proposal = standardFundingProposals[proposalId_];
@@ -345,7 +345,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256[] memory values_,
         bytes[] memory calldatas_,
         string memory description_
-    ) public returns (uint256 proposalId_) {
+    ) external returns (uint256 proposalId_) {
         proposalId_ = hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
 
         // check for duplicate proposals

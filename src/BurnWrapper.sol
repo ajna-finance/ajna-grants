@@ -39,7 +39,7 @@ contract BurnWrappedAjna is ERC20, ERC20Burnable, ERC20Permit, ERC20Wrapper {
     /**
      * @notice Override unwrap method to ensure burn wrapped tokens can't be unwrapped.
      */
-    function withdrawTo(address account, uint256 amount) public override returns (bool) {
+    function withdrawTo(address, uint256) public pure override returns (bool) {
         revert UnwrapNotAllowed();
     }
 
