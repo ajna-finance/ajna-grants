@@ -1,18 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "../src/AjnaToken.sol";
-import "../src/GrantFund.sol";
-import "../src/interfaces/IStandardFunding.sol";
+import { AjnaToken }        from "../src/AjnaToken.sol";
+import { GrantFund }        from "../src/GrantFund.sol";
+import { IStandardFunding } from "../src/interfaces/IStandardFunding.sol";
 
-import "./utils/SigUtils.sol";
-
-import "@oz/governance/IGovernor.sol";
-import "@oz/governance/utils/IVotes.sol";
-import "@oz/utils/math/SafeCast.sol";
-import "@oz/utils/Strings.sol"; // used for createNProposals
-import "@std/StdJson.sol";
-import "@std/Test.sol";
+import { SafeCast } from "@oz/utils/math/SafeCast.sol";
+import { Strings }  from "@oz/utils/Strings.sol"; // used for createNProposals
+import { Test }     from "@std/Test.sol";
 
 abstract contract GrantFundTestHelper is Test {
 
@@ -381,7 +376,7 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     // helper method to check if element exists in array
-    function _checkElementExist(uint256 element, uint256[] memory arr) internal returns(bool) {
+    function _checkElementExist(uint256 element, uint256[] memory arr) internal pure returns(bool) {
         for(uint i = 0; i < arr.length; i++) {
             if(element == arr[i]){
                 return true;

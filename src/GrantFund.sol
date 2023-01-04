@@ -2,17 +2,16 @@
 
 pragma solidity 0.8.16;
 
-import "@oz/governance/Governor.sol";
-import "@oz/governance/extensions/GovernorVotes.sol";
-import "@oz/governance/IGovernor.sol";
-import "@oz/governance/utils/IVotes.sol";
-import "@oz/token/ERC20/IERC20.sol";
-import "@oz/utils/Checkpoints.sol";
+import { Governor }    from "@oz/governance/Governor.sol";
+import { IGovernor }   from "@oz/governance/IGovernor.sol";
+import { IVotes }      from "@oz/governance/utils/IVotes.sol";
+import { IERC20 }      from "@oz/token/ERC20/IERC20.sol";
+import { Checkpoints } from "@oz/utils/Checkpoints.sol";
 
-import "./libraries/Maths.sol";
+import { Maths } from "./libraries/Maths.sol";
 
-import "./base/ExtraordinaryFunding.sol";
-import "./base/StandardFunding.sol";
+import { ExtraordinaryFunding } from "./base/ExtraordinaryFunding.sol";
+import { StandardFunding }      from "./base/StandardFunding.sol";
 
 contract GrantFund is ExtraordinaryFunding, StandardFunding {
 

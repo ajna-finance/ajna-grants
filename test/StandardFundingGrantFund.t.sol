@@ -1,25 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "../src/AjnaToken.sol";
-import "../src/GrantFund.sol";
-import "../src/interfaces/IStandardFunding.sol";
-import "../src/base/Funding.sol";
-import "../src/libraries/Maths.sol";
+import { AjnaToken }        from "../src/AjnaToken.sol";
+import { Funding }          from "../src/base/Funding.sol";
+import { GrantFund }        from "../src/GrantFund.sol";
+import { IStandardFunding } from "../src/interfaces/IStandardFunding.sol";
+import { Maths }            from "../src/libraries/Maths.sol";
 
-import "./GrantFundTestHelper.sol";
+import { GrantFundTestHelper } from "./GrantFundTestHelper.sol";
 
-import "@oz/governance/IGovernor.sol";
-import "@oz/governance/utils/IVotes.sol";
-import "@oz/utils/math/SafeCast.sol";
-import "@std/StdJson.sol";
-import "@std/Test.sol";
+import { IGovernor } from "@oz/governance/IGovernor.sol";
+import { IVotes }    from "@oz/governance/utils/IVotes.sol";
+import { SafeCast }  from "@oz/utils/math/SafeCast.sol";
 
 contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     // used to cast 256 to uint64 to match emit expectations
     using SafeCast for uint256;
-    using stdJson for string;
 
     AjnaToken          internal  _token;
     IVotes             internal  _votingToken;
@@ -333,7 +330,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(100);
         // start distribution period
         _startDistributionPeriod(_grantFund);
-        uint256 distributionId = _grantFund.getDistributionId();
+        _grantFund.getDistributionId();
 
         vm.roll(200);
 
