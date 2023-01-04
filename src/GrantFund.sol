@@ -154,7 +154,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
      * @return The number of votes available to an account in a given stage.
      */
     function _getVotes(address account_, uint256, bytes memory params_) internal view override(Governor) returns (uint256) {
-        QuarterlyDistribution memory currentDistribution = distributions[_distributionIdCheckpoints.latest()];
+        QuarterlyDistribution memory currentDistribution = distributions[distributionIdCheckpoints.latest()];
 
         // within screening period 1 token 1 vote
         if (keccak256(params_) == keccak256(bytes("Screening"))) {

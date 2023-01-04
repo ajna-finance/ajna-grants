@@ -23,7 +23,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Maximum percentage of tokens that can be distributed by the treasury in a quarter.
      * @dev Stored as a Wad percentage.
      */
-    uint256 internal constant globalBudgetConstraint = 20000000000000000;
+    uint256 internal constant GLOBAL_BUDGET_CONSTRAINT = .02 * 1e18;
 
     /**
      * @notice Length of the distribution period in blocks.
@@ -36,7 +36,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev Used to access information on the status of an ongoing distribution.
      * @dev Updated at the start of each quarter.
      */
-    Checkpoints.History internal _distributionIdCheckpoints;
+    Checkpoints.History internal distributionIdCheckpoints;
 
     /**
      * @notice Mapping of quarterly distributions from the grant fund.
@@ -89,7 +89,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Retrieve the current QuarterlyDistribution distributionId.
      */
     function getDistributionId() external view returns (uint256) {
-        return _distributionIdCheckpoints.latest();
+        return distributionIdCheckpoints.latest();
     }
 
     /**
@@ -120,10 +120,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      */
     function _setNewDistributionId() private returns (uint256 newId_) {
         // retrieve current distribution Id
-        uint256 currentDistributionId = _distributionIdCheckpoints.latest();
+        uint256 currentDistributionId = distributionIdCheckpoints.latest();
 
         // set the current block number as the checkpoint for the current block
-        (, newId_) = _distributionIdCheckpoints.push(currentDistributionId + 1);
+        (, newId_) = distributionIdCheckpoints.push(currentDistributionId + 1);
     }
 
     /**
@@ -153,7 +153,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      */
     function startNewDistributionPeriod() external returns (uint256 newDistributionId_) {
         // check that there isn't currently an active distribution period
-        uint256 currentDistributionId = _distributionIdCheckpoints.latest();
+        uint256 currentDistributionId = distributionIdCheckpoints.latest();
         if (block.number <= distributions[currentDistributionId].endBlock) revert DistributionPeriodStillActive();
 
         // update Treasury with unused funds from last two distributions
@@ -183,7 +183,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         newDistributionPeriod.id              = newDistributionId_;
         newDistributionPeriod.startBlock      = startBlock;
         newDistributionPeriod.endBlock        = endBlock;
-        uint256 gbc                           = Maths.wmul(treasury, globalBudgetConstraint);  
+        uint256 gbc                           = Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);  
         newDistributionPeriod.fundsAvailable  = gbc;
 
         // update treasury
@@ -273,7 +273,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
      */
     function maximumQuarterlyDistribution() external view returns (uint256) {
-        return Maths.wmul(IERC20(ajnaTokenAddress).balanceOf(address(this)), globalBudgetConstraint);
+        return Maths.wmul(IERC20(ajnaTokenAddress).balanceOf(address(this)), GLOBAL_BUDGET_CONSTRAINT);
     }
 
     /**
@@ -291,6 +291,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // Check if Challenge Period is still active 
         if(block.number < currentDistribution.endBlock + 50400) revert ChallengePeriodNotEnded();
 
+        // check rewards haven't already been claimed
         if(hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
 
         QuadraticVoter storage voter = quadraticVoters[distributionId_][msg.sender];
@@ -303,11 +304,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // delegateeReward = 10 % of GBC distributed as per delegatee Vote share    
         rewardClaimed_ = Maths.wdiv(Maths.wmul(gbc, quadraticVotesUsed), currentDistribution.quadraticVotesCast) / 10;
 
+        emit DelegateRewardClaimed(msg.sender, distributionId_, rewardClaimed_);
+
         hasClaimedReward[distributionId_][msg.sender] = true;
 
-        IERC20(ajnaTokenAddress).transfer(msg.sender, rewardClaimed_);
-        
-        emit DelegateRewardClaimed(msg.sender, distributionId_, rewardClaimed_);
+        // transfer rewards to delegate
+        IERC20(ajnaTokenAddress).transfer(msg.sender, rewardClaimed_);        
     }
 
     /**************************/
@@ -351,7 +353,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check for duplicate proposals
         if (standardFundingProposals[proposalId_].proposalId != 0) revert ProposalAlreadyExists();
 
-        QuarterlyDistribution memory currentDistribution = distributions[_distributionIdCheckpoints.latest()];
+        QuarterlyDistribution memory currentDistribution = distributions[distributionIdCheckpoints.latest()];
 
         // cannot add new proposal after end of screening period
         if (block.number > currentDistribution.endBlock - 72000) revert ScreeningPeriodEnded();
@@ -394,7 +396,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      */
     function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 budgetAllocation_) internal returns (uint256 budgetAllocated_) {
 
-        uint256 currentDistributionId = _distributionIdCheckpoints.latest();
+        uint256 currentDistributionId = distributionIdCheckpoints.latest();
         QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
 
         uint8  support = 1;
@@ -497,7 +499,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Retrieve the QuarterlyDistribution distributionId at a given block.
      */
     function getDistributionIdAtBlock(uint256 blockNumber) external view returns (uint256) {
-        return _distributionIdCheckpoints.getAtBlock(blockNumber);
+        return distributionIdCheckpoints.getAtBlock(blockNumber);
     }
 
     function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, uint256, bytes32) {
