@@ -97,7 +97,7 @@ contract BurnWrappedTokenTest is Test {
         ERC20 _invalidToken = new ERC20("Invalid Token", "INV");
 
         vm.expectRevert(BurnWrappedAjna.InvalidWrappedToken.selector);
-        BurnWrappedAjna invalidWrappedToken = new BurnWrappedAjna(IERC20(address(_invalidToken)));
+        new BurnWrappedAjna(IERC20(address(_invalidToken)));
     }
 
     function testCantUnwrap() external {

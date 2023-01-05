@@ -101,8 +101,9 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
      * @param proposalId_ The current proposal being voted upon.
      * @param account_    The voting account.
      * @param params_     The amount of votes being allocated in the funding stage.
+     * @return votesCast_ The amount of votes cast.
      */
-     function _castVote(uint256 proposalId_, address account_, uint8, string memory, bytes memory params_) internal override(Governor) returns (uint256) {
+     function _castVote(uint256 proposalId_, address account_, uint8, string memory, bytes memory params_) internal override(Governor) returns (uint256 votesCast_) {
         FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
 
         // standard funding mechanism
@@ -115,7 +116,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
             if (block.number >= currentDistribution.startBlock && block.number <= screeningPeriodEndBlock) {
                 uint256 votes = _getVotes(account_, block.number, bytes("Screening"));
 
-                return _screeningVote(account_, proposal, votes);
+                votesCast_ = _screeningVote(account_, proposal, votes);
             }
 
             // funding stage
@@ -134,13 +135,13 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
                 // check if the voter has enough budget remaining to allocate to the proposal
                 if (Maths.abs(budgetAllocation) > voter.budgetRemaining) revert InsufficientBudget();
 
-                return _fundingVote(proposal, account_, voter, budgetAllocation);
+                votesCast_ = _fundingVote(proposal, account_, voter, budgetAllocation);
             }
         }
 
         // extraordinary funding mechanism
         else {
-            return _extraordinaryFundingVote(proposalId_, account_);
+            votesCast_ = _extraordinaryFundingVote(proposalId_, account_);
         }
     }
 
@@ -149,17 +150,17 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
      * @dev    Overrides OpenZeppelin _getVotes implementation to ensure appropriate voting weight is always returned.
      * @dev    Snapshot checks are built into this function to ensure accurate power is returned regardless of the caller.
      * @dev    Number of votes available is equivalent to the usage of voting weight in the super class.
-     * @param  account_     The voting account.
-     * @param  params_      Params used to pass stage for Standard, and proposalId for extraordinary.
-     * @return The number of votes available to an account in a given stage.
+     * @param  account_        The voting account.
+     * @param  params_         Params used to pass stage for Standard, and proposalId for extraordinary.
+     * @return availableVotes_ The number of votes available to an account in a given stage.
      */
-    function _getVotes(address account_, uint256, bytes memory params_) internal view override(Governor) returns (uint256) {
+    function _getVotes(address account_, uint256, bytes memory params_) internal view override(Governor) returns (uint256 availableVotes_) {
         QuarterlyDistribution memory currentDistribution = distributions[distributionIdCheckpoints.latest()];
 
         // within screening period 1 token 1 vote
         if (keccak256(params_) == keccak256(bytes("Screening"))) {
             // calculate voting weight based on the number of tokens held before the start of the distribution period
-            return _getVotesSinceSnapshot(account_, currentDistribution.startBlock - 33, currentDistribution.startBlock);
+            availableVotes_ = _getVotesSinceSnapshot(account_, currentDistribution.startBlock - 33, currentDistribution.startBlock);
         }
         // else if in funding period quadratic formula squares the number of votes
         else if (keccak256(params_) == keccak256(bytes("Funding"))) {
@@ -167,11 +168,11 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
 
             // voter has already allocated some of their budget this period
             if (voter.votingWeight != 0) {
-                return uint256(voter.budgetRemaining);
+                availableVotes_ = uint256(voter.budgetRemaining);
             }
             // this is the first time a voter has attempted to vote this period
             else {
-                return Maths.wpow(_getVotesSinceSnapshot(account_, currentDistribution.endBlock - 72033, currentDistribution.endBlock - 72000), 2);
+                availableVotes_ = Maths.wpow(_getVotesSinceSnapshot(account_, currentDistribution.endBlock - 72033, currentDistribution.endBlock - 72000), 2);
             }
         }
         else {
@@ -182,12 +183,12 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
                 // one token one vote for extraordinary funding
                 if (proposalId != 0) {
                     uint256 startBlock = extraordinaryFundingProposals[proposalId].startBlock;
-                    return _getVotesSinceSnapshot(account_, startBlock - 33, startBlock);
+                    availableVotes_ = _getVotesSinceSnapshot(account_, startBlock - 33, startBlock);
                 }
             }
             // voting is not possible for non-specified pathways
             else {
-                return 0;
+                availableVotes_ = 0;
             }
         }
     }
@@ -209,8 +210,9 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
      /**
      * @notice Restrict voter to only voting once during the screening stage.
      * @dev    See {IGovernor-hasVoted}.
+     * @return hasVoted_ Boolean for whether the account has already voted in the current proposal, and mechanism.
      */
-    function hasVoted(uint256 proposalId_, address account_) public view override(IGovernor) returns (bool) {
+    function hasVoted(uint256 proposalId_, address account_) public view override(IGovernor) returns (bool hasVoted_) {
         FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
 
         // Checks if Proposal is Standard
@@ -221,7 +223,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
 
             // screening stage
             if (block.number >= currentDistribution.startBlock && block.number <= screeningPeriodEndBlock) {
-                return hasVotedScreening[proposal.distributionId][account_];
+                hasVoted_ = hasVotedScreening[proposal.distributionId][account_];
             }
 
             // funding stage
@@ -230,13 +232,12 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
 
                 // Check if voter has voted
                 if (uint256(voter.budgetRemaining) < voter.votingWeight) {
-                    return true;
+                    hasVoted_ = true;
                 }
             }
         }
-
         else {
-            return hasVotedExtraordinary[proposalId_][account_];
+            hasVoted_ = hasVotedExtraordinary[proposalId_][account_];
         }
     }
 
