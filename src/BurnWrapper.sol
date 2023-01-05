@@ -13,13 +13,30 @@ import { IERC20Metadata } from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract BurnWrappedAjna is ERC20, ERC20Burnable, ERC20Permit, ERC20Wrapper {
 
+    /**
+     * @notice Ethereum mainnet address of the Ajna Token.
+     */
+    address internal constant AJNA_TOKEN_ADDRESS = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
+
+    /**
+     * @notice Tokens that have been wrapped cannot be unwrapped.
+     */
     error UnwrapNotAllowed();
+
+    /**
+     * @notice Only mainnet Ajna token can be wrapped.
+     */
+    error InvalidWrappedToken();
 
     constructor(IERC20 wrappedToken)
         ERC20("Burn Wrapped AJNA", "bwAJNA")
         ERC20Permit("Burn Wrapped AJNA") // enables wrapped token to also use permit functionality
         ERC20Wrapper(wrappedToken)
-    {}
+    {
+        if (address(wrappedToken) != AJNA_TOKEN_ADDRESS) {
+            revert InvalidWrappedToken();
+        }
+    }
 
     /*****************/
     /*** OVERRIDES ***/
@@ -28,12 +45,9 @@ contract BurnWrappedAjna is ERC20, ERC20Burnable, ERC20Permit, ERC20Wrapper {
     /**
      * @dev See {ERC20-decimals} and {ERC20Wrapper-decimals}.
      */
-    function decimals() public view override(ERC20, ERC20Wrapper) returns (uint8) {
-        try IERC20Metadata(address(this.underlying())).decimals() returns (uint8 value) {
-            return value;
-        } catch {
-            return super.decimals();
-        }
+    function decimals() public pure override(ERC20, ERC20Wrapper) returns (uint8) {
+        // since the Ajna Token has 18 decimals, we can just return 18 here.
+        return 18;
     }
 
     /**

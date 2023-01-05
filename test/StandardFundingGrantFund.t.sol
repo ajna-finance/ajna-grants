@@ -18,8 +18,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     // used to cast 256 to uint64 to match emit expectations
     using SafeCast for uint256;
 
-    AjnaToken          internal  _token;
-    IVotes             internal  _votingToken;
+    AjnaToken         internal  _token;
+    IVotes            internal  _votingToken;
     GrantFund         internal  _grantFund;
 
     address internal _tokenDeployer  = makeAddr("tokenDeployer");
@@ -32,12 +32,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     address internal _tokenHolder7   = makeAddr("_tokenHolder7");
     address internal _tokenHolder8   = makeAddr("_tokenHolder8");
     address internal _tokenHolder9   = makeAddr("_tokenHolder9");
-    address internal _tokenHolder10   = makeAddr("_tokenHolder10");
-    address internal _tokenHolder11   = makeAddr("_tokenHolder11");
-    address internal _tokenHolder12   = makeAddr("_tokenHolder12");
-    address internal _tokenHolder13   = makeAddr("_tokenHolder13");
-    address internal _tokenHolder14   = makeAddr("_tokenHolder14");
-    address internal _tokenHolder15   = makeAddr("_tokenHolder15");
+    address internal _tokenHolder10  = makeAddr("_tokenHolder10");
+    address internal _tokenHolder11  = makeAddr("_tokenHolder11");
+    address internal _tokenHolder12  = makeAddr("_tokenHolder12");
+    address internal _tokenHolder13  = makeAddr("_tokenHolder13");
+    address internal _tokenHolder14  = makeAddr("_tokenHolder14");
+    address internal _tokenHolder15  = makeAddr("_tokenHolder15");
 
     address[] internal _votersArr = [
         _tokenHolder1,

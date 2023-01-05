@@ -1,28 +1,32 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import { Test }   from "@std/Test.sol";
+import { ERC20 }  from "@oz/token/ERC20/ERC20.sol";
 import { IERC20 } from "@oz/token/ERC20/IERC20.sol";
+import { Test }   from "@std/Test.sol";
 
 import { AjnaToken }       from "../src/AjnaToken.sol";
 import { BurnWrappedAjna } from "../src/BurnWrapper.sol";
 
 contract BurnWrappedTokenTest is Test {
 
-    AjnaToken internal _token;
+    AjnaToken       internal _token;
     BurnWrappedAjna internal _wrappedToken;
 
-    address internal _tokenDeployer = makeAddr("tokenDeployer");
-    address internal _tokenHolder = makeAddr("_tokenHolder");
-    uint256 _initialAjnaTokenSupply   = 2_000_000_000 * 1e18;
+    address internal _ajnaAddress   = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079; // mainnet ajna token address
+    address internal _tokenDeployer = 0x666cf594fB18622e1ddB91468309a7E194ccb799; // mainnet token deployer
+    address internal _tokenHolder   = makeAddr("_tokenHolder");
+    uint256 _initialAjnaTokenSupply = 2_000_000_000 * 1e18;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
     event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
     event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
 
     function setUp() external {
-        vm.startPrank(_tokenDeployer);
-        _token = new AjnaToken(_tokenDeployer);
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+
+        // reference mainnet deployment
+        _token = AjnaToken(_ajnaAddress);
         _wrappedToken = new BurnWrappedAjna(IERC20(address(_token)));
     }
 
@@ -87,6 +91,13 @@ contract BurnWrappedTokenTest is Test {
         // check token supply after wrapping
         assertEq(_token.totalSupply(),        2_000_000_000 * 10 ** _token.decimals());
         assertEq(_wrappedToken.totalSupply(), tokensToWrap);
+    }
+
+    function testOnlyWrapAjna() external {
+        ERC20 _invalidToken = new ERC20("Invalid Token", "INV");
+
+        vm.expectRevert(BurnWrappedAjna.InvalidWrappedToken.selector);
+        BurnWrappedAjna invalidWrappedToken = new BurnWrappedAjna(IERC20(address(_invalidToken)));
     }
 
     function testCantUnwrap() external {
