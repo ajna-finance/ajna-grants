@@ -6,8 +6,4 @@ libs = ['lib']
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
 fs_permissions = [{ access = "read", path = "./"}]
 
-verbosity           = 3
-block_timestamp     = 1_672_372_127
-block_number        = 16_295_000
-fork_block_number   = 16_295_000
 rpc_storage_caching = { chains = ["mainnet"], endpoints = "all" }
