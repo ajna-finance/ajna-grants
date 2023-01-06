@@ -16,7 +16,7 @@ contract BurnWrappedAjna is ERC20, ERC20Burnable, ERC20Permit, ERC20Wrapper {
     /**
      * @notice Ethereum mainnet address of the Ajna Token.
      */
-    address internal constant AJNA_TOKEN_ADDRESS = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
+    address internal immutable AJNA_TOKEN_ADDRESS = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
 
     /**
      * @notice Tokens that have been wrapped cannot be unwrapped.
