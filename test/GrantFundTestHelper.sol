@@ -382,6 +382,7 @@ abstract contract GrantFundTestHelper is Test {
                 return true;
             }
         }
+        return false;
     }
 
     // Submits N Extra Ordinary Proposals
