@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import { AjnaToken }        from "../src/AjnaToken.sol";
-import { GrantFund }        from "../src/GrantFund.sol";
-import { IStandardFunding } from "../src/interfaces/IStandardFunding.sol";
-
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings }  from "@oz/utils/Strings.sol"; // used for createNProposals
 import { Test }     from "@std/Test.sol";
+
+import { GrantFund }        from "../src/GrantFund.sol";
+import { IStandardFunding } from "../src/interfaces/IStandardFunding.sol";
+
+import { MockAjnaToken }    from "./utils/MockAjnaToken.sol";
 
 abstract contract GrantFundTestHelper is Test {
 
@@ -152,7 +153,7 @@ abstract contract GrantFundTestHelper is Test {
         return TestProposal(proposalId, targets_, values_, proposalCalldatas_, description, recipient, tokensRequested);
     }
 
-    function _createNProposals(GrantFund grantFund_, AjnaToken token_, TestProposalParams[] memory testProposalParams_) internal returns (TestProposal[] memory) {
+    function _createNProposals(GrantFund grantFund_, MockAjnaToken token_, TestProposalParams[] memory testProposalParams_) internal returns (TestProposal[] memory) {
         // generate proposal targets
         address[] memory ajnaTokenTargets = new address[](1);
         ajnaTokenTargets[0] = address(token_);
@@ -185,7 +186,7 @@ abstract contract GrantFundTestHelper is Test {
         return testProposals;
     }
 
-    function _delegateVotes(AjnaToken token_, address delegator_, address delegatee_) internal {
+    function _delegateVotes(MockAjnaToken token_, address delegator_, address delegatee_) internal {
         changePrank(delegator_);
         vm.expectEmit(true, true, false, true);
         emit DelegateChanged(delegator_, address(0), delegatee_);
@@ -194,13 +195,13 @@ abstract contract GrantFundTestHelper is Test {
         token_.delegate(delegatee_);
     }
 
-    function _selfDelegateVoters(AjnaToken token_, address[] memory voters_) internal {
+    function _selfDelegateVoters(MockAjnaToken token_, address[] memory voters_) internal {
         for (uint256 i = 0; i < voters_.length; ++i) {
             _delegateVotes(token_, voters_[i], voters_[i]);
         }
     }
 
-    function _transferAjnaTokens(AjnaToken token_, address[] memory voters_, uint256 amount_, address tokenDeployer_) internal {
+    function _transferAjnaTokens(MockAjnaToken token_, address[] memory voters_, uint256 amount_, address tokenDeployer_) internal {
         changePrank(tokenDeployer_);
         for (uint256 i = 0; i < voters_.length; ++i) {
             token_.transfer(voters_[i], amount_);
@@ -210,7 +211,7 @@ abstract contract GrantFundTestHelper is Test {
     /**
      * @notice Helper function to execute a standard funding mechanism proposal.
      */
-    function _executeProposal(GrantFund grantFund_, AjnaToken token_, TestProposal memory testProposal_) internal {
+    function _executeProposal(GrantFund grantFund_, MockAjnaToken token_, TestProposal memory testProposal_) internal {
         // calculate starting balances
         uint256 voterStartingBalance = token_.balanceOf(testProposal_.recipient);
         uint256 growthFundStartingBalance = token_.balanceOf(address(grantFund_));
@@ -333,7 +334,7 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     // Transfers a random amount of tokens to N voters and self delegates votes
-    function _getVotes(uint256 noOfVoters_, address[] memory voters_, AjnaToken token_, address tokenDeployer_) internal returns(uint256[] memory) {
+    function _getVotes(uint256 noOfVoters_, address[] memory voters_, MockAjnaToken token_, address tokenDeployer_) internal returns(uint256[] memory) {
         uint256[] memory votes_ = new uint256[](noOfVoters_);
         for(uint i = 0; i < noOfVoters_; i++) {
             uint256 votes = _randomVote();
@@ -347,7 +348,7 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     // Submits N Proposal with fixed token requested
-    function _getProposals(uint256 noOfProposals_, GrantFund grantFund_, address proponent_, AjnaToken token_) internal returns(TestProposal[] memory) {
+    function _getProposals(uint256 noOfProposals_, GrantFund grantFund_, address proponent_, MockAjnaToken token_) internal returns(TestProposal[] memory) {
 
         TestProposal[] memory proposals_ = new TestProposal[](noOfProposals_);
 
@@ -386,7 +387,7 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     // Submits N Extra Ordinary Proposals
-    function _getNExtraOridinaryProposals(uint256 noOfProposals_, GrantFund grantFund_, address proponent_, AjnaToken token_, uint256 tokenRequested_) internal returns(TestProposalExtraordinary[] memory) {
+    function _getNExtraOridinaryProposals(uint256 noOfProposals_, GrantFund grantFund_, address proponent_, MockAjnaToken token_, uint256 tokenRequested_) internal returns(TestProposalExtraordinary[] memory) {
 
         TestProposalExtraordinary[] memory proposals_ = new TestProposalExtraordinary[](noOfProposals_);
 

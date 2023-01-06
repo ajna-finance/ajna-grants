@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import { AjnaToken }             from "../src/AjnaToken.sol";
+import { IGovernor } from "@oz/governance/IGovernor.sol";
+import { IVotes }    from "@oz/governance/utils/IVotes.sol";
+
+
 import { Funding }               from "../src/base/Funding.sol";
 import { GrantFund }             from "../src/GrantFund.sol";
 import { IExtraordinaryFunding } from "../src/interfaces/IExtraordinaryFunding.sol";
 
 import { GrantFundTestHelper } from "./GrantFundTestHelper.sol";
-
-import { IGovernor } from "@oz/governance/IGovernor.sol";
-import { IVotes }    from "@oz/governance/utils/IVotes.sol";
+import { MockAjnaToken }       from "./utils/MockAjnaToken.sol";
 
 contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
-    AjnaToken          internal  _token;
-    IVotes             internal  _votingToken;
+    MockAjnaToken     internal  _token;
+    IVotes            internal  _votingToken;
     GrantFund         internal  _grantFund;
 
     address internal _tokenDeployer  = makeAddr("tokenDeployer");
@@ -74,7 +75,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
     function setUp() external {
         vm.startPrank(_tokenDeployer);
-        _token = new AjnaToken(_tokenDeployer);
+        _token = new MockAjnaToken(_tokenDeployer);
 
         // deploy voting token wrapper
         _votingToken = IVotes(address(_token));
