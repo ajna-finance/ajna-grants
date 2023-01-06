@@ -24,7 +24,9 @@ foundryup
 ```
 
 #### Project Setup
-
+- Make a copy of .env.example and name it .env. Add the values for
+  - `ETH_RPC_URL` - required by forge to fork chain
+- Run
 ```bash
 make all
 ```
