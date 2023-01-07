@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.7;
 
 import { Test } from "@std/Test.sol";
 
-import { AjnaToken } from "../src/AjnaToken.sol";
+import { AjnaToken } from "../src/token/AjnaToken.sol";
 
 import { SigUtils } from "./utils/SigUtils.sol";
 
