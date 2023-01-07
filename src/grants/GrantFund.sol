@@ -5,7 +5,6 @@ pragma solidity 0.8.16;
 import { Governor }    from "@oz/governance/Governor.sol";
 import { IGovernor }   from "@oz/governance/IGovernor.sol";
 import { IVotes }      from "@oz/governance/utils/IVotes.sol";
-import { IERC20 }      from "@oz/token/ERC20/IERC20.sol";
 import { Checkpoints } from "@oz/utils/Checkpoints.sol";
 
 import { Maths } from "./libraries/Maths.sol";
