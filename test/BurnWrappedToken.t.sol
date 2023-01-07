@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.7;
 
 import { ERC20 }  from "@oz/token/ERC20/ERC20.sol";
 import { IERC20 } from "@oz/token/ERC20/IERC20.sol";
 import { Test }   from "@std/Test.sol";
 
-import { AjnaToken }       from "../src/AjnaToken.sol";
-import { BurnWrappedAjna } from "../src/BurnWrapper.sol";
+import { AjnaToken }       from "../src/token/AjnaToken.sol";
+import { BurnWrappedAjna } from "../src/token/BurnWrapper.sol";
 
 contract BurnWrappedTokenTest is Test {
 

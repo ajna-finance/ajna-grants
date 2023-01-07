@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 //slither-disable-next-line solc-version
-pragma solidity 0.8.16;
+pragma solidity 0.8.7;
 
 
 import { ERC20 }          from "@oz/token/ERC20/ERC20.sol";
@@ -16,7 +16,7 @@ contract BurnWrappedAjna is ERC20, ERC20Burnable, ERC20Permit, ERC20Wrapper {
     /**
      * @notice Ethereum mainnet address of the Ajna Token.
      */
-    address internal immutable AJNA_TOKEN_ADDRESS = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
+    address internal constant AJNA_TOKEN_ADDRESS = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
 
     /**
      * @notice Tokens that have been wrapped cannot be unwrapped.
