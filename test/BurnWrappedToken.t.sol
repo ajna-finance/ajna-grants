@@ -25,6 +25,8 @@ contract BurnWrappedTokenTest is Test {
     function setUp() external {
         vm.createSelectFork(vm.envString("ETH_RPC_URL"));
 
+        emit log_bytes(_ajnaAddress.code);
+
         // reference mainnet deployment
         _token = AjnaToken(_ajnaAddress);
         _wrappedToken = new BurnWrappedAjna(IERC20(address(_token)));

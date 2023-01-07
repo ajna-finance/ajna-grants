@@ -12,8 +12,9 @@ import { Maths }            from "../src/grants/libraries/Maths.sol";
 
 import { GrantFundTestHelper } from "./GrantFundTestHelper.sol";
 import { MockAjnaToken }       from "./utils/MockAjnaToken.sol";
+import { AjnaTokenSetup }       from "./utils/AjnaTokenSetup.sol";
 
-contract StandardFundingGrantFundTest is GrantFundTestHelper {
+contract StandardFundingGrantFundTest is GrantFundTestHelper, AjnaTokenSetup {
 
     // used to cast 256 to uint64 to match emit expectations
     using SafeCast for uint256;
@@ -67,6 +68,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     function setUp() external {
         vm.startPrank(_tokenDeployer);
         _token = new MockAjnaToken(_tokenDeployer);
+
+        emit log_address(getEtchedAjnaToken());
+        emit log_bytes(getEtchedAjnaToken().code);
 
         // deploy voting token wrapper
         _votingToken = IVotes(address(_token));

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 
-//slither-disable-next-line solc-version
 pragma solidity 0.8.7;
 
 import { ERC20 }         from "@oz/token/ERC20/ERC20.sol";
