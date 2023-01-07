@@ -10,15 +10,16 @@ import { GrantFund }             from "../src/grants/GrantFund.sol";
 import { IExtraordinaryFunding } from "../src/grants/interfaces/IExtraordinaryFunding.sol";
 
 import { GrantFundTestHelper } from "./GrantFundTestHelper.sol";
-import { MockAjnaToken }       from "./utils/MockAjnaToken.sol";
+import { IAjnaToken }          from "./utils/IAjnaToken.sol";
 
 contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
-    MockAjnaToken     internal  _token;
+    IAjnaToken        internal  _token;
     IVotes            internal  _votingToken;
     GrantFund         internal  _grantFund;
 
-    address internal _tokenDeployer  = makeAddr("tokenDeployer");
+    // Ajna token Holder at the Ajna contract creation on mainnet
+    address internal _tokenDeployer  = 0x666cf594fB18622e1ddB91468309a7E194ccb799;
     address internal _tokenHolder1   = makeAddr("_tokenHolder1");
     address internal _tokenHolder2   = makeAddr("_tokenHolder2");
     address internal _tokenHolder3   = makeAddr("_tokenHolder3");
@@ -73,9 +74,16 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
     uint256 _initialAjnaTokenSupply   = 2_000_000_000 * 1e18;
 
+    // at this block on mainnet, all ajna tokens belongs to _tokenDeployer
+    uint256 internal _startBlock      = 16354861;
+
     function setUp() external {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"), _startBlock);
+
         vm.startPrank(_tokenDeployer);
-        _token = new MockAjnaToken(_tokenDeployer);
+
+        // Ajna Token contract address on mainnet
+        _token = IAjnaToken(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
 
         // deploy voting token wrapper
         _votingToken = IVotes(address(_token));
@@ -95,7 +103,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
 
-        vm.roll(50);
+        vm.roll(_startBlock + 50);
 
         // check voting power is 0 whenn no proposal is available for voting
         uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number - 1, "");
@@ -138,7 +146,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _delegateVotes(_token, _tokenHolder1, _tokenHolder1);
         _delegateVotes(_token, _tokenHolder2, _tokenHolder2);
 
-        vm.roll(17);
+        vm.roll(_startBlock + 17);
 
         // check voting power is 0 whenn no proposal is available for voting
         uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number - 1, "");
@@ -161,12 +169,12 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         );
 
         // voter transfers some of their tokens after the snapshot block
-        vm.roll(25);
+        vm.roll(_startBlock + 25);
         changePrank(_tokenHolder1);
         _token.transfer(_tokenHolder2, 25_000_000 * 1e18);
 
         // create and submit proposal at block 50
-        vm.roll(50);
+        vm.roll(_startBlock + 50);
         TestProposalExtraordinary memory testProposal = _createProposalExtraordinary(
             _grantFund,
             _tokenHolder1,
@@ -181,7 +189,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, abi.encode(testProposal.proposalId));
         assertEq(votingPower, 25_000_000 * 1e18);
 
-        vm.roll(100);
+        vm.roll(_startBlock + 100);
 
         // token holder transfers their remaining delegated tokens to a different address after vote start
         changePrank(_tokenHolder1);
@@ -223,7 +231,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
 
-        vm.roll(100);
+        vm.roll(_startBlock + 100);
 
         // set proposal params
         uint256 endBlockParam = block.number + 100_000;
@@ -296,7 +304,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
 
-        vm.roll(100);
+        vm.roll(_startBlock + 100);
 
         // set proposal params
         uint256 endBlockParam = block.number + 100_000;
@@ -332,7 +340,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "burn extraordinary");
 
         // check can't submit proposal with end block higher than limit
-        endBlockParam = 500_000;
+        endBlockParam = block.number + 500_000;
 
         // check can't request more than minium threshold amount of tokens
         calldatas = new bytes[](1);
@@ -349,7 +357,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
 
-        vm.roll(100);
+        vm.roll(_startBlock + 100);
 
         // set proposal params
         uint256 endBlockParam = block.number + 100_000;
@@ -382,7 +390,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             "Extraordinary Proposal for Ajna token transfer to tester address"
         );
 
-        vm.roll(150);
+        vm.roll(_startBlock + 150);
 
         // check can't execute unsuccessful proposal
         vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
@@ -451,7 +459,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         uint256 minimumThresholdPercentage = _grantFund.getMinimumThresholdPercentage();
         assertEq(minimumThresholdPercentage, 0.500000000000000000 * 1e18);
 
-        vm.roll(200_000);
+        vm.roll(_startBlock + 200_000);
 
         // ensure user has not voted
         bool hasVoted = _grantFund.hasVoted(proposalId, _tokenHolder24);
@@ -513,7 +521,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             _token.delegate(voters[i]);
         }
 
-        vm.roll(100);
+        vm.roll(_startBlock + 100);
 
         // set token required to be 10% of treasury
         uint256 tokenRequested = 500_000_000 * 1e18 / 10;
@@ -535,7 +543,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             }
         }
 
-        vm.roll(240_000);
+        vm.roll(_startBlock + 240_000);
 
         // execute all proposals
         for(uint i = 0; i < noOfProposals; i++) {

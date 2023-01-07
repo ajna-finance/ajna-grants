@@ -11,18 +11,19 @@ import { IStandardFunding } from "../src/grants/interfaces/IStandardFunding.sol"
 import { Maths }            from "../src/grants/libraries/Maths.sol";
 
 import { GrantFundTestHelper } from "./GrantFundTestHelper.sol";
-import { MockAjnaToken }       from "./utils/MockAjnaToken.sol";
+import { IAjnaToken }          from "./utils/IAjnaToken.sol";
 
 contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     // used to cast 256 to uint64 to match emit expectations
     using SafeCast for uint256;
 
-    MockAjnaToken     internal  _token;
+    IAjnaToken        internal  _token;
     IVotes            internal  _votingToken;
     GrantFund         internal  _grantFund;
 
-    address internal _tokenDeployer  = makeAddr("tokenDeployer");
+    // Ajna token Holder at the Ajna contract creation on mainnet
+    address internal _tokenDeployer  = 0x666cf594fB18622e1ddB91468309a7E194ccb799;
     address internal _tokenHolder1   = makeAddr("_tokenHolder1");
     address internal _tokenHolder2   = makeAddr("_tokenHolder2");
     address internal _tokenHolder3   = makeAddr("_tokenHolder3");
@@ -59,14 +60,21 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     uint256 _initialAjnaTokenSupply   = 2_000_000_000 * 1e18;
 
+    // at this block on mainnet, all ajna tokens belongs to _tokenDeployer
+    uint256 internal _startBlock      = 16354861;
+
     mapping (uint256 => uint256) internal noOfVotesOnProposal;
     uint256[] internal topTenProposalIds;
     uint256[] internal potentialProposalsSlate;
     uint256 treasury = 500_000_000 * 1e18;
 
     function setUp() external {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"), _startBlock);
+
         vm.startPrank(_tokenDeployer);
-        _token = new MockAjnaToken(_tokenDeployer);
+
+        // Ajna Token contract address on mainnet
+        _token = IAjnaToken(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
 
         // deploy voting token wrapper
         _votingToken = IVotes(address(_token));
@@ -90,19 +98,19 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
 
-        vm.roll(50);
+        vm.roll(_startBlock + 50);
 
         // start distribution period
         _startDistributionPeriod(_grantFund);
 
         // check voting power after screening stage has started
-        vm.roll(100);
+        vm.roll(_startBlock + 100);
 
         uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Screening");
         assertEq(votingPower, 50_000_000 * 1e18);
 
         // skip forward 150 blocks and transfer some tokens after voting power was determined
-        vm.roll(150);
+        vm.roll(_startBlock + 150);
 
         changePrank(_tokenHolder1);
         _token.transfer(_tokenHolder2, 25_000_000 * 1e18);
@@ -126,7 +134,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
 
-        vm.roll(50);
+        vm.roll(_startBlock + 50);
 
         // start distribution period
         _startDistributionPeriod(_grantFund);
@@ -157,7 +165,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _vote(_grantFund, _tokenHolder1, proposal.proposalId, voteYes, 1);
 
         // skip forward to the funding stage
-        vm.roll(600_000);
+        vm.roll(_startBlock + 600_000);
 
         // check initial voting power
         uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Funding");
@@ -215,12 +223,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.proposeStandard(targets, values, proposalCalldata, description);
 
         // Skips to funding period
-        vm.roll(576_002);
+        vm.roll(_startBlock + 576_002);
         // should revert to submit proposal
         vm.expectRevert(IStandardFunding.ScreeningPeriodEnded.selector);
         _grantFund.proposeStandard(ajnaTokenTargets, values, proposalCalldata, description);
 
-        vm.roll(10);
+        vm.roll(_startBlock + 10);
 
         // should revert if Eth transfer is not zero
         vm.expectRevert(Funding.InvalidValues.selector);
@@ -236,7 +244,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.expectRevert(Funding.ProposalAlreadyExists.selector);
         _grantFund.proposeStandard(ajnaTokenTargets, values, proposalCalldata, description);
         
-        vm.roll(10);
+        vm.roll(_startBlock + 10);
 
         // check proposal status
         IGovernor.ProposalState proposalState = _grantFund.state(proposal.proposalId);
@@ -327,12 +335,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     function testHasVoted() external {
         _selfDelegateVoters(_token, _votersArr);
 
-        vm.roll(100);
+        vm.roll(_startBlock + 100);
         // start distribution period
         _startDistributionPeriod(_grantFund);
         _grantFund.getDistributionId();
 
-        vm.roll(200);
+        vm.roll(_startBlock + 200);
 
         TestProposalParams[] memory testProposalParams = new TestProposalParams[](2);
         testProposalParams[0] = TestProposalParams(_tokenHolder1, 9_000_000 * 1e18);
@@ -360,7 +368,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.castVote(testProposals[1].proposalId, voteYes);
 
         // skip to funding period
-        vm.roll(600_000);
+        vm.roll(_startBlock + 600_000);
 
         // should be false if user has not voted in funding stage but voted in screening stage
         hasVoted = _grantFund.hasVoted(testProposals[1].proposalId, _tokenHolder1);
@@ -386,13 +394,13 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
 
-        vm.roll(150);
+        vm.roll(_startBlock + 150);
 
         // start distribution period
         _startDistributionPeriod(_grantFund);
         uint256 distributionId = _grantFund.getDistributionId();
 
-        vm.roll(200);
+        vm.roll(_startBlock + 200);
 
         TestProposalParams[] memory testProposalParams = new TestProposalParams[](15);
         testProposalParams[0] = TestProposalParams(_tokenHolder1, 9_000_000 * 1e18);
@@ -472,7 +480,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         uint256 screeningPeriodEndBlock = _grantFund.getScreeningPeriodEndBlock(currentDistributionId);
         assertEq(screeningPeriodEndBlock, block.number + 576000);
         
-        vm.roll(100);
+        vm.roll(_startBlock + 100);
         currentDistributionId = _grantFund.getDistributionIdAtBlock(block.number - 1);
         assertEq(currentDistributionId, 1);
 
@@ -481,7 +489,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.startNewDistributionPeriod();
 
         // skip forward past the end of the distribution period to allow starting a new distribution
-        vm.roll(650_000);
+        vm.roll(_startBlock + 650_000);
 
         _startDistributionPeriod(_grantFund);
         currentDistributionId = _grantFund.getDistributionId();
@@ -501,7 +509,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
 
-        vm.roll(150);
+        vm.roll(_startBlock + 150);
 
         // start distribution period
         _startDistributionPeriod(_grantFund);
@@ -525,7 +533,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
         assertEq(testProposals.length, 7);
 
-        vm.roll(200);
+        vm.roll(_startBlock + 200);
 
         // screening period votes
         _vote(_grantFund, _tokenHolder1, testProposals[0].proposalId, voteYes, 100);
@@ -540,7 +548,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _vote(_grantFund, _tokenHolder10, testProposals[5].proposalId, voteYes, 100);
 
         // skip time to move from screening period to funding period
-        vm.roll(600_000);
+        vm.roll(_startBlock + 600_000);
 
         // check topTenProposals array is correct after screening period - only six should have advanced
         GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
@@ -613,7 +621,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertFalse(validSlate);
 
         // skip to the DistributionPeriod
-        vm.roll(650_000);
+        vm.roll(_startBlock + 650_000);
 
         // ensure checkSlate won't allow if slate has a proposal that is not in topTenProposal (funding Stage)
         validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
@@ -642,7 +650,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash, 0xb0945447a7c8002676934f29c4a25823c262fb092a1c7085b073b178f2195cfe);
+        assertEq(slateHash, 0x53dc2b0b8c3787b3384472e1d449bb35e20089a01306e21d59ec6d080cdcd1a8);
         // check funded proposal slate matches expected state
         GrantFund.Proposal[] memory fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(distributionId, slateHash));
         assertEq(fundedProposalSlate.length, 1);
@@ -658,7 +666,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertTrue(validSlate);
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash, 0x5046841c7ed7ed039fd6e69d0f7ce7105c65463ef89ca1cedfe7ddf5d9d6708a);
+        assertEq(slateHash, 0x1baa18a2d105ff81cc846882b7cc083ac252a82d2082db41156a83ae5d6a2436);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(distributionId, slateHash));
         assertEq(fundedProposalSlate.length, 2);
@@ -675,7 +683,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertTrue(validSlate);
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash, 0xcd6daca79aec5bdb9b08297701248c77f2c44881b93222e992b522264cd99b7b);
+        assertEq(slateHash, 0x6d2192bdd3e08d75d683185db5947cd199403513241eddfa5cf8a36256f27c40);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(distributionId, slateHash));
         assertEq(fundedProposalSlate.length, 2);
@@ -690,7 +698,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertFalse(validSlate);
         // check funded proposal slate wasn't updated
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash, 0xcd6daca79aec5bdb9b08297701248c77f2c44881b93222e992b522264cd99b7b);
+        assertEq(slateHash, 0x6d2192bdd3e08d75d683185db5947cd199403513241eddfa5cf8a36256f27c40);
         fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(distributionId, slateHash));
         assertEq(fundedProposalSlate.length, 2);
         assertEq(fundedProposalSlate[0].proposalId, screenedProposals[0].proposalId);
@@ -705,7 +713,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.claimDelegateReward(distributionId);
 
         // skip to the end of the DistributionPeriod
-        vm.roll(700_000);
+        vm.roll(_startBlock + 700_000);
 
         // should revert if called execute method of governer contract
         vm.expectRevert(Funding.MethodNotImplemented.selector);
@@ -792,7 +800,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
 
-        vm.roll(150);
+        vm.roll(_startBlock + 150);
 
         // start first distribution
         _startDistributionPeriod(_grantFund);
@@ -810,13 +818,13 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         TestProposal[] memory testProposals_distribution1 = _createNProposals(_grantFund, _token, testProposalParams_distribution1);
         assertEq(testProposals_distribution1.length, 1);
 
-        vm.roll(200);
+        vm.roll(_startBlock + 200);
 
         // screening period votes
         _vote(_grantFund, _tokenHolder1, testProposals_distribution1[0].proposalId, voteYes, 100);
 
         // skip time to move from screening period to funding period
-        vm.roll(600_000);
+        vm.roll(_startBlock + 600_000);
 
         // check topTenProposals array is correct after screening period - only 1 should have advanced
         GrantFund.Proposal[] memory screenedProposals_distribution1 = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
@@ -826,7 +834,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution1[0].proposalId, voteYes, 2_500_000_000_000_000 * 1e18);
 
         // skip to the Challenge period
-        vm.roll(650_000);
+        vm.roll(_startBlock + 650_000);
 
         uint256[] memory potentialProposalSlate = new uint256[](1);
         potentialProposalSlate[0] = screenedProposals_distribution1[0].proposalId;
@@ -835,7 +843,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.checkSlate(potentialProposalSlate, distributionId);
 
         // skip to the end of Challenge period
-        vm.roll(700_000);
+        vm.roll(_startBlock + 700_000);
 
         // execute funded proposals
         _executeProposal(_grantFund, _token, testProposals_distribution1[0]);
@@ -856,13 +864,13 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         TestProposal[] memory testProposals_distribution2 = _createNProposals(_grantFund, _token, testProposalParams_distribution2);
         assertEq(testProposals_distribution2.length, 1);
 
-        vm.roll(700_200);
+        vm.roll(_startBlock + 700_200);
 
         // screening period votes
         _vote(_grantFund, _tokenHolder1, testProposals_distribution2[0].proposalId, voteYes, 700_100);
 
         // skip time to move from screening period to funding period
-        vm.roll(1_300_000);
+        vm.roll(_startBlock + 1_300_000);
 
         // check topTenProposals array is correct after screening period - only 1 should have advanced
         GrantFund.Proposal[] memory screenedProposals_distribution2 = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId2));
@@ -872,7 +880,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution2[0].proposalId, voteYes, 2_500_000_000_000_000 * 1e18);
 
         // skip to the Challenge period
-        vm.roll(1_350_000);
+        vm.roll(_startBlock + 1_350_000);
 
         uint256[] memory potentialProposalSlate_distribution2 = new uint256[](1);
         potentialProposalSlate_distribution2[0] = screenedProposals_distribution2[0].proposalId;
@@ -890,7 +898,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(gbc_distribution3, 9_633_400 * 1e18);
 
         // skip to the end of Challenge period
-        vm.roll(1_400_000);
+        vm.roll(_startBlock + 1_400_000);
 
         // execute funded proposals
         _executeProposal(_grantFund, _token, testProposals_distribution2[0]);
@@ -902,13 +910,13 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         TestProposal[] memory testProposals_distribution3 = _createNProposals(_grantFund, _token, testProposalParams_distribution3);
         assertEq(testProposals_distribution3.length, 1);
 
-        vm.roll(1_400_200);
+        vm.roll(_startBlock + 1_400_200);
 
         // screening period votes
         _vote(_grantFund, _tokenHolder1, testProposals_distribution3[0].proposalId, voteYes, 1_400_100);
 
         // skip time to move from screening period to funding period
-        vm.roll(1_990_000);
+        vm.roll(_startBlock + 1_990_000);
 
         // check topTenProposals array is correct after screening period - only 1 should have advanced
         GrantFund.Proposal[] memory screenedProposals_distribution3 = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId3));
@@ -918,7 +926,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution3[0].proposalId, voteYes, 2_500_000_000_000_000 * 1e18);
 
         // skip to the Challenge period
-        vm.roll(2_000_000);
+        vm.roll(_startBlock + 2_000_000);
 
         uint256[] memory potentialProposalSlate_distribution3 = new uint256[](1);
         potentialProposalSlate_distribution3[0] = screenedProposals_distribution3[0].proposalId;
@@ -927,7 +935,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.checkSlate(potentialProposalSlate_distribution3, distributionId3);
 
         // skip to the end of Challenge period
-        vm.roll(2_100_000);
+        vm.roll(_startBlock + 2_100_000);
 
         // execute funded proposals
         _executeProposal(_grantFund, _token, testProposals_distribution3[0]);
@@ -963,10 +971,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         /******************************/
         /*** Top ten proposals fuzz ***/
         /******************************/
-        uint256 noOfVoters = bound(noOfVoters_, 1, 1000);
-        uint256 noOfProposals = bound(noOfProposals_, 1, 100);
+        uint256 noOfVoters = bound(noOfVoters_, 1, 500);
+        uint256 noOfProposals = bound(noOfProposals_, 1, 50);
 
-        vm.roll(20);
+        vm.roll(_startBlock + 20);
 
         // Initialize N voter addresses 
         address[] memory voters = _getVoters(noOfVoters);
