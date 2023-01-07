@@ -9,7 +9,7 @@ import { Funding }               from "../src/grants/base/Funding.sol";
 import { GrantFund }             from "../src/grants/GrantFund.sol";
 import { IExtraordinaryFunding } from "../src/grants/interfaces/IExtraordinaryFunding.sol";
 
-import { GrantFundTestHelper } from "./GrantFundTestHelper.sol";
+import { GrantFundTestHelper } from "./utils/GrantFundTestHelper.sol";
 import { IAjnaToken }          from "./utils/IAjnaToken.sol";
 
 contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
@@ -91,7 +91,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // deploy growth fund contract
         _grantFund = new GrantFund(_votingToken, 500_000_000 * 1e18);
 
-        // TODO: replace with for loop -> test address initializer method that created array and transfers tokens given n?
         // initial minter distributes tokens to test addresses
         _transferAjnaTokens(_token, _votersArr, 50_000_000 * 1e18, _tokenDeployer);
 
@@ -297,7 +296,8 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
     }
 
     function testProposeExtraordinaryMultipleCalldata() external {
-        // TODO: finish implementing this test
+        // TODO: finish implementing this test -> check handling the submission of proposals that have multiple calldatas in the calldata array
+        // TODO: add for standard proposal as well
     }
 
     function testProposeExtraordinaryInvalid() external {
@@ -502,7 +502,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(minimumThresholdPercentage, 0.550000000000000000 * 1e18);
     }
 
-    function testFuzzExtraOrdinaryFunding(uint256 noOfVoters_, uint256 noOfProposals_) external {
+    function testFuzzExtraordinaryFunding(uint256 noOfVoters_, uint256 noOfProposals_) external {
         uint256 noOfVoters = bound(noOfVoters_, 1, 100);
         uint256 noOfProposals = bound(noOfProposals_, 1, 10);
 
@@ -550,6 +550,9 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             /* first 7 proposals are executed successfully and from 8th proposal each one will fail
              as non-treasury amount and minimum threshold increases with each proposal execution */
             if (i >= 7) {
+                // check state has been marked as Defeated
+                assertEq(uint8(_grantFund.state(testProposal[i].proposalId)), uint8(IGovernor.ProposalState.Defeated));
+
                 vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
             }
             _grantFund.executeExtraordinary(testProposal[i].targets, testProposal[i].values, testProposal[i].calldatas, keccak256(bytes(testProposal[i].description)));
