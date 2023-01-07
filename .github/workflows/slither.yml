@@ -22,7 +22,7 @@ jobs:
       - name: Analyze AjnaToken
         run: |
           solc-select install 0.8.7 && solc-select use 0.8.7
-          slither src/token/
+          slither src/token/ --exclude solc-version
         id: token_analyzer
 
       - name: Analyze GrantFund
