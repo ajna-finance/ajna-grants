@@ -8,9 +8,9 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install and set solc version
+      - name: Install solc-select
         run: |
-          pip install solc-select && solc-select install 0.8.16 && solc-select use 0.8.16
+          pip install solc-select
         id: solc
 
       - name: Install Slither
@@ -19,13 +19,15 @@ jobs:
         id: slither
 
       # Commented out pending resolution of: https://github.com/foundry-rs/foundry/issues/3450
-      # - name: Analyze AjnaToken
-      #   run: |
-      #     slither src/token/
-      #   id: token_analyzer
+      - name: Analyze AjnaToken
+        run: |
+          solc-select install 0.8.7 && solc-select use 0.8.7
+          slither src/token/
+        id: token_analyzer
 
       - name: Analyze GrantFund
         run: |
+          solc-select install 0.8.16 && solc-select use 0.8.16
           slither src/grants/
         continue-on-error: true
         id: fund_analyzer
