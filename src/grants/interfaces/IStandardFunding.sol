@@ -99,12 +99,12 @@ interface IStandardFunding {
      * @notice Contains information about proposals in a distribution period.
      */
     struct Proposal {
-        uint256 proposalId;       // OZ.Governor proposalId
-        uint256 distributionId;   // Id of the distribution period in which the proposal was made
-        uint256 votesReceived;    // accumulator of screening votes received by a proposal
-        uint256 tokensRequested;  // number of Ajna tokens requested in the proposal
+        uint256 proposalId;        // OZ.Governor proposalId. Hash of proposeStandard inputs
+        uint256 distributionId;    // Id of the distribution period in which the proposal was made
+        uint256 votesReceived;     // accumulator of screening votes received by a proposal
+        uint256 tokensRequested;   // number of Ajna tokens requested in the proposal
         int256  qvBudgetAllocated; // accumulator of QV budget allocated
-        bool    executed;         // whether the proposal has been executed
+        bool    executed;          // whether the proposal has been executed
     }
 
     /**

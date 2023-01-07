@@ -5,7 +5,7 @@ import { Test } from "@std/Test.sol";
 
 import { Maths } from '../src/grants/libraries/Maths.sol';
 
-contract MathTest is Test {
+contract MathsTest is Test {
 
     function testAbs() external {
         assertEq(Maths.abs(0), 0);
@@ -13,7 +13,6 @@ contract MathTest is Test {
         assertEq(Maths.abs(-1), 1);        
         assertEq(Maths.abs(1e18), 1e18);
         assertEq(Maths.abs(-1e18), 1e18);
-        // assertEq(Maths.abs(-1e18), Maths.WAD);
         assertEq(Maths.abs(-.005 * 1e18), .005 * 1e18);
     }
 

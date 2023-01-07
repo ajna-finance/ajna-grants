@@ -194,9 +194,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         emit QuarterlyDistributionStarted(newDistributionId_, startBlock, endBlock);
     }
 
-    function _sumBudgetAllocated(uint256[] memory proposalIdSubset_) internal view returns (uint256 sum) {
+    /**
+     * @notice Calculates the sum of quadratic budgets allocated to a list of proposals.
+     * @param  proposalIdSubset_ Array of proposal Ids to sum.
+     * @return sum_ The sum of the budget across the given proposals.
+     */
+    function _sumBudgetAllocated(uint256[] memory proposalIdSubset_) internal view returns (uint256 sum_) {
         for (uint i = 0; i < proposalIdSubset_.length;) {
-            sum += uint256(standardFundingProposals[proposalIdSubset_[i]].qvBudgetAllocated);
+            sum_ += uint256(standardFundingProposals[proposalIdSubset_[i]].qvBudgetAllocated);
 
             unchecked {
                 ++i;
@@ -249,6 +254,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         bytes32 currentSlateHash = currentDistribution.fundedSlateHash;
         bytes32 newSlateHash = keccak256(abi.encode(proposalIds_));
 
+        // check if slate of proposals is new top slate
         bool newTopSlate = currentSlateHash == 0 ||
             (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[distributionId_][currentSlateHash]));
 
@@ -549,6 +555,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         );
     }
 
+    /**
+     * @notice Retrieve the top ten proposals that have received the most votes in a given distribution period's screening round.
+     * @dev    It may return less than 10 proposals if less than 10 have been submitted. 
+     * @dev    Values are subject to change if the queried distribution period's screening round is ongoing.
+     * @param  distributionId_ The distributionId of the distribution period to query.
+     * @return                 Array of the top ten proposal's proposalIds.
+     */
     function getTopTenProposals(uint256 distributionId_) external view returns (uint256[] memory) {
         return topTenProposals[distributionId_];
     }
