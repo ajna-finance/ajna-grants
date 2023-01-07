@@ -5,10 +5,10 @@ import { IGovernor } from "@oz/governance/IGovernor.sol";
 import { IVotes }    from "@oz/governance/utils/IVotes.sol";
 import { SafeCast }  from "@oz/utils/math/SafeCast.sol";
 
-import { Funding }          from "../src/base/Funding.sol";
-import { GrantFund }        from "../src/GrantFund.sol";
-import { IStandardFunding } from "../src/interfaces/IStandardFunding.sol";
-import { Maths }            from "../src/libraries/Maths.sol";
+import { Funding }          from "../src/grants/base/Funding.sol";
+import { GrantFund }        from "../src/grants/GrantFund.sol";
+import { IStandardFunding } from "../src/grants/interfaces/IStandardFunding.sol";
+import { Maths }            from "../src/grants/libraries/Maths.sol";
 
 import { GrantFundTestHelper } from "./GrantFundTestHelper.sol";
 import { MockAjnaToken }       from "./utils/MockAjnaToken.sol";

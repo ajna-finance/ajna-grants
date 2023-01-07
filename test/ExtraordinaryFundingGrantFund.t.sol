@@ -5,9 +5,9 @@ import { IGovernor } from "@oz/governance/IGovernor.sol";
 import { IVotes }    from "@oz/governance/utils/IVotes.sol";
 
 
-import { Funding }               from "../src/base/Funding.sol";
-import { GrantFund }             from "../src/GrantFund.sol";
-import { IExtraordinaryFunding } from "../src/interfaces/IExtraordinaryFunding.sol";
+import { Funding }               from "../src/grants/base/Funding.sol";
+import { GrantFund }             from "../src/grants/GrantFund.sol";
+import { IExtraordinaryFunding } from "../src/grants/interfaces/IExtraordinaryFunding.sol";
 
 import { GrantFundTestHelper } from "./GrantFundTestHelper.sol";
 import { MockAjnaToken }       from "./utils/MockAjnaToken.sol";

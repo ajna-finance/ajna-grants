@@ -5,8 +5,8 @@ import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings }  from "@oz/utils/Strings.sol"; // used for createNProposals
 import { Test }     from "@std/Test.sol";
 
-import { GrantFund }        from "../src/GrantFund.sol";
-import { IStandardFunding } from "../src/interfaces/IStandardFunding.sol";
+import { GrantFund }        from "../src/grants/GrantFund.sol";
+import { IStandardFunding } from "../src/grants/interfaces/IStandardFunding.sol";
 
 import { MockAjnaToken }    from "./utils/MockAjnaToken.sol";
 

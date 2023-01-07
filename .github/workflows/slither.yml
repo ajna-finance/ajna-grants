@@ -18,13 +18,14 @@ jobs:
           pip install slither-analyzer
         id: slither
 
-      - name: Analyze AjnaToken
-        run: |
-          slither src/AjnaToken.sol
-        id: token_analyzer
+      # Commented out pending resolution of: https://github.com/foundry-rs/foundry/issues/3450
+      # - name: Analyze AjnaToken
+      #   run: |
+      #     slither src/token/
+      #   id: token_analyzer
 
       - name: Analyze GrantFund
         run: |
-          slither src/GrantFund.sol
+          slither src/grants/
         continue-on-error: true
         id: fund_analyzer
