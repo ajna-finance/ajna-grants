@@ -18,7 +18,6 @@ jobs:
           pip install slither-analyzer
         id: slither
 
-      # Commented out pending resolution of: https://github.com/foundry-rs/foundry/issues/3450
       - name: Analyze AjnaToken
         run: |
           solc-select install 0.8.7 && solc-select use 0.8.7
