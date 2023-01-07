@@ -28,14 +28,6 @@ jobs:
         run: |
           lcov -r lcov.info "script/*" "test/*" -o lcov-filtered.info --rc lcov_branch_coverage=1 > coverage-summary.txt
           echo "$(tail -4 coverage-summary.txt)" > coverage-summary.txt
-      - name: Send to Discord
-        uses: appleboy/discord-action@master
-        with:
-          webhook_id: ${{ secrets.DISCORD_ID }}
-          webhook_token: ${{ secrets.DISCORD_TOKEN }}
-          username: "Code Coverage Reporter"
-          message: Coverage summary for `${{ github.ref }}`
-          file: "./coverage-summary.txt"
       - name: Verify coverage level
         uses: zgosalvez/github-actions-report-lcov@v1
         with:
