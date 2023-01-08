@@ -12,7 +12,9 @@ import { Maths } from "./libraries/Maths.sol";
 import { ExtraordinaryFunding } from "./base/ExtraordinaryFunding.sol";
 import { StandardFunding }      from "./base/StandardFunding.sol";
 
-contract GrantFund is ExtraordinaryFunding, StandardFunding {
+import { IGrantFund } from "./interfaces/IGrantFund.sol";
+
+contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
     using Checkpoints for Checkpoints.History;
 
@@ -55,6 +57,8 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
 
     /**
      * @notice Given a proposalId, find if it is a standard or extraordinary proposal.
+     * @param proposalId_ The id of the proposal to query the mechanism of.
+     * @return FundingMechanism to which the proposal was submitted.
      */
     function findMechanismOfProposal(uint256 proposalId_) public view returns (FundingMechanism) {
         if (standardFundingProposals[proposalId_].proposalId != 0) return FundingMechanism.Standard;
@@ -192,6 +196,14 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
         }
     }
 
+     /**
+     * @notice Retrieve the voting power of an account.
+     * @dev    Voteing power is the minimum of the amount of votes available at a snapshot block 33 blocks prior to voting start, and at the vote starting block.
+     * @param account_        The voting account.
+     * @param snapshot_       One of block numbers to retrieve the voting power at. 33 blocks prior to the vote starting block.
+     * @param voteStartBlock_ The block number the vote started at.
+     * @return                The voting power of the account.
+     */
     function _getVotesSinceSnapshot(address account_, uint256 snapshot_, uint256 voteStartBlock_) internal view returns (uint256) {
         uint256 votes1 = token.getPastVotes(account_, snapshot_);
 
@@ -207,7 +219,9 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
     /**************************/
 
      /**
-     * @notice Restrict voter to only voting once during the screening stage.
+     * @notice Check whether an account has voted on a proposal.
+     * @dev    Votes can only votes once during the screening stage, and only once on proposals in the extraordinary funding round.
+               In the funding stage they can vote as long as they have budget.
      * @dev    See {IGovernor-hasVoted}.
      * @return hasVoted_ Boolean for whether the account has already voted in the current proposal, and mechanism.
      */
@@ -287,7 +301,7 @@ contract GrantFund is ExtraordinaryFunding, StandardFunding {
     }
 
     /**
-     * @notice    Required override; see {IGovernor-votingPeriod}.
+     * @notice Required override; see {IGovernor-votingPeriod}.
      */
     function votingPeriod() public view override(IGovernor) returns (uint256) {}
 
