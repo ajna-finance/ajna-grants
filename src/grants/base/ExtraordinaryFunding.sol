@@ -70,6 +70,8 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         treasury -= proposal.tokensRequested;
     }
 
+    // TODO: remove endBlock_ and calculate it from MAX_EFM_PROPOSAL_LENGTH -> serves no purpose to provide that option
+        // TODO: As a result, can we then update `propose` to increase compatibility with Tally.xyZ?
     /**
      * @notice Submit a proposal to the extraordinary funding flow.
      * @param endBlock_            Block number of the end of the extraordinary funding proposal voting period.
@@ -149,6 +151,11 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         emit VoteCast(account_, proposalId_, 1, votes_, "");
     }
 
+    /**
+     * @notice Check if a proposal for extraordinary funding has succeeded.
+     * @param  proposalId_ The ID of the proposal being checked.
+     * @return             Boolean indicating whether the proposal has succeeded.
+     */
     function _extraordinaryFundingVoteSucceeded(uint256 proposalId_) internal view returns (bool) {
         return extraordinaryFundingProposals[proposalId_].succeeded;
     }
@@ -191,6 +198,17 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         return Maths.wmul(treasury, percentage_);
     }
 
+    /**
+     *  @notice Mapping of proposalIds to {ExtraordinaryFundingProposal} structs.
+     *  @param  proposalId_     The proposalId to retrieve information about.
+     *  @return proposalId      The retrieved struct's proposalId.
+     *  @return tokensRequested Amount of Ajna tokens requested by the proposal.
+     *  @return startBlock      The block at which the proposal was submitted.
+     *  @return endBlock        The block by which the proposal must pass. // TODO: remove this
+     *  @return votesReceived   Number of votes the proposal has received. One Ajna token is one vote.
+     *  @return succeeded       Whether the proposal received enough votes to pass required thresholds.
+     *  @return executed        Whether a succesful proposal has been executed.
+     */
     function getExtraordinaryProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, uint256, bool, bool) {
         ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
         return (

@@ -12,7 +12,9 @@ import { Maths } from "./libraries/Maths.sol";
 import { ExtraordinaryFunding } from "./base/ExtraordinaryFunding.sol";
 import { StandardFunding }      from "./base/StandardFunding.sol";
 
-contract GrantFund is ExtraordinaryFunding, StandardFunding {
+import { IGrantFund } from "./interfaces/IGrantFund.sol";
+
+contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
     using Checkpoints for Checkpoints.History;
 

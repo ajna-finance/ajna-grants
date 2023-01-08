@@ -89,6 +89,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Retrieve the current QuarterlyDistribution distributionId.
+     * @return The current distributionId.
      */
     function getDistributionId() external view returns (uint256) {
         return distributionIdCheckpoints.latest();
@@ -98,6 +99,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Calculate the block at which the screening period of a distribution ends.
      * @dev    Screening period is 80 days, funding period is 10 days. Total distribution is 90 days.
      * @param distributionId_ distribution Id of the distribution whose screening period is needed
+     * @return The block at which the screening period ends.
      */
     function getScreeningPeriodEndBlock(uint256 distributionId_) external view returns (uint256) {
         QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
@@ -279,15 +281,16 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
+     * @return The number of Ajna tokens.
      */
     function maximumQuarterlyDistribution() external view returns (uint256) {
-        return Maths.wmul(IERC20(ajnaTokenAddress).balanceOf(address(this)), GLOBAL_BUDGET_CONSTRAINT);
+        return Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);
     }
 
     /**
      * @notice distributes delegate reward based on delegatee Vote share
      * @dev  Can be called by anyone who has voted in both screening and funding period 
-     * @param distributionId_ Id of distribution from which delegatee wants to claim his reward
+     * @param distributionId_ Id of distribution from whinch delegatee wants to claim his reward
      * @return rewardClaimed_ Amount of reward claimed by delegatee
      */
     function claimDelegateReward(uint256 distributionId_) external returns(uint256 rewardClaimed_) {
@@ -331,7 +334,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @return proposalId_ of the executed proposal.
      */
     function executeStandard(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) external payable nonReentrant returns (uint256 proposalId_) {
-
         proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
         Proposal memory proposal = standardFundingProposals[proposalId_];
 
@@ -492,6 +494,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Check to see if a proposal is in the current funded slate hash of proposals.
+     * @param  proposalId_ The proposalId to check.
+     * @return             True if the proposal is in the it's distribution period's slate hash.
      */
     function _standardFundingVoteSucceeded(uint256 proposalId_) internal view returns (bool) {
         Proposal memory proposal = standardFundingProposals[proposalId_];
@@ -505,6 +509,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Retrieve the QuarterlyDistribution distributionId at a given block.
+     * @param  blockNumber The block number to check.
+     * @return             The distributionId at the given block.
      */
     function getDistributionIdAtBlock(uint256 blockNumber) external view returns (uint256) {
         return distributionIdCheckpoints.getAtBlock(blockNumber);
@@ -524,13 +530,23 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Get the funded proposal slate for a given distributionId, and slate hash
+     * @param  distributionId_ The distributionId of the distribution period to check.
+     * @param  slateHash_      The slateHash to retrieve the funded proposals from.
+     * @return                 The array of proposalIds that are in the funded slate hash.
      */
     function getFundedProposalSlate(uint256 distributionId_, bytes32 slateHash_) external view returns (uint256[] memory) {
         return fundedProposalSlates[distributionId_][slateHash_];
     }
 
     /**
-     * @notice Get the current state of a given proposal.
+     * @notice Mapping of proposalIds to {Proposal} structs.
+     * @param  proposalId_ The proposalId to retrieve the Proposal struct for.
+     * @return             The retrieved struct's proposalId.
+     * @return             The distributionId in which the proposal was submitted.
+     * @return             The amount of votes the proposal has received in it's distribution period's screening round.
+     * @return             The amount of tokens requested by the proposal.
+     * @return             The amount of quadratic vote budget allocated to the proposal in it's distribution period's funding round.
+     * @return             True if the proposal has been executed.
      */
     function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256, bool) {
         Proposal memory proposal = standardFundingProposals[proposalId_];
@@ -546,6 +562,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Get the current state of a given voter in the funding stage.
+     * @param  distributionId_ The distributionId of the distribution period to check.
+     * @param  account_        The address of the voter to check.
+     * @return                 The voter's voting weight in the funding round. Equal to the square of their tokens in the voting snapshot.
+     * @return                 The voter's remaining quadratic vote budget in the given distribution period's funding round.
      */
     function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, int256) {
         QuadraticVoter memory voter = quadraticVoters[distributionId_][account_];
@@ -570,7 +590,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /*** Sorting Functions ***/
     /*************************/
 
-    // return the index of the proposalId in the array, else -1
+    /**
+     * @notice Identify where in an array of proposalIds the proposal exists.
+     * @return The index of the proposalId in the array, else -1.
+     */
     function _findProposalIndex(uint256 proposalId, uint256[] memory array) internal pure returns (int256 index_) {
         index_ = -1; // default value indicating proposalId not in the array
 
