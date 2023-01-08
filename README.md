@@ -37,6 +37,16 @@ make all
 make tests
 ```
 
+#### Code Coverage
+- generate basic code coverage report:
+```bash
+make coverage
+```
+- exclude tests from code coverage report:
+```
+apt-get install lcov
+bash ./check-code-coverage.sh
+```
 
 ### Contract Deployment
 Ensure the following env variables are set in your env file `.env`
