@@ -307,6 +307,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution memory currentDistribution = distributions[distributionIdCheckpoints.latest()];
 
         // cannot add new proposal after end of screening period
+        // screening period ends 72000 blocks before end of distribution period, ~ 80 days.
         if (block.number > currentDistribution.endBlock - 72000) revert ScreeningPeriodEnded();
 
         // check params have matching lengths
@@ -487,15 +488,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             proposal.qvBudgetAllocated,
             proposal.executed
         );
-    }
-
-    // TODO: should this just be removed?
-    /// @inheritdoc IStandardFunding
-    function getScreeningPeriodEndBlock(uint256 distributionId_) external view returns (uint256) {
-        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
-
-        // 10 days is equivalent to 72,000 blocks (12 seconds per block, 86400 seconds per day)
-        return currentDistribution.endBlock - 72000;
     }
 
     /// @inheritdoc IStandardFunding

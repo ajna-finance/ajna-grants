@@ -226,14 +226,6 @@ interface IStandardFunding {
     function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256, bool);
 
     /**
-     * @notice Calculate the block at which the screening period of a distribution ends.
-     * @dev    Screening period is 80 days, funding period is 10 days. Total distribution is 90 days.
-     * @param distributionId_ distribution Id of the distribution whose screening period is needed
-     * @return The block at which the screening period ends.
-     */
-    function getScreeningPeriodEndBlock(uint256 distributionId_) external view returns (uint256);
-
-    /**
      * @notice Retrieve the top ten proposals that have received the most votes in a given distribution period's screening round.
      * @dev    It may return less than 10 proposals if less than 10 have been submitted. 
      * @dev    Values are subject to change if the queried distribution period's screening round is ongoing.

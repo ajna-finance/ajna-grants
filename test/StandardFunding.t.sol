@@ -475,9 +475,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(votesCast, 0);
         assertEq(startBlock, block.number);
         assertEq(endBlock, block.number + 648000);
-
-        uint256 screeningPeriodEndBlock = _grantFund.getScreeningPeriodEndBlock(currentDistributionId);
-        assertEq(screeningPeriodEndBlock, block.number + 576000);
         
         vm.roll(_startBlock + 100);
         currentDistributionId = _grantFund.getDistributionIdAtBlock(block.number - 1);
