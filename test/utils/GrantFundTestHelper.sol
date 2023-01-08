@@ -241,6 +241,26 @@ abstract contract GrantFundTestHelper is Test {
         assertEq(token_.balanceOf(address(grantFund_)), growthFundStartingBalance - testProposal_.tokensRequested);
     }
 
+    function _executeExtraordinaryProposal(GrantFund grantFund_, IAjnaToken token_, TestProposalExtraordinary memory testProposal_) internal {
+        // calculate starting balances
+        uint256 voterStartingBalance = token_.balanceOf(testProposal_.recipient);
+        uint256 growthFundStartingBalance = token_.balanceOf(address(grantFund_));
+
+        // execute proposal
+        changePrank(testProposal_.recipient);
+        vm.expectEmit(true, true, false, true);
+        emit ProposalExecuted(testProposal_.proposalId);
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(address(grantFund_), testProposal_.recipient, testProposal_.tokensRequested);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateVotesChanged(testProposal_.recipient, voterStartingBalance, voterStartingBalance + testProposal_.tokensRequested);
+        grantFund_.executeExtraordinary(testProposal_.targets, testProposal_.values, testProposal_.calldatas, keccak256(bytes(testProposal_.description)));
+
+        // check ending token balances
+        assertEq(token_.balanceOf(testProposal_.recipient), voterStartingBalance + testProposal_.tokensRequested);
+        assertEq(token_.balanceOf(address(grantFund_)), growthFundStartingBalance - testProposal_.tokensRequested);
+    }
+
     function _extraordinaryVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_) internal {
         uint256 votingWeight = grantFund_.getVotesWithParams(voter_, block.number, abi.encode(proposalId_));
 

@@ -554,8 +554,14 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
                 assertEq(uint8(_grantFund.state(testProposal[i].proposalId)), uint8(IGovernor.ProposalState.Defeated));
 
                 vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
+                _grantFund.executeExtraordinary(testProposal[i].targets, testProposal[i].values, testProposal[i].calldatas, keccak256(bytes(testProposal[i].description)));
             }
-            _grantFund.executeExtraordinary(testProposal[i].targets, testProposal[i].values, testProposal[i].calldatas, keccak256(bytes(testProposal[i].description)));
+            else {
+                _executeExtraordinaryProposal(_grantFund, _token, testProposal[i]);
+
+                // check state is updated to Executed after proposal is executed
+                assertEq(uint8(_grantFund.state(testProposal[i].proposalId)), uint8(IGovernor.ProposalState.Executed));
+            }
         }
         
     }
