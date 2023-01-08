@@ -115,4 +115,66 @@ interface IStandardFunding {
         int256 budgetRemaining; // remaining voting budget in the given period
     }
 
+    /**********************/
+    /*** View Functions ***/
+    /**********************/
+
+    /**
+     * @notice Retrieve the QuarterlyDistribution distributionId at a given block.
+     * @param  blockNumber The block number to check.
+     * @return             The distributionId at the given block.
+     */
+    function getDistributionIdAtBlock(uint256 blockNumber) external view returns (uint256);
+
+
+    /**
+     * @notice Mapping of distributionId to {QuarterlyDistribution} struct.
+     * @param  distributionId_ The distributionId to retrieve the QuarterlyDistribution struct for.
+     * @return                 The retrieved struct's distributionId.
+     * @return                 The total number of votes cast in the distribution period's funding round.
+     * @return                 The block number of the distribution period's start.
+     * @return                 The block number of the distribution period's end.
+     * @return                 The maximum amount of funds that can be taken out of the distribution period.
+     * @return                 The slate hash of the proposals that were funded.
+     */
+    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, uint256, bytes32);
+
+    /**
+     * @notice Get the funded proposal slate for a given distributionId, and slate hash
+     * @param  distributionId_ The distributionId of the distribution period to check.
+     * @param  slateHash_      The slateHash to retrieve the funded proposals from.
+     * @return                 The array of proposalIds that are in the funded slate hash.
+     */
+    function getFundedProposalSlate(uint256 distributionId_, bytes32 slateHash_) external view returns (uint256[] memory);
+
+    /**
+     * @notice Mapping of proposalIds to {Proposal} structs.
+     * @param  proposalId_ The proposalId to retrieve the Proposal struct for.
+     * @return             The retrieved struct's proposalId.
+     * @return             The distributionId in which the proposal was submitted.
+     * @return             The amount of votes the proposal has received in it's distribution period's screening round.
+     * @return             The amount of tokens requested by the proposal.
+     * @return             The amount of quadratic vote budget allocated to the proposal in it's distribution period's funding round.
+     * @return             True if the proposal has been executed.
+     */
+    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256, bool);
+
+    /**
+     * @notice Retrieve the top ten proposals that have received the most votes in a given distribution period's screening round.
+     * @dev    It may return less than 10 proposals if less than 10 have been submitted. 
+     * @dev    Values are subject to change if the queried distribution period's screening round is ongoing.
+     * @param  distributionId_ The distributionId of the distribution period to query.
+     * @return                 Array of the top ten proposal's proposalIds.
+     */
+    function getTopTenProposals(uint256 distributionId_) external view returns (uint256[] memory);
+
+    /**
+     * @notice Get the current state of a given voter in the funding stage.
+     * @param  distributionId_ The distributionId of the distribution period to check.
+     * @param  account_        The address of the voter to check.
+     * @return                 The voter's voting weight in the funding round. Equal to the square of their tokens in the voting snapshot.
+     * @return                 The voter's remaining quadratic vote budget in the given distribution period's funding round.
+     */
+    function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, int256);
+
 }

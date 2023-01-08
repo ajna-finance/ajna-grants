@@ -7,4 +7,5 @@ import { IStandardFunding }      from "../interfaces/IStandardFunding.sol";
 
 interface IGrantFund is IExtraordinaryFunding, IStandardFunding {
 
+
 }

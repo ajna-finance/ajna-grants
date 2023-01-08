@@ -36,14 +36,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /*** Proposal Functions ***/
     /**************************/
 
-    /**
-     * @notice Execute an extraordinary funding proposal.
-     * @param targets_         The addresses of the contracts to call.
-     * @param values_          The amounts of ETH to send to each target.
-     * @param calldatas_       The calldata to send to each target.
-     * @param descriptionHash_ The hash of the proposal's description.
-     * @return proposalId_ The ID of the executed proposal.
-     */
+    /// @inheritdoc IExtraordinaryFunding
     function executeExtraordinary(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) external nonReentrant returns (uint256 proposalId_) {
         proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
 
@@ -72,15 +65,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
     // TODO: remove endBlock_ and calculate it from MAX_EFM_PROPOSAL_LENGTH -> serves no purpose to provide that option
         // TODO: As a result, can we then update `propose` to increase compatibility with Tally.xyZ?
-    /**
-     * @notice Submit a proposal to the extraordinary funding flow.
-     * @param endBlock_            Block number of the end of the extraordinary funding proposal voting period.
-     * @param targets_             Array of addresses to send transactions to.
-     * @param values_              Array of values to send with transactions.
-     * @param calldatas_           Array of calldata to execute in transactions.
-     * @param description_         Description of the proposal.
-     * @return proposalId_         ID of the newly submitted proposal.
-     */
+    /// @inheritdoc IExtraordinaryFunding
     function proposeExtraordinary(
         uint256 endBlock_,
         address[] memory targets_,
@@ -198,17 +183,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         return Maths.wmul(treasury, percentage_);
     }
 
-    /**
-     *  @notice Mapping of proposalIds to {ExtraordinaryFundingProposal} structs.
-     *  @param  proposalId_     The proposalId to retrieve information about.
-     *  @return proposalId      The retrieved struct's proposalId.
-     *  @return tokensRequested Amount of Ajna tokens requested by the proposal.
-     *  @return startBlock      The block at which the proposal was submitted.
-     *  @return endBlock        The block by which the proposal must pass. // TODO: remove this
-     *  @return votesReceived   Number of votes the proposal has received. One Ajna token is one vote.
-     *  @return succeeded       Whether the proposal received enough votes to pass required thresholds.
-     *  @return executed        Whether a succesful proposal has been executed.
-     */
+    /// @inheritdoc IExtraordinaryFunding
     function getExtraordinaryProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, uint256, bool, bool) {
         ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
         return (
