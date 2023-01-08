@@ -63,8 +63,6 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         treasury -= proposal.tokensRequested;
     }
 
-    // TODO: remove endBlock_ and calculate it from MAX_EFM_PROPOSAL_LENGTH -> serves no purpose to provide that option
-        // TODO: As a result, can we then update `propose` to increase compatibility with Tally.xyZ?
     /// @inheritdoc IExtraordinaryFunding
     function proposeExtraordinary(
         uint256 endBlock_,

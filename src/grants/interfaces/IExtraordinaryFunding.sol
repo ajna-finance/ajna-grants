@@ -84,7 +84,7 @@ interface IExtraordinaryFunding {
      *  @return proposalId      The retrieved struct's proposalId.
      *  @return tokensRequested Amount of Ajna tokens requested by the proposal.
      *  @return startBlock      The block at which the proposal was submitted.
-     *  @return endBlock        The block by which the proposal must pass. // TODO: remove this
+     *  @return endBlock        The block by which the proposal must pass.
      *  @return votesReceived   Number of votes the proposal has received. One Ajna token is one vote.
      *  @return succeeded       Whether the proposal received enough votes to pass required thresholds.
      *  @return executed        Whether a succesful proposal has been executed.
