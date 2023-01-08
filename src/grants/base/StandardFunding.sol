@@ -87,30 +87,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /*** Distribution Management Functions ***/
     /*****************************************/
 
-    /**
-     * @notice Retrieve the current QuarterlyDistribution distributionId.
-     */
-    function getDistributionId() external view returns (uint256) {
-        return distributionIdCheckpoints.latest();
-    }
-
-    /**
-     * @notice Calculate the block at which the screening period of a distribution ends.
-     * @dev    Screening period is 80 days, funding period is 10 days. Total distribution is 90 days.
-     * @param distributionId_ distribution Id of the distribution whose screening period is needed
-     */
-    function getScreeningPeriodEndBlock(uint256 distributionId_) external view returns (uint256) {
-        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
-
-        // 10 days is equivalent to 72,000 blocks (12 seconds per block, 86400 seconds per day)
-        return currentDistribution.endBlock - 72000;
-    }
-
-    /**
-     * @notice Generate a unique hash of a list of proposal Ids for usage as a key for comparing proposal slates.
-     * @param  proposalIds_ Array of proposal Ids to hash.
-     * @return Bytes32 hash of the list of proposals.
-     */
+    /// @inheritdoc IStandardFunding
     function getSlateHash(uint256[] calldata proposalIds_) external pure returns (bytes32) {
         return keccak256(abi.encode(proposalIds_));
     }
@@ -148,11 +125,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         isSurplusFundsUpdated[distributionId_] = true;
     }
 
-    /**
-     * @notice Start a new Distribution Period and reset appropriate state.
-     * @dev    Can be kicked off by anyone assuming a distribution period isn't already active.
-     * @return newDistributionId_ The new distribution period Id.
-     */
+    /// @inheritdoc IStandardFunding
     function startNewDistributionPeriod() external returns (uint256 newDistributionId_) {
         // check that there isn't currently an active distribution period
         uint256 currentDistributionId = distributionIdCheckpoints.latest();
@@ -194,9 +167,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         emit QuarterlyDistributionStarted(newDistributionId_, startBlock, endBlock);
     }
 
-    function _sumBudgetAllocated(uint256[] memory proposalIdSubset_) internal view returns (uint256 sum) {
+    /**
+     * @notice Calculates the sum of quadratic budgets allocated to a list of proposals.
+     * @param  proposalIdSubset_ Array of proposal Ids to sum.
+     * @return sum_ The sum of the budget across the given proposals.
+     */
+    function _sumBudgetAllocated(uint256[] memory proposalIdSubset_) internal view returns (uint256 sum_) {
         for (uint i = 0; i < proposalIdSubset_.length;) {
-            sum += uint256(standardFundingProposals[proposalIdSubset_[i]].qvBudgetAllocated);
+            sum_ += uint256(standardFundingProposals[proposalIdSubset_[i]].qvBudgetAllocated);
 
             unchecked {
                 ++i;
@@ -204,12 +182,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
     }
 
-    /**
-     * @notice Check if a slate of proposals meets requirements, and maximizes votes. If so, update QuarterlyDistribution.
-     * @param  proposalIds_ Array of proposal Ids to check.
-     * @param  distributionId_ Id of the current quarterly distribution.
-     * @return Boolean indicating whether the new proposal slate was set as the new top slate for distribution.
-     */
+    /// @inheritdoc IStandardFunding
     function checkSlate(uint256[] calldata proposalIds_, uint256 distributionId_) external returns (bool) {
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
 
@@ -247,8 +220,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // get pointers for comparing proposal slates
         bytes32 currentSlateHash = currentDistribution.fundedSlateHash;
-        bytes32 newSlateHash = keccak256(abi.encode(proposalIds_));
+        bytes32 newSlateHash     = keccak256(abi.encode(proposalIds_));
 
+        // check if slate of proposals is new top slate
         bool newTopSlate = currentSlateHash == 0 ||
             (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[distributionId_][currentSlateHash]));
 
@@ -271,19 +245,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return newTopSlate;
     }
 
-    /**
-     * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
-     */
-    function maximumQuarterlyDistribution() external view returns (uint256) {
-        return Maths.wmul(IERC20(ajnaTokenAddress).balanceOf(address(this)), GLOBAL_BUDGET_CONSTRAINT);
-    }
-
-    /**
-     * @notice distributes delegate reward based on delegatee Vote share
-     * @dev  Can be called by anyone who has voted in both screening and funding period 
-     * @param distributionId_ Id of distribution from which delegatee wants to claim his reward
-     * @return rewardClaimed_ Amount of reward claimed by delegatee
-     */
+    /// @inheritdoc IStandardFunding
     function claimDelegateReward(uint256 distributionId_) external returns(uint256 rewardClaimed_) {
         // Revert if delegatee didn't vote in screening stage 
         if(!hasVotedScreening[distributionId_][msg.sender]) revert DelegateRewardInvalid();
@@ -318,14 +280,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /*** Proposal Functions ***/
     /**************************/
 
-    /**
-     * @notice Execute a proposal that has been approved by the community.
-     * @dev    Calls out to Governor.execute()
-     * @dev    Check for proposal being succesfully funded or previously executed is handled by Governor.execute().
-     * @return proposalId_ of the executed proposal.
-     */
-    function executeStandard(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) external payable nonReentrant returns (uint256 proposalId_) {
-
+    /// @inheritdoc IStandardFunding
+    function executeStandard(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) external nonReentrant returns (uint256 proposalId_) {
         proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
         Proposal memory proposal = standardFundingProposals[proposalId_];
 
@@ -336,14 +292,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         standardFundingProposals[proposalId_].executed = true;
     }
 
-    /**
-     * @notice Submit a new proposal to the Grant Coordination Fund Standard Funding mechanism.
-     * @dev    All proposals can be submitted by anyone. There can only be one value in each array. Interface inherits from OZ.propose().
-     * @param  targets_ List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
-     * @param  values_ List of values to be sent with the proposal calldata. Should be 0 for all proposals.
-     * @param  calldatas_ List of calldata to be executed. Should be the transfer() method.
-     * @return proposalId_ The id of the newly created proposal.
-     */
+    /// @inheritdoc IStandardFunding
     function proposeStandard(
         address[] memory targets_,
         uint256[] memory values_,
@@ -358,6 +307,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution memory currentDistribution = distributions[distributionIdCheckpoints.latest()];
 
         // cannot add new proposal after end of screening period
+        // screening period ends 72000 blocks before end of distribution period, ~ 80 days.
         if (block.number > currentDistribution.endBlock - 72000) revert ScreeningPeriodEnded();
 
         // check params have matching lengths
@@ -486,6 +436,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Check to see if a proposal is in the current funded slate hash of proposals.
+     * @param  proposalId_ The proposalId to check.
+     * @return             True if the proposal is in the it's distribution period's slate hash.
      */
     function _standardFundingVoteSucceeded(uint256 proposalId_) internal view returns (bool) {
         Proposal memory proposal = standardFundingProposals[proposalId_];
@@ -497,13 +449,17 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /*** External Functions ***/
     /**************************/
 
-    /**
-     * @notice Retrieve the QuarterlyDistribution distributionId at a given block.
-     */
+    /// @inheritdoc IStandardFunding
     function getDistributionIdAtBlock(uint256 blockNumber) external view returns (uint256) {
         return distributionIdCheckpoints.getAtBlock(blockNumber);
     }
 
+    /// @inheritdoc IStandardFunding
+    function getDistributionId() external view returns (uint256) {
+        return distributionIdCheckpoints.latest();
+    }
+
+    /// @inheritdoc IStandardFunding
     function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, uint256, bytes32) {
         QuarterlyDistribution memory distribution = distributions[distributionId_];
         return (
@@ -516,16 +472,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         );
     }
 
-    /**
-     * @notice Get the funded proposal slate for a given distributionId, and slate hash
-     */
+    /// @inheritdoc IStandardFunding
     function getFundedProposalSlate(uint256 distributionId_, bytes32 slateHash_) external view returns (uint256[] memory) {
         return fundedProposalSlates[distributionId_][slateHash_];
     }
 
-    /**
-     * @notice Get the current state of a given proposal.
-     */
+    /// @inheritdoc IStandardFunding
     function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256, bool) {
         Proposal memory proposal = standardFundingProposals[proposalId_];
         return (
@@ -538,9 +490,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         );
     }
 
-    /**
-     * @notice Get the current state of a given voter in the funding stage.
-     */
+    /// @inheritdoc IStandardFunding
+    function getTopTenProposals(uint256 distributionId_) external view returns (uint256[] memory) {
+        return topTenProposals[distributionId_];
+    }
+
+    /// @inheritdoc IStandardFunding
     function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, int256) {
         QuadraticVoter memory voter = quadraticVoters[distributionId_][account_];
         return (
@@ -549,15 +504,19 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         );
     }
 
-    function getTopTenProposals(uint256 distributionId_) external view returns (uint256[] memory) {
-        return topTenProposals[distributionId_];
+    /// @inheritdoc IStandardFunding
+    function maximumQuarterlyDistribution() external view returns (uint256) {
+        return Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);
     }
 
     /*************************/
     /*** Sorting Functions ***/
     /*************************/
 
-    // return the index of the proposalId in the array, else -1
+    /**
+     * @notice Identify where in an array of proposalIds the proposal exists.
+     * @return index_ The index of the proposalId in the array, else -1.
+     */
     function _findProposalIndex(uint256 proposalId, uint256[] memory array) internal pure returns (int256 index_) {
         index_ = -1; // default value indicating proposalId not in the array
 

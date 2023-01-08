@@ -10,7 +10,7 @@ import { GrantFund }        from "../src/grants/GrantFund.sol";
 import { IStandardFunding } from "../src/grants/interfaces/IStandardFunding.sol";
 import { Maths }            from "../src/grants/libraries/Maths.sol";
 
-import { GrantFundTestHelper } from "./GrantFundTestHelper.sol";
+import { GrantFundTestHelper } from "./utils/GrantFundTestHelper.sol";
 import { IAjnaToken }          from "./utils/IAjnaToken.sol";
 
 contract StandardFundingGrantFundTest is GrantFundTestHelper {
@@ -82,7 +82,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // deploy growth fund contract
         _grantFund = new GrantFund(_votingToken, treasury);
 
-        // TODO: replace with for loop -> test address initializer method that created array and transfers tokens given n?
         // initial minter distributes tokens to test addresses
         _transferAjnaTokens(_token, _votersArr, 50_000_000 * 1e18, _tokenDeployer);
 
@@ -476,9 +475,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(votesCast, 0);
         assertEq(startBlock, block.number);
         assertEq(endBlock, block.number + 648000);
-
-        uint256 screeningPeriodEndBlock = _grantFund.getScreeningPeriodEndBlock(currentDistributionId);
-        assertEq(screeningPeriodEndBlock, block.number + 576000);
         
         vm.roll(_startBlock + 100);
         currentDistributionId = _grantFund.getDistributionIdAtBlock(block.number - 1);
@@ -963,7 +959,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         uint256 votingPeriod = _grantFund.votingPeriod();
         assertEq(votingPeriod, 0);
-
     }
 
     function testFuzzTopTenProposalandDelegateReward(uint256 noOfVoters_, uint256 noOfProposals_) external {
@@ -971,6 +966,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         /******************************/
         /*** Top ten proposals fuzz ***/
         /******************************/
+
         uint256 noOfVoters = bound(noOfVoters_, 1, 500);
         uint256 noOfProposals = bound(noOfProposals_, 1, 50);
 
@@ -1011,7 +1007,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             changePrank(voters[i]);
             _grantFund.castVote(randomProposalId, voteYes);
         }
-
 
         // calculate top 10 proposals based on total vote casted on each proposal
         for(uint i = 0; i < noOfProposals; i++) {
@@ -1119,7 +1114,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // ensure total delegation reward is less than equals to 10% of gbc
         assertGe(gbc / 10, totalDelegationReward);
-
     }
 
     // helper method that sort proposals based on votes on them
