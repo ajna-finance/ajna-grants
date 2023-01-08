@@ -209,7 +209,9 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     /**************************/
 
      /**
-     * @notice Restrict voter to only voting once during the screening stage.
+     * @notice Check whether an account has voted on a proposal.
+     * @dev    Votes can only votes once during the screening stage, and only once on proposals in the extraordinary funding round.
+               In the funding stage they can vote as long as they have budget.
      * @dev    See {IGovernor-hasVoted}.
      * @return hasVoted_ Boolean for whether the account has already voted in the current proposal, and mechanism.
      */
@@ -289,7 +291,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     }
 
     /**
-     * @notice    Required override; see {IGovernor-votingPeriod}.
+     * @notice Required override; see {IGovernor-votingPeriod}.
      */
     function votingPeriod() public view override(IGovernor) returns (uint256) {}
 

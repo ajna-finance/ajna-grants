@@ -592,7 +592,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Identify where in an array of proposalIds the proposal exists.
-     * @return The index of the proposalId in the array, else -1.
+     * @return index_ The index of the proposalId in the array, else -1.
      */
     function _findProposalIndex(uint256 proposalId, uint256[] memory array) internal pure returns (int256 index_) {
         index_ = -1; // default value indicating proposalId not in the array
