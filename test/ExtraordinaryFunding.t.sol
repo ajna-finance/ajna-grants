@@ -295,11 +295,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assert(_grantFund.findMechanismOfProposal(proposalId) == Funding.FundingMechanism.Extraordinary);
     }
 
-    function testProposeExtraordinaryMultipleCalldata() external {
-        // TODO: finish implementing this test -> check handling the submission of proposals that have multiple calldatas in the calldata array
-        // TODO: add for standard proposal as well
-    }
-
     function testProposeExtraordinaryInvalid() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
@@ -471,7 +466,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.castVote(proposalId, voteYes);
 
         // execute proposal
-        _grantFund.executeExtraordinary(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));
+        _executeExtraordinaryProposal(_grantFund, _token, testProposal);
 
         // check state updated as expected
         proposalState = _grantFund.state(testProposal.proposalId);
