@@ -91,4 +91,10 @@ interface IExtraordinaryFunding {
      */
     function getExtraordinaryProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, uint256, bool, bool);
 
+    /**
+     * @notice Get the current minimum threshold percentage of Ajna tokens required for a proposal to exceed.
+     * @return The minimum threshold percentage, in WAD.
+     */
+    function getMinimumThresholdPercentage() external view returns (uint256);
+
 }

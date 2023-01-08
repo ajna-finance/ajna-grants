@@ -47,7 +47,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         }
 
         // check if the proposal has received more votes than minimumThreshold and tokensRequestedPercentage of all tokens
-        if (proposal.votesReceived >= proposal.tokensRequested + getSliceOfNonTreasury(getMinimumThresholdPercentage())) {
+        if (proposal.votesReceived >= proposal.tokensRequested + getSliceOfNonTreasury(_getMinimumThresholdPercentage())) {
             proposal.succeeded = true;
         } else {
             proposal.succeeded = false;
@@ -85,7 +85,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         uint256 totalTokensRequested = _validateCallDatas(targets_, values_, calldatas_);
 
         // check tokens requested is within limits
-        if (totalTokensRequested > getSliceOfTreasury(Maths.WAD - getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
+        if (totalTokensRequested > getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
 
         // store newly created proposal
         ExtraordinaryFundingProposal storage newProposal = extraordinaryFundingProposals[proposalId_];
@@ -149,11 +149,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /*** View Functions ****/
     /***********************/
 
-    /**
-     * @notice Get the current minimum threshold percentage of Ajna tokens required for a proposal to exceed.
-     * @return The minimum threshold percentage, in WAD.
-     */
-    function getMinimumThresholdPercentage() public view returns (uint256) {
+    function _getMinimumThresholdPercentage() internal view returns (uint256) {
         // default minimum threshold is 50
         if (fundedExtraordinaryProposals.length == 0) {
             return 0.5 * 1e18;
@@ -162,6 +158,11 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         else {
             return 0.5 * 1e18 + (fundedExtraordinaryProposals.length * (0.05 * 1e18));
         }
+    }
+
+    /// @inheritdoc IExtraordinaryFunding
+    function getMinimumThresholdPercentage() external view returns (uint256) {
+        return _getMinimumThresholdPercentage();
     }
 
     /**

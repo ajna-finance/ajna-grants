@@ -115,6 +115,67 @@ interface IStandardFunding {
         int256 budgetRemaining; // remaining voting budget in the given period
     }
 
+    /*****************************************/
+    /*** Distribution Management Functions ***/
+    /*****************************************/
+
+    /**
+     * @notice Check if a slate of proposals meets requirements, and maximizes votes. If so, update QuarterlyDistribution.
+     * @param  proposalIds_ Array of proposal Ids to check.
+     * @param  distributionId_ Id of the current quarterly distribution.
+     * @return Boolean indicating whether the new proposal slate was set as the new top slate for distribution.
+     */
+    function checkSlate(uint256[] calldata proposalIds_, uint256 distributionId_) external returns (bool);
+
+    /**
+     * @notice distributes delegate reward based on delegatee Vote share.
+     * @dev  Can be called by anyone who has voted in both screening and funding period.
+     * @param distributionId_ Id of distribution from whinch delegatee wants to claim his reward.
+     * @return rewardClaimed_ Amount of reward claimed by delegatee.
+     */
+    function claimDelegateReward(uint256 distributionId_) external returns(uint256 rewardClaimed_);
+
+    /**
+     * @notice Generate a unique hash of a list of proposal Ids for usage as a key for comparing proposal slates.
+     * @param  proposalIds_ Array of proposal Ids to hash.
+     * @return Bytes32 hash of the list of proposals.
+     */
+    function getSlateHash(uint256[] calldata proposalIds_) external pure returns (bytes32);
+
+    /**
+     * @notice Start a new Distribution Period and reset appropriate state.
+     * @dev    Can be kicked off by anyone assuming a distribution period isn't already active.
+     * @return newDistributionId_ The new distribution period Id.
+     */
+    function startNewDistributionPeriod() external returns (uint256 newDistributionId_);
+
+    /**************************/
+    /*** Proposal Functions ***/
+    /**************************/
+
+    /**
+     * @notice Execute a proposal that has been approved by the community.
+     * @dev    Calls out to Governor.execute().
+     * @dev    Check for proposal being succesfully funded or previously executed is handled by Governor.execute().
+     * @return proposalId_ of the executed proposal.
+     */
+     function executeStandard(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) external returns (uint256 proposalId_);
+
+    /**
+     * @notice Submit a new proposal to the Grant Coordination Fund Standard Funding mechanism.
+     * @dev    All proposals can be submitted by anyone. There can only be one value in each array. Interface inherits from OZ.propose().
+     * @param  targets_ List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
+     * @param  values_ List of values to be sent with the proposal calldata. Should be 0 for all proposals.
+     * @param  calldatas_ List of calldata to be executed. Should be the transfer() method.
+     * @return proposalId_ The id of the newly created proposal.
+     */
+    function proposeStandard(
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory calldatas_,
+        string memory description_
+    ) external returns (uint256 proposalId_);
+
     /**********************/
     /*** View Functions ***/
     /**********************/
@@ -126,6 +187,11 @@ interface IStandardFunding {
      */
     function getDistributionIdAtBlock(uint256 blockNumber) external view returns (uint256);
 
+    /**
+     * @notice Retrieve the current QuarterlyDistribution distributionId.
+     * @return The current distributionId.
+     */
+    function getDistributionId() external view returns (uint256);
 
     /**
      * @notice Mapping of distributionId to {QuarterlyDistribution} struct.
@@ -160,6 +226,14 @@ interface IStandardFunding {
     function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256, bool);
 
     /**
+     * @notice Calculate the block at which the screening period of a distribution ends.
+     * @dev    Screening period is 80 days, funding period is 10 days. Total distribution is 90 days.
+     * @param distributionId_ distribution Id of the distribution whose screening period is needed
+     * @return The block at which the screening period ends.
+     */
+    function getScreeningPeriodEndBlock(uint256 distributionId_) external view returns (uint256);
+
+    /**
      * @notice Retrieve the top ten proposals that have received the most votes in a given distribution period's screening round.
      * @dev    It may return less than 10 proposals if less than 10 have been submitted. 
      * @dev    Values are subject to change if the queried distribution period's screening round is ongoing.
@@ -176,5 +250,11 @@ interface IStandardFunding {
      * @return                 The voter's remaining quadratic vote budget in the given distribution period's funding round.
      */
     function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, int256);
+
+    /**
+     * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
+     * @return The number of Ajna tokens.
+     */
+    function maximumQuarterlyDistribution() external view returns (uint256);
 
 }
