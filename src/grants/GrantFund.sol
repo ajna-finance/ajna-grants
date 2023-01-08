@@ -57,6 +57,8 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
     /**
      * @notice Given a proposalId, find if it is a standard or extraordinary proposal.
+     * @param proposalId_ The id of the proposal to query the mechanism of.
+     * @return FundingMechanism to which the proposal was submitted.
      */
     function findMechanismOfProposal(uint256 proposalId_) public view returns (FundingMechanism) {
         if (standardFundingProposals[proposalId_].proposalId != 0) return FundingMechanism.Standard;
@@ -194,6 +196,14 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         }
     }
 
+     /**
+     * @notice Retrieve the voting power of an account.
+     * @dev    Voteing power is the minimum of the amount of votes available at a snapshot block 33 blocks prior to voting start, and at the vote starting block.
+     * @param account_        The voting account.
+     * @param snapshot_       One of block numbers to retrieve the voting power at. 33 blocks prior to the vote starting block.
+     * @param voteStartBlock_ The block number the vote started at.
+     * @return                The voting power of the account.
+     */
     function _getVotesSinceSnapshot(address account_, uint256 snapshot_, uint256 voteStartBlock_) internal view returns (uint256) {
         uint256 votes1 = token.getPastVotes(account_, snapshot_);
 
