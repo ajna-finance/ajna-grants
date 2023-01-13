@@ -23,5 +23,11 @@ coverage   :; forge coverage
 snapshot :; forge clean && forge snapshot --optimize --optimize-runs 1000000
 
 # Deployment
-# use the "@" to hide the command from your shell 
-deploy-contract :; @forge script script/${contract}.s.sol:Deploy${contract} --rpc-url ${RPC_URL}  --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}  -vvvv
+deploy-ajnatoken:
+	eval MINT_TO_ADDRESS=${mintto}
+	forge script script/AjnaToken.s.sol:DeployAjnaToken \
+		--rpc-url ${ETH_RPC_URL} --sender ${DEPLOY_ADDRESS} --keystore ${DEPLOY_KEY} --broadcast -vvv
+deploy-grantfund:
+	eval AJNA_TOKEN=${ajna}
+	forge script script/GrantFund.s.sol:DeployGrantFund \
+		--rpc-url ${ETH_RPC_URL} --sender ${DEPLOY_ADDRESS} --keystore ${DEPLOY_KEY} --broadcast -vvv
