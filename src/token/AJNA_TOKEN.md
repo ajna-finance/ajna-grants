@@ -46,17 +46,16 @@ Ajna ERC20 Token contract
 
 ## Deployment
 
-Configure environment with `ETH_RPC_URL` pointing to the target chain for deployment.  Set `DEPLOY_ADDRESS` to the deployment address and `DEPLOY_KEY` to the JSON keystore file.  If you want initial tokens minted to a different address than the deploying address, update constructor arguments accordingly.
+See [README.md](../../README.md) for instructions using the `Makefile` target.
 
-Run
+Output should provide the token address, confirm the amount minted and where it was sent:
 ```
-forge create --rpc-url ${ETH_RPC_URL} \
-	--keystore ${DEPLOY_KEY} src/AjnaToken.sol:AjnaToken \
-	--constructor-args ${DEPLOY_ADDRESS}
+== Logs ==
+  AJNA token deployed to 0xef11D1c2aA48826D4c41e54ab82D1Ff5Ad8A64Ca
+  Minting 2000000000 AJNA token to 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 ```
-and interactively enter your password.  Add `--verify` switch once repository has been made public.
 
-Record the `Deployed to` address returned, exporting to your environment as `AJNA_TOKEN`.
+Record the token address, exporting to your environment as `AJNA_TOKEN`.
 
 Run the following to validate AJNA token balance:
 ```
