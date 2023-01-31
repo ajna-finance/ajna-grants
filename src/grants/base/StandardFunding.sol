@@ -184,7 +184,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Check an array of proposalIds for duplicate IDs.
-     * @param  proposalIdSubset_ Array of proposal Ids to check.
+     * @param  proposalIds_ Array of proposal Ids to check.
      * @return Boolean indicating the presence of a duplicate. True if it has a duplicate; false if not.
      */
     function _hasDuplicates(uint256[] calldata proposalIds_) internal pure returns (bool) {
