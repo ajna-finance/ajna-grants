@@ -182,6 +182,26 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
     }
 
+    /**
+     * @notice Check an array of proposalIds for duplicate IDs.
+     * @param  proposalIdSubset_ Array of proposal Ids to check.
+     * @return Boolean indicating the presence of a duplicate. True if it has a duplicate; false if not.
+     */
+    function _hasDuplicates(uint256[] calldata proposalIds_) internal pure returns (bool) {
+        for (uint i = 0; i < proposalIds_.length; ) {
+            for (uint j = i + 1; j < proposalIds_.length; ) {
+                if (proposalIds_[i] == proposalIds_[j]) return true;
+                unchecked {
+                    ++j;
+                }
+            }
+            unchecked {
+                ++i;
+            }
+        }
+        return false;
+    }
+
     /// @inheritdoc IStandardFunding
     function checkSlate(uint256[] calldata proposalIds_, uint256 distributionId_) external returns (bool) {
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
@@ -190,6 +210,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         if (block.number <= currentDistribution.endBlock || block.number > currentDistribution.endBlock + 50400) {
             return false;
         }
+
+        // check that the slate has no duplicates
+        if (_hasDuplicates(proposalIds_)) return false;
 
         uint256 gbc = currentDistribution.fundsAvailable;
         uint256 sum = 0;

@@ -613,22 +613,22 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         potentialProposalSlate[1] = testProposals[6].proposalId;
         
         // ensure checkSlate won't allow if called before DistributionPeriod starts
-        bool validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
-        assertFalse(validSlate);
+        bool prposalSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
+        assertFalse(prposalSlate);
 
         // skip to the DistributionPeriod
         vm.roll(_startBlock + 650_000);
 
         // ensure checkSlate won't allow if slate has a proposal that is not in topTenProposal (funding Stage)
-        validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
-        assertFalse(validSlate);
+        prposalSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
+        assertFalse(prposalSlate);
 
         // Updating potential Proposal Slate to include proposal that is in topTenProposal (funding Stage)
         potentialProposalSlate[1] = screenedProposals[1].proposalId;
 
         // ensure checkSlate won't allow exceeding the GBC
-        validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
-        assertFalse(validSlate);
+        prposalSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
+        assertFalse(prposalSlate);
         (, , , , , bytes32 slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
         assertEq(slateHash, 0);
 
@@ -637,12 +637,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         potentialProposalSlate[0] = screenedProposals[3].proposalId;
         vm.expectEmit(true, true, false, true);
         emit FundedSlateUpdated(distributionId, _grantFund.getSlateHash(potentialProposalSlate));
-        validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
-        assertTrue(validSlate);
+        prposalSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
+        assertTrue(prposalSlate);
 
         // should not update slate if current funding slate is same as potentialProposalSlate 
-        validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
-        assertFalse(validSlate);
+        prposalSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
+        assertFalse(prposalSlate);
 
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
@@ -658,8 +658,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         potentialProposalSlate[1] = screenedProposals[4].proposalId;
         vm.expectEmit(true, true, false, true);
         emit FundedSlateUpdated(distributionId, _grantFund.getSlateHash(potentialProposalSlate));
-        validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
-        assertTrue(validSlate);
+        prposalSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
+        assertTrue(prposalSlate);
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
         assertEq(slateHash, 0x1baa18a2d105ff81cc846882b7cc083ac252a82d2082db41156a83ae5d6a2436);
@@ -669,14 +669,21 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(fundedProposalSlate[0].proposalId, screenedProposals[3].proposalId);
         assertEq(fundedProposalSlate[1].proposalId, screenedProposals[4].proposalId);
 
+        // check that the slate isn't updated if a slate contains duplicate proposals
+        potentialProposalSlate = new uint256[](2);
+        potentialProposalSlate[0] = screenedProposals[0].proposalId;
+        potentialProposalSlate[1] = screenedProposals[0].proposalId;
+        prposalSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
+        assertFalse(prposalSlate);
+
         // ensure an additional update can be made to the optimized slate
         potentialProposalSlate = new uint256[](2);
         potentialProposalSlate[0] = screenedProposals[0].proposalId;
         potentialProposalSlate[1] = screenedProposals[4].proposalId;
         vm.expectEmit(true, true, false, true);
         emit FundedSlateUpdated(distributionId, _grantFund.getSlateHash(potentialProposalSlate));
-        validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
-        assertTrue(validSlate);
+        prposalSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
+        assertTrue(prposalSlate);
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
         assertEq(slateHash, 0x6d2192bdd3e08d75d683185db5947cd199403513241eddfa5cf8a36256f27c40);
@@ -690,8 +697,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         potentialProposalSlate = new uint256[](2);
         potentialProposalSlate[0] = screenedProposals[2].proposalId;
         potentialProposalSlate[1] = screenedProposals[3].proposalId;
-        validSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
-        assertFalse(validSlate);
+        prposalSlate = _grantFund.checkSlate(potentialProposalSlate, distributionId);
+        assertFalse(prposalSlate);
         // check funded proposal slate wasn't updated
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
         assertEq(slateHash, 0x6d2192bdd3e08d75d683185db5947cd199403513241eddfa5cf8a36256f27c40);
