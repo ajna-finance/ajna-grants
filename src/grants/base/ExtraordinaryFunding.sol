@@ -46,9 +46,6 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             revert ExecuteExtraordinaryProposalInvalid();
         }
 
-        // check tokens requested are available for claiming from the treasury
-        if (proposal.tokensRequested > getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
-
         // check if the proposal has received more votes than minimumThreshold and tokensRequestedPercentage of all tokens
         if (proposal.votesReceived >= proposal.tokensRequested + getSliceOfNonTreasury(_getMinimumThresholdPercentage())) {
             proposal.succeeded = true;
@@ -56,6 +53,9 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             proposal.succeeded = false;
             revert ExecuteExtraordinaryProposalInvalid();
         }
+
+        // check tokens requested are available for claiming from the treasury
+        if (proposal.tokensRequested > getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
 
         fundedExtraordinaryProposals.push(proposal.proposalId);
 
