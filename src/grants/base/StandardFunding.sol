@@ -87,11 +87,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /*** Distribution Management Functions ***/
     /*****************************************/
 
-    /// @inheritdoc IStandardFunding
-    function getSlateHash(uint256[] calldata proposalIds_) external pure returns (bytes32) {
-        return keccak256(abi.encode(proposalIds_));
-    }
-
     /**
      * @notice Set a new DistributionPeriod Id.
      * @dev    Increments the previous Id nonce by 1, and sets a checkpoint at the calling block.number.
@@ -251,6 +246,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         bool newTopSlate = currentSlateHash == 0 ||
             (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[currentSlateHash]));
 
+        // if slate of proposals is new top slate, update state
         if (newTopSlate) {
             uint256[] storage existingSlate = fundedProposalSlates[newSlateHash];
             for (uint i = 0; i < proposalIds_.length; ) {
@@ -500,6 +496,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /// @inheritdoc IStandardFunding
     function getFundedProposalSlate(bytes32 slateHash_) external view returns (uint256[] memory) {
         return fundedProposalSlates[slateHash_];
+    }
+
+    /// @inheritdoc IStandardFunding
+    function getSlateHash(uint256[] calldata proposalIds_) external pure returns (bytes32) {
+        return keccak256(abi.encode(proposalIds_));
     }
 
     /// @inheritdoc IStandardFunding
