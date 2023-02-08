@@ -60,28 +60,28 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     mapping(uint256 => uint256[]) internal topTenProposals;
 
     /**
-     * @notice Mapping of quarterly distributions to a hash of a proposal slate to a list of funded proposals.
-     * @dev distributionId => slate hash => proposalId[]
+     * @notice Mapping of a hash of a proposal slate to a list of funded proposals.
+     * @dev slate hash => proposalId[]
      */
-    mapping(uint256 => mapping(bytes32 => uint256[])) internal fundedProposalSlates;
+    mapping(bytes32 => uint256[]) internal fundedProposalSlates;
 
     /**
      * @notice Mapping of quarterly distributions to voters to a Quadratic Voter info struct.
      * @dev distributionId => voter address => QuadraticVoter 
      */
-    mapping (uint256 => mapping(address => QuadraticVoter)) internal quadraticVoters;
+    mapping(uint256 => mapping(address => QuadraticVoter)) internal quadraticVoters;
 
     /**
      * @notice Mapping of distributionId to whether surplus funds from distribution updated into treasury
      * @dev distributionId => bool
     */
-    mapping (uint256 => bool) internal isSurplusFundsUpdated;
+    mapping(uint256 => bool) internal isSurplusFundsUpdated;
 
     /**
      * @notice Mapping of distributionId to user address to whether user has claimed his delegate reward
      * @dev distributionId => address => bool
     */
-    mapping (uint256 => mapping (address => bool)) public hasClaimedReward;
+    mapping(uint256 => mapping (address => bool)) public hasClaimedReward;
 
     /*****************************************/
     /*** Distribution Management Functions ***/
@@ -111,7 +111,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      */
     function _updateTreasury(uint256 distributionId_) private {
         QuarterlyDistribution memory currentDistribution =  distributions[distributionId_];
-        uint256[] memory fundingProposalIds = fundedProposalSlates[distributionId_][currentDistribution.fundedSlateHash];
+        uint256[] memory fundingProposalIds = fundedProposalSlates[currentDistribution.fundedSlateHash];
         uint256 totalTokensRequested;
         for (uint i = 0; i < fundingProposalIds.length; ) {
             Proposal memory proposal = standardFundingProposals[fundingProposalIds[i]];
@@ -249,10 +249,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // check if slate of proposals is new top slate
         bool newTopSlate = currentSlateHash == 0 ||
-            (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[distributionId_][currentSlateHash]));
+            (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[currentSlateHash]));
 
         if (newTopSlate) {
-            uint256[] storage existingSlate = fundedProposalSlates[distributionId_][newSlateHash];
+            uint256[] storage existingSlate = fundedProposalSlates[newSlateHash];
             for (uint i = 0; i < proposalIds_.length; ) {
                 // update list of proposals to fund
                 existingSlate.push(proposalIds_[i]);
@@ -467,7 +467,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function _standardFundingVoteSucceeded(uint256 proposalId_) internal view returns (bool) {
         Proposal memory proposal = standardFundingProposals[proposalId_];
         uint256 distributionId = proposal.distributionId;
-        return _findProposalIndex(proposalId_, fundedProposalSlates[distributionId][distributions[distributionId].fundedSlateHash]) != -1;
+        return _findProposalIndex(proposalId_, fundedProposalSlates[distributions[distributionId].fundedSlateHash]) != -1;
     }
 
     /**************************/
@@ -498,8 +498,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
-    function getFundedProposalSlate(uint256 distributionId_, bytes32 slateHash_) external view returns (uint256[] memory) {
-        return fundedProposalSlates[distributionId_][slateHash_];
+    function getFundedProposalSlate(bytes32 slateHash_) external view returns (uint256[] memory) {
+        return fundedProposalSlates[slateHash_];
     }
 
     /// @inheritdoc IStandardFunding
