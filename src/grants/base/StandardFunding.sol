@@ -28,10 +28,23 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     uint256 internal constant GLOBAL_BUDGET_CONSTRAINT = 0.02 * 1e18;
 
     /**
-     * @notice Length of the distribution period in blocks.
-     * @dev    Equivalent to the number of blocks in 90 days. Blocks come every 12 seconds.
+     * @notice Length of the challengephase of the distribution period in blocks.
+     * @dev    Roughly equivalent to the number of blocks in 7 days.
+     * @dev    The period in which funded proposal slates can be checked in checkSlate.
      */
-    uint256 internal constant DISTRIBUTION_PERIOD_LENGTH = 648000; // 90 days
+    uint256 internal constant CHALLENGE_PERIOD_LENGTH = 50400;
+
+    /**
+     * @notice Length of the distribution period in blocks.
+     * @dev    Roughly equivalent to the number of blocks in 90 days.
+     */
+    uint256 internal constant DISTRIBUTION_PERIOD_LENGTH = 648000;
+
+    /**
+     * @notice Length of the funding phase of the distribution period in blocks.
+     * @dev    Roughly equivalent to the number of blocks in 10 days.
+     */
+    uint256 internal constant FUNDING_PERIOD_LENGTH = 72000;
 
     /**
      * @notice ID of the current distribution period.
@@ -87,6 +100,24 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /*** Distribution Management Functions ***/
     /*****************************************/
 
+    /**
+     * @notice Get the block number at which this distribution period's challenge stage ends.
+     * @param  distribution The quarterly distribution to get the challenge stage end block for.
+     * @return The block number at which this distribution period's challenge stage ends.
+    */
+    function _getChallengeStageEndBlock(QuarterlyDistribution memory distribution) internal view returns (uint256) {
+        return distribution.endBlock + CHALLENGE_PERIOD_LENGTH;
+    }
+
+    /**
+     * @notice Get the block number at which this distribution period's screening stage ends.
+     * @param  distribution The quarterly distribution to get the screening stage end block for.
+     * @return The block number at which this distribution period's screening stage ends.
+    */
+    function _getScreeningStageEndBlock(QuarterlyDistribution memory distribution) internal view returns (uint256) {
+        return distribution.endBlock - FUNDING_PERIOD_LENGTH;
+    }
+
     /// @inheritdoc IStandardFunding
     function getSlateHash(uint256[] calldata proposalIds_) external pure returns (bytes32) {
         return keccak256(abi.encode(proposalIds_));
@@ -110,7 +141,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @param distributionId_ distribution Id of updating distribution 
      */
     function _updateTreasury(uint256 distributionId_) private {
-        QuarterlyDistribution memory currentDistribution =  distributions[distributionId_];
+        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
         uint256[] memory fundingProposalIds = fundedProposalSlates[distributionId_][currentDistribution.fundedSlateHash];
         uint256 totalTokensRequested;
         for (uint i = 0; i < fundingProposalIds.length; ) {
@@ -129,12 +160,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function startNewDistributionPeriod() external returns (uint256 newDistributionId_) {
         // check that there isn't currently an active distribution period
         uint256 currentDistributionId = distributionIdCheckpoints.latest();
-        if (block.number <= distributions[currentDistributionId].endBlock) revert DistributionPeriodStillActive();
+        QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
+        if (block.number <= currentDistribution.endBlock) revert DistributionPeriodStillActive();
 
         // update Treasury with unused funds from last two distributions
         {   
-            // Check if any last distribution exists and its challenge period is over
-            if ( currentDistributionId > 0 && (block.number > distributions[currentDistributionId].endBlock + 50400)) {
+            // Check if any last distribution exists and its challenge stage is over
+            if ( currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistribution))) {
                 // Add unused funds from last distribution to treasury
                 _updateTreasury(currentDistributionId);
             }
@@ -187,7 +219,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
 
         // check that the function is being called within the challenge period
-        if (block.number <= currentDistribution.endBlock || block.number > currentDistribution.endBlock + 50400) {
+        if (block.number <= currentDistribution.endBlock || block.number > _getChallengeStageEndBlock(currentDistribution)) {
             return false;
         }
 
@@ -253,7 +285,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
 
         // Check if Challenge Period is still active 
-        if(block.number < currentDistribution.endBlock + 50400) revert ChallengePeriodNotEnded();
+        if(block.number < _getChallengeStageEndBlock(currentDistribution)) revert ChallengePeriodNotEnded();
 
         // check rewards haven't already been claimed
         if(hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
@@ -286,7 +318,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         Proposal memory proposal = standardFundingProposals[proposalId_];
 
         // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
-        if (block.number <= distributions[proposal.distributionId].endBlock + 50400) revert ExecuteProposalInvalid();
+        if (block.number <= _getChallengeStageEndBlock(distributions[proposal.distributionId])) revert ExecuteProposalInvalid();
 
         super.execute(targets_, values_, calldatas_, descriptionHash_);
         standardFundingProposals[proposalId_].executed = true;
