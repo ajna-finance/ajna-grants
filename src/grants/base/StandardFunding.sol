@@ -60,37 +60,32 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     mapping(uint256 => uint256[]) internal topTenProposals;
 
     /**
-     * @notice Mapping of quarterly distributions to a hash of a proposal slate to a list of funded proposals.
-     * @dev distributionId => slate hash => proposalId[]
+     * @notice Mapping of a hash of a proposal slate to a list of funded proposals.
+     * @dev slate hash => proposalId[]
      */
-    mapping(uint256 => mapping(bytes32 => uint256[])) internal fundedProposalSlates;
+    mapping(bytes32 => uint256[]) internal fundedProposalSlates;
 
     /**
      * @notice Mapping of quarterly distributions to voters to a Quadratic Voter info struct.
      * @dev distributionId => voter address => QuadraticVoter 
      */
-    mapping (uint256 => mapping(address => QuadraticVoter)) internal quadraticVoters;
+    mapping(uint256 => mapping(address => QuadraticVoter)) internal quadraticVoters;
 
     /**
      * @notice Mapping of distributionId to whether surplus funds from distribution updated into treasury
      * @dev distributionId => bool
     */
-    mapping (uint256 => bool) internal isSurplusFundsUpdated;
+    mapping(uint256 => bool) internal isSurplusFundsUpdated;
 
     /**
      * @notice Mapping of distributionId to user address to whether user has claimed his delegate reward
      * @dev distributionId => address => bool
     */
-    mapping (uint256 => mapping (address => bool)) public hasClaimedReward;
+    mapping(uint256 => mapping (address => bool)) public hasClaimedReward;
 
     /*****************************************/
     /*** Distribution Management Functions ***/
     /*****************************************/
-
-    /// @inheritdoc IStandardFunding
-    function getSlateHash(uint256[] calldata proposalIds_) external pure returns (bytes32) {
-        return keccak256(abi.encode(proposalIds_));
-    }
 
     /**
      * @notice Set a new DistributionPeriod Id.
@@ -111,7 +106,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      */
     function _updateTreasury(uint256 distributionId_) private {
         QuarterlyDistribution memory currentDistribution =  distributions[distributionId_];
-        uint256[] memory fundingProposalIds = fundedProposalSlates[distributionId_][currentDistribution.fundedSlateHash];
+        uint256[] memory fundingProposalIds = fundedProposalSlates[currentDistribution.fundedSlateHash];
         uint256 totalTokensRequested;
         for (uint i = 0; i < fundingProposalIds.length; ) {
             Proposal memory proposal = standardFundingProposals[fundingProposalIds[i]];
@@ -182,6 +177,28 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
     }
 
+    /**
+     * @notice Check an array of proposalIds for duplicate IDs.
+     * @dev    Counters incremented in unchecked block due to being bounded by array length.
+     * @param  proposalIds_ Array of proposal Ids to check.
+     * @return Boolean indicating the presence of a duplicate. True if it has a duplicate; false if not.
+     */
+    function _hasDuplicates(uint256[] calldata proposalIds_) internal pure returns (bool) {
+        uint256 numProposals = proposalIds_.length;
+        for (uint i = 0; i < numProposals; ) {
+            for (uint j = i + 1; j < numProposals; ) {
+                if (proposalIds_[i] == proposalIds_[j]) return true;
+                unchecked {
+                    ++j;
+                }
+            }
+            unchecked {
+                ++i;
+            }
+        }
+        return false;
+    }
+
     /// @inheritdoc IStandardFunding
     function checkSlate(uint256[] calldata proposalIds_, uint256 distributionId_) external returns (bool) {
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
@@ -190,6 +207,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         if (block.number <= currentDistribution.endBlock || block.number > currentDistribution.endBlock + 50400) {
             return false;
         }
+
+        // check that the slate has no duplicates
+        if (_hasDuplicates(proposalIds_)) return false;
 
         uint256 gbc = currentDistribution.fundsAvailable;
         uint256 sum = 0;
@@ -224,10 +244,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // check if slate of proposals is new top slate
         bool newTopSlate = currentSlateHash == 0 ||
-            (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[distributionId_][currentSlateHash]));
+            (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[currentSlateHash]));
 
+        // if slate of proposals is new top slate, update state
         if (newTopSlate) {
-            uint256[] storage existingSlate = fundedProposalSlates[distributionId_][newSlateHash];
+            uint256[] storage existingSlate = fundedProposalSlates[newSlateHash];
             for (uint i = 0; i < proposalIds_.length; ) {
                 // update list of proposals to fund
                 existingSlate.push(proposalIds_[i]);
@@ -442,7 +463,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function _standardFundingVoteSucceeded(uint256 proposalId_) internal view returns (bool) {
         Proposal memory proposal = standardFundingProposals[proposalId_];
         uint256 distributionId = proposal.distributionId;
-        return _findProposalIndex(proposalId_, fundedProposalSlates[distributionId][distributions[distributionId].fundedSlateHash]) != -1;
+        return _findProposalIndex(proposalId_, fundedProposalSlates[distributions[distributionId].fundedSlateHash]) != -1;
     }
 
     /**************************/
@@ -473,8 +494,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
-    function getFundedProposalSlate(uint256 distributionId_, bytes32 slateHash_) external view returns (uint256[] memory) {
-        return fundedProposalSlates[distributionId_][slateHash_];
+    function getFundedProposalSlate(bytes32 slateHash_) external view returns (uint256[] memory) {
+        return fundedProposalSlates[slateHash_];
+    }
+
+    /// @inheritdoc IStandardFunding
+    function getSlateHash(uint256[] calldata proposalIds_) external pure returns (bytes32) {
+        return keccak256(abi.encode(proposalIds_));
     }
 
     /// @inheritdoc IStandardFunding

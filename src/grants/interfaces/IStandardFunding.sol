@@ -207,11 +207,10 @@ interface IStandardFunding {
 
     /**
      * @notice Get the funded proposal slate for a given distributionId, and slate hash
-     * @param  distributionId_ The distributionId of the distribution period to check.
      * @param  slateHash_      The slateHash to retrieve the funded proposals from.
      * @return                 The array of proposalIds that are in the funded slate hash.
      */
-    function getFundedProposalSlate(uint256 distributionId_, bytes32 slateHash_) external view returns (uint256[] memory);
+    function getFundedProposalSlate(bytes32 slateHash_) external view returns (uint256[] memory);
 
     /**
      * @notice Mapping of proposalIds to {Proposal} structs.
