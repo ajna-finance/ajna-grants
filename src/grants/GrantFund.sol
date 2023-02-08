@@ -130,7 +130,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 if (voter.votingWeight == 0) {
                     // since the voter has not voted in this round yet, their voting weight is set to the square of their votes
                     // on the first vote, the user can skip unused _getVotes calculations and just call _getVotesSinceSnapshot
-                    voter.votingWeight = Maths.wpow(_getVotesSinceSnapshot(account_, screeningStageEndBlock - 33, screeningStageEndBlock), 2);
+                    voter.votingWeight = Maths.wpow(_getVotesSinceSnapshot(account_, screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY, screeningStageEndBlock), 2);
                     voter.budgetRemaining = int256(voter.votingWeight);
                 }
 
@@ -164,8 +164,8 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
         // within screening period 1 token 1 vote
         if (keccak256(params_) == keccak256(bytes("Screening"))) {
-            // calculate voting weight based on the number of tokens held before the start of the distribution period
-            availableVotes_ = _getVotesSinceSnapshot(account_, currentDistribution.startBlock - 33, currentDistribution.startBlock);
+            // calculate voting weight based on the number of tokens held at the snapshot blocks of the screening stage
+            availableVotes_ = _getVotesSinceSnapshot(account_, currentDistribution.startBlock - VOTING_POWER_SNAPSHOT_DELAY, currentDistribution.startBlock);
         }
         // else if in funding period quadratic formula squares the number of votes
         else if (keccak256(params_) == keccak256(bytes("Funding"))) {
@@ -178,7 +178,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             // voter hasn't yet called _castVote in this period
             else {
                 uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
-                availableVotes_ = Maths.wpow(_getVotesSinceSnapshot(account_, screeningStageEndBlock - 33, screeningStageEndBlock), 2);
+                availableVotes_ = Maths.wpow(_getVotesSinceSnapshot(account_, screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY, screeningStageEndBlock), 2);
             }
         }
         else {
@@ -188,8 +188,9 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
                 // one token one vote for extraordinary funding
                 if (proposalId != 0) {
+                    // get the number of votes available to voters at the start of the proposal, and 33 blocks before the start of the proposal
                     uint256 startBlock = extraordinaryFundingProposals[proposalId].startBlock;
-                    availableVotes_ = _getVotesSinceSnapshot(account_, startBlock - 33, startBlock);
+                    availableVotes_ = _getVotesSinceSnapshot(account_, startBlock - VOTING_POWER_SNAPSHOT_DELAY, startBlock);
                 }
             }
             // voting is not possible for non-specified pathways
@@ -208,10 +209,12 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
      * @return                The voting power of the account.
      */
     function _getVotesSinceSnapshot(address account_, uint256 snapshot_, uint256 voteStartBlock_) internal view returns (uint256) {
+        // calculate the number of votes available at the snapshot block
         uint256 votes1 = token.getPastVotes(account_, snapshot_);
 
         // enable voting weight to be calculated during the voting period's start block
         voteStartBlock_ = voteStartBlock_ != block.number ? voteStartBlock_ : block.number - 1;
+        // calculate the number of votes available at the stage's start block
         uint256 votes2 = token.getPastVotes(account_, voteStartBlock_);
 
         return Maths.min(votes2, votes1);

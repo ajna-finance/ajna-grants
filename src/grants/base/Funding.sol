@@ -81,6 +81,12 @@ abstract contract Funding is Governor, ReentrancyGuard {
     mapping(uint256 => mapping(address => bool)) internal hasVotedScreening;
 
     /**
+     * @notice Number of blocks prior to a given voting stage to check an accounts voting power.
+     * @dev    Prevents flashloan attacks or duplicate voting with multiple accounts.
+     */
+    uint256 internal constant VOTING_POWER_SNAPSHOT_DELAY = 33;
+
+    /**
      * @notice Total funds available for Funding Mechanism
     */
     uint256 public treasury;

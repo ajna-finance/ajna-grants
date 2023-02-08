@@ -144,14 +144,16 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
         uint256[] memory fundingProposalIds = fundedProposalSlates[distributionId_][currentDistribution.fundedSlateHash];
         uint256 totalTokensRequested;
-        for (uint i = 0; i < fundingProposalIds.length; ) {
+        uint256 numFundedProposals = fundingProposalIds.length;
+
+        for (uint i = 0; i < numFundedProposals; ) {
             Proposal memory proposal = standardFundingProposals[fundingProposalIds[i]];
             totalTokensRequested += proposal.tokensRequested;
             unchecked {
                 ++i;
             }
         }
-        // update treasury with non distributed tokens
+        // readd non distributed tokens to the treasury
         treasury += (currentDistribution.fundsAvailable - totalTokensRequested);
         isSurplusFundsUpdated[distributionId_] = true;
     }
@@ -193,7 +195,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 gbc                           = Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);  
         newDistributionPeriod.fundsAvailable  = gbc;
 
-        // update treasury
+        // decrease the treasury by the amount that is held for allocation in the new distribution period
         treasury -= gbc;
 
         emit QuarterlyDistributionStarted(newDistributionId_, startBlock, endBlock);
@@ -205,7 +207,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @return sum_ The sum of the budget across the given proposals.
      */
     function _sumBudgetAllocated(uint256[] memory proposalIdSubset_) internal view returns (uint256 sum_) {
-        for (uint i = 0; i < proposalIdSubset_.length;) {
+        uint256 proposalSubsetLength = proposalIdSubset_.length;
+
+        for (uint i = 0; i < proposalSubsetLength;) {
             sum_ += uint256(standardFundingProposals[proposalIdSubset_[i]].qvBudgetAllocated);
 
             unchecked {
@@ -226,8 +230,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 gbc = currentDistribution.fundsAvailable;
         uint256 sum = 0;
         uint256 totalTokensRequested = 0;
+        uint256 numProposalsInSlate = proposalIds_.length;
 
-        for (uint i = 0; i < proposalIds_.length; ) {
+        for (uint i = 0; i < numProposalsInSlate; ) {
             // check if Proposal is in the topTenProposals list
             if (_findProposalIndex(proposalIds_[i], topTenProposals[distributionId_]) == -1) return false;
 
@@ -260,7 +265,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         if (newTopSlate) {
             uint256[] storage existingSlate = fundedProposalSlates[distributionId_][newSlateHash];
-            for (uint i = 0; i < proposalIds_.length; ) {
+            for (uint i = 0; i < numProposalsInSlate; ) {
                 // update list of proposals to fund
                 existingSlate.push(proposalIds_[i]);
 
@@ -551,8 +556,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      */
     function _findProposalIndex(uint256 proposalId, uint256[] memory array) internal pure returns (int256 index_) {
         index_ = -1; // default value indicating proposalId not in the array
+        int256 arrayLength = int256(array.length);
 
-        for (int256 i = 0; i < int256(array.length);) {
+        for (int256 i = 0; i < arrayLength;) {
             //slither-disable-next-line incorrect-equality
             if (array[uint256(i)] == proposalId) {
                 index_ = i;
@@ -570,7 +576,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev    Implements the descending insertion sort algorithm.
      */
     function _insertionSortProposalsByVotes(uint256[] storage arr) internal {
-        for (int i = 1; i < int(arr.length); i++) {
+        int256 arrayLength = int256(arr.length);
+
+        for (int i = 1; i < arrayLength; i++) {
             Proposal memory key = standardFundingProposals[arr[uint(i)]];
             int j = i;
 
