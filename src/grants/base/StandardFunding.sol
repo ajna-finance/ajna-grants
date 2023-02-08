@@ -184,12 +184,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Check an array of proposalIds for duplicate IDs.
+     * @dev    Counters incremented in unchecked block due to being bounded by array length.
      * @param  proposalIds_ Array of proposal Ids to check.
      * @return Boolean indicating the presence of a duplicate. True if it has a duplicate; false if not.
      */
     function _hasDuplicates(uint256[] calldata proposalIds_) internal pure returns (bool) {
-        for (uint i = 0; i < proposalIds_.length; ) {
-            for (uint j = i + 1; j < proposalIds_.length; ) {
+        uint256 numProposals = proposalIds_.length;
+        for (uint i = 0; i < numProposals; ) {
+            for (uint j = i + 1; j < numProposals; ) {
                 if (proposalIds_[i] == proposalIds_[j]) return true;
                 unchecked {
                     ++j;
