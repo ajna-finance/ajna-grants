@@ -1207,10 +1207,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // claim delegate reward for each voter
         for(uint i = 0; i < noOfVoters; i++) {
-            uint256 budgetAllocated = Maths.wpow(votes[i], 2);
-
             // calculate delegate reward for each voter
-            uint256 reward = Maths.wdiv(Maths.wmul(gbc, budgetAllocated), totalBudgetAllocated) / 10; 
+            uint256 reward = Maths.wdiv(Maths.wmul(gbc, votes[i]), totalBudgetAllocated) / 10;
             totalDelegationReward += reward; 
 
             // check whether reward calculated is correct

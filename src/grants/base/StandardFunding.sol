@@ -266,6 +266,31 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return newTopSlate;
     }
 
+    /**
+     * @notice Calculate the delegate rewards that have accrued to a given voter, in a given distribution period.
+     * @dev    Voter must have voted in both the screening and funding stages, and is proportional to their share of votes across the stages.
+     * @param  currentDistribution Struct of the distribution period to calculat rewards for.
+     * @param  voter               Struct of the funding stages voter.
+     * @return rewards_            The delegate rewards accrued to the voter.
+     */
+    function _getDelegateReward(QuarterlyDistribution memory currentDistribution, QuadraticVoter memory voter) internal pure returns (uint256 rewards_) {
+        // calculate reward
+        // delegateeReward = 10 % of GBC distributed as per delegatee Vote share    
+        rewards_ = Maths.wdiv(
+            Maths.wmul(
+                currentDistribution.fundsAvailable,
+                voter.votesUsed
+            ),
+            currentDistribution.fundingVotesCast
+        ) / 10;
+
+        // // TODO: multiply before dividing?
+        // Maths.wdiv(
+        //     Maths.wmul(currentDistribution.fundsAvailable, currentDistribution.fundingVotesCast),
+        //     voter.votesUsed
+        // ) / 10;
+    }
+
     /// @inheritdoc IStandardFunding
     function claimDelegateReward(uint256 distributionId_) external returns(uint256 rewardClaimed_) {
         // Revert if delegatee didn't vote in screening stage 
@@ -281,15 +306,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         QuadraticVoter memory voter = quadraticVoters[distributionId_][msg.sender];
 
-        // calculate reward
-        // delegateeReward = 10 % of GBC distributed as per delegatee Vote share    
-        rewardClaimed_ = Maths.wdiv(
-            Maths.wmul(
-                currentDistribution.fundsAvailable,
-                voter.votesUsed
-            ),
-            currentDistribution.fundingVotesCast
-        ) / 10;
+        // calculate rewards earned for voting
+        rewardClaimed_ = _getDelegateReward(currentDistribution, voter);
 
         emit DelegateRewardClaimed(msg.sender, distributionId_, rewardClaimed_);
 
@@ -474,6 +492,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**************************/
     /*** External Functions ***/
     /**************************/
+
+    /// @inheritdoc IStandardFunding
+    function getDelegateReward(uint256 distributionId_, address voter_) external view returns (uint256 rewards_) {
+        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
+        QuadraticVoter memory voter = quadraticVoters[distributionId_][voter_];
+
+        rewards_ = _getDelegateReward(currentDistribution, voter);
+    }
 
     /// @inheritdoc IStandardFunding
     function getDistributionIdAtBlock(uint256 blockNumber) external view returns (uint256) {

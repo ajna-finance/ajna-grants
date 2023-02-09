@@ -182,6 +182,14 @@ interface IStandardFunding {
     /**********************/
 
     /**
+     * @notice Retrieve the delegate reward accrued to a voter in a given distribution period.
+     * @param  distributionId_ The distributionId to calculate rewards for.
+     * @param  voter_          The address of the voter to calculate rewards for.
+     * @return rewards_        The rewards earned by the voter for voting in that distribution period.
+     */
+    function getDelegateReward(uint256 distributionId_, address voter_) external view returns (uint256 rewards_);
+
+    /**
      * @notice Retrieve the QuarterlyDistribution distributionId at a given block.
      * @param  blockNumber The block number to check.
      * @return             The distributionId at the given block.
