@@ -169,7 +169,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      */
     function _sumBudgetAllocated(uint256[] memory proposalIdSubset_) internal view returns (uint256 sum_) {
         for (uint i = 0; i < proposalIdSubset_.length;) {
-            sum_ += uint256(standardFundingProposals[proposalIdSubset_[i]].qvBudgetAllocated);
+            sum_ += uint256(standardFundingProposals[proposalIdSubset_[i]].fundingVotesReceived);
 
             unchecked {
                 ++i;
@@ -221,11 +221,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
             Proposal memory proposal = standardFundingProposals[proposalIds_[i]];
 
-            // account for qvBudgetAllocated possibly being negative
-            if (proposal.qvBudgetAllocated < 0) return false;
+            // account for fundingVotesReceived possibly being negative
+            if (proposal.fundingVotesReceived < 0) return false;
 
             // update counters
-            sum += uint256(proposal.qvBudgetAllocated);
+            sum += uint256(proposal.fundingVotesReceived);
             totalTokensRequested += proposal.tokensRequested;
 
             // check if slate of proposals exceeded budget constraint ( 90% of GBC )
@@ -281,13 +281,15 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         QuadraticVoter memory voter = quadraticVoters[distributionId_][msg.sender];
 
-        // Total number of quadratic votes delegatee has voted
-        uint256 quadraticVotesUsed = voter.votingWeight - uint256(voter.budgetRemaining);
-
-        uint256 gbc = currentDistribution.fundsAvailable;
-
+        // calculate reward
         // delegateeReward = 10 % of GBC distributed as per delegatee Vote share    
-        rewardClaimed_ = Maths.wdiv(Maths.wmul(gbc, quadraticVotesUsed), currentDistribution.quadraticVotesCast) / 10;
+        rewardClaimed_ = Maths.wdiv(
+            Maths.wmul(
+                currentDistribution.fundsAvailable,
+                voter.votesUsed
+            ),
+            currentDistribution.fundingVotesCast
+        ) / 10;
 
         emit DelegateRewardClaimed(msg.sender, distributionId_, rewardClaimed_);
 
@@ -361,13 +363,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**
      * @notice Vote on a proposal in the funding stage of the Distribution Period.
      * @dev    Votes can be allocated to multiple proposals, quadratically, for or against.
-     * @param  proposal_ The current proposal being voted upon.
-     * @param  account_  The voting account.
-     * @param  voter_    The voter data struct tracking available votes.
-     * @param  budgetAllocation_ The amount of votes being allocated to the proposal.
-     * @return budgetAllocated_ The amount of votes allocated to the proposal.
+     * @param  proposal_  The current proposal being voted upon.
+     * @param  account_   The voting account.
+     * @param  voter_     The voter data struct tracking available votes.
+     * @param  votesUsed_ The amount of votes being allocated to the proposal. Not squared. If less than 0, vote is against.
+     * @return budgetAllocated_ The amount of quadratic votes allocated to the proposal.
      */
-    function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 budgetAllocation_) internal returns (uint256 budgetAllocated_) {
+    function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 votesUsed_) internal returns (uint256 budgetAllocated_) {
 
         uint256 currentDistributionId = distributionIdCheckpoints.latest();
         QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
@@ -375,32 +377,49 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint8  support = 1;
         uint256 proposalId = proposal_.proposalId;
 
-        // case where voter is voting against the proposal
-        if (budgetAllocation_ < 0) {
-            support = 0;
+        // // case where voter is voting against the proposal
+        // if (budgetAllocation_ < 0) {
+        //     support = 0;
 
-            // update voter budget remaining
-            voter_.budgetRemaining += budgetAllocation_;
-        }
-        // voter is voting in support of the proposal
-        else {
-            // update voter budget remaining
-            voter_.budgetRemaining -= budgetAllocation_;
-        }
+        //     // update voter budget remaining
+        //     voter_.budgetRemaining += budgetAllocation_;
+        // }
+        // // voter is voting in support of the proposal
+        // else {
+        //     // update voter budget remaining
+        //     voter_.budgetRemaining -= budgetAllocation_;
+        // }
+
+        // determine if voter is voting for or against the proposal
+        votesUsed_ < 0 ? support = 0 : support = 1;
+
+        // add the incremental votes used to the past votes used
+        uint256 incrementalVotesUsed = uint256(Maths.abs(votesUsed_));
+        uint256 totalVotesUsed = incrementalVotesUsed + voter_.votesUsed;
+
+        // calculate the total cost of the additional votes
+        uint256 quadraticTotalVotesUsed = Maths.wpow(totalVotesUsed, 2);
+
+        // check that the voter has enough budget remaining to cast the vote
+        if (quadraticTotalVotesUsed > voter_.budgetRemaining) revert InsufficientBudget();
+
+        // update voter accumulators
+        voter_.budgetRemaining -= quadraticTotalVotesUsed;
+        voter_.votesUsed = totalVotesUsed;
+
         // update total vote cast
-        currentDistribution.quadraticVotesCast += uint256(Maths.abs(budgetAllocation_));
+        currentDistribution.fundingVotesCast += incrementalVotesUsed;
 
         // update proposal vote tracking
-        proposal_.qvBudgetAllocated += budgetAllocation_;
+        proposal_.fundingVotesReceived += votesUsed_;
 
         // update top ten proposals
         uint256[] memory topTen = topTenProposals[proposal_.distributionId];
         uint256 proposalIndex = uint256(_findProposalIndex(proposalId, topTen));
-        standardFundingProposals[topTen[proposalIndex]].qvBudgetAllocated = proposal_.qvBudgetAllocated;
+        standardFundingProposals[topTen[proposalIndex]].fundingVotesReceived = proposal_.fundingVotesReceived;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
-        budgetAllocated_ = uint256(Maths.abs(budgetAllocation_));
-        emit VoteCast(account_, proposalId, support, budgetAllocated_, "");
+        emit VoteCast(account_, proposalId, support, incrementalVotesUsed, "");
     }
 
     /**
@@ -485,7 +504,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution memory distribution = distributions[distributionId_];
         return (
             distribution.id,
-            distribution.quadraticVotesCast,
+            distribution.fundingVotesCast,
             distribution.startBlock,
             distribution.endBlock,
             distribution.fundsAvailable,
@@ -511,7 +530,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             proposal.distributionId,
             proposal.votesReceived,
             proposal.tokensRequested,
-            proposal.qvBudgetAllocated,
+            proposal.fundingVotesReceived,
             proposal.executed
         );
     }
@@ -522,11 +541,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
-    function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, int256) {
+    function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, uint256, uint256) {
         QuadraticVoter memory voter = quadraticVoters[distributionId_][account_];
         return (
             voter.votingWeight,
-            voter.budgetRemaining
+            voter.budgetRemaining,
+            voter.votesUsed
         );
     }
 

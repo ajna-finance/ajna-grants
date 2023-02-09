@@ -953,6 +953,98 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(gbc_distribution4, 9_526_000 * 1e18);
     }
 
+    // three people with tokens should be able to out vote two people
+    function xtestQuadraticVotingTally() external {
+        _selfDelegateVoters(_token, _votersArr);
+
+        vm.roll(_startBlock + 50);
+
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+        uint256 distributionId = _grantFund.getDistributionId();
+        (, , , , uint256 gbc, ) = _grantFund.getDistributionPeriodInfo(distributionId);
+
+        // generate proposal targets
+        address[] memory ajnaTokenTargets = new address[](1);
+        ajnaTokenTargets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory proposalCalldata = new bytes[](1);
+        proposalCalldata[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            gbc * 8/10
+        );
+        bytes[] memory proposalCalldata2 = new bytes[](1);
+        proposalCalldata2[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder2,
+            gbc * 7/10
+        );
+
+        // create and submit proposal
+        TestProposal memory proposal = _createProposalStandard(_grantFund, _tokenHolder1, ajnaTokenTargets, values, proposalCalldata, "Proposal for Ajna token transfer to tester address");
+        TestProposal memory proposal2 = _createProposalStandard(_grantFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata2, "Proposal 2 for Ajna token transfer to tester address");
+
+        vm.roll(_startBlock + 200);
+
+        // screening period votes
+        _vote(_grantFund, _tokenHolder1, proposal.proposalId, voteYes, 1);
+        _vote(_grantFund, _tokenHolder2, proposal2.proposalId, voteYes, 1);
+
+        // skip forward to the funding stage
+        vm.roll(_startBlock + 600_000);
+
+        GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
+        assertEq(screenedProposals.length, 2);
+        assertEq(screenedProposals[0].proposalId, proposal.proposalId);
+        assertEq(screenedProposals[0].votesReceived, 2 * 1e18);
+        assertEq(screenedProposals[1].proposalId, proposal2.proposalId);
+        assertEq(screenedProposals[1].votesReceived, 1 * 1e18);
+
+        // check initial voting power
+        uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Funding");
+        assertEq(votingPower, 4 * 1e18);
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder2, block.number, "Funding");
+        assertEq(votingPower, 1 * 1e18);
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder3, block.number, "Funding");
+        assertEq(votingPower, 1 * 1e18);
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder4, block.number, "Funding");
+        assertEq(votingPower, 1 * 1e18);
+
+        _fundingVote(_grantFund, _tokenHolder1, proposal.proposalId, voteYes, 4 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder2, proposal2.proposalId, voteYes, 1 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder3, proposal2.proposalId, voteYes, 1 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder4, proposal2.proposalId, voteYes, 1 * 1e18);
+
+        // check voting power after voting
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Funding");
+        assertEq(votingPower, 0 * 1e18);
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder2, block.number, "Funding");
+        assertEq(votingPower, 0 * 1e18);
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder3, block.number, "Funding");
+        assertEq(votingPower, 0 * 1e18);
+        votingPower = _grantFund.getVotesWithParams(_tokenHolder4, block.number, "Funding");
+        assertEq(votingPower, 0 * 1e18);
+
+        // skip to the DistributionPeriod
+        vm.roll(_startBlock + 650_000);
+
+        uint256[] memory winningSlate = new uint256[](1);
+        winningSlate[0] = proposal.proposalId;
+        uint256[] memory losingSlate = new uint256[](1);
+        losingSlate[0] = proposal2.proposalId;
+
+        // The losing slate is valid
+        assertTrue(_grantFund.checkSlate(losingSlate, distributionId));
+        // The winning slate is valid and has more votes than the losing slate
+        assertTrue(_grantFund.checkSlate(winningSlate, distributionId));
+    }
+
     function testGovernerViewMethods() external {
 
         uint256 delay = _grantFund.votingDelay();

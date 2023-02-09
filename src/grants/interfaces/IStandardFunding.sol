@@ -88,7 +88,7 @@ interface IStandardFunding {
      */
     struct QuarterlyDistribution {
         uint256 id;                  // id of the current quarterly distribution
-        uint256 quadraticVotesCast;  // total number of votes cast in funding stage that quarter
+        uint256 fundingVotesCast;  // total number of votes cast in funding stage that quarter
         uint256 startBlock;          // block number of the quarterly distributions start
         uint256 endBlock;            // block number of the quarterly distributions end
         uint256 fundsAvailable;      // maximum fund (including delegate reward) that can be taken out that quarter   
@@ -103,7 +103,7 @@ interface IStandardFunding {
         uint256 distributionId;    // Id of the distribution period in which the proposal was made
         uint256 votesReceived;     // accumulator of screening votes received by a proposal
         uint256 tokensRequested;   // number of Ajna tokens requested in the proposal
-        int256  qvBudgetAllocated; // accumulator of QV budget allocated
+        int256  fundingVotesReceived; // accumulator of funding votes allocated to the proposal.
         bool    executed;          // whether the proposal has been executed
     }
 
@@ -111,8 +111,9 @@ interface IStandardFunding {
      * @notice Contains information about voters during a distribution period's funding stage.
      */
     struct QuadraticVoter {
-        uint256 votingWeight;   // amount of votes originally available to the voter
-        int256 budgetRemaining; // remaining voting budget in the given period
+        uint256 votingWeight;    // amount of votes originally available to the voter // TODO: is this necessary?
+        uint256 budgetRemaining; // remaining voting budget in the given period, equal to the sum of the square of their initial votes
+        uint256 votesUsed;       // number of unsquared votes used
     }
 
     /*****************************************/
@@ -197,7 +198,7 @@ interface IStandardFunding {
      * @notice Mapping of distributionId to {QuarterlyDistribution} struct.
      * @param  distributionId_ The distributionId to retrieve the QuarterlyDistribution struct for.
      * @return distributionId     The retrieved struct's distributionId.
-     * @return quadraticVotesCast The total number of votes cast in the distribution period's funding round.
+     * @return fundingVotesCast The total number of votes cast in the distribution period's funding round.
      * @return startBlock         The block number of the distribution period's start.
      * @return endBlock           The block number of the distribution period's end.
      * @return fundsAvailable     The maximum amount of funds that can be taken out of the distribution period.
@@ -239,8 +240,9 @@ interface IStandardFunding {
      * @param  account_        The address of the voter to check.
      * @return votingWeight    The voter's voting weight in the funding round. Equal to the square of their tokens in the voting snapshot.
      * @return budgetRemaining The voter's remaining quadratic vote budget in the given distribution period's funding round.
+     * @return votesCast       The voter's total votes cast in the given distribution period's funding round.
      */
-    function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, int256);
+    function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, uint256, uint256);
 
     /**
      * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.

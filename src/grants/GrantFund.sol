@@ -128,17 +128,15 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
                 // this is the first time a voter has attempted to vote this period
                 if (voter.votingWeight == 0) {
-                    voter.votingWeight = Maths.wpow(_getVotesSinceSnapshot(account_, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
-                    voter.budgetRemaining = int256(voter.votingWeight);
+                    // voter.votingWeight = Maths.wpow(_getVotesSinceSnapshot(account_, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
+                    voter.votingWeight    = _getVotesSinceSnapshot(account_, screeningPeriodEndBlock - 33, screeningPeriodEndBlock);
+                    voter.budgetRemaining = Maths.wpow(voter.votingWeight, 2);
                 }
 
                 // amount of quadratic budget to allocated to the proposal
-                int256 budgetAllocation = abi.decode(params_, (int256));
+                int256 votes = abi.decode(params_, (int256));
 
-                // check if the voter has enough budget remaining to allocate to the proposal
-                if (Maths.abs(budgetAllocation) > voter.budgetRemaining) revert InsufficientBudget();
-
-                votesCast_ = _fundingVote(proposal, account_, voter, budgetAllocation);
+                votesCast_ = _fundingVote(proposal, account_, voter, votes);
             }
         }
 
