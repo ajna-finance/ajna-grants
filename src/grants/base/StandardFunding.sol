@@ -367,35 +367,21 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @param  account_   The voting account.
      * @param  voter_     The voter data struct tracking available votes.
      * @param  votesUsed_ The amount of votes being allocated to the proposal. Not squared. If less than 0, vote is against.
-     * @return budgetAllocated_ The amount of quadratic votes allocated to the proposal.
+     * @return incrementalVotesUsed_ The amount of funding stage votes allocated to the proposal.
      */
-    function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 votesUsed_) internal returns (uint256 budgetAllocated_) {
-
+    function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 votesUsed_) internal returns (uint256 incrementalVotesUsed_) {
         uint256 currentDistributionId = distributionIdCheckpoints.latest();
         QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
 
         uint8  support = 1;
         uint256 proposalId = proposal_.proposalId;
 
-        // // case where voter is voting against the proposal
-        // if (budgetAllocation_ < 0) {
-        //     support = 0;
-
-        //     // update voter budget remaining
-        //     voter_.budgetRemaining += budgetAllocation_;
-        // }
-        // // voter is voting in support of the proposal
-        // else {
-        //     // update voter budget remaining
-        //     voter_.budgetRemaining -= budgetAllocation_;
-        // }
-
         // determine if voter is voting for or against the proposal
         votesUsed_ < 0 ? support = 0 : support = 1;
 
         // add the incremental votes used to the past votes used
-        uint256 incrementalVotesUsed = uint256(Maths.abs(votesUsed_));
-        uint256 totalVotesUsed = incrementalVotesUsed + voter_.votesUsed;
+        incrementalVotesUsed_ = uint256(Maths.abs(votesUsed_));
+        uint256 totalVotesUsed = incrementalVotesUsed_ + voter_.votesUsed;
 
         // calculate the total cost of the additional votes
         uint256 quadraticTotalVotesUsed = Maths.wpow(totalVotesUsed, 2);
@@ -408,7 +394,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         voter_.votesUsed = totalVotesUsed;
 
         // update total vote cast
-        currentDistribution.fundingVotesCast += incrementalVotesUsed;
+        currentDistribution.fundingVotesCast += incrementalVotesUsed_;
 
         // update proposal vote tracking
         proposal_.fundingVotesReceived += votesUsed_;
@@ -419,7 +405,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         standardFundingProposals[topTen[proposalIndex]].fundingVotesReceived = proposal_.fundingVotesReceived;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
-        emit VoteCast(account_, proposalId, support, incrementalVotesUsed, "");
+        emit VoteCast(account_, proposalId, support, incrementalVotesUsed_, "");
     }
 
     /**

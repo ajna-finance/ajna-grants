@@ -128,14 +128,14 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
                 // this is the first time a voter has attempted to vote this period
                 if (voter.votingWeight == 0) {
-                    // voter.votingWeight = Maths.wpow(_getVotesSinceSnapshot(account_, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
                     voter.votingWeight    = _getVotesSinceSnapshot(account_, screeningPeriodEndBlock - 33, screeningPeriodEndBlock);
                     voter.budgetRemaining = Maths.wpow(voter.votingWeight, 2);
                 }
 
-                // amount of quadratic budget to allocated to the proposal
+                // decode the amount of votes to allocated to the proposal
                 int256 votes = abi.decode(params_, (int256));
 
+                // allocate the votes to the proposal
                 votesCast_ = _fundingVote(proposal, account_, voter, votes);
             }
         }
@@ -169,11 +169,11 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
             // voter has already allocated some of their budget this period
             if (voter.votingWeight != 0) {
-                availableVotes_ = uint256(voter.budgetRemaining);
+                availableVotes_ = voter.votingWeight - voter.votesUsed;
             }
             // this is the first time a voter has attempted to vote this period
             else {
-                availableVotes_ = Maths.wpow(_getVotesSinceSnapshot(account_, currentDistribution.endBlock - 72033, currentDistribution.endBlock - 72000), 2);
+                availableVotes_ = _getVotesSinceSnapshot(account_, currentDistribution.endBlock - 72033, currentDistribution.endBlock - 72000);
             }
         }
         else {
@@ -239,12 +239,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
             // funding stage
             else if (block.number > screeningPeriodEndBlock && block.number <= currentDistribution.endBlock) {
-                QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
-
-                // Check if voter has voted
-                if (uint256(voter.budgetRemaining) < voter.votingWeight) {
-                    hasVoted_ = true;
-                }
+                hasVoted_ = quadraticVoters[currentDistribution.id][account_].votesUsed != 0;
             }
         }
         else {

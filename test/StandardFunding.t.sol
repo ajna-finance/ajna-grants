@@ -167,24 +167,32 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 600_000);
 
         // check initial voting power
-        uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Funding");
-        assertEq(votingPower, 2_500_000_000_000_000 * 1e18);
+        uint256 votingPower = _getFundingVotes(_grantFund, _tokenHolder1);
+        assertEq(votingPower, 50_000_000 * 1e18);
 
         // check voting power won't change with token transfer to an address that didn't make it into the snapshot
         address nonVotingAddress = makeAddr("nonVotingAddress");
         changePrank(_tokenHolder1);
         _token.transfer(nonVotingAddress, 10_000_000 * 1e18);
 
-        votingPower = _grantFund.getVotesWithParams(nonVotingAddress, block.number, "Funding");
+        votingPower = _getFundingVotes(_grantFund, nonVotingAddress);
         assertEq(votingPower, 0);
-        votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Funding");
-        assertEq(votingPower, 2_500_000_000_000_000 * 1e18);
+        votingPower = _getFundingVotes(_grantFund, _tokenHolder1);
+        assertEq(votingPower, 50_000_000 * 1e18);
 
-        _fundingVote(_grantFund, _tokenHolder1, proposal.proposalId, voteYes, 500_000_000_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder1, proposal.proposalId, voteYes, int256(votingPower / 2));
         
         // voting power reduced when voted in funding stage
-        votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, "Funding");
-        assertEq(votingPower, 2_000_000_000_000_000 * 1e18);
+        votingPower = _getFundingVotes(_grantFund, _tokenHolder1);
+        assertEq(votingPower, 25_000_000 * 1e18);
+
+        // check that additional votes will cause the budget to be exceeded
+        _fundingVote(_grantFund, _tokenHolder1, proposal.proposalId, voteYes, 10_000_000 * 1e18);
+
+        // even though the votes cast (45 million) is less than the original 50 million this will fail
+        // as the accumulated cost of additional votes exceeds the voters budget
+        vm.expectRevert(IStandardFunding.InsufficientBudget.selector);
+        _grantFund.castVoteWithReasonAndParams(proposal.proposalId, 1, "", abi.encode(10_000_000 * 1e18));
     }
 
     function testPropose() external {
@@ -373,7 +381,11 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         hasVoted = _grantFund.hasVoted(testProposals[1].proposalId, _tokenHolder1);
         assertFalse(hasVoted);
 
-        _fundingVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, voteYes, 500_000_000_000_000 * 1e18);
+        // get voting power in funding stage
+        uint256 votingPower = _getFundingVotes(_grantFund, _tokenHolder1);
+
+        // voter allocates all of their voting power in support of the proposal
+        _fundingVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, voteYes, int256(votingPower));
         // check if user vote is updated after voting in funding stage 
         hasVoted = _grantFund.hasVoted(testProposals[1].proposalId, _tokenHolder1);
         assertTrue(hasVoted);
@@ -563,9 +575,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(screenedProposals[5].votesReceived, 50_000_000 * 1e18);
 
         // funding period votes for two competing slates, 1, or 2 and 3
-        _fundingVote(_grantFund, _tokenHolder1, screenedProposals[0].proposalId, voteYes, 2_500_000_000_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder1, screenedProposals[0].proposalId, voteYes, 50_000_000 * 1e18);
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
-        _fundingVote(_grantFund, _tokenHolder2, screenedProposals[1].proposalId, voteYes, 2_500_000_000_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder2, screenedProposals[1].proposalId, voteYes, 50_000_000 * 1e18);
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         _fundingVote(_grantFund, _tokenHolder3, screenedProposals[2].proposalId, voteYes, 1_250_000_000_000_000 * 1e18);
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
@@ -587,21 +599,22 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _fundingVote(_grantFund, _tokenHolder5, screenedProposals[5].proposalId, voteNo, -500_000_000_000_000 * 1e18);
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
 
+        // TODO: check votesCast
         // check remaining votes available to the above token holders
-        (uint256 voterWeight, int256 budgetRemaining) = _grantFund.getVoterInfo(distributionId, _tokenHolder1);
+        (uint256 voterWeight, uint256 budgetRemaining, uint256 votesCast) = _grantFund.getVoterInfo(distributionId, _tokenHolder1);
         assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
         assertEq(budgetRemaining, 0);
-        (voterWeight, budgetRemaining) = _grantFund.getVoterInfo(distributionId, _tokenHolder2);
+        (voterWeight, budgetRemaining, votesCast) = _grantFund.getVoterInfo(distributionId, _tokenHolder2);
         assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
         assertEq(budgetRemaining, 0);
-        (voterWeight, budgetRemaining) = _grantFund.getVoterInfo(distributionId, _tokenHolder3);
+        (voterWeight, budgetRemaining, votesCast) = _grantFund.getVoterInfo(distributionId, _tokenHolder3);
         assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
         assertEq(budgetRemaining, 0);
-        (voterWeight, budgetRemaining) = _grantFund.getVoterInfo(distributionId, _tokenHolder4);
+        (voterWeight, budgetRemaining, votesCast) = _grantFund.getVoterInfo(distributionId, _tokenHolder4);
         assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
         assertEq(budgetRemaining, 0);
         assertEq(uint256(budgetRemaining), _grantFund.getVotesWithParams(_tokenHolder4, block.number, bytes("Funding")));
-        (voterWeight, budgetRemaining) = _grantFund.getVoterInfo(distributionId, _tokenHolder5);
+        (voterWeight, budgetRemaining, votesCast) = _grantFund.getVoterInfo(distributionId, _tokenHolder5);
         assertEq(voterWeight, 2_500_000_000_000_000 * 1e18);
         assertEq(budgetRemaining, 2_000_000_000_000_000 * 1e18);
         assertEq(uint256(budgetRemaining), _grantFund.getVotesWithParams(_tokenHolder5, block.number, bytes("Funding")));
@@ -834,7 +847,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(screenedProposals_distribution1.length, 1);
 
         // funding period votes
-        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution1[0].proposalId, voteYes, 2_500_000_000_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution1[0].proposalId, voteYes, 50_000_000 * 1e18);
 
         // skip to the Challenge period
         vm.roll(_startBlock + 650_000);
@@ -880,7 +893,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(screenedProposals_distribution2.length, 1);
 
         // funding period votes
-        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution2[0].proposalId, voteYes, 2_500_000_000_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution2[0].proposalId, voteYes, 50_000_000 * 1e18);
 
         // skip to the Challenge period
         vm.roll(_startBlock + 1_350_000);
@@ -926,7 +939,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(screenedProposals_distribution3.length, 1);
 
         // funding period votes
-        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution3[0].proposalId, voteYes, 2_500_000_000_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution3[0].proposalId, voteYes, 50_000_000 * 1e18);
 
         // skip to the Challenge period
         vm.roll(_startBlock + 2_000_000);
@@ -1127,7 +1140,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
                 }
 
                 // if there are 10 proposals in topTenProposalIds, check new proposal has more votes than the last proposal in topTenProposalIds
-                else if( noOfVotesOnProposal[topTenProposalIds[lengthOfArray - 1]] <  votesOnCurrentProposal) {
+                else if(noOfVotesOnProposal[topTenProposalIds[lengthOfArray - 1]] < votesOnCurrentProposal) {
 
                     // remove last proposal with least no of vote in topTenProposalIds
                     topTenProposalIds.pop();
@@ -1173,7 +1186,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
 
             // calculate and allocate all qvBudget of the voter to the proposal
-            uint256 budgetAllocated = Maths.wpow(votes[i], 2);
+            uint256 budgetAllocated = votes[i];
             totalBudgetAllocated += budgetAllocated;
             _fundingVote(_grantFund, voters[i], proposalId, voteYes, int256(budgetAllocated));
         }

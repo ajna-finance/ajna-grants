@@ -305,6 +305,15 @@ abstract contract GrantFundTestHelper is Test {
         return voters_;
     }
 
+    function _getScreeningVotes(GrantFund grantFund_, address voter_) internal view returns (uint256 votes) {
+        votes = grantFund_.getVotesWithParams(voter_, block.number, bytes("Screening"));
+    }
+
+    function _getFundingVotes(GrantFund grantFund_, address voter_) internal view returns (uint256 votes) {
+        votes = grantFund_.getVotesWithParams(voter_, block.number, bytes("Funding"));
+    }
+
+    // TODO: rename this method
     // Transfers a random amount of tokens to N voters and self delegates votes
     function _getVotes(uint256 noOfVoters_, address[] memory voters_, IAjnaToken token_, address tokenDeployer_) internal returns(uint256[] memory) {
         uint256[] memory votes_ = new uint256[](noOfVoters_);
@@ -356,7 +365,7 @@ abstract contract GrantFundTestHelper is Test {
                 proposals[i].distributionId,
                 proposals[i].votesReceived,
                 proposals[i].tokensRequested,
-                proposals[i].qvBudgetAllocated,
+                proposals[i].fundingVotesReceived,
                 proposals[i].executed
             ) = grantFund_.getProposalInfo(proposalIds_[i]);
         }
