@@ -7,6 +7,7 @@ import { Test }     from "@std/Test.sol";
 
 import { GrantFund }        from "../../src/grants/GrantFund.sol";
 import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
+import { Maths }           from "../../src/grants/libraries/Maths.sol";
 
 import { IAjnaToken }       from "./IAjnaToken.sol";
 
@@ -287,6 +288,16 @@ abstract contract GrantFundTestHelper is Test {
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support_, voteAllocatedEmit, "");
         grantFund_.castVoteWithReasonAndParams(proposalId_, support_, reason, params);
+    }
+
+    function _fundingVoteMulti(GrantFund grantFund_, IStandardFunding.FundingVoteParams[] memory voteParams_, address voter_) internal {
+        for (uint256 i = 0; i < voteParams_.length; ++i) {
+            uint8 support = voteParams_[i].votesUsed < 0 ? 0 : 1;
+            vm.expectEmit(true, true, false, true);
+            emit VoteCast(voter_, voteParams_[i].proposalId, support, uint256(Maths.abs(voteParams_[i].votesUsed)), "");
+        }
+        changePrank(voter_);
+        grantFund_.fundingVotesMulti(voteParams_);
     }
 
     // Returns a random proposal Index from all proposals

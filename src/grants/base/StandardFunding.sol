@@ -412,9 +412,15 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     //     }
     // }
 
-    // TODO: need to accumulate votes for a given proposalId or revert if calling same proposal multiple times
+    /**
+     * @notice Sum the square of each vote cast by a voter.
+     * @param  votesCast_ The array of votes cast by a voter.
+     * @dev    Used to calculate if a voter has enough voting power to cast their votes.
+     * @return votesCastSumSquared_ The sum of the square of each vote cast.
+     */
     function _sumSquareOfVotesCast(FundingVoteParams[] memory votesCast_) internal pure returns (uint256 votesCastSumSquared_) {
-        for (uint256 i = 0; i < votesCast_.length; ) {
+        uint256 numVotesCast = votesCast_.length;
+        for (uint256 i = 0; i < numVotesCast; ) {
             votesCastSumSquared_ += Maths.wpow(uint256(Maths.abs(votesCast_[i].votesUsed)), 2);
 
             unchecked {
@@ -423,7 +429,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
     }
 
-    // TODO: should voteParams be storage instead of memory?
     /**
      * @notice Vote on a proposal in the funding stage of the Distribution Period.
      * @dev    Votes can be allocated to multiple proposals, quadratically, for or against.
@@ -441,7 +446,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // determine if voter is voting for or against the proposal
         voteParams_.votesUsed < 0 ? support = 0 : support = 1;
 
-        // check that the proposal isn't already in the votesCast array
+        // check that the voter hasn't already voted on a proposal by seeing if it's already in the votesCast array 
         int256 voteCastIndex = _findProposalIndexOfVotesCast(proposalId, voter_.votesCast);
         if (voteCastIndex != -1) {
             FundingVoteParams storage existingVote = voter_.votesCast[uint256(voteCastIndex)];
@@ -469,7 +474,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 quadraticTotalVotesUsed = _sumSquareOfVotesCast(voter_.votesCast);
 
         // check that the voter has enough budget remaining to cast the vote
-        if (quadraticTotalVotesUsed > voter_.remainingVotingPower) revert InsufficientBudget();
+        if (quadraticTotalVotesUsed > voter_.votingPower) revert InsufficientBudget();
 
         // update voter budget accumulator
         voter_.remainingVotingPower = voter_.votingPower - quadraticTotalVotesUsed;
@@ -631,6 +636,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Identify where in an array of proposalIds the proposal exists.
+     * @param proposalId The proposalId to search for.
+     * @param array The array of proposalIds to search.
      * @return index_ The index of the proposalId in the array, else -1.
      */
     function _findProposalIndex(uint256 proposalId, uint256[] memory array) internal pure returns (int256 index_) {
@@ -649,6 +656,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
     }
 
+    /**
+     * @notice Identify where in an array of FundingVoteParams structs the proposal exists.
+     * @param proposalId_ The proposalId to search for.
+     * @param voteParams_ The array of FundingVoteParams structs to search.
+     * @return index_ The index of the proposalId in the array, else -1.
+     */
     function _findProposalIndexOfVotesCast(uint256 proposalId, FundingVoteParams[] memory voteParams_) internal pure returns (int256 index_) {
         index_ = -1; // default value indicating proposalId not in the array
 
