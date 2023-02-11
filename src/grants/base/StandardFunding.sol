@@ -266,17 +266,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return newTopSlate;
     }
 
-    function _sumVotesUsed(uint256[] memory votes) internal pure returns (uint256 sum_) {
-        for (uint i = 0; i < votes.length;) {
-            sum_ += votes[i];
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    // TODO: determine how to calculate the funding votes cast for delegate rewards
     /**
      * @notice Calculate the delegate rewards that have accrued to a given voter, in a given distribution period.
      * @dev    Voter must have voted in both the screening and funding stages, and is proportional to their share of votes across the stages.
@@ -285,19 +274,24 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @return rewards_            The delegate rewards accrued to the voter.
      */
     function _getDelegateReward(QuarterlyDistribution memory currentDistribution, QuadraticVoter memory voter) internal pure returns (uint256 rewards_) {
+        // calculate the total voting power available to the voter that was allocated in the funding stage
+        uint256 votingPowerAllocatedByDelegatee = voter.votingPower - voter.remainingVotingPower;
+        // if none of the voter's voting power was allocated, they recieve no rewards
+        if (votingPowerAllocatedByDelegatee == 0) return 0;
+
         // calculate reward
-        // delegateeReward = 10 % of GBC distributed as per delegatee Vote share    
+        // delegateeReward = 10 % of GBC distributed as per delegatee Voting power allocated
         rewards_ = Maths.wdiv(
             Maths.wmul(
                 currentDistribution.fundsAvailable,
-                _sumVotesUsed(voter.votesCast)
+                votingPowerAllocatedByDelegatee
             ),
-            currentDistribution.fundingVotesCast
+            currentDistribution.fundingVotePowerCast
         ) / 10;
 
         // // TODO: multiply before dividing?
         // Maths.wdiv(
-        //     Maths.wmul(currentDistribution.fundsAvailable, currentDistribution.fundingVotesCast),
+        //     Maths.wmul(currentDistribution.fundsAvailable, currentDistribution.fundingVotePowerCast),
         //     voter.votesUsed
         // ) / 10;
     }
@@ -396,9 +390,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     //     uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
 
     //     // this is the first time a voter has attempted to vote this period
-    //     if (voter.votingWeight == 0) {
-    //         voter.votingWeight    = _getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock);
-    //         voter.budgetRemaining = Maths.wpow(voter.votingWeight, 2);
+    //     if (voter.votingPower == 0) {
+            // voter.votingPower    = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
+            // voter.remainingVotingPower = voter.votingPower;
     //     }
 
     //     for (uint256 i = 0; i < voteParams_.length; ) {
@@ -475,13 +469,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 quadraticTotalVotesUsed = _sumSquareOfVotesCast(voter_.votesCast);
 
         // check that the voter has enough budget remaining to cast the vote
-        if (quadraticTotalVotesUsed > voter_.budgetRemaining) revert InsufficientBudget();
+        if (quadraticTotalVotesUsed > voter_.remainingVotingPower) revert InsufficientBudget();
 
         // update voter budget accumulator
-        voter_.budgetRemaining = Maths.wpow(voter_.votingWeight, 2) - quadraticTotalVotesUsed;
+        voter_.remainingVotingPower = voter_.votingPower - quadraticTotalVotesUsed;
 
         // update total vote cast
-        currentDistribution_.fundingVotesCast += incrementalVotesUsed_;
+        currentDistribution_.fundingVotePowerCast += Maths.wpow(incrementalVotesUsed_, 2);
 
         // update proposal vote tracking
         proposal_.fundingVotesReceived += voteParams_.votesUsed;
@@ -580,7 +574,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution memory distribution = distributions[distributionId_];
         return (
             distribution.id,
-            distribution.fundingVotesCast,
+            distribution.fundingVotePowerCast,
             distribution.startBlock,
             distribution.endBlock,
             distribution.fundsAvailable,
@@ -620,8 +614,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, uint256, uint256) {
         QuadraticVoter memory voter = quadraticVoters[distributionId_][account_];
         return (
-            voter.votingWeight,
-            voter.budgetRemaining,
+            voter.votingPower,
+            voter.remainingVotingPower,
             voter.votesCast.length
         );
     }

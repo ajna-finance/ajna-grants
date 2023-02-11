@@ -92,24 +92,24 @@ interface IStandardFunding {
      * @notice Contains proposals that made it through the screening process to the funding stage.
      */
     struct QuarterlyDistribution {
-        uint256 id;                  // id of the current quarterly distribution
-        uint256 fundingVotesCast;  // total number of votes cast in funding stage that quarter
-        uint256 startBlock;          // block number of the quarterly distributions start
-        uint256 endBlock;            // block number of the quarterly distributions end
-        uint256 fundsAvailable;      // maximum fund (including delegate reward) that can be taken out that quarter   
-        bytes32 fundedSlateHash;     // hash of list of proposals to fund
+        uint256 id;                   // id of the current quarterly distribution
+        uint256 fundingVotePowerCast; // total number of voting power allocated in funding stage that quarter
+        uint256 startBlock;           // block number of the quarterly distributions start
+        uint256 endBlock;             // block number of the quarterly distributions end
+        uint256 fundsAvailable;       // maximum fund (including delegate reward) that can be taken out that quarter
+        bytes32 fundedSlateHash;      // hash of list of proposals to fund
     }
 
     /**
      * @notice Contains information about proposals in a distribution period.
      */
     struct Proposal {
-        uint256 proposalId;        // OZ.Governor proposalId. Hash of proposeStandard inputs
-        uint256 distributionId;    // Id of the distribution period in which the proposal was made
-        uint256 votesReceived;     // accumulator of screening votes received by a proposal
-        uint256 tokensRequested;   // number of Ajna tokens requested in the proposal
+        uint256 proposalId;           // OZ.Governor proposalId. Hash of proposeStandard inputs
+        uint256 distributionId;       // Id of the distribution period in which the proposal was made
+        uint256 votesReceived;        // accumulator of screening votes received by a proposal
+        uint256 tokensRequested;      // number of Ajna tokens requested in the proposal
         int256  fundingVotesReceived; // accumulator of funding votes allocated to the proposal.
-        bool    executed;          // whether the proposal has been executed
+        bool    executed;             // whether the proposal has been executed
     }
 
     /**
@@ -124,9 +124,9 @@ interface IStandardFunding {
      * @notice Contains information about voters during a distribution period's funding stage.
      */
     struct QuadraticVoter {
-        uint256 votingWeight;    // amount of votes originally available to the voter // TODO: rename to votingPower
-        uint256 budgetRemaining; // remaining voting budget in the given period, equal to the sum of the square of their initial votes // TODO: rename to remainingVotingPower
-        FundingVoteParams[] votesCast;     // array of votes cast by the voter
+        uint256 votingPower;           // amount of votes originally available to the voter
+        uint256 remainingVotingPower;  // remaining voting budget in the given period, equal to the sum of the square of their initial votes // TODO: rename to remainingVotingPower
+        FundingVoteParams[] votesCast; // array of votes cast by the voter
     }
 
     /*****************************************/
@@ -259,9 +259,9 @@ interface IStandardFunding {
      * @notice Get the current state of a given voter in the funding stage.
      * @param  distributionId_ The distributionId of the distribution period to check.
      * @param  account_        The address of the voter to check.
-     * @return votingWeight    The voter's voting weight in the funding round. Equal to the square of their tokens in the voting snapshot.
-     * @return budgetRemaining The voter's remaining quadratic vote budget in the given distribution period's funding round.
-     * @return votesCast       The voter's number of proposals voted on in the funding stage.
+     * @return votingPower          The voter's voting power in the funding round. Equal to the square of their tokens in the voting snapshot.
+     * @return remainingVotingPower The voter's remaining quadratic voting power in the given distribution period's funding round.
+     * @return votesCast            The voter's number of proposals voted on in the funding stage.
      */
     function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, uint256, uint256);
 

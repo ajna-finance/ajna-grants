@@ -105,9 +105,9 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
 
         // this is the first time a voter has attempted to vote this period
-        if (voter.votingWeight == 0) {
-            voter.votingWeight    = _getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock);
-            voter.budgetRemaining = Maths.wpow(voter.votingWeight, 2);
+        if (voter.votingPower == 0) {
+            voter.votingPower    = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
+            voter.remainingVotingPower = voter.votingPower;
         }
 
         for (uint256 i = 0; i < voteParams_.length; ) {
@@ -156,9 +156,9 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
 
                 // this is the first time a voter has attempted to vote this period
-                if (voter.votingWeight == 0) {
-                    voter.votingWeight    = _getVotesSinceSnapshot(account_, screeningPeriodEndBlock - 33, screeningPeriodEndBlock);
-                    voter.budgetRemaining = Maths.wpow(voter.votingWeight, 2);
+                if (voter.votingPower == 0) {
+                    voter.votingPower    = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
+                    voter.remainingVotingPower = voter.votingPower;
                 }
 
                 // decode the amount of votes to allocated to the proposal
@@ -197,15 +197,13 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         else if (keccak256(params_) == keccak256(bytes("Funding"))) {
             QuadraticVoter memory voter = quadraticVoters[currentDistribution.id][account_];
 
-            // TODO: fix voter available votes calculation
             // voter has already allocated some of their budget this period
-            if (voter.votingWeight != 0) {
-                // take the sqrt of the remaining budget to retrieve available votes
-                availableVotes_ = Maths.sqrt(voter.budgetRemaining);
+            if (voter.votingPower != 0) {
+                availableVotes_ = voter.remainingVotingPower;
             }
             // this is the first time a voter has attempted to vote this period
             else {
-                availableVotes_ = _getVotesSinceSnapshot(account_, currentDistribution.endBlock - 72033, currentDistribution.endBlock - 72000);
+                availableVotes_ = Maths.wpow(_getVotesSinceSnapshot(account_, currentDistribution.endBlock - 72033, currentDistribution.endBlock - 72000), 2);
             }
         }
         else {
