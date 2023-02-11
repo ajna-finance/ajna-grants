@@ -98,6 +98,12 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     /*** Voting Functions ***/
     /************************/
 
+    /**
+     * @notice Cast an array of funding votes in one transaction.
+     * @dev    Calls out to StandardFunding._fundingVote().
+     * @param voteParams_ The array of votes on proposals to cast.
+     * @return votesCast_ The total number of votes cast across all of the proposals.
+     */
     function fundingVotesMulti(FundingVoteParams[] memory voteParams_) external returns (uint256 votesCast_) {
         uint256 currentDistributionId = distributionIdCheckpoints.latest();
         QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
@@ -106,13 +112,15 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
         // this is the first time a voter has attempted to vote this period
         if (voter.votingPower == 0) {
-            voter.votingPower    = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
+            voter.votingPower          = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
             voter.remainingVotingPower = voter.votingPower;
         }
 
-        for (uint256 i = 0; i < voteParams_.length; ) {
+        uint256 numVotesCast = voteParams_.length;
+        for (uint256 i = 0; i < numVotesCast; ) {
             Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
 
+            // cast each successive vote
             votesCast_ += _fundingVote(
                 currentDistribution,
                 proposal,
@@ -157,7 +165,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
                 // this is the first time a voter has attempted to vote this period
                 if (voter.votingPower == 0) {
-                    voter.votingPower    = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
+                    voter.votingPower          = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
                     voter.remainingVotingPower = voter.votingPower;
                 }
 

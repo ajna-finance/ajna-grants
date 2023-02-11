@@ -386,9 +386,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         hasVoted = _grantFund.hasVoted(testProposals[1].proposalId, _tokenHolder1);
         assertFalse(hasVoted);
 
-        // get voting power in funding stage
-        uint256 votingPower = _getFundingVotes(_grantFund, _tokenHolder1);
-
         // voter allocates all of their voting power in support of the proposal
         _fundingVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, voteYes, 50_000_000 * 1e18);
         // check if user vote is updated after voting in funding stage 
@@ -646,11 +643,16 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         changePrank(_tokenHolder5);
         vm.expectRevert(IStandardFunding.InsufficientBudget.selector);
-        _grantFund.castVoteWithReasonAndParams(screenedProposals[3].proposalId, 0, "", abi.encode(-2_600_000_000_000_000 * 1e18));
+        _grantFund.castVoteWithReasonAndParams(screenedProposals[3].proposalId, voteNo, "", abi.encode(-2_600_000_000_000_000 * 1e18));
 
-        // check tokerHolder partial vote budget calculations
+        // check tokenHolder5 partial vote budget calculations
         _fundingVote(_grantFund, _tokenHolder5, screenedProposals[5].proposalId, voteNo, -45_000_000 * 1e18);
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
+
+        // should revert if tokenHolder5 attempts to change the direction of a vote
+        changePrank(_tokenHolder5);
+        vm.expectRevert(IStandardFunding.FundingVoteInvalid.selector);
+        _grantFund.castVoteWithReasonAndParams(screenedProposals[5].proposalId, voteYes, "", abi.encode(5_000_000 * 1e18));
 
         // check remaining votes available to the above token holders
         (uint256 voterPower, uint256 votingPowerRemaining, uint256 votesCast) = _grantFund.getVoterInfo(distributionId, _tokenHolder1);

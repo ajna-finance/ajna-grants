@@ -320,11 +320,8 @@ abstract contract GrantFundTestHelper is Test {
         votes = grantFund_.getVotesWithParams(voter_, block.number, bytes("Screening"));
     }
 
-    function _getFundingVotes(GrantFund grantFund_, address voter_) internal returns (uint256 votes) {
+    function _getFundingVotes(GrantFund grantFund_, address voter_) internal view returns (uint256 votes) {
         votes = grantFund_.getVotesWithParams(voter_, block.number, bytes("Funding"));
-        // emit log_uint(grantFund_.getDistributionId());
-        // (votes, , ) = grantFund_.getVoterInfo(grantFund_.getDistributionId(), voter_);
-
     }
 
     // TODO: rename this method

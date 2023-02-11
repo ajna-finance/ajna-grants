@@ -383,39 +383,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /*** Voting Functions ***/
     /************************/
 
-    // function fundingVotesMulti(FundingVoteParams[] memory voteParams_) external returns (uint256 votesCast_) {
-    //     uint256 currentDistributionId = distributionIdCheckpoints.latest();
-    //     QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
-    //     QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][msg.sender];
-    //     uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
-
-    //     // this is the first time a voter has attempted to vote this period
-    //     if (voter.votingPower == 0) {
-            // voter.votingPower    = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
-            // voter.remainingVotingPower = voter.votingPower;
-    //     }
-
-    //     for (uint256 i = 0; i < voteParams_.length; ) {
-    //         Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
-
-    //         votesCast_ += _fundingVote(
-    //             currentDistribution,
-    //             proposal,
-    //             msg.sender,
-    //             voter,
-    //             voteParams_[i]
-    //         );
-
-    //         unchecked {
-    //             ++i;
-    //         }
-    //     }
-    // }
-
     /**
      * @notice Sum the square of each vote cast by a voter.
-     * @param  votesCast_ The array of votes cast by a voter.
      * @dev    Used to calculate if a voter has enough voting power to cast their votes.
+     * @param  votesCast_           The array of votes cast by a voter.
      * @return votesCastSumSquared_ The sum of the square of each vote cast.
      */
     function _sumSquareOfVotesCast(FundingVoteParams[] memory votesCast_) internal pure returns (uint256 votesCastSumSquared_) {
@@ -432,11 +403,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**
      * @notice Vote on a proposal in the funding stage of the Distribution Period.
      * @dev    Votes can be allocated to multiple proposals, quadratically, for or against.
-     * @param  currentDistribution_ The current distribution period.
-     * @param  proposal_  The current proposal being voted upon.
-     * @param  account_   The voting account.
-     * @param  voter_     The voter data struct tracking available votes.
-     * @param  voteParams_ The amount of votes being allocated to the proposal. Not squared. If less than 0, vote is against.
+     * @param  currentDistribution_  The current distribution period.
+     * @param  proposal_             The current proposal being voted upon.
+     * @param  account_              The voting account.
+     * @param  voter_                The voter data struct tracking available votes.
+     * @param  voteParams_           The amount of votes being allocated to the proposal. Not squared. If less than 0, vote is against.
      * @return incrementalVotesUsed_ The amount of funding stage votes allocated to the proposal.
      */
     function _fundingVote(QuarterlyDistribution storage currentDistribution_, Proposal storage proposal_, address account_, QuadraticVoter storage voter_, FundingVoteParams memory voteParams_) internal returns (uint256 incrementalVotesUsed_) {
@@ -662,12 +633,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @param voteParams_ The array of FundingVoteParams structs to search.
      * @return index_ The index of the proposalId in the array, else -1.
      */
-    function _findProposalIndexOfVotesCast(uint256 proposalId, FundingVoteParams[] memory voteParams_) internal pure returns (int256 index_) {
+    function _findProposalIndexOfVotesCast(uint256 proposalId_, FundingVoteParams[] memory voteParams_) internal pure returns (int256 index_) {
         index_ = -1; // default value indicating proposalId not in the array
 
-        for (int256 i = 0; i < int256(voteParams_.length);) {
+        int256 numVotesCast = int256(voteParams_.length);
+        for (int256 i = 0; i < numVotesCast; ) {
             //slither-disable-next-line incorrect-equality
-            if (voteParams_[uint256(i)].proposalId == proposalId) {
+            if (voteParams_[uint256(i)].proposalId == proposalId_) {
                 index_ = i;
                 break;
             }
