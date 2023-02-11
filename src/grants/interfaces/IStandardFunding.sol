@@ -28,6 +28,11 @@ interface IStandardFunding {
     error FinalizeDistributionInvalid();
 
     /**
+     * @notice User attempted to change the direction of a subsequent funding vote on the same proposal.
+     */
+    error FundingVoteInvalid();
+
+    /**
      * @notice User attempted to vote with more qvBudget than was available to them.
      */
     error InsufficientBudget();
@@ -108,13 +113,20 @@ interface IStandardFunding {
     }
 
     /**
+     * @notice Contains information about voters during a vote made by a QuadraticVoter in the Funding stage of a distribution period.
+     */
+    struct FundingVoteParams {
+        uint256 proposalId;
+        int256 votesUsed;
+    }
+
+    /**
      * @notice Contains information about voters during a distribution period's funding stage.
      */
     struct QuadraticVoter {
         uint256 votingWeight;    // amount of votes originally available to the voter // TODO: rename to votingPower
         uint256 budgetRemaining; // remaining voting budget in the given period, equal to the sum of the square of their initial votes // TODO: rename to remainingVotingPower
-        // uint256 votesUsed;       // number of unsquared votes used
-        uint256[] votesCast;     // array of votes cast by the voter
+        FundingVoteParams[] votesCast;     // array of votes cast by the voter
     }
 
     /*****************************************/

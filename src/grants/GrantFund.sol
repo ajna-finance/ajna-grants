@@ -98,6 +98,35 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     /*** Voting Functions ***/
     /************************/
 
+    function fundingVotesMulti(FundingVoteParams[] memory voteParams_) external returns (uint256 votesCast_) {
+        uint256 currentDistributionId = distributionIdCheckpoints.latest();
+        QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
+        QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][msg.sender];
+        uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
+
+        // this is the first time a voter has attempted to vote this period
+        if (voter.votingWeight == 0) {
+            voter.votingWeight    = _getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock);
+            voter.budgetRemaining = Maths.wpow(voter.votingWeight, 2);
+        }
+
+        for (uint256 i = 0; i < voteParams_.length; ) {
+            Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
+
+            votesCast_ += _fundingVote(
+                currentDistribution,
+                proposal,
+                msg.sender,
+                voter,
+                voteParams_[i]
+            );
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /**
      * @notice Vote on a proposal in the screening or funding stage of the Distribution Period.
      * @dev Override channels all other castVote methods through here.
@@ -134,9 +163,10 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
                 // decode the amount of votes to allocated to the proposal
                 int256 votes = abi.decode(params_, (int256));
+                FundingVoteParams memory newVote = FundingVoteParams(proposalId_, votes);
 
                 // allocate the votes to the proposal
-                votesCast_ = _fundingVote(currentDistribution, proposal, account_, voter, votes);
+                votesCast_ = _fundingVote(currentDistribution, proposal, account_, voter, newVote);
             }
         }
 

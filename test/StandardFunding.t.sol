@@ -385,7 +385,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         uint256 votingPower = _getFundingVotes(_grantFund, _tokenHolder1);
 
         // voter allocates all of their voting power in support of the proposal
-        _fundingVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, voteYes, int256(votingPower));
+        _fundingVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, voteYes, 50_000_000 * 1e18);
         // check if user vote is updated after voting in funding stage 
         hasVoted = _grantFund.hasVoted(testProposals[1].proposalId, _tokenHolder1);
         assertTrue(hasVoted);

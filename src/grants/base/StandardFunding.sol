@@ -276,6 +276,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
     }
 
+    // TODO: determine how to calculate the funding votes cast for delegate rewards
     /**
      * @notice Calculate the delegate rewards that have accrued to a given voter, in a given distribution period.
      * @dev    Voter must have voted in both the screening and funding stages, and is proportional to their share of votes across the stages.
@@ -388,47 +389,47 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /*** Voting Functions ***/
     /************************/
 
-    struct FundingVoteMultiParams {
-        uint256 proposalId;
-        int256 votesUsed;
-    }
+    // function fundingVotesMulti(FundingVoteParams[] memory voteParams_) external returns (uint256 votesCast_) {
+    //     uint256 currentDistributionId = distributionIdCheckpoints.latest();
+    //     QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
+    //     QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][msg.sender];
+    //     uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
 
-    function fundingVotesMulti(FundingVoteMultiParams[] memory voteParams_) external returns (uint256 votesCast_) {
-        uint256 currentDistributionId = distributionIdCheckpoints.latest();
-        QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
-        QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][msg.sender];
+    //     // this is the first time a voter has attempted to vote this period
+    //     if (voter.votingWeight == 0) {
+    //         voter.votingWeight    = _getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock);
+    //         voter.budgetRemaining = Maths.wpow(voter.votingWeight, 2);
+    //     }
 
-        // this is the first time a voter has attempted to vote this period
-        if (voter.votingWeight == 0) {
-            voter.votingWeight    = _getVotesSinceSnapshot(account_, screeningPeriodEndBlock - 33, screeningPeriodEndBlock);
-            voter.budgetRemaining = Maths.wpow(voter.votingWeight, 2);
-        }
+    //     for (uint256 i = 0; i < voteParams_.length; ) {
+    //         Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
 
-        for (uint256 i = 0; i < voteParams_.length; ) {
-            Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
+    //         votesCast_ += _fundingVote(
+    //             currentDistribution,
+    //             proposal,
+    //             msg.sender,
+    //             voter,
+    //             voteParams_[i]
+    //         );
 
-            votesCast_ += _fundingVote(
-                currentDistribution,
-                proposal,
-                msg.sender,
-                voter,
-                voteParams_[i].votesUsed
-            );
+    //         unchecked {
+    //             ++i;
+    //         }
+    //     }
+    // }
+
+    // TODO: need to accumulate votes for a given proposalId or revert if calling same proposal multiple times
+    function _sumSquareOfVotesCast(FundingVoteParams[] memory votesCast_) internal pure returns (uint256 votesCastSumSquared_) {
+        for (uint256 i = 0; i < votesCast_.length; ) {
+            votesCastSumSquared_ += Maths.wpow(uint256(Maths.abs(votesCast_[i].votesUsed)), 2);
 
             unchecked {
                 ++i;
             }
         }
-
     }
 
-    // TODO: need to accumulate votes for a given proposalId or revert if calling same proposal multiple times
-    function _sumSquareOfVotesCast(uint256[] memory votesCast_) internal pure returns (uint256 votesCastSumSquared_) {
-        for (uint256 i = 0; i < votesCast_.length; i++) {
-            votesCastSumSquared_ += Maths.wpow(votesCast_[i], 2);
-        }
-    }
-
+    // TODO: should voteParams be storage instead of memory?
     /**
      * @notice Vote on a proposal in the funding stage of the Distribution Period.
      * @dev    Votes can be allocated to multiple proposals, quadratically, for or against.
@@ -436,19 +437,39 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @param  proposal_  The current proposal being voted upon.
      * @param  account_   The voting account.
      * @param  voter_     The voter data struct tracking available votes.
-     * @param  votesUsed_ The amount of votes being allocated to the proposal. Not squared. If less than 0, vote is against.
+     * @param  voteParams_ The amount of votes being allocated to the proposal. Not squared. If less than 0, vote is against.
      * @return incrementalVotesUsed_ The amount of funding stage votes allocated to the proposal.
      */
-    function _fundingVote(QuarterlyDistribution storage currentDistribution_, Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 votesUsed_) internal returns (uint256 incrementalVotesUsed_) {
+    function _fundingVote(QuarterlyDistribution storage currentDistribution_, Proposal storage proposal_, address account_, QuadraticVoter storage voter_, FundingVoteParams memory voteParams_) internal returns (uint256 incrementalVotesUsed_) {
         uint8  support = 1;
         uint256 proposalId = proposal_.proposalId;
 
         // determine if voter is voting for or against the proposal
-        votesUsed_ < 0 ? support = 0 : support = 1;
+        voteParams_.votesUsed < 0 ? support = 0 : support = 1;
 
-        // add the incremental votes used to the past votes used
-        incrementalVotesUsed_ = uint256(Maths.abs(votesUsed_));
-        voter_.votesCast.push(incrementalVotesUsed_);
+        // check that the proposal isn't already in the votesCast array
+        int256 voteCastIndex = _findProposalIndexOfVotesCast(proposalId, voter_.votesCast);
+        if (voteCastIndex != -1) {
+            FundingVoteParams storage existingVote = voter_.votesCast[uint256(voteCastIndex)];
+
+            // can't change the direction of a previous vote
+            if (support == 0 && existingVote.votesUsed > 0 || support == 1 && existingVote.votesUsed < 0) {
+                // if the vote is in the opposite direction of a previous vote,
+                // and the proposal is already in the votesCast array, revert can't change direction
+                revert FundingVoteInvalid();
+            }
+            else {
+                // update the votes cast for the proposal
+                existingVote.votesUsed += voteParams_.votesUsed;
+            }
+        }
+        // add the newly cast vote to the voter's votesCast array
+        else {
+            voter_.votesCast.push(voteParams_);
+        }
+
+        // find the absolute number of incremental votes used
+        incrementalVotesUsed_ = uint256(Maths.abs(voteParams_.votesUsed));
 
         // calculate the total cost of the additional votes
         uint256 quadraticTotalVotesUsed = _sumSquareOfVotesCast(voter_.votesCast);
@@ -463,7 +484,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         currentDistribution_.fundingVotesCast += incrementalVotesUsed_;
 
         // update proposal vote tracking
-        proposal_.fundingVotesReceived += votesUsed_;
+        proposal_.fundingVotesReceived += voteParams_.votesUsed;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(account_, proposalId, support, incrementalVotesUsed_, "");
@@ -624,6 +645,22 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         for (int256 i = 0; i < int256(array.length);) {
             //slither-disable-next-line incorrect-equality
             if (array[uint256(i)] == proposalId) {
+                index_ = i;
+                break;
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function _findProposalIndexOfVotesCast(uint256 proposalId, FundingVoteParams[] memory voteParams_) internal pure returns (int256 index_) {
+        index_ = -1; // default value indicating proposalId not in the array
+
+        for (int256 i = 0; i < int256(voteParams_.length);) {
+            //slither-disable-next-line incorrect-equality
+            if (voteParams_[uint256(i)].proposalId == proposalId) {
                 index_ = i;
                 break;
             }
