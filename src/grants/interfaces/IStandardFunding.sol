@@ -111,9 +111,10 @@ interface IStandardFunding {
      * @notice Contains information about voters during a distribution period's funding stage.
      */
     struct QuadraticVoter {
-        uint256 votingWeight;    // amount of votes originally available to the voter // TODO: is this necessary?
-        uint256 budgetRemaining; // remaining voting budget in the given period, equal to the sum of the square of their initial votes
-        uint256 votesUsed;       // number of unsquared votes used
+        uint256 votingWeight;    // amount of votes originally available to the voter // TODO: rename to votingPower
+        uint256 budgetRemaining; // remaining voting budget in the given period, equal to the sum of the square of their initial votes // TODO: rename to remainingVotingPower
+        // uint256 votesUsed;       // number of unsquared votes used
+        uint256[] votesCast;     // array of votes cast by the voter
     }
 
     /*****************************************/
@@ -248,7 +249,7 @@ interface IStandardFunding {
      * @param  account_        The address of the voter to check.
      * @return votingWeight    The voter's voting weight in the funding round. Equal to the square of their tokens in the voting snapshot.
      * @return budgetRemaining The voter's remaining quadratic vote budget in the given distribution period's funding round.
-     * @return votesCast       The voter's total votes cast in the given distribution period's funding round.
+     * @return votesCast       The voter's number of proposals voted on in the funding stage.
      */
     function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, uint256, uint256);
 

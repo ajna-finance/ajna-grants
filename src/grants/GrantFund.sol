@@ -112,7 +112,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         // standard funding mechanism
         if (mechanism == FundingMechanism.Standard) {
             Proposal storage proposal = standardFundingProposals[proposalId_];
-            QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
+            QuarterlyDistribution storage currentDistribution = distributions[proposal.distributionId];
             uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
 
             // screening stage
@@ -136,7 +136,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 int256 votes = abi.decode(params_, (int256));
 
                 // allocate the votes to the proposal
-                votesCast_ = _fundingVote(proposal, account_, voter, votes);
+                votesCast_ = _fundingVote(currentDistribution, proposal, account_, voter, votes);
             }
         }
 
@@ -167,9 +167,11 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         else if (keccak256(params_) == keccak256(bytes("Funding"))) {
             QuadraticVoter memory voter = quadraticVoters[currentDistribution.id][account_];
 
+            // TODO: fix voter available votes calculation
             // voter has already allocated some of their budget this period
             if (voter.votingWeight != 0) {
-                availableVotes_ = voter.votingWeight - voter.votesUsed;
+                // take the sqrt of the remaining budget to retrieve available votes
+                availableVotes_ = Maths.sqrt(voter.budgetRemaining);
             }
             // this is the first time a voter has attempted to vote this period
             else {
@@ -239,7 +241,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
             // funding stage
             else if (block.number > screeningPeriodEndBlock && block.number <= currentDistribution.endBlock) {
-                hasVoted_ = quadraticVoters[currentDistribution.id][account_].votesUsed != 0;
+                hasVoted_ = quadraticVoters[currentDistribution.id][account_].votesCast.length != 0;
             }
         }
         else {

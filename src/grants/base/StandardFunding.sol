@@ -266,6 +266,16 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return newTopSlate;
     }
 
+    function _sumVotesUsed(uint256[] memory votes) internal pure returns (uint256 sum_) {
+        for (uint i = 0; i < votes.length;) {
+            sum_ += votes[i];
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /**
      * @notice Calculate the delegate rewards that have accrued to a given voter, in a given distribution period.
      * @dev    Voter must have voted in both the screening and funding stages, and is proportional to their share of votes across the stages.
@@ -279,7 +289,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         rewards_ = Maths.wdiv(
             Maths.wmul(
                 currentDistribution.fundsAvailable,
-                voter.votesUsed
+                _sumVotesUsed(voter.votesCast)
             ),
             currentDistribution.fundingVotesCast
         ) / 10;
@@ -378,19 +388,58 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /*** Voting Functions ***/
     /************************/
 
+    struct FundingVoteMultiParams {
+        uint256 proposalId;
+        int256 votesUsed;
+    }
+
+    function fundingVotesMulti(FundingVoteMultiParams[] memory voteParams_) external returns (uint256 votesCast_) {
+        uint256 currentDistributionId = distributionIdCheckpoints.latest();
+        QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
+        QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][msg.sender];
+
+        // this is the first time a voter has attempted to vote this period
+        if (voter.votingWeight == 0) {
+            voter.votingWeight    = _getVotesSinceSnapshot(account_, screeningPeriodEndBlock - 33, screeningPeriodEndBlock);
+            voter.budgetRemaining = Maths.wpow(voter.votingWeight, 2);
+        }
+
+        for (uint256 i = 0; i < voteParams_.length; ) {
+            Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
+
+            votesCast_ += _fundingVote(
+                currentDistribution,
+                proposal,
+                msg.sender,
+                voter,
+                voteParams_[i].votesUsed
+            );
+
+            unchecked {
+                ++i;
+            }
+        }
+
+    }
+
+    // TODO: need to accumulate votes for a given proposalId or revert if calling same proposal multiple times
+    function _sumSquareOfVotesCast(uint256[] memory votesCast_) internal pure returns (uint256 votesCastSumSquared_) {
+        for (uint256 i = 0; i < votesCast_.length; i++) {
+            votesCastSumSquared_ += Maths.wpow(votesCast_[i], 2);
+        }
+    }
+
     /**
      * @notice Vote on a proposal in the funding stage of the Distribution Period.
      * @dev    Votes can be allocated to multiple proposals, quadratically, for or against.
+     * @param  currentDistribution_ The current distribution period.
      * @param  proposal_  The current proposal being voted upon.
      * @param  account_   The voting account.
      * @param  voter_     The voter data struct tracking available votes.
      * @param  votesUsed_ The amount of votes being allocated to the proposal. Not squared. If less than 0, vote is against.
      * @return incrementalVotesUsed_ The amount of funding stage votes allocated to the proposal.
      */
-    function _fundingVote(Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 votesUsed_) internal returns (uint256 incrementalVotesUsed_) {
-        uint256 currentDistributionId = distributionIdCheckpoints.latest();
-        QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
-
+    function _fundingVote(QuarterlyDistribution storage currentDistribution_, Proposal storage proposal_, address account_, QuadraticVoter storage voter_, int256 votesUsed_) internal returns (uint256 incrementalVotesUsed_) {
         uint8  support = 1;
         uint256 proposalId = proposal_.proposalId;
 
@@ -399,28 +448,22 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // add the incremental votes used to the past votes used
         incrementalVotesUsed_ = uint256(Maths.abs(votesUsed_));
-        uint256 totalVotesUsed = incrementalVotesUsed_ + voter_.votesUsed;
+        voter_.votesCast.push(incrementalVotesUsed_);
 
         // calculate the total cost of the additional votes
-        uint256 quadraticTotalVotesUsed = Maths.wpow(totalVotesUsed, 2);
+        uint256 quadraticTotalVotesUsed = _sumSquareOfVotesCast(voter_.votesCast);
 
         // check that the voter has enough budget remaining to cast the vote
         if (quadraticTotalVotesUsed > voter_.budgetRemaining) revert InsufficientBudget();
 
-        // update voter accumulators
-        voter_.budgetRemaining -= quadraticTotalVotesUsed;
-        voter_.votesUsed = totalVotesUsed;
+        // update voter budget accumulator
+        voter_.budgetRemaining = Maths.wpow(voter_.votingWeight, 2) - quadraticTotalVotesUsed;
 
         // update total vote cast
-        currentDistribution.fundingVotesCast += incrementalVotesUsed_;
+        currentDistribution_.fundingVotesCast += incrementalVotesUsed_;
 
         // update proposal vote tracking
         proposal_.fundingVotesReceived += votesUsed_;
-
-        // update top ten proposals
-        uint256[] memory topTen = topTenProposals[proposal_.distributionId];
-        uint256 proposalIndex = uint256(_findProposalIndex(proposalId, topTen));
-        standardFundingProposals[topTen[proposalIndex]].fundingVotesReceived = proposal_.fundingVotesReceived;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(account_, proposalId, support, incrementalVotesUsed_, "");
@@ -558,7 +601,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return (
             voter.votingWeight,
             voter.budgetRemaining,
-            voter.votesUsed
+            voter.votesCast.length
         );
     }
 
