@@ -411,8 +411,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // determine if voter is voting for or against the proposal
         voteParams_.votesUsed < 0 ? support = 0 : support = 1;
 
-        // total votes cast by a voter for a proposal
-        int256 totalProposalVotesByVoter = voteParams_.votesUsed;
+        // the total amount of voting power used by the voter before this vote executes
+        uint256 voterPowerUsedPreVote = voter_.votingPower - voter_.remainingVotingPower;
 
         // check that the voter hasn't already voted on a proposal by seeing if it's already in the votesCast array 
         int256 voteCastIndex = _findProposalIndexOfVotesCast(proposalId, voter_.votesCast);
@@ -428,18 +428,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             else {
                 // update the votes cast for the proposal
                 existingVote.votesUsed += voteParams_.votesUsed;
-
-                // used account for the additional voting power cost of increasing the votes for an already voted proposal
-                totalProposalVotesByVoter = existingVote.votesUsed;
             }
         }
         // add the newly cast vote to the voter's votesCast array
         else {
             voter_.votesCast.push(voteParams_);
         }
-
-        // square the total votes on the proposal to find the incrementalVotingPowerUsed for this vote
-        uint256 incrementalVotingPowerUsed = Maths.wpow(uint256(Maths.abs(totalProposalVotesByVoter)), 2);
 
         // calculate the cumulative cost of all votes made by the voter
         uint256 cumulativeVotePowerUsed = _sumSquareOfVotesCast(voter_.votesCast);
@@ -450,7 +444,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // update voter budget accumulator
         voter_.remainingVotingPower = voter_.votingPower - cumulativeVotePowerUsed;
 
-        // update total vote cast
+        // calculate the change in voting power used by the voter in this vote in order to accurately track the total voting power used in the funding stage
+        uint256 incrementalVotingPowerUsed = cumulativeVotePowerUsed - voterPowerUsedPreVote;
+
+        // update accumulator for total voting power used in the funding stage in order to calculate delegate rewards
         currentDistribution_.fundingVotePowerCast += incrementalVotingPowerUsed;
 
         // update proposal vote tracking
