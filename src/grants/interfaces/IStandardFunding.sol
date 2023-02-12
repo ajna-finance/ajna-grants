@@ -125,7 +125,7 @@ interface IStandardFunding {
      */
     struct QuadraticVoter {
         uint256 votingPower;           // amount of votes originally available to the voter
-        uint256 remainingVotingPower;  // remaining voting budget in the given period, equal to the sum of the square of their initial votes // TODO: rename to remainingVotingPower
+        uint256 remainingVotingPower;  // remaining voting budget in the given period, equal to the sum of the square of their initial votes
         FundingVoteParams[] votesCast; // array of votes cast by the voter
     }
 
