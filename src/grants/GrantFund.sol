@@ -99,6 +99,43 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     /************************/
 
     /**
+     * @notice Cast an array of funding votes in one transaction.
+     * @dev    Calls out to StandardFunding._fundingVote().
+     * @param voteParams_ The array of votes on proposals to cast.
+     * @return votesCast_ The total number of votes cast across all of the proposals.
+     */
+    function fundingVotesMulti(FundingVoteParams[] memory voteParams_) external returns (uint256 votesCast_) {
+        uint256 currentDistributionId = distributionIdCheckpoints.latest();
+        QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
+        QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][msg.sender];
+        uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
+
+        // this is the first time a voter has attempted to vote this period
+        if (voter.votingPower == 0) {
+            voter.votingPower          = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
+            voter.remainingVotingPower = voter.votingPower;
+        }
+
+        uint256 numVotesCast = voteParams_.length;
+        for (uint256 i = 0; i < numVotesCast; ) {
+            Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
+
+            // cast each successive vote
+            votesCast_ += _fundingVote(
+                currentDistribution,
+                proposal,
+                msg.sender,
+                voter,
+                voteParams_[i]
+            );
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
      * @notice Vote on a proposal in the screening or funding stage of the Distribution Period.
      * @dev Override channels all other castVote methods through here.
      * @param proposalId_ The current proposal being voted upon.
@@ -112,7 +149,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         // standard funding mechanism
         if (mechanism == FundingMechanism.Standard) {
             Proposal storage proposal = standardFundingProposals[proposalId_];
-            QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
+            QuarterlyDistribution storage currentDistribution = distributions[proposal.distributionId];
             uint256 screeningPeriodEndBlock = currentDistribution.endBlock - 72000;
 
             // screening stage
@@ -127,18 +164,17 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
 
                 // this is the first time a voter has attempted to vote this period
-                if (voter.votingWeight == 0) {
-                    voter.votingWeight = Maths.wpow(_getVotesSinceSnapshot(account_, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
-                    voter.budgetRemaining = int256(voter.votingWeight);
+                if (voter.votingPower == 0) {
+                    voter.votingPower          = Maths.wpow(_getVotesSinceSnapshot(account_, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
+                    voter.remainingVotingPower = voter.votingPower;
                 }
 
-                // amount of quadratic budget to allocated to the proposal
-                int256 budgetAllocation = abi.decode(params_, (int256));
+                // decode the amount of votes to allocated to the proposal
+                int256 votes = abi.decode(params_, (int256));
+                FundingVoteParams memory newVote = FundingVoteParams(proposalId_, votes);
 
-                // check if the voter has enough budget remaining to allocate to the proposal
-                if (Maths.abs(budgetAllocation) > voter.budgetRemaining) revert InsufficientBudget();
-
-                votesCast_ = _fundingVote(proposal, account_, voter, budgetAllocation);
+                // allocate the votes to the proposal
+                votesCast_ = _fundingVote(currentDistribution, proposal, account_, voter, newVote);
             }
         }
 
@@ -170,8 +206,8 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             QuadraticVoter memory voter = quadraticVoters[currentDistribution.id][account_];
 
             // voter has already allocated some of their budget this period
-            if (voter.votingWeight != 0) {
-                availableVotes_ = uint256(voter.budgetRemaining);
+            if (voter.votingPower != 0) {
+                availableVotes_ = voter.remainingVotingPower;
             }
             // this is the first time a voter has attempted to vote this period
             else {
@@ -241,12 +277,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
             // funding stage
             else if (block.number > screeningPeriodEndBlock && block.number <= currentDistribution.endBlock) {
-                QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
-
-                // Check if voter has voted
-                if (uint256(voter.budgetRemaining) < voter.votingWeight) {
-                    hasVoted_ = true;
-                }
+                hasVoted_ = quadraticVoters[currentDistribution.id][account_].votesCast.length != 0;
             }
         }
         else {
