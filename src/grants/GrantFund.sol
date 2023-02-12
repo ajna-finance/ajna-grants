@@ -165,7 +165,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
                 // this is the first time a voter has attempted to vote this period
                 if (voter.votingPower == 0) {
-                    voter.votingPower          = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
+                    voter.votingPower          = Maths.wpow(_getVotesSinceSnapshot(account_, screeningPeriodEndBlock - 33, screeningPeriodEndBlock), 2);
                     voter.remainingVotingPower = voter.votingPower;
                 }
 
