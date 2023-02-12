@@ -163,11 +163,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /**
-     * @notice Calculates the sum of quadratic budgets allocated to a list of proposals.
+     * @notice Calculates the sum of funding votes allocated to a list of proposals.
      * @param  proposalIdSubset_ Array of proposal Ids to sum.
-     * @return sum_ The sum of the budget across the given proposals.
+     * @return sum_ The sum of the funding votes across the given proposals.
      */
-    function _sumBudgetAllocated(uint256[] memory proposalIdSubset_) internal view returns (uint256 sum_) {
+    function _sumProposalFundingVotes(uint256[] memory proposalIdSubset_) internal view returns (uint256 sum_) {
         for (uint i = 0; i < proposalIdSubset_.length;) {
             sum_ += uint256(standardFundingProposals[proposalIdSubset_[i]].fundingVotesReceived);
 
@@ -244,7 +244,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // check if slate of proposals is new top slate
         bool newTopSlate = currentSlateHash == 0 ||
-            (currentSlateHash!= 0 && sum > _sumBudgetAllocated(fundedProposalSlates[currentSlateHash]));
+            (currentSlateHash!= 0 && sum > _sumProposalFundingVotes(fundedProposalSlates[currentSlateHash]));
 
         // if slate of proposals is new top slate, update state
         if (newTopSlate) {
@@ -438,10 +438,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // calculate the cumulative cost of all votes made by the voter
         uint256 cumulativeVotePowerUsed = _sumSquareOfVotesCast(voter_.votesCast);
 
-        // check that the voter has enough budget remaining to cast the vote
+        // check that the voter has enough voting power remaining to cast the vote
         if (cumulativeVotePowerUsed > voter_.votingPower) revert InsufficientVotingPower();
 
-        // update voter budget accumulator
+        // update voter voting power accumulator
         voter_.remainingVotingPower = voter_.votingPower - cumulativeVotePowerUsed;
 
         // calculate the change in voting power used by the voter in this vote in order to accurately track the total voting power used in the funding stage
