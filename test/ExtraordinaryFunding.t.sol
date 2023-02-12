@@ -521,8 +521,8 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // set token required to be 10% of treasury
         uint256 tokenRequested = 500_000_000 * 1e18 / 10;
 
-        // create and submit N Extra Ordinary proposals 
-        TestProposalExtraordinary[] memory testProposal =  _getNExtraOridinaryProposals(noOfProposals, _grantFund, _tokenHolder1, _token, tokenRequested);
+        // create and submit N Extraordinary proposals 
+        TestProposalExtraordinary[] memory testProposal = _getNExtraOridinaryProposals(noOfProposals, _grantFund, _tokenHolder1, _token, tokenRequested);
 
         // each tokenHolder(fixed in setup) votes on all proposals
         for(uint i = 0; i < _votersArr.length; i++) {
@@ -542,14 +542,26 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // execute all proposals
         for(uint i = 0; i < noOfProposals; i++) {
-            /* first 7 proposals are executed successfully and from 8th proposal each one will fail
-             as non-treasury amount and minimum threshold increases with each proposal execution */
-            if (i >= 7) {
-                // check state has been marked as Defeated
-                assertEq(uint8(_grantFund.state(testProposal[i].proposalId)), uint8(IGovernor.ProposalState.Defeated));
+            /* first 5 proposals are executed successfully and from 6th proposal each one will fail
+             as non-treasury amount and minimum threshold increases with each proposal execution,
+             and the tokens available in the treasury decrease.
+            */
+            if (i >= 6) {
+                // check that proposals which have enough votes won't pass if they requested too many tokens from the treasury
+                (, uint256 tokensRequested, , , uint256 votesReceived, , ) = _grantFund.getExtraordinaryProposalInfo(testProposal[i].proposalId);
 
-                vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
-                _grantFund.executeExtraordinary(testProposal[i].targets, testProposal[i].values, testProposal[i].calldatas, keccak256(bytes(testProposal[i].description)));
+                if (votesReceived >= tokensRequested + _grantFund.getSliceOfNonTreasury(_grantFund.getMinimumThresholdPercentage())) {
+                    vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInvalid.selector);
+                    _grantFund.executeExtraordinary(testProposal[i].targets, testProposal[i].values, testProposal[i].calldatas, keccak256(bytes(testProposal[i].description)));
+                    continue;
+                }
+                else {
+                    // check state has been marked as Defeated
+                    assertEq(uint8(_grantFund.state(testProposal[i].proposalId)), uint8(IGovernor.ProposalState.Defeated));
+
+                    vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
+                    _grantFund.executeExtraordinary(testProposal[i].targets, testProposal[i].values, testProposal[i].calldatas, keccak256(bytes(testProposal[i].description)));
+                }
             }
             else {
                 _executeExtraordinaryProposal(_grantFund, _token, testProposal[i]);
