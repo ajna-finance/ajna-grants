@@ -288,12 +288,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             ),
             currentDistribution.fundingVotePowerCast
         ) / 10;
-
-        // // TODO: multiply before dividing?
-        // Maths.wdiv(
-        //     Maths.wmul(currentDistribution.fundsAvailable, currentDistribution.fundingVotePowerCast),
-        //     voter.votesUsed
-        // ) / 10;
     }
 
     /// @inheritdoc IStandardFunding
