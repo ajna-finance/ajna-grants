@@ -235,6 +235,15 @@ interface IStandardFunding {
     function getFundedProposalSlate(bytes32 slateHash_) external view returns (uint256[] memory);
 
     /**
+     * @notice Get the number of discrete votes that can be cast on proposals given a specified voting power.
+     * @dev    This is calculated by taking the square root of the voting power, and adjusting for WAD decimals.
+     * @dev    This approach results in precision loss, and prospective users should be careful.
+     * @param  votingPower     The provided voting power to calculate discrete votes for.
+     * @return                 The square root of the votingPower as a WAD.
+     */
+    function getFundingPowerVotes(uint256 votingPower) external pure returns (uint256);
+
+    /**
      * @notice Mapping of proposalIds to {Proposal} structs.
      * @param  proposalId_       The proposalId to retrieve the Proposal struct for.
      * @return proposalId        The retrieved struct's proposalId.

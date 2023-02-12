@@ -558,6 +558,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
+    function getFundingPowerVotes(uint256 votingPower) external pure returns (uint256) {
+        return Maths.sqrt(votingPower) * 10**9;
+    }
+
+    /// @inheritdoc IStandardFunding
     function getSlateHash(uint256[] calldata proposalIds_) external pure returns (bytes32) {
         return keccak256(abi.encode(proposalIds_));
     }
