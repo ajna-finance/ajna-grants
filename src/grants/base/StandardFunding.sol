@@ -411,6 +411,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // determine if voter is voting for or against the proposal
         voteParams_.votesUsed < 0 ? support = 0 : support = 1;
 
+        // total votes cast by a voter for a proposal
+        int256 totalProposalVotesByVoter = voteParams_.votesUsed;
+
         // check that the voter hasn't already voted on a proposal by seeing if it's already in the votesCast array 
         int256 voteCastIndex = _findProposalIndexOfVotesCast(proposalId, voter_.votesCast);
         if (voteCastIndex != -1) {
@@ -425,6 +428,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             else {
                 // update the votes cast for the proposal
                 existingVote.votesUsed += voteParams_.votesUsed;
+
+                // used account for the additional voting power cost of increasing the votes for an already voted proposal
+                totalProposalVotesByVoter = existingVote.votesUsed;
             }
         }
         // add the newly cast vote to the voter's votesCast array
@@ -432,25 +438,30 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             voter_.votesCast.push(voteParams_);
         }
 
-        // find the absolute number of incremental votes used
-        incrementalVotesUsed_ = uint256(Maths.abs(voteParams_.votesUsed));
+        // square the total votes on the proposal to find the incrementalVotingPowerUsed for this vote
+        uint256 incrementalVotingPowerUsed = Maths.wpow(uint256(Maths.abs(totalProposalVotesByVoter)), 2);
 
-        // calculate the total cost of the additional votes
-        uint256 quadraticTotalVotesUsed = _sumSquareOfVotesCast(voter_.votesCast);
+        // calculate the cumulative cost of all votes made by the voter
+        uint256 cumulativeVotePowerUsed = _sumSquareOfVotesCast(voter_.votesCast);
 
         // check that the voter has enough budget remaining to cast the vote
-        if (quadraticTotalVotesUsed > voter_.votingPower) revert InsufficientBudget();
+        if (cumulativeVotePowerUsed > voter_.votingPower) revert InsufficientVotingPower();
 
         // update voter budget accumulator
-        voter_.remainingVotingPower = voter_.votingPower - quadraticTotalVotesUsed;
+        voter_.remainingVotingPower = voter_.votingPower - cumulativeVotePowerUsed;
 
         // update total vote cast
-        currentDistribution_.fundingVotePowerCast += Maths.wpow(incrementalVotesUsed_, 2);
+        currentDistribution_.fundingVotePowerCast += incrementalVotingPowerUsed;
 
         // update proposal vote tracking
         proposal_.fundingVotesReceived += voteParams_.votesUsed;
 
+        // the incremental additional votes cast on the proposal
+        // used as a return value and emit value
+        incrementalVotesUsed_ = uint256(Maths.abs(voteParams_.votesUsed));
+
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
+        // emits the amount of incremental votes cast for the proposal, not the voting power cost or total votes on a proposal
         emit VoteCast(account_, proposalId, support, incrementalVotesUsed_, "");
     }
 

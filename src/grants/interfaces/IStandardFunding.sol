@@ -33,9 +33,9 @@ interface IStandardFunding {
     error FundingVoteInvalid();
 
     /**
-     * @notice User attempted to vote with more qvBudget than was available to them.
+     * @notice User attempted to vote with more voting power than was available to them.
      */
-    error InsufficientBudget();
+    error InsufficientVotingPower();
 
     /**
      * @notice Delegatee attempted to claim delegate reward before the challenge period ended.

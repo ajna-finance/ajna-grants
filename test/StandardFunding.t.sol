@@ -199,7 +199,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(_grantFund.getFundingPowerVotes(1_225_000_000_000_000 * 1e18), 35_000_000 * 1e18);
 
         // check revert if additional votes exceed the budget
-        vm.expectRevert(IStandardFunding.InsufficientBudget.selector);
+        vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
         _grantFund.castVoteWithReasonAndParams(proposal.proposalId, 1, "", abi.encode(16_000_000 * 1e18));
     }
 
@@ -514,7 +514,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
      *  @dev    Maximum quarterly distribution is 10_000_000.
      *  @dev    Funded slate is executed.
      *  @dev    Reverts:
-     *              - IStandardFunding.InsufficientBudget
+     *              - IStandardFunding.InsufficientVotingPower
      *              - IStandardFunding.ExecuteProposalInvalid
      *              - "Governor: proposal not successful"
      */
@@ -629,7 +629,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             votesUsed: -40_000_000 * 1e18
         });
         changePrank(_tokenHolder4);
-        vm.expectRevert(IStandardFunding.InsufficientBudget.selector);
+        vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
         _grantFund.fundingVotesMulti(fundingVoteParams);
 
         // tokenholder4 divides their full votingpower into two proposals in one transaction
@@ -645,7 +645,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
 
         changePrank(_tokenHolder5);
-        vm.expectRevert(IStandardFunding.InsufficientBudget.selector);
+        vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
         _grantFund.castVoteWithReasonAndParams(screenedProposals[3].proposalId, voteNo, "", abi.encode(-2_600_000_000_000_000 * 1e18));
 
         // check tokenHolder5 partial vote budget calculations
