@@ -97,6 +97,7 @@ abstract contract Funding is Governor, ReentrancyGuard {
 
     /**
      * @notice Verifies proposal's targets, values, and calldatas match specifications.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
      * @param targets_         The addresses of the contracts to call.
      * @param values_          The amounts of ETH to send to each target.
      * @param calldatas_       The calldata to send to each target.
@@ -134,9 +135,7 @@ abstract contract Funding is Governor, ReentrancyGuard {
             // update tokens requested for additional calldata
             tokensRequested_ += tokensRequested;
 
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
         }
     }
 }

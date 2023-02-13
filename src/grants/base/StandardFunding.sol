@@ -198,6 +198,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Calculates the sum of funding votes allocated to a list of proposals.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
      * @param  proposalIdSubset_ Array of proposal Ids to sum.
      * @return sum_ The sum of the funding votes across the given proposals.
      */
@@ -205,15 +207,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         for (uint i = 0; i < proposalIdSubset_.length;) {
             sum_ += uint256(standardFundingProposals[proposalIdSubset_[i]].fundingVotesReceived);
 
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
         }
     }
 
     /**
      * @notice Check an array of proposalIds for duplicate IDs.
-     * @dev    Counters incremented in unchecked block due to being bounded by array length.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
      * @param  proposalIds_ Array of proposal Ids to check.
      * @return Boolean indicating the presence of a duplicate. True if it has a duplicate; false if not.
      */
@@ -222,13 +223,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         for (uint i = 0; i < numProposals; ) {
             for (uint j = i + 1; j < numProposals; ) {
                 if (proposalIds_[i] == proposalIds_[j]) return true;
-                unchecked {
-                    ++j;
-                }
+                unchecked { ++j; }
+
             }
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
+
         }
         return false;
     }
@@ -268,9 +267,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 return false;
             }
 
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
         }
 
         // get pointers for comparing proposal slates
@@ -288,9 +285,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 // update list of proposals to fund
                 existingSlate.push(proposalIds_[i]);
 
-                unchecked {
-                    ++i;
-                }
+                unchecked { ++i; }
             }
 
             // update hash to point to the new leading slate of proposals
@@ -415,6 +410,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**
      * @notice Sum the square of each vote cast by a voter.
      * @dev    Used to calculate if a voter has enough voting power to cast their votes.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
      * @param  votesCast_           The array of votes cast by a voter.
      * @return votesCastSumSquared_ The sum of the square of each vote cast.
      */
@@ -423,9 +420,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         for (uint256 i = 0; i < numVotesCast; ) {
             votesCastSumSquared_ += Maths.wpow(uint256(Maths.abs(votesCast_[i].votesUsed)), 2);
 
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
         }
     }
 
@@ -649,6 +644,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Identify where in an array of proposalIds the proposal exists.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
      * @param proposalId The proposalId to search for.
      * @param array The array of proposalIds to search.
      * @return index_ The index of the proposalId in the array, else -1.
@@ -664,14 +661,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 break;
             }
 
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
         }
     }
 
     /**
      * @notice Identify where in an array of FundingVoteParams structs the proposal exists.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
      * @param proposalId_ The proposalId to search for.
      * @param voteParams_ The array of FundingVoteParams structs to search.
      * @return index_ The index of the proposalId in the array, else -1.
@@ -687,9 +684,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 break;
             }
 
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
         }
     }
 

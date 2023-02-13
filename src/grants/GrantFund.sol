@@ -101,6 +101,8 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     /**
      * @notice Cast an array of funding votes in one transaction.
      * @dev    Calls out to StandardFunding._fundingVote().
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
      * @param voteParams_ The array of votes on proposals to cast.
      * @return votesCast_ The total number of votes cast across all of the proposals.
      */
@@ -129,9 +131,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 voteParams_[i]
             );
 
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
         }
     }
 
