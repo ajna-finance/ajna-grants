@@ -163,8 +163,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // create and submit proposal
         TestProposal memory proposal = _createProposalStandard(_grantFund, _tokenHolder1, ajnaTokenTargets, values, proposalCalldata, description);
 
-        // screening period votes
-        _vote(_grantFund, _tokenHolder1, proposal.proposalId, voteYes, 1);
+        // screening stage votes
+        _screeningVote(_grantFund, _tokenHolder1, proposal.proposalId, 1 * 1e18);
 
         // skip forward to the funding stage
         vm.roll(_startBlock + 600_000);
@@ -367,20 +367,19 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         bool hasVoted = _grantFund.hasVoted(testProposals[0].proposalId, _tokenHolder1);
         assertFalse(hasVoted);
 
-        _vote(_grantFund, _tokenHolder1, testProposals[0].proposalId, voteYes, 100);
+        // cast screening stage vote
+        _screeningVote(_grantFund, _tokenHolder1, testProposals[0].proposalId, 20_000_000 * 1e18);
+
         // check that user has voted
         hasVoted = _grantFund.hasVoted(testProposals[0].proposalId, _tokenHolder1);
         assertTrue(hasVoted);
 
-        _vote(_grantFund, _tokenHolder2, testProposals[1].proposalId, voteYes, 100);
+        _screeningVote(_grantFund, _tokenHolder2, testProposals[1].proposalId, 5_000_000 * 1e18);
+
         hasVoted = _grantFund.hasVoted(testProposals[1].proposalId, _tokenHolder2);
         assertTrue(hasVoted);
 
         changePrank(_tokenHolder1);
-
-        // Should revert if user tries to vote for two proposals in screening period
-        vm.expectRevert(Funding.AlreadyVoted.selector);
-        _grantFund.castVote(testProposals[1].proposalId, voteYes);
 
         // skip to funding period
         vm.roll(_startBlock + 600_000);
@@ -437,24 +436,24 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
 
         // screen proposals
-        _vote(_grantFund, _tokenHolder1, testProposals[0].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder2, testProposals[1].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder3, testProposals[2].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder4, testProposals[3].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder5, testProposals[4].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder6, testProposals[5].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder7, testProposals[6].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder8, testProposals[7].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder9, testProposals[8].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder10, testProposals[9].proposalId, voteYes, 100);
+        _screeningVote(_grantFund, _tokenHolder1, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
+        _screeningVote(_grantFund, _tokenHolder2, testProposals[1].proposalId, _getScreeningVotes(_grantFund, _tokenHolder2));
+        _screeningVote(_grantFund, _tokenHolder3, testProposals[2].proposalId, _getScreeningVotes(_grantFund, _tokenHolder3));
+        _screeningVote(_grantFund, _tokenHolder4, testProposals[3].proposalId, _getScreeningVotes(_grantFund, _tokenHolder4));
+        _screeningVote(_grantFund, _tokenHolder5, testProposals[4].proposalId, _getScreeningVotes(_grantFund, _tokenHolder5));
+        _screeningVote(_grantFund, _tokenHolder6, testProposals[5].proposalId, _getScreeningVotes(_grantFund, _tokenHolder6));
+        _screeningVote(_grantFund, _tokenHolder7, testProposals[6].proposalId, _getScreeningVotes(_grantFund, _tokenHolder7));
+        _screeningVote(_grantFund, _tokenHolder8, testProposals[7].proposalId, _getScreeningVotes(_grantFund, _tokenHolder8));
+        _screeningVote(_grantFund, _tokenHolder9, testProposals[8].proposalId, _getScreeningVotes(_grantFund, _tokenHolder9));
+        _screeningVote(_grantFund, _tokenHolder10, testProposals[9].proposalId, _getScreeningVotes(_grantFund, _tokenHolder10));
 
         // check top ten proposals
         GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         assertEq(screenedProposals.length, 10);
 
         // one of the non-current top 10 is moved up to the top spot
-        _vote(_grantFund, _tokenHolder11, testProposals[10].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder12, testProposals[10].proposalId, voteYes, 100);
+        _screeningVote(_grantFund, _tokenHolder11, testProposals[10].proposalId, _getScreeningVotes(_grantFund, _tokenHolder11));
+        _screeningVote(_grantFund, _tokenHolder12, testProposals[10].proposalId, _getScreeningVotes(_grantFund, _tokenHolder12));
 
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         assertEq(screenedProposals.length, 10);
@@ -462,9 +461,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(screenedProposals[0].votesReceived, 100_000_000 * 1e18);
 
         // another non-current top ten is moved up to the top spot
-        _vote(_grantFund, _tokenHolder13, testProposals[11].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder14, testProposals[11].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder15, testProposals[11].proposalId, voteYes, 100);
+        _screeningVote(_grantFund, _tokenHolder13, testProposals[11].proposalId, _getScreeningVotes(_grantFund, _tokenHolder13));
+        _screeningVote(_grantFund, _tokenHolder14, testProposals[11].proposalId, _getScreeningVotes(_grantFund, _tokenHolder14));
+        _screeningVote(_grantFund, _tokenHolder15, testProposals[11].proposalId, _getScreeningVotes(_grantFund, _tokenHolder15));
 
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         assertEq(screenedProposals.length, 10);
@@ -472,11 +471,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(screenedProposals[0].votesReceived, 150_000_000 * 1e18);
         assertEq(screenedProposals[1].proposalId, testProposals[10].proposalId);
         assertEq(screenedProposals[1].votesReceived, 100_000_000 * 1e18);
-
-        // should revert if voter attempts to cast a screeningVote twice
-        changePrank(_tokenHolder15);
-        vm.expectRevert(Funding.AlreadyVoted.selector);
-        _grantFund.castVote(testProposals[11].proposalId, voteYes);
     }
 
     function testStartNewDistributionPeriod() external {
@@ -549,16 +543,16 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 200);
 
         // screening period votes
-        _vote(_grantFund, _tokenHolder1, testProposals[0].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder2, testProposals[0].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder3, testProposals[1].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder4, testProposals[1].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder5, testProposals[2].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder6, testProposals[2].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder7, testProposals[3].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder8, testProposals[0].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder9, testProposals[4].proposalId, voteYes, 100);
-        _vote(_grantFund, _tokenHolder10, testProposals[5].proposalId, voteYes, 100);
+        _screeningVote(_grantFund, _tokenHolder1, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
+        _screeningVote(_grantFund, _tokenHolder2, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder2));
+        _screeningVote(_grantFund, _tokenHolder3, testProposals[1].proposalId, _getScreeningVotes(_grantFund, _tokenHolder3));
+        _screeningVote(_grantFund, _tokenHolder4, testProposals[1].proposalId, _getScreeningVotes(_grantFund, _tokenHolder4));
+        _screeningVote(_grantFund, _tokenHolder5, testProposals[2].proposalId, _getScreeningVotes(_grantFund, _tokenHolder5));
+        _screeningVote(_grantFund, _tokenHolder6, testProposals[2].proposalId, _getScreeningVotes(_grantFund, _tokenHolder6));
+        _screeningVote(_grantFund, _tokenHolder7, testProposals[3].proposalId, _getScreeningVotes(_grantFund, _tokenHolder7));
+        _screeningVote(_grantFund, _tokenHolder8, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder8));
+        _screeningVote(_grantFund, _tokenHolder9, testProposals[4].proposalId, _getScreeningVotes(_grantFund, _tokenHolder9));
+        _screeningVote(_grantFund, _tokenHolder10, testProposals[5].proposalId, _getScreeningVotes(_grantFund, _tokenHolder10));
 
         /*********************/
         /*** Funding Stage ***/
@@ -924,7 +918,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 200);
 
         // screening period votes
-        _vote(_grantFund, _tokenHolder1, testProposals_distribution1[0].proposalId, voteYes, 100);
+        _screeningVote(_grantFund, _tokenHolder1, testProposals_distribution1[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
 
         // skip time to move from screening period to funding period
         vm.roll(_startBlock + 600_000);
@@ -970,7 +964,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 700_200);
 
         // screening period votes
-        _vote(_grantFund, _tokenHolder1, testProposals_distribution2[0].proposalId, voteYes, 700_100);
+        _screeningVote(_grantFund, _tokenHolder1, testProposals_distribution2[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
 
         // skip time to move from screening period to funding period
         vm.roll(_startBlock + 1_300_000);
@@ -1016,7 +1010,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 1_400_200);
 
         // screening period votes
-        _vote(_grantFund, _tokenHolder1, testProposals_distribution3[0].proposalId, voteYes, 1_400_100);
+        _screeningVote(_grantFund, _tokenHolder1, testProposals_distribution3[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
 
         // skip time to move from screening period to funding period
         vm.roll(_startBlock + 1_990_000);
@@ -1125,9 +1119,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 300);
 
         // screening period votes
-        _vote(_grantFund, testAddress1, proposal.proposalId, voteYes, 1);
-        _vote(_grantFund, testAddress2, proposal2.proposalId, voteYes, 1);
-        _vote(_grantFund, testAddress3, proposal3.proposalId, voteYes, 1);
+        _screeningVote(_grantFund, testAddress1, proposal.proposalId, 4 * 1e18);
+        _screeningVote(_grantFund, testAddress2, proposal2.proposalId, 3 * 1e18);
+        _screeningVote(_grantFund, testAddress3, proposal3.proposalId, 3 * 1e18);
+
 
         // skip forward to the funding stage
         vm.roll(_startBlock + 600_000);
@@ -1273,8 +1268,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
             noOfVotesOnProposal[randomProposalId] += votes[i];
 
-            changePrank(voters[i]);
-            _grantFund.castVote(randomProposalId, voteYes);
+            _screeningVote(_grantFund, voters[i], randomProposalId, _getScreeningVotes(_grantFund, voters[i]));
         }
 
         // calculate top 10 proposals based on total vote casted on each proposal

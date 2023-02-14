@@ -300,6 +300,17 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.fundingVotesMulti(voteParams_);
     }
 
+    function _screeningVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
+        string memory reason = "";
+        uint8 support = 1; // can only vote yes in the screening stage
+        bytes memory params = abi.encode(votesAllocated_);
+
+        changePrank(voter_);
+        vm.expectEmit(true, true, false, true);
+        emit VoteCast(voter_, proposalId_, support, votesAllocated_, "");
+        grantFund_.castVoteWithReasonAndParams(proposalId_, support, reason, params);
+    }
+
     // Returns a random proposal Index from all proposals
     function _getRandomProposal(uint256 noOfProposals_) internal returns(uint256 proposal_) {
         // calculate random proposal Index between 0 and noOfProposals_

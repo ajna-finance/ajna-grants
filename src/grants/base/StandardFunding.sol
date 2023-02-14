@@ -94,7 +94,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Mapping of distributionId to user address to whether user has claimed his delegate reward
      * @dev distributionId => address => bool
     */
-    mapping(uint256 => mapping (address => bool)) public hasClaimedReward;
+    mapping(uint256 => mapping(address => bool)) public hasClaimedReward;
+
+    mapping(uint256 => mapping(address => uint256)) public screeningVotesCast;
 
     /*****************************************/
     /*** Distribution Management Functions ***/
@@ -249,6 +251,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 totalTokensRequested = 0;
         uint256 numProposalsInSlate = proposalIds_.length;
 
+        // check ways that the potential proposal slate is invalid or worse than existing
+        // if worse than existing return false
         for (uint i = 0; i < numProposalsInSlate; ) {
             // check if Proposal is in the topTenProposals list
             if (_findProposalIndex(proposalIds_[i], topTenProposals[distributionId_]) == -1) return false;
@@ -378,7 +382,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // cannot add new proposal after end of screening period
         // screening period ends 72000 blocks before end of distribution period, ~ 80 days.
-        if (block.number > currentDistribution.endBlock - 72000) revert ScreeningPeriodEnded();
+        if (block.number > _getScreeningStageEndBlock(currentDistribution)) revert ScreeningPeriodEnded();
 
         // check params have matching lengths
         if (targets_.length != values_.length || targets_.length != calldatas_.length || targets_.length == 0) revert InvalidProposal();
@@ -500,20 +504,22 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @return                        The amount of votes cast.
      */
     function _screeningVote(address account_, Proposal storage proposal_, uint256 votes_) internal returns (uint256) {
-        if (hasVotedScreening[proposal_.distributionId][account_]) revert AlreadyVoted();
+        // TODO: investigate using a struct and writing the total voting power as a variable
+        if (screeningVotesCast[proposal_.distributionId][account_] + votes_ > _getVotes(account_, block.number, bytes("Screening"))) revert InsufficientVotingPower();
 
         uint256[] storage currentTopTenProposals = topTenProposals[proposal_.distributionId];
+        uint256 proposalId = proposal_.proposalId;
 
         // update proposal votes counter
         proposal_.votesReceived += votes_;
 
         // check if proposal was already screened
-        int indexInArray = _findProposalIndex(proposal_.proposalId, currentTopTenProposals);
+        int indexInArray = _findProposalIndex(proposalId, currentTopTenProposals);
         uint256 screenedProposalsLength = currentTopTenProposals.length;
 
         // check if the proposal should be added to the top ten list for the first time
         if (screenedProposalsLength < 10 && indexInArray == -1) {
-            currentTopTenProposals.push(proposal_.proposalId);
+            currentTopTenProposals.push(proposalId);
 
             // sort top ten proposals
             _insertionSortProposalsByVotes(currentTopTenProposals);
@@ -521,7 +527,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         else {
             // proposal is already in the array
             if (indexInArray != -1) {
-                currentTopTenProposals[uint256(indexInArray)] = proposal_.proposalId;
+                currentTopTenProposals[uint256(indexInArray)] = proposalId;
 
                 // sort top ten proposals
                 _insertionSortProposalsByVotes(currentTopTenProposals);
@@ -530,7 +536,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             else if(standardFundingProposals[currentTopTenProposals[screenedProposalsLength - 1]].votesReceived < proposal_.votesReceived) {
                 // replace least supported proposal with the new proposal
                 currentTopTenProposals.pop();
-                currentTopTenProposals.push(proposal_.proposalId);
+                currentTopTenProposals.push(proposalId);
 
                 // sort top ten proposals
                 _insertionSortProposalsByVotes(currentTopTenProposals);
@@ -540,8 +546,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // record voters vote
         hasVotedScreening[proposal_.distributionId][account_] = true;
 
-        // vote for the given proposal
-        return super._castVote(proposal_.proposalId, account_, 1, "", "");
+        // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
+        emit VoteCast(account_, proposalId, 1, votes_, "");
+        // return the number of votes cast for the proposal
+        return votes_;
     }
 
     /**

@@ -14,6 +14,8 @@ import { StandardFunding }      from "./base/StandardFunding.sol";
 
 import { IGrantFund } from "./interfaces/IGrantFund.sol";
 
+import { console } from "@std/console.sol";
+
 contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
     using Checkpoints for Checkpoints.History;
@@ -154,8 +156,13 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
             // screening stage
             if (block.number >= currentDistribution.startBlock && block.number <= screeningStageEndBlock) {
-                uint256 votes = _getVotes(account_, block.number, bytes("Screening"));
+                // check if the proposal is currently active and part of this distribution period
+                if (state(proposal.proposalId) != IGovernor.ProposalState.Active) revert ScreeningVoteInvalid();
 
+                // decode the amount of votes to allocated to the proposal
+                uint256 votes = abi.decode(params_, (uint256));
+
+                // allocate the votes to the proposal
                 votesCast_ = _screeningVote(account_, proposal, votes);
             }
 
