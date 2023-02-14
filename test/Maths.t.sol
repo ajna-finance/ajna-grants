@@ -53,6 +53,12 @@ contract MathsTest is Test {
 
     function testScaleConversions() external {
         assertEq(Maths.wad(153), 153 * 1e18);
-    } 
+    }
+
+    function testSqrt() external {
+        assertEq(Maths.wsqrt(Maths.wad(100)), 10 * 1e18);
+        assertEq(Maths.wsqrt(Maths.wad(25)), 5 * 1e18);
+        assertEq(Maths.wsqrt(11_000.143012091382543917 * 1e18), 104.881566598000000000 * 1e18);
+    }
 
 }
