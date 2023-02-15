@@ -368,7 +368,17 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertFalse(hasVoted);
 
         // cast screening stage vote
-        _screeningVote(_grantFund, _tokenHolder1, testProposals[0].proposalId, 20_000_000 * 1e18);
+        IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](2);
+        screeningVoteParams[0] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[0].proposalId,
+            votes: 20_000_000 * 1e18
+        });
+        screeningVoteParams[1] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[1].proposalId,
+            votes: 30_000_000 * 1e18
+        });
+
+        _screeningVoteMulti(_grantFund, screeningVoteParams, _tokenHolder1);
 
         // check that user has voted
         hasVoted = _grantFund.hasVoted(testProposals[0].proposalId, _tokenHolder1);
@@ -471,6 +481,104 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(screenedProposals[0].votesReceived, 150_000_000 * 1e18);
         assertEq(screenedProposals[1].proposalId, testProposals[10].proposalId);
         assertEq(screenedProposals[1].votesReceived, 100_000_000 * 1e18);
+    }
+
+    function testScreenProposalsMulti() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _votersArr);
+
+        vm.roll(_startBlock + 150);
+
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+        uint256 distributionId = _grantFund.getDistributionId();
+
+        vm.roll(_startBlock + 200);
+
+        TestProposalParams[] memory testProposalParams = new TestProposalParams[](15);
+        testProposalParams[0] = TestProposalParams(_tokenHolder1, 9_000_000 * 1e18);
+        testProposalParams[1] = TestProposalParams(_tokenHolder2, 20_000_000 * 1e18);
+        testProposalParams[2] = TestProposalParams(_tokenHolder3, 5_000_000 * 1e18);
+        testProposalParams[3] = TestProposalParams(_tokenHolder4, 5_000_000 * 1e18);
+        testProposalParams[4] = TestProposalParams(_tokenHolder5, 50_000 * 1e18);
+        testProposalParams[5] = TestProposalParams(_tokenHolder6, 100_000 * 1e18);
+        testProposalParams[6] = TestProposalParams(_tokenHolder7, 100_000 * 1e18);
+        testProposalParams[7] = TestProposalParams(_tokenHolder8, 100_000 * 1e18);
+        testProposalParams[8] = TestProposalParams(_tokenHolder9, 100_000 * 1e18);
+        testProposalParams[9] = TestProposalParams(_tokenHolder10, 100_000 * 1e18);
+        testProposalParams[10] = TestProposalParams(_tokenHolder11, 100_000 * 1e18);
+        testProposalParams[11] = TestProposalParams(_tokenHolder12, 100_000 * 1e18);
+        testProposalParams[12] = TestProposalParams(_tokenHolder13, 100_000 * 1e18);
+        testProposalParams[13] = TestProposalParams(_tokenHolder14, 100_000 * 1e18);
+
+        TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
+
+        // tokenholder 1 casts screening stage votes, split evenly across 10 proposals
+        IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](10);
+        screeningVoteParams[0] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[0].proposalId,
+            votes: 5_000_000 * 1e18
+        });
+        screeningVoteParams[1] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[1].proposalId,
+            votes: 5_000_000 * 1e18
+        });
+        screeningVoteParams[2] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[2].proposalId,
+            votes: 5_000_000 * 1e18
+        });
+        screeningVoteParams[3] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[3].proposalId,
+            votes: 5_000_000 * 1e18
+        });
+        screeningVoteParams[4] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[4].proposalId,
+            votes: 5_000_000 * 1e18
+        });
+        screeningVoteParams[5] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[5].proposalId,
+            votes: 5_000_000 * 1e18
+        });
+        screeningVoteParams[6] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[6].proposalId,
+            votes: 5_000_000 * 1e18
+        });
+        screeningVoteParams[7] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[7].proposalId,
+            votes: 5_000_000 * 1e18
+        });
+        screeningVoteParams[8] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[8].proposalId,
+            votes: 5_000_000 * 1e18
+        });
+        screeningVoteParams[9] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[9].proposalId,
+            votes: 5_000_000 * 1e18
+        });
+        _screeningVoteMulti(_grantFund, screeningVoteParams, _tokenHolder1);
+
+        // check top ten proposals
+        GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
+        assertEq(screenedProposals.length, 10);
+
+        // two of the non-current top 10 are moved up to the top two spots
+        screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](2);
+                screeningVoteParams[0] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[10].proposalId,
+            votes: 15_000_000 * 1e18
+        });
+        screeningVoteParams[1] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals[11].proposalId,
+            votes: 15_000_000 * 1e18
+        });
+        _screeningVoteMulti(_grantFund, screeningVoteParams, _tokenHolder2);
+
+        screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
+        assertEq(screenedProposals.length, 10);
+        assertEq(screenedProposals[0].proposalId, testProposals[10].proposalId);
+        assertEq(screenedProposals[0].votesReceived, 15_000_000 * 1e18);
+        assertEq(screenedProposals[1].proposalId, testProposals[11].proposalId);
+        assertEq(screenedProposals[1].votesReceived, 15_000_000 * 1e18);
     }
 
     function testStartNewDistributionPeriod() external {

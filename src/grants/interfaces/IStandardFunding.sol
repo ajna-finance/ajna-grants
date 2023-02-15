@@ -126,6 +126,15 @@ interface IStandardFunding {
     }
 
     /**
+     * @notice Contains information about voters during a vote made during the Screening stage of a distribution period.
+     * @dev    Used in screeningVoteMulti().
+     */
+    struct ScreeningVoteParams {
+        uint256 proposalId; // the proposal being voted on
+        uint256 votes;      // the number of votes to allocate to the proposal
+    }
+
+    /**
      * @notice Contains information about voters during a distribution period's funding stage.
      */
     struct QuadraticVoter {

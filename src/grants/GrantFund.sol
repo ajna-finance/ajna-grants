@@ -14,8 +14,6 @@ import { StandardFunding }      from "./base/StandardFunding.sol";
 
 import { IGrantFund } from "./interfaces/IGrantFund.sol";
 
-import { console } from "@std/console.sol";
-
 contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
     using Checkpoints for Checkpoints.History;
@@ -134,6 +132,41 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             );
 
             unchecked { ++i; }
+        }
+    }
+
+    // TODO: investigate passing proposalId instead of Proposal struct to save gas
+    /**
+     * @notice Cast an array of screening votes in one transaction.
+     * @dev    Calls out to StandardFunding._screeningVote().
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param voteParams_ The array of votes on proposals to cast.
+     * @return votesCast_ The total number of votes cast across all of the proposals.
+     */
+    function screeningVoteMulti(ScreeningVoteParams[] memory voteParams_) external returns (uint256 votesCast_) {
+        uint256 currentDistributionId = distributionIdCheckpoints.latest();
+        QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
+        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
+
+        // check screening stage is active
+        if (block.number >= currentDistribution.startBlock && block.number <= screeningStageEndBlock) {
+
+            uint256 numVotesCast = voteParams_.length;
+            for (uint256 i = 0; i < numVotesCast; ) {
+                Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
+
+                // check if the proposal is currently active and part of this distribution period
+                if (state(voteParams_[i].proposalId) != IGovernor.ProposalState.Active) revert ScreeningVoteInvalid();
+
+                // cast each successive vote
+                votesCast_ += _screeningVote(
+                    msg.sender,
+                    proposal,
+                    voteParams_[i].votes
+                );
+
+                unchecked { ++i; }
+            }
         }
     }
 

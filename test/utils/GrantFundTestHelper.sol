@@ -311,6 +311,15 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.castVoteWithReasonAndParams(proposalId_, support, reason, params);
     }
 
+    function _screeningVoteMulti(GrantFund grantFund_, IStandardFunding.ScreeningVoteParams[] memory voteParams_, address voter_) internal {
+        for (uint256 i = 0; i < voteParams_.length; ++i) {
+            vm.expectEmit(true, true, false, true);
+            emit VoteCast(voter_, voteParams_[i].proposalId, 1, voteParams_[i].votes, "");
+        }
+        changePrank(voter_);
+        grantFund_.screeningVoteMulti(voteParams_);
+    }
+
     // Returns a random proposal Index from all proposals
     function _getRandomProposal(uint256 noOfProposals_) internal returns(uint256 proposal_) {
         // calculate random proposal Index between 0 and noOfProposals_
