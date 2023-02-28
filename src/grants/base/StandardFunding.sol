@@ -428,23 +428,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /************************/
 
     /**
-     * @notice Sum the square of each vote cast by a voter.
-     * @dev    Used to calculate if a voter has enough voting power to cast their votes.
-     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
-     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @param  votesCast_           The array of votes cast by a voter.
-     * @return votesCastSumSquared_ The sum of the square of each vote cast.
-     */
-    function _sumSquareOfVotesCast(FundingVoteParams[] memory votesCast_) internal pure returns (uint256 votesCastSumSquared_) {
-        uint256 numVotesCast = votesCast_.length;
-        for (uint256 i = 0; i < numVotesCast; ) {
-            votesCastSumSquared_ += Maths.wpow(uint256(Maths.abs(votesCast_[i].votesUsed)), 2);
-
-            unchecked { ++i; }
-        }
-    }
-
-    /**
      * @notice Vote on a proposal in the funding stage of the Distribution Period.
      * @dev    Votes can be allocated to multiple proposals, quadratically, for or against.
      * @param  currentDistribution_  The current distribution period.
@@ -577,6 +560,23 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         Proposal memory proposal = standardFundingProposals[proposalId_];
         uint256 distributionId = proposal.distributionId;
         return _findProposalIndex(proposalId_, fundedProposalSlates[distributions[distributionId].fundedSlateHash]) != -1;
+    }
+
+    /**
+     * @notice Sum the square of each vote cast by a voter.
+     * @dev    Used to calculate if a voter has enough voting power to cast their votes.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param  votesCast_           The array of votes cast by a voter.
+     * @return votesCastSumSquared_ The sum of the square of each vote cast.
+     */
+    function _sumSquareOfVotesCast(FundingVoteParams[] memory votesCast_) internal pure returns (uint256 votesCastSumSquared_) {
+        uint256 numVotesCast = votesCast_.length;
+        for (uint256 i = 0; i < numVotesCast; ) {
+            votesCastSumSquared_ += Maths.wpow(uint256(Maths.abs(votesCast_[i].votesUsed)), 2);
+
+            unchecked { ++i; }
+        }
     }
 
     /**
