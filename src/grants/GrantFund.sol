@@ -135,7 +135,6 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         }
     }
 
-    // TODO: investigate passing proposalId instead of Proposal struct to save gas
     /**
      * @notice Cast an array of screening votes in one transaction.
      * @dev    Calls out to StandardFunding._screeningVote().
@@ -190,7 +189,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             // screening stage
             if (block.number >= currentDistribution.startBlock && block.number <= screeningStageEndBlock) {
                 // check if the proposal is currently active and part of this distribution period
-                if (state(proposal.proposalId) != IGovernor.ProposalState.Active) revert ScreeningVoteInvalid();
+                if (state(proposalId_) != IGovernor.ProposalState.Active) revert ScreeningVoteInvalid();
 
                 // decode the amount of votes to allocated to the proposal
                 uint256 votes = abi.decode(params_, (uint256));
