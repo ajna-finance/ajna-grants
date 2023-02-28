@@ -94,9 +94,9 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         }
     }
 
-    /************************/
-    /*** Voting Functions ***/
-    /************************/
+    /*********************************/
+    /*** Voting Functions External ***/
+    /*********************************/
 
     /**
      * @notice Cast an array of funding votes in one transaction.
@@ -168,6 +168,10 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             }
         }
     }
+
+    /*********************************/
+    /*** Voting Functions Internal ***/
+    /*********************************/
 
     /**
      * @notice Vote on a proposal in the screening or funding stage of the Distribution Period.
