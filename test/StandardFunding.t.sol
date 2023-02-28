@@ -130,6 +130,55 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(votingPower, 50_000_000 * 1e18);
         votingPower = _grantFund.getVotesWithParams(nonVotingAddress, block.number, "Screening");
         assertEq(votingPower, 0);
+
+        // generate proposal targets
+        address[] memory ajnaTokenTargets = new address[](1);
+        ajnaTokenTargets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory proposalCalldata = new bytes[](1);
+        proposalCalldata[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder2,
+            1 * 1e18
+        );
+
+        // generate proposal message
+        string memory description = "Proposal for Ajna token transfer to tester address";
+
+        // create and submit proposal
+        TestProposal memory proposal = _createProposalStandard(_grantFund, _tokenHolder1, ajnaTokenTargets, values, proposalCalldata, description);
+
+        // token holder uses up their voting power in two separate votes on the same proposal
+        _screeningVote(_grantFund, _tokenHolder1, proposal.proposalId, 30_000_000 * 1e18);
+        _screeningVote(_grantFund, _tokenHolder1, proposal.proposalId, 20_000_000 * 1e18);
+
+        // check revert if additional votes exceed the voter's voting power in the screening stage
+        vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
+        _grantFund.castVoteWithReasonAndParams(proposal.proposalId, 1, "", abi.encode(16_000_000 * 1e18));
+
+        // check revert for using full voting power in screeningVoteMulti
+        IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](3);
+        screeningVoteParams[0] = IStandardFunding.ScreeningVoteParams({
+            proposalId: proposal.proposalId,
+            votes: 20_000_000 * 1e18
+        });
+        screeningVoteParams[1] = IStandardFunding.ScreeningVoteParams({
+            proposalId: proposal.proposalId,
+            votes: 30_000_000 * 1e18
+        });
+        screeningVoteParams[2] = IStandardFunding.ScreeningVoteParams({
+            proposalId: proposal.proposalId,
+            votes: 10_000_000 * 1e18
+        });
+
+        changePrank(_tokenHolder3);
+        vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
+        _grantFund.screeningVoteMulti(screeningVoteParams);
     }
 
     function testGetVotingPowerFundingStage() external {

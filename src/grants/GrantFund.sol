@@ -315,7 +315,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
             // screening stage
             if (block.number >= currentDistribution.startBlock && block.number <= screeningStageEndBlock) {
-                hasVoted_ = hasVotedScreening[proposal.distributionId][account_];
+                hasVoted_ = screeningVotesCast[proposal.distributionId][account_] != 0;
             }
 
             // funding stage

@@ -75,12 +75,6 @@ abstract contract Funding is Governor, ReentrancyGuard {
     mapping(uint256 => mapping(address => bool)) internal hasVotedExtraordinary;
 
     /**
-     * @notice Mapping checking if a voter has voted in screening in a given distribution quarter.
-     * @dev distributionId => address => bool.
-     */
-    mapping(uint256 => mapping(address => bool)) internal hasVotedScreening;
-
-    /**
      * @notice Number of blocks prior to a given voting stage to check an accounts voting power.
      * @dev    Prevents flashloan attacks or duplicate voting with multiple accounts.
      */

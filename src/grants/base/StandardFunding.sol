@@ -96,6 +96,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     */
     mapping(uint256 => mapping(address => bool)) public hasClaimedReward;
 
+    /**
+     * @notice Mapping of distributionId to user address to total votes cast on screening stage proposals.
+     * @dev distributionId => address => uint256
+    */
     mapping(uint256 => mapping(address => uint256)) public screeningVotesCast;
 
     /*****************************************/
@@ -327,7 +331,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /// @inheritdoc IStandardFunding
     function claimDelegateReward(uint256 distributionId_) external returns(uint256 rewardClaimed_) {
         // Revert if delegatee didn't vote in screening stage 
-        if(!hasVotedScreening[distributionId_][msg.sender]) revert DelegateRewardInvalid();
+        if(screeningVotesCast[distributionId_][msg.sender] == 0) revert DelegateRewardInvalid();
 
         QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
 
@@ -504,7 +508,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @return                        The amount of votes cast.
      */
     function _screeningVote(address account_, Proposal storage proposal_, uint256 votes_) internal returns (uint256) {
-        // TODO: investigate using a struct and writing the total voting power as a variable
+        // check that the voter has enough voting power to cast the vote
         if (screeningVotesCast[proposal_.distributionId][account_] + votes_ > _getVotes(account_, block.number, bytes("Screening"))) revert InsufficientVotingPower();
 
         uint256[] storage currentTopTenProposals = topTenProposals[proposal_.distributionId];
@@ -544,7 +548,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
 
         // record voters vote
-        hasVotedScreening[proposal_.distributionId][account_] = true;
+        screeningVotesCast[proposal_.distributionId][account_] += votes_;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(account_, proposalId, 1, votes_, "");
