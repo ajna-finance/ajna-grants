@@ -579,6 +579,74 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return _findProposalIndex(proposalId_, fundedProposalSlates[distributions[distributionId].fundedSlateHash]) != -1;
     }
 
+    /**
+     * @notice Identify where in an array of proposalIds the proposal exists.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param proposalId The proposalId to search for.
+     * @param array The array of proposalIds to search.
+     * @return index_ The index of the proposalId in the array, else -1.
+     */
+    function _findProposalIndex(uint256 proposalId, uint256[] memory array) internal pure returns (int256 index_) {
+        index_ = -1; // default value indicating proposalId not in the array
+        int256 arrayLength = int256(array.length);
+
+        for (int256 i = 0; i < arrayLength;) {
+            //slither-disable-next-line incorrect-equality
+            if (array[uint256(i)] == proposalId) {
+                index_ = i;
+                break;
+            }
+
+            unchecked { ++i; }
+        }
+    }
+
+    /**
+     * @notice Identify where in an array of FundingVoteParams structs the proposal exists.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param proposalId_ The proposalId to search for.
+     * @param voteParams_ The array of FundingVoteParams structs to search.
+     * @return index_ The index of the proposalId in the array, else -1.
+     */
+    function _findProposalIndexOfVotesCast(uint256 proposalId_, FundingVoteParams[] memory voteParams_) internal pure returns (int256 index_) {
+        index_ = -1; // default value indicating proposalId not in the array
+
+        int256 numVotesCast = int256(voteParams_.length);
+        for (int256 i = 0; i < numVotesCast; ) {
+            //slither-disable-next-line incorrect-equality
+            if (voteParams_[uint256(i)].proposalId == proposalId_) {
+                index_ = i;
+                break;
+            }
+
+            unchecked { ++i; }
+        }
+    }
+
+    /**
+     * @notice Sort the 10 proposals which will make it through screening and move on to the funding round.
+     * @dev    Implements the descending insertion sort algorithm.
+     */
+    function _insertionSortProposalsByVotes(uint256[] storage arr) internal {
+        int256 arrayLength = int256(arr.length);
+
+        for (int i = 1; i < arrayLength; i++) {
+            Proposal memory key = standardFundingProposals[arr[uint(i)]];
+            int j = i;
+
+            while (j > 0 && key.votesReceived > standardFundingProposals[arr[uint(j - 1)]].votesReceived) {
+                // swap values if left item < right item
+                uint256 temp = arr[uint(j - 1)];
+                arr[uint(j - 1)] = arr[uint(j)];
+                arr[uint(j)] = temp;
+
+                j--;
+            }
+        }
+    }
+
     /*******************************/
     /*** External View Functions ***/
     /*******************************/
@@ -660,78 +728,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /// @inheritdoc IStandardFunding
     function maximumQuarterlyDistribution() external view returns (uint256) {
         return Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);
-    }
-
-    /*************************/
-    /*** Sorting Functions ***/
-    /*************************/
-
-    /**
-     * @notice Identify where in an array of proposalIds the proposal exists.
-     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
-     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @param proposalId The proposalId to search for.
-     * @param array The array of proposalIds to search.
-     * @return index_ The index of the proposalId in the array, else -1.
-     */
-    function _findProposalIndex(uint256 proposalId, uint256[] memory array) internal pure returns (int256 index_) {
-        index_ = -1; // default value indicating proposalId not in the array
-        int256 arrayLength = int256(array.length);
-
-        for (int256 i = 0; i < arrayLength;) {
-            //slither-disable-next-line incorrect-equality
-            if (array[uint256(i)] == proposalId) {
-                index_ = i;
-                break;
-            }
-
-            unchecked { ++i; }
-        }
-    }
-
-    /**
-     * @notice Identify where in an array of FundingVoteParams structs the proposal exists.
-     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
-     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @param proposalId_ The proposalId to search for.
-     * @param voteParams_ The array of FundingVoteParams structs to search.
-     * @return index_ The index of the proposalId in the array, else -1.
-     */
-    function _findProposalIndexOfVotesCast(uint256 proposalId_, FundingVoteParams[] memory voteParams_) internal pure returns (int256 index_) {
-        index_ = -1; // default value indicating proposalId not in the array
-
-        int256 numVotesCast = int256(voteParams_.length);
-        for (int256 i = 0; i < numVotesCast; ) {
-            //slither-disable-next-line incorrect-equality
-            if (voteParams_[uint256(i)].proposalId == proposalId_) {
-                index_ = i;
-                break;
-            }
-
-            unchecked { ++i; }
-        }
-    }
-
-    /**
-     * @notice Sort the 10 proposals which will make it through screening and move on to the funding round.
-     * @dev    Implements the descending insertion sort algorithm.
-     */
-    function _insertionSortProposalsByVotes(uint256[] storage arr) internal {
-        int256 arrayLength = int256(arr.length);
-
-        for (int i = 1; i < arrayLength; i++) {
-            Proposal memory key = standardFundingProposals[arr[uint(i)]];
-            int j = i;
-
-            while (j > 0 && key.votesReceived > standardFundingProposals[arr[uint(j - 1)]].votesReceived) {
-                // swap values if left item < right item
-                uint256 temp = arr[uint(j - 1)];
-                arr[uint(j - 1)] = arr[uint(j)];
-                arr[uint(j)] = temp;
-
-                j--;
-            }
-        }
     }
 
 }
