@@ -115,10 +115,12 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         // check that the funding stage is active
         if (block.number > screeningStageEndBlock && block.number <= currentDistribution.endBlock) {
 
-            // this is the first time a voter has attempted to vote this period
+            // this is the first time a voter has attempted to vote this period,
+            // set initial voting power and remaining voting power
             if (voter.votingPower == 0) {
-                voter.votingPower          = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY, screeningStageEndBlock), 2);
-                voter.remainingVotingPower = voter.votingPower;
+                uint256 newVotingPower     = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY, screeningStageEndBlock), 2);
+                voter.votingPower          = newVotingPower;
+                voter.remainingVotingPower = newVotingPower;
             }
 
             uint256 numVotesCast = voteParams_.length;
@@ -190,11 +192,13 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         // standard funding mechanism
         if (mechanism == FundingMechanism.Standard) {
             Proposal storage proposal = standardFundingProposals[proposalId_];
-            QuarterlyDistribution storage currentDistribution = distributions[proposal.distributionId];
-            uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
+            uint256 distributionId = proposal.distributionId;
 
             // check that the proposal is part of the current distribution period
-            if (proposal.distributionId != distributionIdCheckpoints.latest()) revert InvalidVote();
+            if (distributionId != distributionIdCheckpoints.latest()) revert InvalidVote();
+
+            QuarterlyDistribution storage currentDistribution = distributions[distributionId];
+            uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
 
             // screening stage
             if (block.number >= currentDistribution.startBlock && block.number <= screeningStageEndBlock) {
@@ -210,10 +214,12 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             else if (block.number > screeningStageEndBlock && block.number <= currentDistribution.endBlock) {
                 QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
 
-                // this is the first time a voter has attempted to vote this period
+                // this is the first time a voter has attempted to vote this period,
+                // set initial voting power and remaining voting power
                 if (voter.votingPower == 0) {
-                    voter.votingPower          = Maths.wpow(_getVotesSinceSnapshot(account_, screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY, screeningStageEndBlock), 2);
-                    voter.remainingVotingPower = voter.votingPower;
+                    uint256 newVotingPower     = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY, screeningStageEndBlock), 2);
+                    voter.votingPower          = newVotingPower;
+                    voter.remainingVotingPower = newVotingPower;
                 }
 
                 // decode the amount of votes to allocated to the proposal
