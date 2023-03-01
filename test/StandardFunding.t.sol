@@ -805,7 +805,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // should revert if tokenHolder5 attempts to change the direction of a vote
         changePrank(_tokenHolder5);
-        vm.expectRevert(IStandardFunding.FundingVoteInvalid.selector);
+        vm.expectRevert(IStandardFunding.FundingVoteWrongDirection.selector);
         _grantFund.castVoteWithReasonAndParams(screenedProposals[5].proposalId, voteYes, "", abi.encode(5_000_000 * 1e18));
 
         // check remaining votes available to the above token holders
@@ -1056,6 +1056,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         vm.roll(_startBlock + 150);
 
+        /*********************************/
+        /*** First Distribution Period ***/
+        /*********************************/
+
         // start first distribution
         _startDistributionPeriod(_grantFund);
 
@@ -1102,6 +1106,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // execute funded proposals
         _executeProposal(_grantFund, _token, testProposals_distribution1[0]);
 
+        /**********************************/
+        /*** Second Distribution Period ***/
+        /**********************************/
+
         // start second distribution
         _startDistributionPeriod(_grantFund);
 
@@ -1123,6 +1131,23 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // screening period votes
         _screeningVote(_grantFund, _tokenHolder1, testProposals_distribution2[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
 
+        // check revert if attempts to cast screening votes on proposals from first distribution period
+        changePrank(_tokenHolder10);
+        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        _grantFund.castVoteWithReasonAndParams(testProposals_distribution1[0].proposalId, 0, "", abi.encode(50_000_000 * 1e18));
+
+        IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](2);
+        screeningVoteParams[0] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals_distribution1[0].proposalId,
+            votes: 20_000_000 * 1e18
+        });
+        screeningVoteParams[1] = IStandardFunding.ScreeningVoteParams({
+            proposalId: testProposals_distribution2[0].proposalId,
+            votes: 20_000_000 * 1e18
+        });
+        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        _grantFund.screeningVoteMulti(screeningVoteParams);
+
         // skip time to move from screening period to funding period
         vm.roll(_startBlock + 1_300_000);
 
@@ -1133,6 +1158,23 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // funding period votes
         _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution2[0].proposalId, voteYes, 50_000_000 * 1e18);
 
+        // check revert if attempts to cast funding votes on proposals from first distribution period
+        changePrank(_tokenHolder10);
+        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        _grantFund.castVoteWithReasonAndParams(testProposals_distribution1[0].proposalId, 0, "", abi.encode(50_000_000 * 1e18));
+
+        IStandardFunding.FundingVoteParams[] memory fundingVoteParams = new IStandardFunding.FundingVoteParams[](6);
+        fundingVoteParams[0] = IStandardFunding.FundingVoteParams({
+            proposalId: screenedProposals_distribution2[0].proposalId,
+            votesUsed: 21_000_000 * 1e18
+        });
+        fundingVoteParams[1] = IStandardFunding.FundingVoteParams({
+            proposalId: screenedProposals_distribution1[0].proposalId,
+            votesUsed: 21_000_000 * 1e18
+        });
+        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        _grantFund.fundingVotesMulti(fundingVoteParams);
+
         // skip to the Challenge period
         vm.roll(_startBlock + 1_350_000);
 
@@ -1141,6 +1183,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // checkSlate
         _grantFund.checkSlate(potentialProposalSlate_distribution2, distributionId2);
+
+        /*********************************/
+        /*** Third Distribution Period ***/
+        /*********************************/
 
         // start third distribution before executing proposals of second distribution
         _startDistributionPeriod(_grantFund);

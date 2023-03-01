@@ -112,26 +112,33 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][msg.sender];
         uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
 
-        // this is the first time a voter has attempted to vote this period
-        if (voter.votingPower == 0) {
-            voter.votingPower          = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY, screeningStageEndBlock), 2);
-            voter.remainingVotingPower = voter.votingPower;
-        }
+        // check that the funding stage is active
+        if (block.number > screeningStageEndBlock && block.number <= currentDistribution.endBlock) {
 
-        uint256 numVotesCast = voteParams_.length;
-        for (uint256 i = 0; i < numVotesCast; ) {
-            Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
+            // this is the first time a voter has attempted to vote this period
+            if (voter.votingPower == 0) {
+                voter.votingPower          = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY, screeningStageEndBlock), 2);
+                voter.remainingVotingPower = voter.votingPower;
+            }
 
-            // cast each successive vote
-            votesCast_ += _fundingVote(
-                currentDistribution,
-                proposal,
-                msg.sender,
-                voter,
-                voteParams_[i]
-            );
+            uint256 numVotesCast = voteParams_.length;
+            for (uint256 i = 0; i < numVotesCast; ) {
+                Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
 
-            unchecked { ++i; }
+                // check that the proposal is part of the current distribution period
+                if (proposal.distributionId != currentDistribution.id) revert InvalidVote();
+
+                // cast each successive vote
+                votesCast_ += _fundingVote(
+                    currentDistribution,
+                    proposal,
+                    msg.sender,
+                    voter,
+                    voteParams_[i]
+                );
+
+                unchecked { ++i; }
+            }
         }
     }
 
@@ -154,8 +161,8 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             for (uint256 i = 0; i < numVotesCast; ) {
                 Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
 
-                // check if the proposal is currently active and part of this distribution period
-                if (state(voteParams_[i].proposalId) != IGovernor.ProposalState.Active) revert ScreeningVoteInvalid();
+                // check that the proposal is part of the current distribution period
+                if (proposal.distributionId != currentDistribution.id) revert InvalidVote();
 
                 // cast each successive vote
                 votesCast_ += _screeningVote(
@@ -186,10 +193,11 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             QuarterlyDistribution storage currentDistribution = distributions[proposal.distributionId];
             uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
 
+            // check that the proposal is part of the current distribution period
+            if (proposal.distributionId != distributionIdCheckpoints.latest()) revert InvalidVote();
+
             // screening stage
             if (block.number >= currentDistribution.startBlock && block.number <= screeningStageEndBlock) {
-                // check if the proposal is currently active and part of this distribution period
-                if (state(proposalId_) != IGovernor.ProposalState.Active) revert ScreeningVoteInvalid();
 
                 // decode the amount of votes to allocated to the proposal
                 uint256 votes = abi.decode(params_, (uint256));

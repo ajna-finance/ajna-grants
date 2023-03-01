@@ -30,7 +30,7 @@ interface IStandardFunding {
     /**
      * @notice User attempted to change the direction of a subsequent funding vote on the same proposal.
      */
-    error FundingVoteInvalid();
+    error FundingVoteWrongDirection();
 
     /**
      * @notice User attempted to vote with more voting power than was available to them.
@@ -48,9 +48,9 @@ interface IStandardFunding {
     error DelegateRewardInvalid();
 
     /**
-     * @notice User attempted to vote on an inactive proposal.
+     * @notice User attempted to vote on a proposal outside of the current distribution period.
      */
-    error ScreeningVoteInvalid();
+    error InvalidVote();
 
     /**
      * @notice User attempted to propose after screening period ended

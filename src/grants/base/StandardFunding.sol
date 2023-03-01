@@ -461,7 +461,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             if (support == 0 && existingVote.votesUsed > 0 || support == 1 && existingVote.votesUsed < 0) {
                 // if the vote is in the opposite direction of a previous vote,
                 // and the proposal is already in the votesCast array, revert can't change direction
-                revert FundingVoteInvalid();
+                revert FundingVoteWrongDirection();
             }
             else {
                 // update the votes cast for the proposal
