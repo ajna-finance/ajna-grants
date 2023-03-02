@@ -118,10 +118,12 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
         QuadraticVoter        storage voter               = quadraticVoters[currentDistribution.id][msg.sender];
 
-        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
+        uint256 endBlock = currentDistribution.endBlock;
+
+        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(endBlock);
 
         // check that the funding stage is active
-        if (block.number > screeningStageEndBlock && block.number <= currentDistribution.endBlock) {
+        if (block.number > screeningStageEndBlock && block.number <= endBlock) {
 
             // this is the first time a voter has attempted to vote this period,
             // set initial voting power and remaining voting power
@@ -167,12 +169,10 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     ) external returns (uint256 votesCast_) {
         uint256 currentDistributionId = distributionIdCheckpoints.latest();
 
-        QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
-
-        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
+        QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
 
         // check screening stage is active
-        if (block.number >= currentDistribution.startBlock && block.number <= screeningStageEndBlock) {
+        if (block.number >= currentDistribution.startBlock && block.number <= _getScreeningStageEndBlock(currentDistribution.endBlock)) {
 
             uint256 numVotesCast = voteParams_.length;
 
@@ -221,7 +221,8 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
             QuarterlyDistribution storage currentDistribution = distributions[distributionId];
 
-            uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
+            uint256 endBlock = currentDistribution.endBlock;
+            uint256 screeningStageEndBlock = _getScreeningStageEndBlock(endBlock);
 
             // screening stage
             if (block.number >= currentDistribution.startBlock && block.number <= screeningStageEndBlock) {
@@ -234,7 +235,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             }
 
             // funding stage
-            else if (block.number > screeningStageEndBlock && block.number <= currentDistribution.endBlock) {
+            else if (block.number > screeningStageEndBlock && block.number <= endBlock) {
                 QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][account_];
 
                 // this is the first time a voter has attempted to vote this period,
@@ -248,9 +249,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 }
 
                 // decode the amount of votes to allocated to the proposal
-                int256 votes = abi.decode(params_, (int256));
-
-                FundingVoteParams memory newVote = FundingVoteParams(proposalId_, votes);
+                FundingVoteParams memory newVote = FundingVoteParams(proposalId_, abi.decode(params_, (int256)));
 
                 // allocate the votes to the proposal
                 votesCast_ = _fundingVote(currentDistribution, proposal, account_, voter, newVote);
@@ -298,7 +297,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             }
             // voter hasn't yet called _castVote in this period
             else {
-                availableVotes_ = _getFundingStageVotingPower(account_, _getScreeningStageEndBlock(currentDistribution));
+                availableVotes_ = _getFundingStageVotingPower(account_, _getScreeningStageEndBlock(currentDistribution.endBlock));
             }
         }
         else {
@@ -388,7 +387,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             Proposal              memory proposal            = standardFundingProposals[proposalId_]; 
             QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
 
-            uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
+            uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.endBlock);
 
             // screening stage
             if (block.number >= currentDistribution.startBlock && block.number <= screeningStageEndBlock) {

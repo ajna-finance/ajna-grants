@@ -108,24 +108,24 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Get the block number at which this distribution period's challenge stage ends.
-     * @param  distribution_ The quarterly distribution to get the challenge stage end block for.
+     * @param  endBlock_ The end block of quarterly distribution to get the challenge stage end block for.
      * @return The block number at which this distribution period's challenge stage ends.
     */
     function _getChallengeStageEndBlock(
-        QuarterlyDistribution memory distribution_
+        uint256 endBlock_
     ) internal pure returns (uint256) {
-        return distribution_.endBlock + CHALLENGE_PERIOD_LENGTH;
+        return endBlock_ + CHALLENGE_PERIOD_LENGTH;
     }
 
     /**
      * @notice Get the block number at which this distribution period's screening stage ends.
-     * @param  distribution_ The quarterly distribution to get the screening stage end block for.
+     * @param  endBlock_ The end block of quarterly distribution to get the screening stage end block for.
      * @return The block number at which this distribution period's screening stage ends.
     */
     function _getScreeningStageEndBlock(
-        QuarterlyDistribution memory distribution_
+        uint256 endBlock_
     ) internal pure returns (uint256) {
-        return distribution_.endBlock - FUNDING_PERIOD_LENGTH;
+        return endBlock_ - FUNDING_PERIOD_LENGTH;
     }
 
     /**
@@ -181,7 +181,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // update Treasury with unused funds from last two distributions
         {   
             // Check if any last distribution exists and its challenge stage is over
-            if ( currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistribution))) {
+            if ( currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistribution.endBlock))) {
                 // Add unused funds from last distribution to treasury
                 _updateTreasury(currentDistributionId);
             }
@@ -268,8 +268,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     ) external returns (bool) {
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
 
+        uint256 endBlock = currentDistribution.endBlock;
+
         // check that the function is being called within the challenge period
-        if (block.number <= currentDistribution.endBlock || block.number > _getChallengeStageEndBlock(currentDistribution)) {
+        if (block.number <= endBlock || block.number > _getChallengeStageEndBlock(endBlock)) {
             return false;
         }
 
@@ -375,7 +377,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
 
         // Check if Challenge Period is still active 
-        if(block.number < _getChallengeStageEndBlock(currentDistribution)) revert ChallengePeriodNotEnded();
+        if(block.number < _getChallengeStageEndBlock(currentDistribution.endBlock)) revert ChallengePeriodNotEnded();
 
         // check rewards haven't already been claimed
         if(hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
@@ -413,7 +415,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 distributionId = standardFundingProposals[proposalId_].distributionId;
 
         // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
-        if (block.number <= _getChallengeStageEndBlock(distributions[distributionId])) revert ExecuteProposalInvalid();
+        if (block.number <= _getChallengeStageEndBlock(distributions[distributionId].endBlock)) revert ExecuteProposalInvalid();
 
         super.execute(targets_, values_, calldatas_, descriptionHash_);
 
@@ -438,7 +440,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // cannot add new proposal after end of screening period
         // screening period ends 72000 blocks before end of distribution period, ~ 80 days.
-        if (block.number > _getScreeningStageEndBlock(currentDistribution)) revert ScreeningPeriodEnded();
+        if (block.number > _getScreeningStageEndBlock(currentDistribution.endBlock)) revert ScreeningPeriodEnded();
 
         // check params have matching lengths
         if (targets_.length != values_.length || targets_.length != calldatas_.length || targets_.length == 0) revert InvalidProposal();
