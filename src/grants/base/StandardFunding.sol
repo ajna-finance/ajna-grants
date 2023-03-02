@@ -4,7 +4,6 @@ pragma solidity 0.8.16;
 
 import { IERC20 }      from "@oz/token/ERC20/IERC20.sol";
 import { SafeERC20 }   from "@oz/token/ERC20/utils/SafeERC20.sol";
-import { Checkpoints } from "@oz/utils/Checkpoints.sol";
 
 import { Funding } from "./Funding.sol";
 
@@ -14,7 +13,6 @@ import { Maths } from "../libraries/Maths.sol";
 
 abstract contract StandardFunding is Funding, IStandardFunding {
 
-    using Checkpoints for Checkpoints.History;
     using SafeERC20 for IERC20;
 
     /***********************/
@@ -50,8 +48,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice ID of the current distribution period.
      * @dev Used to access information on the status of an ongoing distribution.
      * @dev Updated at the start of each quarter.
+     * @dev Monotonically increases by one per period.
      */
-    Checkpoints.History internal distributionIdCheckpoints;
+    uint256 internal currentDistributionId = 0;
 
     /**
      * @notice Mapping of quarterly distributions from the grant fund.
@@ -130,15 +129,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Set a new DistributionPeriod Id.
-     * @dev    Increments the previous Id nonce by 1, and sets a checkpoint at the calling block.number.
+     * @dev    Increments the previous Id nonce by 1.
      * @return newId_ The new distribution period Id.
      */
     function _setNewDistributionId() private returns (uint256 newId_) {
-        // retrieve current distribution Id
-        uint256 currentDistributionId = distributionIdCheckpoints.latest();
-
-        // set the current block number as the checkpoint for the current block
-        (, newId_) = distributionIdCheckpoints.push(currentDistributionId + 1);
+        newId_ = currentDistributionId += 1;
     }
 
     /**
@@ -148,7 +143,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function _updateTreasury(
         uint256 distributionId_
     ) private {
-        QuarterlyDistribution memory currentDistribution =  distributions[distributionId_];
+        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
 
         uint256[] memory fundingProposalIds = fundedProposalSlates[currentDistribution.fundedSlateHash];
 
@@ -171,11 +166,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /// @inheritdoc IStandardFunding
     function startNewDistributionPeriod() external returns (uint256 newDistributionId_) {
-        // check that there isn't currently an active distribution period
-        uint256 currentDistributionId = distributionIdCheckpoints.latest();
-
         QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
 
+        // check that there isn't currently an active distribution period
         if (block.number <= currentDistribution.endBlock) revert DistributionPeriodStillActive();
 
         // update Treasury with unused funds from last two distributions
@@ -436,7 +429,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check for duplicate proposals
         if (newProposal.proposalId != 0) revert ProposalAlreadyExists();
 
-        QuarterlyDistribution memory currentDistribution = distributions[distributionIdCheckpoints.latest()];
+        QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
 
         // cannot add new proposal after end of screening period
         // screening period ends 72000 blocks before end of distribution period, ~ 80 days.
@@ -661,15 +654,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
-    function getDistributionIdAtBlock(
-        uint256 blockNumber_
-    ) external view returns (uint256) {
-        return distributionIdCheckpoints.getAtBlock(blockNumber_);
-    }
-
-    /// @inheritdoc IStandardFunding
     function getDistributionId() external view returns (uint256) {
-        return distributionIdCheckpoints.latest();
+        return currentDistributionId;
     }
 
     /// @inheritdoc IStandardFunding

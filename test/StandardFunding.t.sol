@@ -650,7 +650,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(endBlock, block.number + 648000);
         
         vm.roll(_startBlock + 100);
-        currentDistributionId = _grantFund.getDistributionIdAtBlock(block.number - 1);
+        currentDistributionId = _grantFund.getDistributionId();
         assertEq(currentDistributionId, 1);
 
         // check a new distribution period can't be started if already active

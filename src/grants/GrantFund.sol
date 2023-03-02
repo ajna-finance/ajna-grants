@@ -5,7 +5,6 @@ pragma solidity 0.8.16;
 import { Governor }    from "@oz/governance/Governor.sol";
 import { IGovernor }   from "@oz/governance/IGovernor.sol";
 import { IVotes }      from "@oz/governance/utils/IVotes.sol";
-import { Checkpoints } from "@oz/utils/Checkpoints.sol";
 
 import { Maths } from "./libraries/Maths.sol";
 
@@ -15,8 +14,6 @@ import { StandardFunding }      from "./base/StandardFunding.sol";
 import { IGrantFund } from "./interfaces/IGrantFund.sol";
 
 contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
-
-    using Checkpoints for Checkpoints.History;
 
     IVotes public immutable token;
 
@@ -113,8 +110,6 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     function fundingVotesMulti(
         FundingVoteParams[] memory voteParams_
     ) external returns (uint256 votesCast_) {
-        uint256 currentDistributionId = distributionIdCheckpoints.latest();
-
         QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
         QuadraticVoter        storage voter               = quadraticVoters[currentDistribution.id][msg.sender];
 
@@ -167,8 +162,6 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     function screeningVoteMulti(
         ScreeningVoteParams[] memory voteParams_
     ) external returns (uint256 votesCast_) {
-        uint256 currentDistributionId = distributionIdCheckpoints.latest();
-
         QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
 
         // check screening stage is active
@@ -217,7 +210,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             uint256 distributionId = proposal.distributionId;
 
             // check that the proposal is part of the current distribution period
-            if (distributionId != distributionIdCheckpoints.latest()) revert InvalidVote();
+            if (distributionId != currentDistributionId) revert InvalidVote();
 
             QuarterlyDistribution storage currentDistribution = distributions[distributionId];
 
@@ -276,7 +269,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         uint256,
         bytes memory params_
     ) internal view override(Governor) returns (uint256 availableVotes_) {
-        QuarterlyDistribution memory currentDistribution = distributions[distributionIdCheckpoints.latest()];
+        QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
 
         // within screening period 1 token 1 vote
         if (keccak256(params_) == keccak256(bytes("Screening"))) {

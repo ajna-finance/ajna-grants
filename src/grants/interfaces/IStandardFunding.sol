@@ -238,15 +238,6 @@ interface IStandardFunding {
     ) external view returns (uint256 rewards_);
 
     /**
-     * @notice Retrieve the QuarterlyDistribution distributionId at a given block.
-     * @param  blockNumber_ The block number to check.
-     * @return The distributionId at the given block.
-     */
-    function getDistributionIdAtBlock(
-        uint256 blockNumber_
-    ) external view returns (uint256);
-
-    /**
      * @notice Retrieve the current QuarterlyDistribution distributionId.
      * @return The current distributionId.
      */
