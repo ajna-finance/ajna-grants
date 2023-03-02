@@ -56,7 +56,12 @@ interface IExtraordinaryFunding {
      * @param descriptionHash_ The hash of the proposal's description.
      * @return proposalId_     The ID of the executed proposal.
      */
-    function executeExtraordinary(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) external returns (uint256 proposalId_);
+    function executeExtraordinary(
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory calldatas_,
+        bytes32 descriptionHash_
+    ) external returns (uint256 proposalId_);
 
     /**
      * @notice Submit a proposal to the extraordinary funding flow.
@@ -72,11 +77,30 @@ interface IExtraordinaryFunding {
         address[] memory targets_,
         uint256[] memory values_,
         bytes[] memory calldatas_,
-        string memory description_) external returns (uint256 proposalId_);
+        string memory description_
+    ) external returns (uint256 proposalId_);
 
     /**********************/
     /*** View Functions ***/
     /**********************/
+
+    /**
+     * @notice Get the number of ajna tokens equivalent to a given percentage.
+     * @param  percentage_ The percentage of the Non treasury to retrieve, in WAD.
+     * @return The number of tokens, in WAD.
+     */
+    function getSliceOfNonTreasury(
+        uint256 percentage_
+    ) external view returns (uint256);
+
+    /**
+     * @notice Get the number of ajna tokens equivalent to a given percentage.
+     * @param percentage_ The percentage of the treasury to retrieve, in WAD.
+     * @return The number of tokens, in WAD.
+     */
+    function getSliceOfTreasury(
+        uint256 percentage_
+    ) external view returns (uint256);
 
     /**
      *  @notice Mapping of proposalIds to {ExtraordinaryFundingProposal} structs.
@@ -89,7 +113,9 @@ interface IExtraordinaryFunding {
      *  @return succeeded       Whether the proposal received enough votes to pass required thresholds.
      *  @return executed        Whether a succesful proposal has been executed.
      */
-    function getExtraordinaryProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, uint256, bool, bool);
+    function getExtraordinaryProposalInfo(
+        uint256 proposalId_
+    ) external view returns (uint256, uint256, uint256, uint256, uint256, bool, bool);
 
     /**
      * @notice Get the current minimum threshold percentage of Ajna tokens required for a proposal to exceed.

@@ -42,7 +42,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         uint256[] memory values_,
         bytes[] memory calldatas_,
         bytes32 descriptionHash_
-    ) external nonReentrant returns (uint256 proposalId_) {
+    ) external nonReentrant override returns (uint256 proposalId_) {
         proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
@@ -52,12 +52,12 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         }
 
         // check if the proposal has received more votes than minimumThreshold and tokensRequestedPercentage of all tokens
-        if (proposal.votesReceived < proposal.tokensRequested + getSliceOfNonTreasury(_getMinimumThresholdPercentage()))
+        if (proposal.votesReceived < proposal.tokensRequested + _getSliceOfNonTreasury(_getMinimumThresholdPercentage()))
             revert ExecuteExtraordinaryProposalInvalid();
         proposal.succeeded = true;
 
         // check tokens requested are available for claiming from the treasury
-        if (proposal.tokensRequested > getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
+        if (proposal.tokensRequested > _getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
 
         fundedExtraordinaryProposals.push(proposal.proposalId);
 
@@ -74,7 +74,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         address[] memory targets_,
         uint256[] memory values_,
         bytes[] memory calldatas_,
-        string memory description_) external returns (uint256 proposalId_) {
+        string memory description_) external override returns (uint256 proposalId_) {
 
         proposalId_ = hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
 
@@ -88,7 +88,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         uint256 totalTokensRequested = _validateCallDatas(targets_, values_, calldatas_);
 
         // check tokens requested are available for claiming from the treasury
-        if (totalTokensRequested > getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
+        if (totalTokensRequested > _getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
 
         // store newly created proposal
         ExtraordinaryFundingProposal storage newProposal = extraordinaryFundingProposals[proposalId_];
@@ -153,9 +153,9 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         return extraordinaryFundingProposals[proposalId_].succeeded;
     }
 
-    /***********************/
-    /*** View Functions ****/
-    /***********************/
+    /********************************/
+    /*** Internal View Functions ****/
+    /********************************/
 
     function _getMinimumThresholdPercentage() internal view returns (uint256) {
         // default minimum threshold is 50
@@ -168,19 +168,14 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         }
     }
 
-    /// @inheritdoc IExtraordinaryFunding
-    function getMinimumThresholdPercentage() external view returns (uint256) {
-        return _getMinimumThresholdPercentage();
-    }
-
     /**
      * @notice Get the number of ajna tokens equivalent to a given percentage.
      * @param percentage_ The percentage of the Non treasury to retrieve, in WAD.
      * @return The number of tokens, in WAD.
      */
-    function getSliceOfNonTreasury(
+    function _getSliceOfNonTreasury(
         uint256 percentage_
-    ) public view returns (uint256) {
+    ) internal view returns (uint256) {
         uint256 totalAjnaSupply = IERC20(ajnaTokenAddress).totalSupply();
         return Maths.wmul(totalAjnaSupply - treasury, percentage_);
     }
@@ -190,16 +185,39 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @param percentage_ The percentage of the treasury to retrieve, in WAD.
      * @return The number of tokens, in WAD.
      */
+    function _getSliceOfTreasury(
+        uint256 percentage_
+    ) internal view returns (uint256) {
+        return Maths.wmul(treasury, percentage_);
+    }
+
+    /********************************/
+    /*** External View Functions ****/
+    /********************************/
+
+    /// @inheritdoc IExtraordinaryFunding
+    function getMinimumThresholdPercentage() external view returns (uint256) {
+        return _getMinimumThresholdPercentage();
+    }
+
+    /// @inheritdoc IExtraordinaryFunding
+    function getSliceOfNonTreasury(
+        uint256 percentage_
+    ) external view override returns (uint256) {
+        return _getSliceOfNonTreasury(percentage_);
+    }
+
+    /// @inheritdoc IExtraordinaryFunding
     function getSliceOfTreasury(
         uint256 percentage_
-    ) public view returns (uint256) {
-        return Maths.wmul(treasury, percentage_);
+    ) external view override returns (uint256) {
+        return _getSliceOfTreasury(percentage_);
     }
 
     /// @inheritdoc IExtraordinaryFunding
     function getExtraordinaryProposalInfo(
         uint256 proposalId_
-    ) external view returns (uint256, uint256, uint256, uint256, uint256, bool, bool) {
+    ) external view override returns (uint256, uint256, uint256, uint256, uint256, bool, bool) {
         ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
         return (
             proposal.proposalId,
