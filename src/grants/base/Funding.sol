@@ -103,6 +103,8 @@ abstract contract Funding is Governor, ReentrancyGuard {
         bytes[] memory calldatas_
     ) internal view returns (uint256 tokensRequested_) {
 
+        if (targets_.length == 0) revert InvalidProposal();
+
         for (uint256 i = 0; i < targets_.length;) {
 
             // check  targets and values are valid
@@ -110,7 +112,7 @@ abstract contract Funding is Governor, ReentrancyGuard {
             if (values_[i] != 0) revert InvalidValues();
 
             // check params have matching lengths
-            if (targets_.length != values_.length || targets_.length != calldatas_.length || targets_.length == 0) revert InvalidProposal();
+            if (targets_.length != values_.length || targets_.length != calldatas_.length) revert InvalidProposal();
 
             // check calldata function selector is transfer()
             bytes memory selDataWithSig = calldatas_[i];
