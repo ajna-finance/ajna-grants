@@ -42,10 +42,6 @@ library Maths {
         return x <= y ? x : y;
     }
 
-    function wad(uint256 x) internal pure returns (uint256) {
-        return x * 10**18;
-    }
-
     /** @notice Raises a WAD to the power of an integer and returns a WAD */
     function wpow(uint256 x, uint256 n) internal pure returns (uint256 z) {
         z = n % 2 != 0 ? x : 10**18;
