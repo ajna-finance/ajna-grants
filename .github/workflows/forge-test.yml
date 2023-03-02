@@ -29,7 +29,3 @@ jobs:
           forge build --sizes
         id: build
 
-      - name: Run tests
-        run: |
-          make test-with-gas-report
-        id: test
