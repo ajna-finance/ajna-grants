@@ -518,6 +518,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check that the voter hasn't already voted on a proposal by seeing if it's already in the votesCast array 
         int256 voteCastIndex = _findProposalIndexOfVotesCast(proposalId, votesCast);
 
+        // voter had already cast a funding vote on this proposal
         if (voteCastIndex != -1) {
             FundingVoteParams storage existingVote = votesCast[uint256(voteCastIndex)];
 
@@ -532,7 +533,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 existingVote.votesUsed += voteParams_.votesUsed;
             }
         }
-        // add the newly cast vote to the voter's votesCast array
+        // first time voting on this proposal, add the newly cast vote to the voter's votesCast array
         else {
             votesCast.push(voteParams_);
         }
@@ -606,14 +607,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         else {
             // proposal is already in the array
             if (indexInArray != -1) {
-                currentTopTenProposals[uint256(indexInArray)] = proposalId;
-
-                // sort top ten proposals
+                // re-sort top ten proposals to account for new vote totals
                 _insertionSortProposalsByVotes(currentTopTenProposals);
             }
             // proposal isn't already in the array
             else if(standardFundingProposals[currentTopTenProposals[screenedProposalsLength - 1]].votesReceived < proposal_.votesReceived) {
-                // replace least supported proposal with the new proposal
+                // replace the least supported proposal with the new proposal
                 currentTopTenProposals.pop();
                 currentTopTenProposals.push(proposalId);
 
@@ -806,13 +805,15 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**
      * @notice Sort the 10 proposals which will make it through screening and move on to the funding round.
      * @dev    Implements the descending insertion sort algorithm.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param arr_ The array of proposals to sort by votes recieved.
      */
     function _insertionSortProposalsByVotes(
         uint256[] storage arr_
     ) internal {
         int256 arrayLength = int256(arr_.length);
 
-        for (int i = 1; i < arrayLength; i++) {
+        for (int i = 1; i < arrayLength;) {
             Proposal memory key = standardFundingProposals[arr_[uint(i)]];
             int j = i;
 
@@ -822,8 +823,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 arr_[uint(j - 1)] = arr_[uint(j)];
                 arr_[uint(j)] = temp;
 
-                j--;
+                unchecked { --j; }
             }
+
+            unchecked { ++i; }
         }
     }
 
