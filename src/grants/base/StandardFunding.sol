@@ -195,9 +195,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // create QuarterlyDistribution struct
         QuarterlyDistribution storage newDistributionPeriod = distributions[newDistributionId_];
-        newDistributionPeriod.id              = uint128(newDistributionId_);
-        newDistributionPeriod.startBlock      = uint128(startBlock);
-        newDistributionPeriod.endBlock        = uint128(endBlock);
+        newDistributionPeriod.id              = uint24(newDistributionId_);
+        newDistributionPeriod.startBlock      = uint48(startBlock);
+        newDistributionPeriod.endBlock        = uint48(endBlock);
         uint256 gbc                           = Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);  
         newDistributionPeriod.fundsAvailable  = uint128(gbc);
 

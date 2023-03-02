@@ -103,11 +103,11 @@ interface IStandardFunding {
      * @notice Contains proposals that made it through the screening process to the funding stage.
      */
     struct QuarterlyDistribution {
-        uint128 id;                   // id of the current quarterly distribution
+        uint24  id;                   // id of the current quarterly distribution
+        uint48  startBlock;           // block number of the quarterly distributions start
+        uint48  endBlock;             // block number of the quarterly distributions end
         uint128 fundsAvailable;       // maximum fund (including delegate reward) that can be taken out that quarter
         uint256 fundingVotePowerCast; // total number of voting power allocated in funding stage that quarter
-        uint128 startBlock;           // block number of the quarterly distributions start
-        uint128 endBlock;             // block number of the quarterly distributions end
         bytes32 fundedSlateHash;      // hash of list of proposals to fund
     }
 

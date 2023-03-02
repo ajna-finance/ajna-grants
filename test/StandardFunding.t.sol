@@ -277,7 +277,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _startDistributionPeriod(_grantFund);
 
         changePrank(_tokenHolder2);
-        // Should revert if Propose of Governer Contract is called
+        // Should revert if proposal has Governer Contract as target
         vm.expectRevert(Funding.InvalidProposal.selector);
         _grantFund.propose(ajnaTokenTargets, values, proposalCalldata, description);
 
