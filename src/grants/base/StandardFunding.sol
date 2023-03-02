@@ -149,19 +149,23 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 distributionId_
     ) private {
         QuarterlyDistribution memory currentDistribution =  distributions[distributionId_];
+
         uint256[] memory fundingProposalIds = fundedProposalSlates[currentDistribution.fundedSlateHash];
+
         uint256 totalTokensRequested;
         uint256 numFundedProposals = fundingProposalIds.length;
 
         for (uint i = 0; i < numFundedProposals; ) {
             Proposal memory proposal = standardFundingProposals[fundingProposalIds[i]];
+
             totalTokensRequested += proposal.tokensRequested;
-            unchecked {
-                ++i;
-            }
+
+            unchecked { ++i; }
         }
+
         // readd non distributed tokens to the treasury
         treasury += (currentDistribution.fundsAvailable - totalTokensRequested);
+
         isSurplusFundsUpdated[distributionId_] = true;
     }
 
@@ -169,7 +173,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function startNewDistributionPeriod() external returns (uint256 newDistributionId_) {
         // check that there isn't currently an active distribution period
         uint256 currentDistributionId = distributionIdCheckpoints.latest();
+
         QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
+
         if (block.number <= currentDistribution.endBlock) revert DistributionPeriodStillActive();
 
         // update Treasury with unused funds from last two distributions
@@ -236,12 +242,15 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256[] calldata proposalIds_
     ) internal pure returns (bool) {
         uint256 numProposals = proposalIds_.length;
+
         for (uint i = 0; i < numProposals; ) {
             for (uint j = i + 1; j < numProposals; ) {
                 if (proposalIds_[i] == proposalIds_[j]) return true;
+
                 unchecked { ++j; }
 
             }
+
             unchecked { ++i; }
 
         }
@@ -271,6 +280,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check ways that the potential proposal slate is invalid or worse than existing
         // if worse than existing return false
         for (uint i = 0; i < numProposalsInSlate; ) {
+
             // check if Proposal is in the topTenProposals list
             if (_findProposalIndex(proposalIds_[i], topTenProposals[distributionId_]) == -1) return false;
 
@@ -302,7 +312,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // if slate of proposals is new top slate, update state
         if (newTopSlate) {
             uint256[] storage existingSlate = fundedProposalSlates[newSlateHash];
+
             for (uint i = 0; i < numProposalsInSlate; ) {
+
                 // update list of proposals to fund
                 existingSlate.push(proposalIds_[i]);
 
@@ -330,6 +342,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     ) internal pure returns (uint256 rewards_) {
         // calculate the total voting power available to the voter that was allocated in the funding stage
         uint256 votingPowerAllocatedByDelegatee = voter_.votingPower - voter_.remainingVotingPower;
+
         // if none of the voter's voting power was allocated, they recieve no rewards
         if (votingPowerAllocatedByDelegatee == 0) return 0;
 
@@ -384,12 +397,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         bytes32 descriptionHash_
     ) external nonReentrant returns (uint256 proposalId_) {
         proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
+
         Proposal memory proposal = standardFundingProposals[proposalId_];
 
         // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
         if (block.number <= _getChallengeStageEndBlock(distributions[proposal.distributionId])) revert ExecuteProposalInvalid();
 
         super.execute(targets_, values_, calldatas_, descriptionHash_);
+
         standardFundingProposals[proposalId_].executed = true;
     }
 
@@ -418,9 +433,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         Proposal storage newProposal = standardFundingProposals[proposalId_];
         newProposal.proposalId       = proposalId_;
         newProposal.distributionId   = currentDistribution.id;
-
-        // check proposal parameters are valid and update tokensRequested
-        newProposal.tokensRequested  = _validateCallDatas(targets_, values_, calldatas_);
+        newProposal.tokensRequested  = _validateCallDatas(targets_, values_, calldatas_); // check proposal parameters are valid and update tokensRequested
 
         emit ProposalCreated(
             proposalId_,
@@ -430,7 +443,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             new string[](targets_.length),
             calldatas_,
             block.number,
-            distributions[newProposal.distributionId].endBlock,
+            distributions[currentDistribution.id].endBlock,
             description_);
     }
 
@@ -450,6 +463,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         FundingVoteParams[] memory votesCast_
     ) internal pure returns (uint256 votesCastSumSquared_) {
         uint256 numVotesCast = votesCast_.length;
+
         for (uint256 i = 0; i < numVotesCast; ) {
             votesCastSumSquared_ += Maths.wpow(uint256(Maths.abs(votesCast_[i].votesUsed)), 2);
 
@@ -481,6 +495,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         voteParams_.votesUsed < 0 ? support = 0 : support = 1;
 
         uint256 votingPower = voter_.votingPower;
+
         // the total amount of voting power used by the voter before this vote executes
         uint256 voterPowerUsedPreVote = votingPower - voter_.remainingVotingPower;
 
@@ -488,6 +503,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // check that the voter hasn't already voted on a proposal by seeing if it's already in the votesCast array 
         int256 voteCastIndex = _findProposalIndexOfVotesCast(proposalId, votesCast);
+
         if (voteCastIndex != -1) {
             FundingVoteParams storage existingVote = votesCast[uint256(voteCastIndex)];
 

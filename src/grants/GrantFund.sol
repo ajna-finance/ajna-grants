@@ -63,7 +63,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     function findMechanismOfProposal(
         uint256 proposalId_
     ) public view returns (FundingMechanism) {
-        if (standardFundingProposals[proposalId_].proposalId != 0) return FundingMechanism.Standard;
+        if (standardFundingProposals[proposalId_].proposalId != 0)           return FundingMechanism.Standard;
         else if (extraordinaryFundingProposals[proposalId_].proposalId != 0) return FundingMechanism.Extraordinary;
         else revert ProposalNotFound();
     }
@@ -82,19 +82,19 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         // standard proposal state checks
         if (mechanism == FundingMechanism.Standard) {
             Proposal memory proposal = standardFundingProposals[proposalId_];
-            if (proposal.executed) return IGovernor.ProposalState.Executed;
+            if (proposal.executed)                                                    return IGovernor.ProposalState.Executed;
             else if (distributions[proposal.distributionId].endBlock >= block.number) return IGovernor.ProposalState.Active;
-            else if (_standardFundingVoteSucceeded(proposalId_)) return IGovernor.ProposalState.Succeeded;
-            else return IGovernor.ProposalState.Defeated;
+            else if (_standardFundingVoteSucceeded(proposalId_))                     return IGovernor.ProposalState.Succeeded;
+            else                                                                      return IGovernor.ProposalState.Defeated;
         }
         // extraordinary funding proposal state
         else {
             bool voteSucceeded = _extraordinaryFundingVoteSucceeded(proposalId_);
 
-            if (extraordinaryFundingProposals[proposalId_].executed) return IGovernor.ProposalState.Executed;
+            if (extraordinaryFundingProposals[proposalId_].executed)                                        return IGovernor.ProposalState.Executed;
             else if (extraordinaryFundingProposals[proposalId_].endBlock >= block.number && !voteSucceeded) return IGovernor.ProposalState.Active;
-            else if (voteSucceeded) return IGovernor.ProposalState.Succeeded;
-            else return IGovernor.ProposalState.Defeated;
+            else if (voteSucceeded)                                                                          return IGovernor.ProposalState.Succeeded;
+            else                                                                                             return IGovernor.ProposalState.Defeated;
         }
     }
 
@@ -114,8 +114,10 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         FundingVoteParams[] memory voteParams_
     ) external returns (uint256 votesCast_) {
         uint256 currentDistributionId = distributionIdCheckpoints.latest();
+
         QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
-        QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][msg.sender];
+        QuadraticVoter        storage voter               = quadraticVoters[currentDistribution.id][msg.sender];
+
         uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
 
         // check that the funding stage is active
@@ -124,6 +126,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             // this is the first time a voter has attempted to vote this period,
             // set initial voting power and remaining voting power
             if (voter.votingPower == 0) {
+
                 uint256 newVotingPower = Maths.wpow(
                     _getVotesSinceSnapshot(
                         msg.sender,
@@ -131,11 +134,13 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                         screeningStageEndBlock
                     ), 2
                 );
+
                 voter.votingPower          = newVotingPower;
                 voter.remainingVotingPower = newVotingPower;
             }
 
             uint256 numVotesCast = voteParams_.length;
+
             for (uint256 i = 0; i < numVotesCast; ) {
                 Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
 
@@ -167,13 +172,16 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         ScreeningVoteParams[] memory voteParams_
     ) external returns (uint256 votesCast_) {
         uint256 currentDistributionId = distributionIdCheckpoints.latest();
+
         QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
+
         uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
 
         // check screening stage is active
         if (block.number >= currentDistribution.startBlock && block.number <= screeningStageEndBlock) {
 
             uint256 numVotesCast = voteParams_.length;
+
             for (uint256 i = 0; i < numVotesCast; ) {
                 Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
 
@@ -211,6 +219,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         // standard funding mechanism
         if (mechanism == FundingMechanism.Standard) {
             Proposal storage proposal = standardFundingProposals[proposalId_];
+
             uint256 distributionId = proposal.distributionId;
 
             // check that the proposal is part of the current distribution period
@@ -237,6 +246,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 // this is the first time a voter has attempted to vote this period,
                 // set initial voting power and remaining voting power
                 if (voter.votingPower == 0) {
+
                     uint256 newVotingPower = Maths.wpow(
                         _getVotesSinceSnapshot(
                             msg.sender,
@@ -244,12 +254,14 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                             screeningStageEndBlock
                         ), 2
                     );
+
                     voter.votingPower          = newVotingPower;
                     voter.remainingVotingPower = newVotingPower;
                 }
 
                 // decode the amount of votes to allocated to the proposal
                 int256 votes = abi.decode(params_, (int256));
+
                 FundingVoteParams memory newVote = FundingVoteParams(proposalId_, votes);
 
                 // allocate the votes to the proposal
@@ -351,6 +363,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
         // enable voting weight to be calculated during the voting period's start block
         voteStartBlock_ = voteStartBlock_ != block.number ? voteStartBlock_ : block.number - 1;
+
         // calculate the number of votes available at the stage's start block
         uint256 votes2 = token.getPastVotes(account_, voteStartBlock_);
 
@@ -376,7 +389,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
         // Checks if Proposal is Standard
         if (mechanism == FundingMechanism.Standard) {
-            Proposal memory proposal = standardFundingProposals[proposalId_]; 
+            Proposal              memory proposal            = standardFundingProposals[proposalId_]; 
             QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
 
             uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
