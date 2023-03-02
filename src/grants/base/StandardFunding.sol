@@ -211,7 +211,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // decrease the treasury by the amount that is held for allocation in the new distribution period
         treasury -= gbc;
 
-        emit QuarterlyDistributionStarted(newDistributionId_, startBlock, endBlock);
+        emit QuarterlyDistributionStarted(
+            newDistributionId_,
+            startBlock,
+            endBlock
+        );
     }
 
     /**
@@ -323,7 +327,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
             // update hash to point to the new leading slate of proposals
             currentDistribution.fundedSlateHash = newSlateHash;
-            emit FundedSlateUpdated(distributionId_, newSlateHash);
+
+            emit FundedSlateUpdated(
+                distributionId_,
+                newSlateHash
+            );
         }
 
         return newTopSlate;
@@ -377,9 +385,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // calculate rewards earned for voting
         rewardClaimed_ = _getDelegateReward(currentDistribution, voter);
 
-        emit DelegateRewardClaimed(msg.sender, distributionId_, rewardClaimed_);
-
         hasClaimedReward[distributionId_][msg.sender] = true;
+
+        emit DelegateRewardClaimed(
+            msg.sender,
+            distributionId_,
+            rewardClaimed_
+        );
 
         // transfer rewards to delegatee
         IERC20(ajnaTokenAddress).safeTransfer(msg.sender, rewardClaimed_);
@@ -444,7 +456,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             calldatas_,
             block.number,
             distributions[currentDistribution.id].endBlock,
-            description_);
+            description_
+        );
     }
 
     /************************/
@@ -547,7 +560,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         // emits the amount of incremental votes cast for the proposal, not the voting power cost or total votes on a proposal
-        emit VoteCast(account_, proposalId, support, incrementalVotesUsed_, "");
+        emit VoteCast(
+            account_,
+            proposalId,
+            support,
+            incrementalVotesUsed_,
+            ""
+        );
     }
 
     /**
@@ -561,10 +580,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         Proposal storage proposal_,
         uint256 votes_
     ) internal {
-        // check that the voter has enough voting power to cast the vote
-        if (screeningVotesCast[proposal_.distributionId][account_] + votes_ > _getVotes(account_, block.number, bytes("Screening"))) revert InsufficientVotingPower();
+        uint256 distributionId = proposal_.distributionId;
 
-        uint256[] storage currentTopTenProposals = topTenProposals[proposal_.distributionId];
+        // check that the voter has enough voting power to cast the vote
+        if (screeningVotesCast[distributionId][account_] + votes_ > _getVotes(account_, block.number, bytes("Screening"))) revert InsufficientVotingPower();
+
+        uint256[] storage currentTopTenProposals = topTenProposals[distributionId];
         uint256 proposalId = proposal_.proposalId;
 
         // update proposal votes counter
@@ -604,7 +625,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         screeningVotesCast[proposal_.distributionId][account_] += votes_;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
-        emit VoteCast(account_, proposalId, 1, votes_, "");
+        emit VoteCast(
+            account_,
+            proposalId,
+            1,
+            votes_,
+            ""
+        );
     }
 
     /**

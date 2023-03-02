@@ -106,7 +106,8 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             calldatas_,
             block.number,
             endBlock_,
-            description_);
+            description_
+        );
     }
 
     /************************/
@@ -139,7 +140,13 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         // record that voter has voted on this extraorindary funding proposal
         hasVotedExtraordinary[proposalId_][account_] = true;
 
-        emit VoteCast(account_, proposalId_, 1, votes_, "");
+        emit VoteCast(
+            account_,
+            proposalId_,
+            1,
+            votes_,
+            ""
+        );
     }
 
     /**
