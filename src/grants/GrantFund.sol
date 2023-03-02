@@ -60,7 +60,9 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
      * @param proposalId_ The id of the proposal to query the mechanism of.
      * @return FundingMechanism to which the proposal was submitted.
      */
-    function findMechanismOfProposal(uint256 proposalId_) public view returns (FundingMechanism) {
+    function findMechanismOfProposal(
+        uint256 proposalId_
+    ) public view returns (FundingMechanism) {
         if (standardFundingProposals[proposalId_].proposalId != 0) return FundingMechanism.Standard;
         else if (extraordinaryFundingProposals[proposalId_].proposalId != 0) return FundingMechanism.Extraordinary;
         else revert ProposalNotFound();
@@ -72,7 +74,9 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
      * @param proposalId_ The id of the proposal to query the status of.
      * @return ProposalState of the given proposal.
      */
-    function state(uint256 proposalId_) public view override(Governor) returns (IGovernor.ProposalState) {
+    function state(
+        uint256 proposalId_
+    ) public view override(Governor) returns (IGovernor.ProposalState) {
         FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
 
         // standard proposal state checks
@@ -106,7 +110,9 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
      * @param voteParams_ The array of votes on proposals to cast.
      * @return votesCast_ The total number of votes cast across all of the proposals.
      */
-    function fundingVotesMulti(FundingVoteParams[] memory voteParams_) external returns (uint256 votesCast_) {
+    function fundingVotesMulti(
+        FundingVoteParams[] memory voteParams_
+    ) external returns (uint256 votesCast_) {
         uint256 currentDistributionId = distributionIdCheckpoints.latest();
         QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
         QuadraticVoter storage voter = quadraticVoters[currentDistribution.id][msg.sender];
@@ -118,7 +124,13 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             // this is the first time a voter has attempted to vote this period,
             // set initial voting power and remaining voting power
             if (voter.votingPower == 0) {
-                uint256 newVotingPower     = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY, screeningStageEndBlock), 2);
+                uint256 newVotingPower = Maths.wpow(
+                    _getVotesSinceSnapshot(
+                        msg.sender,
+                        screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY,
+                        screeningStageEndBlock
+                    ), 2
+                );
                 voter.votingPower          = newVotingPower;
                 voter.remainingVotingPower = newVotingPower;
             }
@@ -151,7 +163,9 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
      * @param voteParams_ The array of votes on proposals to cast.
      * @return votesCast_ The total number of votes cast across all of the proposals.
      */
-    function screeningVoteMulti(ScreeningVoteParams[] memory voteParams_) external returns (uint256 votesCast_) {
+    function screeningVoteMulti(
+        ScreeningVoteParams[] memory voteParams_
+    ) external returns (uint256 votesCast_) {
         uint256 currentDistributionId = distributionIdCheckpoints.latest();
         QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
         uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
@@ -166,12 +180,11 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 // check that the proposal is part of the current distribution period
                 if (proposal.distributionId != currentDistribution.id) revert InvalidVote();
 
+                uint256 votes = voteParams_[i].votes;
+
                 // cast each successive vote
-                votesCast_ += _screeningVote(
-                    msg.sender,
-                    proposal,
-                    voteParams_[i].votes
-                );
+                votesCast_ += votes;
+                _screeningVote(msg.sender, proposal, votes);
 
                 unchecked { ++i; }
             }
@@ -186,7 +199,13 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
      * @param params_     The amount of votes being allocated in the funding stage.
      * @return votesCast_ The amount of votes cast.
      */
-     function _castVote(uint256 proposalId_, address account_, uint8, string memory, bytes memory params_) internal override(Governor) returns (uint256 votesCast_) {
+     function _castVote(
+        uint256 proposalId_,
+        address account_,
+        uint8,
+        string memory,
+        bytes memory params_
+    ) internal override(Governor) returns (uint256 votesCast_) {
         FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
 
         // standard funding mechanism
@@ -198,16 +217,17 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             if (distributionId != distributionIdCheckpoints.latest()) revert InvalidVote();
 
             QuarterlyDistribution storage currentDistribution = distributions[distributionId];
+
             uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
 
             // screening stage
             if (block.number >= currentDistribution.startBlock && block.number <= screeningStageEndBlock) {
 
                 // decode the amount of votes to allocated to the proposal
-                uint256 votes = abi.decode(params_, (uint256));
+                votesCast_ = abi.decode(params_, (uint256));
 
                 // allocate the votes to the proposal
-                votesCast_ = _screeningVote(account_, proposal, votes);
+                _screeningVote(account_, proposal, votesCast_);
             }
 
             // funding stage
@@ -217,7 +237,13 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 // this is the first time a voter has attempted to vote this period,
                 // set initial voting power and remaining voting power
                 if (voter.votingPower == 0) {
-                    uint256 newVotingPower     = Maths.wpow(_getVotesSinceSnapshot(msg.sender, screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY, screeningStageEndBlock), 2);
+                    uint256 newVotingPower = Maths.wpow(
+                        _getVotesSinceSnapshot(
+                            msg.sender,
+                            screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY,
+                            screeningStageEndBlock
+                        ), 2
+                    );
                     voter.votingPower          = newVotingPower;
                     voter.remainingVotingPower = newVotingPower;
                 }
@@ -246,13 +272,21 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
      * @param  params_         Params used to pass stage for Standard, and proposalId for extraordinary.
      * @return availableVotes_ The number of votes available to an account in a given stage.
      */
-    function _getVotes(address account_, uint256, bytes memory params_) internal view override(Governor) returns (uint256 availableVotes_) {
+    function _getVotes(
+        address account_,
+        uint256,
+        bytes memory params_
+    ) internal view override(Governor) returns (uint256 availableVotes_) {
         QuarterlyDistribution memory currentDistribution = distributions[distributionIdCheckpoints.latest()];
 
         // within screening period 1 token 1 vote
         if (keccak256(params_) == keccak256(bytes("Screening"))) {
             // calculate voting weight based on the number of tokens held at the snapshot blocks of the screening stage
-            availableVotes_ = _getVotesSinceSnapshot(account_, currentDistribution.startBlock - VOTING_POWER_SNAPSHOT_DELAY, currentDistribution.startBlock);
+            availableVotes_ = _getVotesSinceSnapshot(
+                account_,
+                currentDistribution.startBlock - VOTING_POWER_SNAPSHOT_DELAY,
+                currentDistribution.startBlock
+            );
         }
         // else if in funding period quadratic formula squares the number of votes
         else if (keccak256(params_) == keccak256(bytes("Funding"))) {
@@ -265,7 +299,14 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             // voter hasn't yet called _castVote in this period
             else {
                 uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
-                availableVotes_ = Maths.wpow(_getVotesSinceSnapshot(account_, screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY, screeningStageEndBlock), 2);
+
+                availableVotes_ = Maths.wpow(
+                    _getVotesSinceSnapshot(
+                        account_,
+                        screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY,
+                        screeningStageEndBlock
+                    ), 2
+                );
             }
         }
         else {
@@ -277,7 +318,12 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 if (proposalId != 0) {
                     // get the number of votes available to voters at the start of the proposal, and 33 blocks before the start of the proposal
                     uint256 startBlock = extraordinaryFundingProposals[proposalId].startBlock;
-                    availableVotes_ = _getVotesSinceSnapshot(account_, startBlock - VOTING_POWER_SNAPSHOT_DELAY, startBlock);
+
+                    availableVotes_ = _getVotesSinceSnapshot(
+                        account_,
+                        startBlock - VOTING_POWER_SNAPSHOT_DELAY,
+                        startBlock
+                    );
                 }
             }
             // voting is not possible for non-specified pathways
@@ -295,7 +341,11 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
      * @param voteStartBlock_ The block number the proposal became available for voting.
      * @return                The voting power of the account.
      */
-    function _getVotesSinceSnapshot(address account_, uint256 snapshot_, uint256 voteStartBlock_) internal view returns (uint256) {
+    function _getVotesSinceSnapshot(
+        address account_,
+        uint256 snapshot_,
+        uint256 voteStartBlock_
+    ) internal view returns (uint256) {
         // calculate the number of votes available at the snapshot block
         uint256 votes1 = token.getPastVotes(account_, snapshot_);
 
@@ -318,13 +368,17 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
      * @dev    See {IGovernor-hasVoted}.
      * @return hasVoted_ Boolean for whether the account has already voted in the current proposal, and mechanism.
      */
-    function hasVoted(uint256 proposalId_, address account_) public view override(IGovernor) returns (bool hasVoted_) {
+    function hasVoted(
+        uint256 proposalId_,
+        address account_
+    ) public view override(IGovernor) returns (bool hasVoted_) {
         FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
 
         // Checks if Proposal is Standard
         if (mechanism == FundingMechanism.Standard) {
             Proposal memory proposal = standardFundingProposals[proposalId_]; 
             QuarterlyDistribution memory currentDistribution = distributions[proposal.distributionId];
+
             uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
 
             // screening stage

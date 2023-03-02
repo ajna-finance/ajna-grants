@@ -37,7 +37,12 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /**************************/
 
     /// @inheritdoc IExtraordinaryFunding
-    function executeExtraordinary(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) external nonReentrant returns (uint256 proposalId_) {
+    function executeExtraordinary(
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory calldatas_,
+        bytes32 descriptionHash_
+    ) external nonReentrant returns (uint256 proposalId_) {
         proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
@@ -115,7 +120,10 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @param  account_    The voting account.
      * @return votes_      The amount of votes cast.
      */
-    function _extraordinaryFundingVote(uint256 proposalId_, address account_) internal returns (uint256 votes_) {
+    function _extraordinaryFundingVote(
+        uint256 proposalId_,
+        address account_
+    ) internal returns (uint256 votes_) {
         if (hasVotedExtraordinary[proposalId_][account_]) revert AlreadyVoted();
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
@@ -139,7 +147,9 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @param  proposalId_ The ID of the proposal being checked.
      * @return             Boolean indicating whether the proposal has succeeded.
      */
-    function _extraordinaryFundingVoteSucceeded(uint256 proposalId_) internal view returns (bool) {
+    function _extraordinaryFundingVoteSucceeded(
+        uint256 proposalId_
+    ) internal view returns (bool) {
         return extraordinaryFundingProposals[proposalId_].succeeded;
     }
 
@@ -168,7 +178,9 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @param percentage_ The percentage of the Non treasury to retrieve, in WAD.
      * @return The number of tokens, in WAD.
      */
-    function getSliceOfNonTreasury(uint256 percentage_) public view returns (uint256) {
+    function getSliceOfNonTreasury(
+        uint256 percentage_
+    ) public view returns (uint256) {
         uint256 totalAjnaSupply = IERC20(ajnaTokenAddress).totalSupply();
         return Maths.wmul(totalAjnaSupply - treasury, percentage_);
     }
@@ -178,12 +190,16 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @param percentage_ The percentage of the treasury to retrieve, in WAD.
      * @return The number of tokens, in WAD.
      */
-    function getSliceOfTreasury(uint256 percentage_) public view returns (uint256) {
+    function getSliceOfTreasury(
+        uint256 percentage_
+    ) public view returns (uint256) {
         return Maths.wmul(treasury, percentage_);
     }
 
     /// @inheritdoc IExtraordinaryFunding
-    function getExtraordinaryProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, uint256, bool, bool) {
+    function getExtraordinaryProposalInfo(
+        uint256 proposalId_
+    ) external view returns (uint256, uint256, uint256, uint256, uint256, bool, bool) {
         ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
         return (
             proposal.proposalId,

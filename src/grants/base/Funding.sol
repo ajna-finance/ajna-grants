@@ -97,9 +97,11 @@ abstract contract Funding is Governor, ReentrancyGuard {
      * @param calldatas_       The calldata to send to each target.
      * @return tokensRequested_ The amount of tokens requested in the calldata.
      */
-    function _validateCallDatas(address[] memory targets_,
+    function _validateCallDatas(
+        address[] memory targets_,
         uint256[] memory values_,
-        bytes[] memory calldatas_) internal view returns (uint256 tokensRequested_) {
+        bytes[] memory calldatas_
+    ) internal view returns (uint256 tokensRequested_) {
 
         for (uint256 i = 0; i < targets_.length;) {
 
