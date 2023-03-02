@@ -98,6 +98,13 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _token.transfer(address(_grantFund), 500_000_000 * 1e18);
     }
 
+    function testGrantFundGovernorHardcodedOverrides(uint256 proposalId_) external {
+        assertEq(_grantFund.votingDelay(), 0);
+        assertEq(_grantFund.quorum(proposalId_), 0);
+        assertEq(_grantFund.votingPeriod(), 0);
+        assertEq(_grantFund.COUNTING_MODE(), "support=bravo&quorum=for,abstain");
+    }
+
     function testGetVotingPowerExtraordinary() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
@@ -213,7 +220,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(minimumThresholdPercentage, 0.500000000000000000 * 1e18);
     }
 
-    /** 
+    /**
      * @notice Calculate the number of tokens equivalent to various percentages assuming a treasury balance of 500,000,000.
      */
     function testGetSliceOfNonTreasury() external {
@@ -224,6 +231,19 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         percentageRequested = 0.055000000000000000 * 1e18;
         percentageOfTreasury = _grantFund.getSliceOfNonTreasury(percentageRequested);
         assertEq(percentageOfTreasury, 82_500_000 * 1e18);
+    }
+
+    /**
+     * @notice Calculate the number of tokens equivalent to various percentages assuming a treasury balance of 500,000,000.
+     */
+    function testGetSliceOfTreasury() external {
+        uint256 percentageRequested = 0.100000000000000000 * 1e18;
+        uint256 percentageOfTreasury = _grantFund.getSliceOfTreasury(percentageRequested);
+        assertEq(percentageOfTreasury, 50_000_000 * 1e18);
+
+        percentageRequested = 0.055000000000000000 * 1e18;
+        percentageOfTreasury = _grantFund.getSliceOfTreasury(percentageRequested);
+        assertEq(percentageOfTreasury, 27_500_000 * 1e18);
     }
 
     function testProposeExtraordinary() external {

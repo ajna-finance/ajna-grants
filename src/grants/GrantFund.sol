@@ -84,15 +84,15 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             Proposal memory proposal = standardFundingProposals[proposalId_];
             if (proposal.executed)                                                    return IGovernor.ProposalState.Executed;
             else if (distributions[proposal.distributionId].endBlock >= block.number) return IGovernor.ProposalState.Active;
-            else if (_standardFundingVoteSucceeded(proposalId_))                     return IGovernor.ProposalState.Succeeded;
+            else if (_standardFundingVoteSucceeded(proposalId_))                      return IGovernor.ProposalState.Succeeded;
             else                                                                      return IGovernor.ProposalState.Defeated;
         }
         // extraordinary funding proposal state
         else {
             bool voteSucceeded = _extraordinaryFundingVoteSucceeded(proposalId_);
 
-            if (extraordinaryFundingProposals[proposalId_].executed)                                        return IGovernor.ProposalState.Executed;
-            else if (extraordinaryFundingProposals[proposalId_].endBlock >= block.number && !voteSucceeded) return IGovernor.ProposalState.Active;
+            if (extraordinaryFundingProposals[proposalId_].executed)                                         return IGovernor.ProposalState.Executed;
+            else if (extraordinaryFundingProposals[proposalId_].endBlock >= block.number && !voteSucceeded)  return IGovernor.ProposalState.Active;
             else if (voteSucceeded)                                                                          return IGovernor.ProposalState.Succeeded;
             else                                                                                             return IGovernor.ProposalState.Defeated;
         }
