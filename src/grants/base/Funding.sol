@@ -109,6 +109,9 @@ abstract contract Funding is Governor, ReentrancyGuard {
             if (targets_[i] != ajnaTokenAddress) revert InvalidTarget();
             if (values_[i] != 0) revert InvalidValues();
 
+            // check params have matching lengths
+            if (targets_.length != values_.length || targets_.length != calldatas_.length || targets_.length == 0) revert InvalidProposal();
+
             // check calldata function selector is transfer()
             bytes memory selDataWithSig = calldatas_[i];
 

@@ -442,9 +442,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // screening period ends 72000 blocks before end of distribution period, ~ 80 days.
         if (block.number > _getScreeningStageEndBlock(currentDistribution.endBlock)) revert ScreeningPeriodEnded();
 
-        // check params have matching lengths
-        if (targets_.length != values_.length || targets_.length != calldatas_.length || targets_.length == 0) revert InvalidProposal();
-
         // store new proposal information
         newProposal.proposalId      = proposalId_;
         newProposal.distributionId  = uint120(currentDistribution.id);
