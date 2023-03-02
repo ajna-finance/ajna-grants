@@ -127,12 +127,14 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             // set initial voting power and remaining voting power
             if (voter.votingPower == 0) {
 
-                uint256 newVotingPower = Maths.wpow(
-                    _getVotesSinceSnapshot(
-                        msg.sender,
-                        screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY,
-                        screeningStageEndBlock
-                    ), 2
+                uint128 newVotingPower = uint128(
+                    Maths.wpow(
+                        _getVotesSinceSnapshot(
+                            msg.sender,
+                            screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY,
+                            screeningStageEndBlock
+                        ), 2
+                    )
                 );
 
                 voter.votingPower          = newVotingPower;
@@ -247,12 +249,14 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 // set initial voting power and remaining voting power
                 if (voter.votingPower == 0) {
 
-                    uint256 newVotingPower = Maths.wpow(
-                        _getVotesSinceSnapshot(
-                            msg.sender,
-                            screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY,
-                            screeningStageEndBlock
-                        ), 2
+                    uint128 newVotingPower = uint128(
+                        Maths.wpow(
+                            _getVotesSinceSnapshot(
+                                msg.sender,
+                                screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY,
+                                screeningStageEndBlock
+                            ), 2
+                        )
                     );
 
                     voter.votingPower          = newVotingPower;
