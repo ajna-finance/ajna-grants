@@ -119,8 +119,8 @@ interface IStandardFunding {
         uint120 distributionId;       // Id of the distribution period in which the proposal was made
         bool    executed;             // whether the proposal has been executed
         uint128 votesReceived;        // accumulator of screening votes received by a proposal
-        uint256 tokensRequested;      // number of Ajna tokens requested in the proposal
-        int256  fundingVotesReceived; // accumulator of funding votes allocated to the proposal.
+        uint128 tokensRequested;      // number of Ajna tokens requested in the proposal
+        int128  fundingVotesReceived; // accumulator of funding votes allocated to the proposal.
     }
 
     /**
@@ -298,7 +298,7 @@ interface IStandardFunding {
      */
     function getProposalInfo(
         uint256 proposalId_
-    ) external view returns (uint256, uint120, uint128, uint256, int256, bool);
+    ) external view returns (uint256, uint120, uint128, uint128, int128, bool);
 
     /**
      * @notice Retrieve the top ten proposals that have received the most votes in a given distribution period's screening round.

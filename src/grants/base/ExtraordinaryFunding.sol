@@ -47,7 +47,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
 
-        uint256 tokensRequested = proposal.tokensRequested;
+        uint256 tokensRequested = uint256(proposal.tokensRequested);
 
         // revert if executed or if the proposal has received more votes than minimumThreshold and tokensRequestedPercentage of all tokens
         if (
@@ -88,16 +88,16 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         // check proposal length is within limits of 1 month maximum
         if (block.number + MAX_EFM_PROPOSAL_LENGTH < endBlock_) revert InvalidProposal();
 
-        uint256 totalTokensRequested = _validateCallDatas(targets_, values_, calldatas_);
+        uint128 totalTokensRequested = _validateCallDatas(targets_, values_, calldatas_);
 
         // check tokens requested are available for claiming from the treasury
-        if (totalTokensRequested > _getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert InvalidProposal();
+        if (uint256(totalTokensRequested) > _getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert InvalidProposal();
 
         // store newly created proposal
         newProposal.proposalId      = proposalId_;
         newProposal.startBlock      = uint128(block.number);
         newProposal.endBlock        = uint128(endBlock_);
-        newProposal.tokensRequested = uint248(totalTokensRequested);
+        newProposal.tokensRequested = totalTokensRequested;
 
         emit ProposalCreated(
             proposalId_,
@@ -137,7 +137,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         // check voting power at snapshot block
         votes_ = _getVotes(account_, block.number, abi.encode(proposalId_));
-        proposal.votesReceived += uint248(votes_);
+        proposal.votesReceived += uint112(votes_);
 
         // record that voter has voted on this extraorindary funding proposal
         hasVotedExtraordinary[proposalId_][account_] = true;

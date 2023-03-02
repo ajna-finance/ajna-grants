@@ -86,7 +86,7 @@ abstract contract Funding is Governor, ReentrancyGuard {
         address[] memory targets_,
         uint256[] memory values_,
         bytes[] memory calldatas_
-    ) internal view returns (uint256 tokensRequested_) {
+    ) internal view returns (uint128 tokensRequested_) {
 
         if (targets_.length == 0) revert InvalidProposal();
 
@@ -118,7 +118,7 @@ abstract contract Funding is Governor, ReentrancyGuard {
             }
 
             // update tokens requested for additional calldata
-            tokensRequested_ += tokensRequested;
+            tokensRequested_ += uint128(tokensRequested);
 
             unchecked { ++i; }
         }

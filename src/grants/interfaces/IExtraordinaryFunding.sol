@@ -33,9 +33,9 @@ interface IExtraordinaryFunding {
         uint256  proposalId;      // Unique ID of the proposal. Hashed from proposeExtraordinary inputs.
         uint128  startBlock;      // Block number of the start of the extraordinary funding proposal voting period.
         uint128  endBlock;        // Block number of the end of the extraordinary funding proposal voting period.
-        uint248  tokensRequested; // Number of AJNA tokens requested.
+        uint128  tokensRequested; // Number of AJNA tokens requested.
         bool     succeeded;       // Whether the proposal succeeded or not.
-        uint248  votesReceived;   // Total votes received for this proposal.
+        uint112  votesReceived;   // Total votes received for this proposal.
         bool     executed;        // Whether the proposal has been executed or not.
     }
 

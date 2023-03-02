@@ -227,9 +227,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      */
     function _sumProposalFundingVotes(
         uint256[] memory proposalIdSubset_
-    ) internal view returns (uint256 sum_) {
+    ) internal view returns (uint128 sum_) {
         for (uint i = 0; i < proposalIdSubset_.length;) {
-            sum_ += uint256(standardFundingProposals[proposalIdSubset_[i]].fundingVotesReceived);
+            sum_ += uint128(standardFundingProposals[proposalIdSubset_[i]].fundingVotesReceived);
 
             unchecked { ++i; }
         }
@@ -279,7 +279,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         if (_hasDuplicates(proposalIds_)) return false;
 
         uint256 gbc = currentDistribution.fundsAvailable;
-        uint256 sum = 0;
+        uint128 sum = 0;
         uint256 totalTokensRequested = 0;
         uint256 numProposalsInSlate = proposalIds_.length;
 
@@ -296,7 +296,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             if (proposal.fundingVotesReceived < 0) return false;
 
             // update counters
-            sum += uint256(proposal.fundingVotesReceived);
+            sum += uint128(proposal.fundingVotesReceived);
             totalTokensRequested += proposal.tokensRequested;
 
             // check if slate of proposals exceeded budget constraint ( 90% of GBC )
@@ -553,7 +553,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         currentDistribution_.fundingVotePowerCast += incrementalVotingPowerUsed;
 
         // update proposal vote tracking
-        proposal_.fundingVotesReceived += voteParams_.votesUsed;
+        proposal_.fundingVotesReceived += int128(voteParams_.votesUsed);
 
         // the incremental additional votes cast on the proposal
         // used as a return value and emit value
@@ -710,7 +710,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /// @inheritdoc IStandardFunding
     function getProposalInfo(
         uint256 proposalId_
-    ) external view returns (uint256, uint120, uint128, uint256, int256, bool) {
+    ) external view returns (uint256, uint120, uint128, uint128, int128, bool) {
         return (
             standardFundingProposals[proposalId_].proposalId,
             standardFundingProposals[proposalId_].distributionId,
