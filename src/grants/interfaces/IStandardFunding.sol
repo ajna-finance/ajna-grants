@@ -23,11 +23,6 @@ interface IStandardFunding {
      error ExecuteProposalInvalid();
 
     /**
-     * @notice User attempted to finalize a distribution for execution when it has already been executed, or isn't ready.
-     */
-    error FinalizeDistributionInvalid();
-
-    /**
      * @notice User attempted to change the direction of a subsequent funding vote on the same proposal.
      */
     error FundingVoteWrongDirection();

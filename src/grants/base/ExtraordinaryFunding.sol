@@ -85,7 +85,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         // check if proposal already exists (proposal id not 0)
         if (newProposal.proposalId != 0) revert ProposalAlreadyExists();
 
-        // check proposal length is within limits of 1 month maximum and it hasn't already been submitted
+        // check proposal length is within limits of 1 month maximum
         if (block.number + MAX_EFM_PROPOSAL_LENGTH < endBlock_) revert InvalidProposal();
 
         uint256 totalTokensRequested = _validateCallDatas(targets_, values_, calldatas_);
