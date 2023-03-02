@@ -444,7 +444,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // store new proposal information
         Proposal storage newProposal = standardFundingProposals[proposalId_];
         newProposal.proposalId       = proposalId_;
-        newProposal.distributionId   = currentDistribution.id;
+        newProposal.distributionId   = uint120(currentDistribution.id);
         newProposal.tokensRequested  = _validateCallDatas(targets_, values_, calldatas_); // check proposal parameters are valid and update tokensRequested
 
         emit ProposalCreated(
@@ -589,7 +589,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 proposalId = proposal_.proposalId;
 
         // update proposal votes counter
-        proposal_.votesReceived += votes_;
+        proposal_.votesReceived += uint128(votes_);
 
         // check if proposal was already screened
         int indexInArray = _findProposalIndex(proposalId, currentTopTenProposals);
@@ -642,8 +642,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function _standardFundingVoteSucceeded(
         uint256 proposalId_
     ) internal view returns (bool) {
-        Proposal memory proposal = standardFundingProposals[proposalId_];
-        uint256 distributionId = proposal.distributionId;
+        uint256 distributionId = standardFundingProposals[proposalId_].distributionId;
         return _findProposalIndex(proposalId_, fundedProposalSlates[distributions[distributionId].fundedSlateHash]) != -1;
     }
 
@@ -678,14 +677,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function getDistributionPeriodInfo(
         uint256 distributionId_
     ) external view returns (uint256, uint256, uint256, uint256, uint256, bytes32) {
-        QuarterlyDistribution memory distribution = distributions[distributionId_];
         return (
-            distribution.id,
-            distribution.fundingVotePowerCast,
-            distribution.startBlock,
-            distribution.endBlock,
-            distribution.fundsAvailable,
-            distribution.fundedSlateHash
+            distributions[distributionId_].id,
+            distributions[distributionId_].fundingVotePowerCast,
+            distributions[distributionId_].startBlock,
+            distributions[distributionId_].endBlock,
+            distributions[distributionId_].fundsAvailable,
+            distributions[distributionId_].fundedSlateHash
         );
     }
 
@@ -713,15 +711,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /// @inheritdoc IStandardFunding
     function getProposalInfo(
         uint256 proposalId_
-    ) external view returns (uint256, uint256, uint256, uint256, int256, bool) {
-        Proposal memory proposal = standardFundingProposals[proposalId_];
+    ) external view returns (uint256, uint120, uint128, uint256, int256, bool) {
         return (
-            proposal.proposalId,
-            proposal.distributionId,
-            proposal.votesReceived,
-            proposal.tokensRequested,
-            proposal.fundingVotesReceived,
-            proposal.executed
+            standardFundingProposals[proposalId_].proposalId,
+            standardFundingProposals[proposalId_].distributionId,
+            standardFundingProposals[proposalId_].votesReceived,
+            standardFundingProposals[proposalId_].tokensRequested,
+            standardFundingProposals[proposalId_].fundingVotesReceived,
+            standardFundingProposals[proposalId_].executed
         );
     }
 
@@ -737,11 +734,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 distributionId_,
         address account_
     ) external view returns (uint256, uint256, uint256) {
-        QuadraticVoter memory voter = quadraticVoters[distributionId_][account_];
         return (
-            voter.votingPower,
-            voter.remainingVotingPower,
-            voter.votesCast.length
+            quadraticVoters[distributionId_][account_].votingPower,
+            quadraticVoters[distributionId_][account_].remainingVotingPower,
+            quadraticVoters[distributionId_][account_].votesCast.length
         );
     }
 
