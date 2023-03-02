@@ -25,6 +25,6 @@ jobs:
 
       - name: Run Forge build
         run: |
-          forge build --sizes
+          forge build
         id: build
 
