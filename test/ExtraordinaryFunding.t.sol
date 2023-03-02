@@ -340,7 +340,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             500_000_000 * 1e18
         );
 
-        vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInvalid.selector);
+        vm.expectRevert(Funding.InvalidProposal.selector);
         _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
 
         // check can't invoke with invalid calldata
@@ -351,7 +351,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             50_000_000 * 1e18
         );
 
-        vm.expectRevert(Funding.InvalidSignature.selector);
+        vm.expectRevert(Funding.InvalidProposal.selector);
         _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "burn extraordinary");
 
         // check can't submit proposal with end block higher than limit
@@ -364,7 +364,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             _tokenHolder1,
             50_000_000 * 1e18
         );
-        vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInvalid.selector);
+        vm.expectRevert(Funding.InvalidProposal.selector);
         _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
     }
 
@@ -571,7 +571,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
                 (, uint256 tokensRequested, , , uint256 votesReceived, , ) = _grantFund.getExtraordinaryProposalInfo(testProposal[i].proposalId);
 
                 if (votesReceived >= tokensRequested + _grantFund.getSliceOfNonTreasury(_grantFund.getMinimumThresholdPercentage())) {
-                    vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInvalid.selector);
+                    vm.expectRevert(Funding.InvalidProposal.selector);
                     _grantFund.executeExtraordinary(testProposal[i].targets, testProposal[i].values, testProposal[i].calldatas, keccak256(bytes(testProposal[i].description)));
                     continue;
                 }

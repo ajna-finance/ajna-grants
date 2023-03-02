@@ -13,11 +13,6 @@ interface IExtraordinaryFunding {
     /*********************/
 
     /**
-     * @notice User attempted to submit a proposal with invalid parameters.
-     */
-    error ExtraordinaryFundingProposalInvalid();
-
-    /**
      * @notice The current block isn't in the specified range of active blocks.
      */
     error ExtraordinaryFundingProposalInactive();

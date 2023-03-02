@@ -58,7 +58,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         proposal.succeeded = true;
 
         // check tokens requested are available for claiming from the treasury
-        if (tokensRequested > _getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
+        if (tokensRequested > _getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert InvalidProposal();
 
         fundedExtraordinaryProposals.push(proposalId_);
 
@@ -86,12 +86,12 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         if (newProposal.proposalId != 0) revert ProposalAlreadyExists();
 
         // check proposal length is within limits of 1 month maximum and it hasn't already been submitted
-        if (block.number + MAX_EFM_PROPOSAL_LENGTH < endBlock_) revert ExtraordinaryFundingProposalInvalid();
+        if (block.number + MAX_EFM_PROPOSAL_LENGTH < endBlock_) revert InvalidProposal();
 
         uint256 totalTokensRequested = _validateCallDatas(targets_, values_, calldatas_);
 
         // check tokens requested are available for claiming from the treasury
-        if (totalTokensRequested > _getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert ExtraordinaryFundingProposalInvalid();
+        if (totalTokensRequested > _getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert InvalidProposal();
 
         // store newly created proposal
         newProposal.proposalId      = proposalId_;

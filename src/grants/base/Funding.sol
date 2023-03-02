@@ -17,24 +17,9 @@ abstract contract Funding is Governor, ReentrancyGuard {
     error AlreadyVoted();
 
     /**
-     * @notice Non Ajna token contract address specified in target list.
-     */
-    error InvalidTarget();
-
-    /**
-     * @notice Non-zero amount specified in values array.
-     * @dev This parameter is only used for sending ETH which the GrantFund doesn't utilize.
-     */
-    error InvalidValues();
-
-    /**
-     * @notice Calldata for a method other than `transfer(address,uint256) was provided in a proposal.
-     * @dev seth sig "transfer(address,uint256)" == 0xa9059cbb.
-     */
-    error InvalidSignature();
-
-    /**
-     * @notice User attempted to submit a proposal with too many target, values or calldatas, or to the wrong method.
+     * @notice User submitted a proposal with invalid paramteres.
+     * @dev    A proposal is invalid if it has a mismatch in the number of targets, values, or calldatas.
+     * @dev    It is also invalid if it's calldata selector doesn't equal transfer().
      */
     error InvalidProposal();
 
@@ -107,9 +92,8 @@ abstract contract Funding is Governor, ReentrancyGuard {
 
         for (uint256 i = 0; i < targets_.length;) {
 
-            // check  targets and values are valid
-            if (targets_[i] != ajnaTokenAddress) revert InvalidTarget();
-            if (values_[i] != 0) revert InvalidValues();
+            // check targets and values params are valid
+            if (targets_[i] != ajnaTokenAddress || values_[i] != 0) revert InvalidProposal();
 
             // check params have matching lengths
             if (targets_.length != values_.length || targets_.length != calldatas_.length) revert InvalidProposal();
@@ -122,7 +106,7 @@ abstract contract Funding is Governor, ReentrancyGuard {
             assembly {
                 selector := mload(add(selDataWithSig, 0x20))
             }
-            if (selector != bytes4(0xa9059cbb)) revert InvalidSignature();
+            if (selector != bytes4(0xa9059cbb)) revert InvalidProposal();
 
             // https://github.com/ethereum/solidity/issues/9439
             // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
