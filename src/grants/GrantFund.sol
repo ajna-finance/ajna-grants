@@ -127,13 +127,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             // set initial voting power and remaining voting power
             if (voter.votingPower == 0) {
 
-                uint256 newVotingPower = Maths.wpow(
-                    _getVotesSinceSnapshot(
-                        msg.sender,
-                        screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY,
-                        screeningStageEndBlock
-                    ), 2
-                );
+                uint256 newVotingPower = _getFundingStageVotingPower(msg.sender, screeningStageEndBlock);
 
                 voter.votingPower          = newVotingPower;
                 voter.remainingVotingPower = newVotingPower;
@@ -247,13 +241,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 // set initial voting power and remaining voting power
                 if (voter.votingPower == 0) {
 
-                    uint256 newVotingPower = Maths.wpow(
-                        _getVotesSinceSnapshot(
-                            msg.sender,
-                            screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY,
-                            screeningStageEndBlock
-                        ), 2
-                    );
+                    uint256 newVotingPower = _getFundingStageVotingPower(msg.sender, screeningStageEndBlock);
 
                     voter.votingPower          = newVotingPower;
                     voter.remainingVotingPower = newVotingPower;
@@ -310,15 +298,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             }
             // voter hasn't yet called _castVote in this period
             else {
-                uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution);
-
-                availableVotes_ = Maths.wpow(
-                    _getVotesSinceSnapshot(
-                        account_,
-                        screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY,
-                        screeningStageEndBlock
-                    ), 2
-                );
+                availableVotes_ = _getFundingStageVotingPower(account_, _getScreeningStageEndBlock(currentDistribution));
             }
         }
         else {
@@ -344,10 +324,26 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             }
         }
     }
+     /**
+     * @notice Retrieve the funding stage voting power of an account.
+     * @dev    Returns the square of the voter's voting power at the snapshot blocks.
+     * @param account_                The voting account.
+     * @param screeningStageEndBlock_ The block number at which the screening stage end and the funding stage beings.
+     * @return votingPower_           The voting power of the account.
+     */
+    function _getFundingStageVotingPower(address account_, uint256 screeningStageEndBlock_) internal view returns (uint256 votingPower_) {
+        votingPower_ = Maths.wpow(
+            _getVotesSinceSnapshot(
+                account_,
+                screeningStageEndBlock_ - VOTING_POWER_SNAPSHOT_DELAY,
+                screeningStageEndBlock_
+            ), 2
+        );
+    }
 
      /**
      * @notice Retrieve the voting power of an account.
-     * @dev    Voteing power is the minimum of the amount of votes available at a snapshot block 33 blocks prior to voting start, and at the vote starting block.
+     * @dev    Voting power is the minimum of the amount of votes available at a snapshot block 33 blocks prior to voting start, and at the vote starting block.
      * @param account_        The voting account.
      * @param snapshot_       One of the block numbers to retrieve the voting power at. 33 blocks prior to the block at which a proposal is available for voting.
      * @param voteStartBlock_ The block number the proposal became available for voting.
