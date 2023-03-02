@@ -410,10 +410,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     ) external nonReentrant returns (uint256 proposalId_) {
         proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
 
-        Proposal memory proposal = standardFundingProposals[proposalId_];
+        uint256 distributionId = standardFundingProposals[proposalId_].distributionId;
 
         // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
-        if (block.number <= _getChallengeStageEndBlock(distributions[proposal.distributionId])) revert ExecuteProposalInvalid();
+        if (block.number <= _getChallengeStageEndBlock(distributions[distributionId])) revert ExecuteProposalInvalid();
 
         super.execute(targets_, values_, calldatas_, descriptionHash_);
 
@@ -429,8 +429,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     ) external returns (uint256 proposalId_) {
         proposalId_ = hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
 
+        Proposal storage newProposal = standardFundingProposals[proposalId_];
+
         // check for duplicate proposals
-        if (standardFundingProposals[proposalId_].proposalId != 0) revert ProposalAlreadyExists();
+        if (newProposal.proposalId != 0) revert ProposalAlreadyExists();
 
         QuarterlyDistribution memory currentDistribution = distributions[distributionIdCheckpoints.latest()];
 
@@ -442,10 +444,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         if (targets_.length != values_.length || targets_.length != calldatas_.length || targets_.length == 0) revert InvalidProposal();
 
         // store new proposal information
-        Proposal storage newProposal = standardFundingProposals[proposalId_];
-        newProposal.proposalId       = proposalId_;
-        newProposal.distributionId   = uint120(currentDistribution.id);
-        newProposal.tokensRequested  = _validateCallDatas(targets_, values_, calldatas_); // check proposal parameters are valid and update tokensRequested
+        newProposal.proposalId      = proposalId_;
+        newProposal.distributionId  = uint120(currentDistribution.id);
+        newProposal.tokensRequested = _validateCallDatas(targets_, values_, calldatas_); // check proposal parameters are valid and update tokensRequested
 
         emit ProposalCreated(
             proposalId_,
@@ -455,7 +456,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             new string[](targets_.length),
             calldatas_,
             block.number,
-            distributions[currentDistribution.id].endBlock,
+            currentDistribution.endBlock,
             description_
         );
     }
