@@ -93,9 +93,9 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         // store newly created proposal
         ExtraordinaryFundingProposal storage newProposal = extraordinaryFundingProposals[proposalId_];
         newProposal.proposalId      = proposalId_;
-        newProposal.startBlock      = uint128(block.number);
-        newProposal.endBlock        = uint128(endBlock_);
-        newProposal.tokensRequested = uint248(totalTokensRequested);
+        newProposal.startBlock      = block.number;
+        newProposal.endBlock        = endBlock_;
+        newProposal.tokensRequested = totalTokensRequested;
 
         emit ProposalCreated(
             proposalId_,
@@ -135,7 +135,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         // check voting power at snapshot block
         votes_ = _getVotes(account_, block.number, abi.encode(proposalId_));
-        proposal.votesReceived += uint248(votes_);
+        proposal.votesReceived += votes_;
 
         // record that voter has voted on this extraorindary funding proposal
         hasVotedExtraordinary[proposalId_][account_] = true;

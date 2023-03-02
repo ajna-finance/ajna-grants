@@ -108,11 +108,11 @@ interface IStandardFunding {
      * @notice Contains proposals that made it through the screening process to the funding stage.
      */
     struct QuarterlyDistribution {
-        uint128 id;                   // id of the current quarterly distribution
-        uint128 fundsAvailable;       // maximum fund (including delegate reward) that can be taken out that quarter
-        uint128 startBlock;           // block number of the quarterly distributions start
-        uint128 endBlock;             // block number of the quarterly distributions end
+        uint256 id;                   // id of the current quarterly distribution
         uint256 fundingVotePowerCast; // total number of voting power allocated in funding stage that quarter
+        uint256 startBlock;           // block number of the quarterly distributions start
+        uint256 endBlock;             // block number of the quarterly distributions end
+        uint256 fundsAvailable;       // maximum fund (including delegate reward) that can be taken out that quarter
         bytes32 fundedSlateHash;      // hash of list of proposals to fund
     }
 
@@ -121,11 +121,11 @@ interface IStandardFunding {
      */
     struct Proposal {
         uint256 proposalId;           // OZ.Governor proposalId. Hash of proposeStandard inputs
-        uint120 distributionId;       // Id of the distribution period in which the proposal was made
-        bool    executed;             // whether the proposal has been executed
-        uint128 votesReceived;        // accumulator of screening votes received by a proposal
+        uint256 distributionId;       // Id of the distribution period in which the proposal was made
+        uint256 votesReceived;        // accumulator of screening votes received by a proposal
         uint256 tokensRequested;      // number of Ajna tokens requested in the proposal
         int256  fundingVotesReceived; // accumulator of funding votes allocated to the proposal.
+        bool    executed;             // whether the proposal has been executed
     }
 
     /**
@@ -149,8 +149,8 @@ interface IStandardFunding {
      * @notice Contains information about voters during a distribution period's funding stage.
      */
     struct QuadraticVoter {
-        uint128 votingPower;           // amount of votes originally available to the voter, equal to the sum of the square of their initial votes
-        uint128 remainingVotingPower;  // remaining voting power in the given period
+        uint256 votingPower;           // amount of votes originally available to the voter, equal to the sum of the square of their initial votes
+        uint256 remainingVotingPower;  // remaining voting power in the given period
         FundingVoteParams[] votesCast; // array of votes cast by the voter
     }
 
@@ -303,7 +303,7 @@ interface IStandardFunding {
      */
     function getProposalInfo(
         uint256 proposalId_
-    ) external view returns (uint256, uint120, uint128, uint256, int256, bool);
+    ) external view returns (uint256, uint256, uint256, uint256, int256, bool);
 
     /**
      * @notice Retrieve the top ten proposals that have received the most votes in a given distribution period's screening round.

@@ -176,12 +176,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
 
-        if (currentDistribution.endBlock >= block.number) revert DistributionPeriodStillActive();
+        if (block.number <= currentDistribution.endBlock) revert DistributionPeriodStillActive();
 
         // update Treasury with unused funds from last two distributions
         {   
             // Check if any last distribution exists and its challenge stage is over
-            if ( currentDistributionId > 0 && (_getChallengeStageEndBlock(currentDistribution) < block.number)) {
+            if ( currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistribution))) {
                 // Add unused funds from last distribution to treasury
                 _updateTreasury(currentDistributionId);
             }
@@ -193,20 +193,20 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             }
         }
 
-        // set the distribution period to start at the current block and end after 90 days
+        // set the distribution period to start at the current block
         uint256 startBlock = block.number;
-        uint256 endBlock   = startBlock + DISTRIBUTION_PERIOD_LENGTH;
+        uint256 endBlock = startBlock + DISTRIBUTION_PERIOD_LENGTH;
 
         // set new value for currentDistributionId
         newDistributionId_ = _setNewDistributionId();
 
         // create QuarterlyDistribution struct
         QuarterlyDistribution storage newDistributionPeriod = distributions[newDistributionId_];
-        newDistributionPeriod.id              = uint128(newDistributionId_);
-        newDistributionPeriod.startBlock      = uint128(startBlock);
-        newDistributionPeriod.endBlock        = uint128(endBlock);
+        newDistributionPeriod.id              = newDistributionId_;
+        newDistributionPeriod.startBlock      = startBlock;
+        newDistributionPeriod.endBlock        = endBlock;
         uint256 gbc                           = Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);  
-        newDistributionPeriod.fundsAvailable  = uint128(gbc);
+        newDistributionPeriod.fundsAvailable  = gbc;
 
         // decrease the treasury by the amount that is held for allocation in the new distribution period
         treasury -= gbc;
@@ -269,7 +269,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
 
         // check that the function is being called within the challenge period
-        if (currentDistribution.endBlock >= block.number || _getChallengeStageEndBlock(currentDistribution) < block.number) {
+        if (block.number <= currentDistribution.endBlock || block.number > _getChallengeStageEndBlock(currentDistribution)) {
             return false;
         }
 
@@ -375,7 +375,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
 
         // Check if Challenge Period is still active 
-        if(_getChallengeStageEndBlock(currentDistribution) > block.number) revert ChallengePeriodNotEnded();
+        if(block.number < _getChallengeStageEndBlock(currentDistribution)) revert ChallengePeriodNotEnded();
 
         // check rewards haven't already been claimed
         if(hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
@@ -413,7 +413,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         Proposal memory proposal = standardFundingProposals[proposalId_];
 
         // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
-        if (_getChallengeStageEndBlock(distributions[proposal.distributionId]) >= block.number) revert ExecuteProposalInvalid();
+        if (block.number <= _getChallengeStageEndBlock(distributions[proposal.distributionId])) revert ExecuteProposalInvalid();
 
         super.execute(targets_, values_, calldatas_, descriptionHash_);
 
@@ -436,7 +436,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // cannot add new proposal after end of screening period
         // screening period ends 72000 blocks before end of distribution period, ~ 80 days.
-        if (_getScreeningStageEndBlock(currentDistribution) < block.number) revert ScreeningPeriodEnded();
+        if (block.number > _getScreeningStageEndBlock(currentDistribution)) revert ScreeningPeriodEnded();
 
         // check params have matching lengths
         if (targets_.length != values_.length || targets_.length != calldatas_.length || targets_.length == 0) revert InvalidProposal();
@@ -444,8 +444,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // store new proposal information
         Proposal storage newProposal = standardFundingProposals[proposalId_];
         newProposal.proposalId       = proposalId_;
-        newProposal.distributionId   = uint120(currentDistribution.id);
-        newProposal.tokensRequested  = uint128(_validateCallDatas(targets_, values_, calldatas_)); // check proposal parameters are valid and update tokensRequested
+        newProposal.distributionId   = currentDistribution.id;
+        newProposal.tokensRequested  = _validateCallDatas(targets_, values_, calldatas_); // check proposal parameters are valid and update tokensRequested
 
         emit ProposalCreated(
             proposalId_,
@@ -543,7 +543,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         if (cumulativeVotePowerUsed > votingPower) revert InsufficientVotingPower();
 
         // update voter voting power accumulator
-        voter_.remainingVotingPower = uint128(votingPower - cumulativeVotePowerUsed);
+        voter_.remainingVotingPower = votingPower - cumulativeVotePowerUsed;
 
         // calculate the change in voting power used by the voter in this vote in order to accurately track the total voting power used in the funding stage
         uint256 incrementalVotingPowerUsed = cumulativeVotePowerUsed - voterPowerUsedPreVote;
@@ -589,7 +589,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 proposalId = proposal_.proposalId;
 
         // update proposal votes counter
-        proposal_.votesReceived += uint128(votes_);
+        proposal_.votesReceived += votes_;
 
         // check if proposal was already screened
         int indexInArray = _findProposalIndex(proposalId, currentTopTenProposals);
@@ -713,7 +713,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /// @inheritdoc IStandardFunding
     function getProposalInfo(
         uint256 proposalId_
-    ) external view returns (uint256, uint120, uint128, uint256, int256, bool) {
+    ) external view returns (uint256, uint256, uint256, uint256, int256, bool) {
         Proposal memory proposal = standardFundingProposals[proposalId_];
         return (
             proposal.proposalId,
