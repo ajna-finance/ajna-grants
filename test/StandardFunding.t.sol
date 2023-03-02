@@ -281,10 +281,15 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.expectRevert(Funding.InvalidProposal.selector);
         _grantFund.propose(ajnaTokenTargets, values, proposalCalldata, description);
 
-        // should revert if target array is blank
+        // should revert if target array size is greater than calldata and values size
+        address[] memory invalidTargetsLength = new address[](2);
+        invalidTargetsLength[0] = address(_token);
+        invalidTargetsLength[1] = address(_token);
+        uint256[] memory invalidValuesLength = new uint256[](2);
+        invalidValuesLength[0] = 0;
+        invalidValuesLength[1] = 0;
         vm.expectRevert(Funding.InvalidProposal.selector);
-        address[] memory targets;
-        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
+        _grantFund.proposeStandard(invalidTargetsLength, invalidValuesLength, proposalCalldata, description);
 
         // Skips to funding period
         vm.roll(_startBlock + 576_002);
