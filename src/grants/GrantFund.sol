@@ -207,7 +207,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         if (mechanism == FundingMechanism.Standard) {
             Proposal storage proposal = standardFundingProposals[proposalId_];
 
-            uint256 distributionId = proposal.distributionId;
+            uint24 distributionId = proposal.distributionId;
 
             // check that the proposal is part of the current distribution period
             if (distributionId != currentDistributionId) revert InvalidVote();

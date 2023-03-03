@@ -36,7 +36,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Length of the distribution period in blocks.
      * @dev    Roughly equivalent to the number of blocks in 90 days.
      */
-    uint256 internal constant DISTRIBUTION_PERIOD_LENGTH = 648000;
+    uint48 internal constant DISTRIBUTION_PERIOD_LENGTH = 648000;
 
     /**
      * @notice Length of the funding phase of the distribution period in blocks.
@@ -50,13 +50,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev Updated at the start of each quarter.
      * @dev Monotonically increases by one per period.
      */
-    uint256 internal currentDistributionId = 0;
+    uint24 internal currentDistributionId = 0;
 
     /**
      * @notice Mapping of quarterly distributions from the grant fund.
      * @dev distributionId => QuarterlyDistribution
      */
-    mapping(uint256 => QuarterlyDistribution) internal distributions;
+    mapping(uint24 => QuarterlyDistribution) internal distributions;
 
     /**
      * @dev Mapping of all proposals that have ever been submitted to the grant fund for screening.
@@ -132,7 +132,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev    Increments the previous Id nonce by 1.
      * @return newId_ The new distribution period Id.
      */
-    function _setNewDistributionId() private returns (uint256 newId_) {
+    function _setNewDistributionId() private returns (uint24 newId_) {
         newId_ = currentDistributionId += 1;
     }
 
@@ -141,7 +141,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @param distributionId_ distribution Id of updating distribution 
      */
     function _updateTreasury(
-        uint256 distributionId_
+        uint24 distributionId_
     ) private {
         QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
 
@@ -165,7 +165,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
-    function startNewDistributionPeriod() external returns (uint256 newDistributionId_) {
+    function startNewDistributionPeriod() external returns (uint24 newDistributionId_) {
         QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
 
         // check that there isn't currently an active distribution period
@@ -187,17 +187,17 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
 
         // set the distribution period to start at the current block
-        uint256 startBlock = block.number;
-        uint256 endBlock = startBlock + DISTRIBUTION_PERIOD_LENGTH;
+        uint48 startBlock = uint48(block.number);
+        uint48 endBlock = startBlock + DISTRIBUTION_PERIOD_LENGTH;
 
         // set new value for currentDistributionId
         newDistributionId_ = _setNewDistributionId();
 
         // create QuarterlyDistribution struct
         QuarterlyDistribution storage newDistributionPeriod = distributions[newDistributionId_];
-        newDistributionPeriod.id              = uint24(newDistributionId_);
-        newDistributionPeriod.startBlock      = uint48(startBlock);
-        newDistributionPeriod.endBlock        = uint48(endBlock);
+        newDistributionPeriod.id              = newDistributionId_;
+        newDistributionPeriod.startBlock      = startBlock;
+        newDistributionPeriod.endBlock        = endBlock;
         uint256 gbc                           = Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);  
         newDistributionPeriod.fundsAvailable  = uint128(gbc);
 
@@ -257,7 +257,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /// @inheritdoc IStandardFunding
     function checkSlate(
         uint256[] calldata proposalIds_,
-        uint256 distributionId_
+        uint24 distributionId_
     ) external returns (bool) {
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
 
@@ -362,7 +362,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /// @inheritdoc IStandardFunding
     function claimDelegateReward(
-        uint256 distributionId_
+        uint24 distributionId_
     ) external returns(uint256 rewardClaimed_) {
         // Revert if delegatee didn't vote in screening stage 
         if(screeningVotesCast[distributionId_][msg.sender] == 0) revert DelegateRewardInvalid();
@@ -405,7 +405,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     ) external nonReentrant returns (uint256 proposalId_) {
         proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
 
-        uint256 distributionId = standardFundingProposals[proposalId_].distributionId;
+        uint24 distributionId = standardFundingProposals[proposalId_].distributionId;
 
         // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
         if (block.number <= _getChallengeStageEndBlock(distributions[distributionId].endBlock)) revert ExecuteProposalInvalid();
@@ -437,7 +437,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // store new proposal information
         newProposal.proposalId      = proposalId_;
-        newProposal.distributionId  = uint120(currentDistribution.id);
+        newProposal.distributionId  = currentDistribution.id;
         newProposal.tokensRequested = _validateCallDatas(targets_, values_, calldatas_); // check proposal parameters are valid and update tokensRequested
 
         emit ProposalCreated(
@@ -634,7 +634,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function _standardFundingVoteSucceeded(
         uint256 proposalId_
     ) internal view returns (bool) {
-        uint256 distributionId = standardFundingProposals[proposalId_].distributionId;
+        uint24 distributionId = standardFundingProposals[proposalId_].distributionId;
         return _findProposalIndex(proposalId_, fundedProposalSlates[distributions[distributionId].fundedSlateHash]) != -1;
     }
 
@@ -644,7 +644,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /// @inheritdoc IStandardFunding
     function getDelegateReward(
-        uint256 distributionId_,
+        uint24 distributionId_,
         address voter_
     ) external view returns (uint256 rewards_) {
         QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
@@ -654,20 +654,20 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
-    function getDistributionId() external view returns (uint256) {
+    function getDistributionId() external view returns (uint24) {
         return currentDistributionId;
     }
 
     /// @inheritdoc IStandardFunding
     function getDistributionPeriodInfo(
-        uint256 distributionId_
-    ) external view returns (uint256, uint256, uint256, uint256, uint256, bytes32) {
+        uint24 distributionId_
+    ) external view returns (uint24, uint48, uint48, uint128, uint256, bytes32) {
         return (
             distributions[distributionId_].id,
-            distributions[distributionId_].fundingVotePowerCast,
             distributions[distributionId_].startBlock,
             distributions[distributionId_].endBlock,
             distributions[distributionId_].fundsAvailable,
+            distributions[distributionId_].fundingVotePowerCast,
             distributions[distributionId_].fundedSlateHash
         );
     }
@@ -696,7 +696,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /// @inheritdoc IStandardFunding
     function getProposalInfo(
         uint256 proposalId_
-    ) external view returns (uint256, uint120, uint128, uint128, int128, bool) {
+    ) external view returns (uint256, uint24, uint128, uint128, int128, bool) {
         return (
             standardFundingProposals[proposalId_].proposalId,
             standardFundingProposals[proposalId_].distributionId,
