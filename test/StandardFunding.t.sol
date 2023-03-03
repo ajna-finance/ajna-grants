@@ -277,14 +277,19 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _startDistributionPeriod(_grantFund);
 
         changePrank(_tokenHolder2);
-        // Should revert if Propose of Governer Contract is called
+        // Should revert if proposal has Governer Contract as target
         vm.expectRevert(Funding.InvalidProposal.selector);
         _grantFund.propose(ajnaTokenTargets, values, proposalCalldata, description);
 
-        // should revert if target array is blank
+        // should revert if target array size is greater than calldata and values size
+        address[] memory invalidTargetsLength = new address[](2);
+        invalidTargetsLength[0] = address(_token);
+        invalidTargetsLength[1] = address(_token);
+        uint256[] memory invalidValuesLength = new uint256[](2);
+        invalidValuesLength[0] = 0;
+        invalidValuesLength[1] = 0;
         vm.expectRevert(Funding.InvalidProposal.selector);
-        address[] memory targets;
-        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
+        _grantFund.proposeStandard(invalidTargetsLength, invalidValuesLength, proposalCalldata, description);
 
         // Skips to funding period
         vm.roll(_startBlock + 576_002);
@@ -295,7 +300,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 10);
 
         // should revert if Eth transfer is not zero
-        vm.expectRevert(Funding.InvalidValues.selector);
+        vm.expectRevert(Funding.InvalidProposal.selector);
         _grantFund.proposeStandard(ajnaTokenTargets, values, proposalCalldata, description);
 
         // updating Eth value to transfer to 0
@@ -364,7 +369,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         string memory description = "Proposal for Ajna token burn from the growth fund";
 
         // create proposal should revert since invalid burn operation was attempted
-        vm.expectRevert(Funding.InvalidSignature.selector);
+        vm.expectRevert(Funding.InvalidProposal.selector);
         _grantFund.proposeStandard(targets, values, proposalCalldata, description);
     }
 
@@ -392,7 +397,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         string memory description = "Proposal for Ajna token transfer to tester address";
 
         // create proposal should revert since a non Ajna token contract target was used
-        vm.expectRevert(Funding.InvalidTarget.selector);
+        vm.expectRevert(Funding.InvalidProposal.selector);
         _grantFund.proposeStandard(targets, values, proposalCalldata, description);
     }
 
@@ -472,7 +477,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // start distribution period
         _startDistributionPeriod(_grantFund);
-        uint256 distributionId = _grantFund.getDistributionId();
+        uint24 distributionId = _grantFund.getDistributionId();
 
         vm.roll(_startBlock + 200);
 
@@ -540,7 +545,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // start distribution period
         _startDistributionPeriod(_grantFund);
-        uint256 distributionId = _grantFund.getDistributionId();
+        uint24 distributionId = _grantFund.getDistributionId();
 
         vm.roll(_startBlock + 200);
 
@@ -631,21 +636,21 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     }
 
     function testStartNewDistributionPeriod() external {
-        uint256 currentDistributionId = _grantFund.getDistributionId();
+        uint24 currentDistributionId = _grantFund.getDistributionId();
         assertEq(currentDistributionId, 0);
 
         _startDistributionPeriod(_grantFund);
         currentDistributionId = _grantFund.getDistributionId();
         assertEq(currentDistributionId, 1);
 
-        (uint256 id, uint256 votesCast, uint256 startBlock, uint256 endBlock, , ) = _grantFund.getDistributionPeriodInfo(currentDistributionId);
+        (uint24 id, uint48 startBlock, uint48 endBlock, , uint256 fundingVotesCast, ) = _grantFund.getDistributionPeriodInfo(currentDistributionId);
         assertEq(id, currentDistributionId);
-        assertEq(votesCast, 0);
+        assertEq(fundingVotesCast, 0);
         assertEq(startBlock, block.number);
         assertEq(endBlock, block.number + 648000);
         
         vm.roll(_startBlock + 100);
-        currentDistributionId = _grantFund.getDistributionIdAtBlock(block.number - 1);
+        currentDistributionId = _grantFund.getDistributionId();
         assertEq(currentDistributionId, 1);
 
         // check a new distribution period can't be started if already active
@@ -678,9 +683,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // start distribution period
         _startDistributionPeriod(_grantFund);
 
-        uint256 distributionId = _grantFund.getDistributionId();
+        uint24 distributionId = _grantFund.getDistributionId();
 
-        (, , , , uint256 gbc, ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        (, , , uint128 gbc, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
         assertEq(gbc, 10_000_000 * 1e18);
 
@@ -809,7 +814,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.castVoteWithReasonAndParams(screenedProposals[5].proposalId, voteYes, "", abi.encode(5_000_000 * 1e18));
 
         // check remaining votes available to the above token holders
-        (uint256 voterPower, uint256 votingPowerRemaining, uint256 votesCast) = _grantFund.getVoterInfo(distributionId, _tokenHolder1);
+        (uint128 voterPower, uint128 votingPowerRemaining, uint256 votesCast) = _grantFund.getVoterInfo(distributionId, _tokenHolder1);
         assertEq(voterPower, 2_500_000_000_000_000 * 1e18);
         assertEq(votingPowerRemaining, 0);
         assertEq(votesCast, 1);
@@ -1063,9 +1068,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // start first distribution
         _startDistributionPeriod(_grantFund);
 
-        uint256 distributionId = _grantFund.getDistributionId();
+        uint24 distributionId = _grantFund.getDistributionId();
 
-        (, , , , uint256 gbc_distribution1, ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        (, , , uint128 gbc_distribution1, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
         assertEq(gbc_distribution1, 10_000_000 * 1e18);
         
@@ -1113,9 +1118,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // start second distribution
         _startDistributionPeriod(_grantFund);
 
-        uint256 distributionId2 = _grantFund.getDistributionId();
+        uint24 distributionId2 = _grantFund.getDistributionId();
 
-        (, , , , uint256 gbc_distribution2, ) = _grantFund.getDistributionPeriodInfo(distributionId2);
+        (, , , uint128 gbc_distribution2, , ) = _grantFund.getDistributionPeriodInfo(distributionId2);
 
         assertEq(gbc_distribution2, 9_830_000 * 1e18);
         
@@ -1191,9 +1196,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // start third distribution before executing proposals of second distribution
         _startDistributionPeriod(_grantFund);
 
-        uint256 distributionId3 = _grantFund.getDistributionId();
+        uint24 distributionId3 = _grantFund.getDistributionId();
 
-        (, , , , uint256 gbc_distribution3, ) = _grantFund.getDistributionPeriodInfo(distributionId3);
+        (, , , uint128 gbc_distribution3, , ) = _grantFund.getDistributionPeriodInfo(distributionId3);
 
         assertEq(gbc_distribution3, 9_633_400 * 1e18);
 
@@ -1243,9 +1248,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // start third distribution
         _startDistributionPeriod(_grantFund);
 
-        uint256 distributionId4 = _grantFund.getDistributionId();
+        uint24 distributionId4 = _grantFund.getDistributionId();
 
-        (, , , , uint256 gbc_distribution4, ) = _grantFund.getDistributionPeriodInfo(distributionId4);
+        (, , , uint128 gbc_distribution4, , ) = _grantFund.getDistributionPeriodInfo(distributionId4);
 
         assertEq(gbc_distribution4, 9_526_000 * 1e18);
     }
@@ -1284,7 +1289,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // start distribution period
         _startDistributionPeriod(_grantFund);
-        uint256 distributionId = _grantFund.getDistributionId();
+        uint24 distributionId = _grantFund.getDistributionId();
 
         // generate proposal targets
         address[] memory ajnaTokenTargets = new address[](1);
@@ -1458,7 +1463,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             assertEq(votes[i], _grantFund.getVotesWithParams(voters[i], block.number - 1, "Screening"));
         }
 
-        uint256 distributionId = _grantFund.getDistributionId();
+        uint24 distributionId = _grantFund.getDistributionId();
 
         // submit N proposals
         TestProposal[] memory proposals = _getProposals(noOfProposals, _grantFund, _tokenHolder1, _token);

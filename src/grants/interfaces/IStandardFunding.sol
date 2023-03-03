@@ -23,11 +23,6 @@ interface IStandardFunding {
      error ExecuteProposalInvalid();
 
     /**
-     * @notice User attempted to finalize a distribution for execution when it has already been executed, or isn't ready.
-     */
-    error FinalizeDistributionInvalid();
-
-    /**
      * @notice User attempted to change the direction of a subsequent funding vote on the same proposal.
      */
     error FundingVoteWrongDirection();
@@ -71,7 +66,10 @@ interface IStandardFunding {
      *  @param  distributionId_  Id of the distribution period.
      *  @param  fundedSlateHash_ Hash of the proposals to be funded.
      */
-    event FundedSlateUpdated(uint256 indexed distributionId_, bytes32 indexed fundedSlateHash_);
+    event FundedSlateUpdated(
+        uint256 indexed distributionId_,
+        bytes32 indexed fundedSlateHash_
+    );
 
     /**
      *  @notice Emitted at the beginning of a new quarterly distribution period.
@@ -79,7 +77,11 @@ interface IStandardFunding {
      *  @param  startBlock_     Block number of the quarterly distrubtions start.
      *  @param  endBlock_       Block number of the quarterly distrubtions end.
      */
-    event QuarterlyDistributionStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
+    event QuarterlyDistributionStarted(
+        uint256 indexed distributionId_,
+        uint256 startBlock_,
+        uint256 endBlock_
+    );
 
     /**
      *  @notice Emitted when delegatee claims his rewards.
@@ -87,7 +89,11 @@ interface IStandardFunding {
      *  @param  distributionId_  Id of distribution period.
      *  @param  rewardClaimed_    Amount of Reward Claimed.
      */
-    event DelegateRewardClaimed(address indexed delegateeAddress_, uint256 indexed distributionId_, uint256 rewardClaimed_);
+    event DelegateRewardClaimed(
+        address indexed delegateeAddress_,
+        uint256 indexed distributionId_,
+        uint256 rewardClaimed_
+    );
 
     /***************/
     /*** Structs ***/
@@ -97,11 +103,11 @@ interface IStandardFunding {
      * @notice Contains proposals that made it through the screening process to the funding stage.
      */
     struct QuarterlyDistribution {
-        uint256 id;                   // id of the current quarterly distribution
+        uint24  id;                   // id of the current quarterly distribution
+        uint48  startBlock;           // block number of the quarterly distributions start
+        uint48  endBlock;             // block number of the quarterly distributions end
+        uint128 fundsAvailable;       // maximum fund (including delegate reward) that can be taken out that quarter
         uint256 fundingVotePowerCast; // total number of voting power allocated in funding stage that quarter
-        uint256 startBlock;           // block number of the quarterly distributions start
-        uint256 endBlock;             // block number of the quarterly distributions end
-        uint256 fundsAvailable;       // maximum fund (including delegate reward) that can be taken out that quarter
         bytes32 fundedSlateHash;      // hash of list of proposals to fund
     }
 
@@ -110,11 +116,11 @@ interface IStandardFunding {
      */
     struct Proposal {
         uint256 proposalId;           // OZ.Governor proposalId. Hash of proposeStandard inputs
-        uint256 distributionId;       // Id of the distribution period in which the proposal was made
-        uint256 votesReceived;        // accumulator of screening votes received by a proposal
-        uint256 tokensRequested;      // number of Ajna tokens requested in the proposal
-        int256  fundingVotesReceived; // accumulator of funding votes allocated to the proposal.
+        uint24  distributionId;       // Id of the distribution period in which the proposal was made
         bool    executed;             // whether the proposal has been executed
+        uint128 votesReceived;        // accumulator of screening votes received by a proposal
+        uint128 tokensRequested;      // number of Ajna tokens requested in the proposal
+        int128  fundingVotesReceived; // accumulator of funding votes allocated to the proposal.
     }
 
     /**
@@ -138,8 +144,8 @@ interface IStandardFunding {
      * @notice Contains information about voters during a distribution period's funding stage.
      */
     struct QuadraticVoter {
-        uint256 votingPower;           // amount of votes originally available to the voter, equal to the sum of the square of their initial votes
-        uint256 remainingVotingPower;  // remaining voting power in the given period
+        uint128 votingPower;           // amount of votes originally available to the voter, equal to the sum of the square of their initial votes
+        uint128 remainingVotingPower;  // remaining voting power in the given period
         FundingVoteParams[] votesCast; // array of votes cast by the voter
     }
 
@@ -153,7 +159,10 @@ interface IStandardFunding {
      * @param  distributionId_ Id of the current quarterly distribution.
      * @return isNewTopSlate   Boolean indicating whether the new proposal slate was set as the new top slate for distribution.
      */
-    function checkSlate(uint256[] calldata proposalIds_, uint256 distributionId_) external returns (bool);
+    function checkSlate(
+        uint256[] calldata proposalIds_,
+        uint24 distributionId_
+    ) external returns (bool);
 
     /**
      * @notice distributes delegate reward based on delegatee Vote share.
@@ -161,21 +170,25 @@ interface IStandardFunding {
      * @param  distributionId_ Id of distribution from whinch delegatee wants to claim his reward.
      * @return rewardClaimed_  Amount of reward claimed by delegatee.
      */
-    function claimDelegateReward(uint256 distributionId_) external returns(uint256 rewardClaimed_);
+    function claimDelegateReward(
+        uint24 distributionId_
+    ) external returns(uint256 rewardClaimed_);
 
     /**
      * @notice Generate a unique hash of a list of proposal Ids for usage as a key for comparing proposal slates.
      * @param  proposalIds_ Array of proposal Ids to hash.
      * @return Bytes32      hash of the list of proposals.
      */
-    function getSlateHash(uint256[] calldata proposalIds_) external pure returns (bytes32);
+    function getSlateHash(
+        uint256[] calldata proposalIds_
+    ) external pure returns (bytes32);
 
     /**
      * @notice Start a new Distribution Period and reset appropriate state.
      * @dev    Can be kicked off by anyone assuming a distribution period isn't already active.
      * @return newDistributionId_ The new distribution period Id.
      */
-    function startNewDistributionPeriod() external returns (uint256 newDistributionId_);
+    function startNewDistributionPeriod() external returns (uint24 newDistributionId_);
 
     /**************************/
     /*** Proposal Functions ***/
@@ -187,7 +200,12 @@ interface IStandardFunding {
      * @dev    Check for proposal being succesfully funded or previously executed is handled by Governor.execute().
      * @return proposalId_ of the executed proposal.
      */
-     function executeStandard(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, bytes32 descriptionHash_) external returns (uint256 proposalId_);
+     function executeStandard(
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory calldatas_,
+        bytes32 descriptionHash_
+    ) external returns (uint256 proposalId_);
 
     /**
      * @notice Submit a new proposal to the Grant Coordination Fund Standard Funding mechanism.
@@ -214,48 +232,50 @@ interface IStandardFunding {
      * @param  voter_          The address of the voter to calculate rewards for.
      * @return rewards_        The rewards earned by the voter for voting in that distribution period.
      */
-    function getDelegateReward(uint256 distributionId_, address voter_) external view returns (uint256 rewards_);
-
-    /**
-     * @notice Retrieve the QuarterlyDistribution distributionId at a given block.
-     * @param  blockNumber The block number to check.
-     * @return             The distributionId at the given block.
-     */
-    function getDistributionIdAtBlock(uint256 blockNumber) external view returns (uint256);
+    function getDelegateReward(
+        uint24 distributionId_,
+        address voter_
+    ) external view returns (uint256 rewards_);
 
     /**
      * @notice Retrieve the current QuarterlyDistribution distributionId.
      * @return The current distributionId.
      */
-    function getDistributionId() external view returns (uint256);
+    function getDistributionId() external view returns (uint24);
 
     /**
      * @notice Mapping of distributionId to {QuarterlyDistribution} struct.
-     * @param  distributionId_ The distributionId to retrieve the QuarterlyDistribution struct for.
-     * @return distributionId     The retrieved struct's distributionId.
-     * @return fundingVotesCast The total number of votes cast in the distribution period's funding round.
-     * @return startBlock         The block number of the distribution period's start.
-     * @return endBlock           The block number of the distribution period's end.
-     * @return fundsAvailable     The maximum amount of funds that can be taken out of the distribution period.
-     * @return fundedSlateHash    The slate hash of the proposals that were funded.
+     * @param  distributionId_      The distributionId to retrieve the QuarterlyDistribution struct for.
+     * @return distributionId       The retrieved struct's distributionId.
+     * @return startBlock           The block number of the distribution period's start.
+     * @return endBlock             The block number of the distribution period's end.
+     * @return fundsAvailable       The maximum amount of funds that can be taken out of the distribution period.
+     * @return fundingVotePowerCast The total number of votes cast in the distribution period's funding round.
+     * @return fundedSlateHash      The slate hash of the proposals that were funded.
      */
-    function getDistributionPeriodInfo(uint256 distributionId_) external view returns (uint256, uint256, uint256, uint256, uint256, bytes32);
+    function getDistributionPeriodInfo(
+        uint24 distributionId_
+    ) external view returns (uint24, uint48, uint48, uint128, uint256, bytes32);
 
     /**
      * @notice Get the funded proposal slate for a given distributionId, and slate hash
      * @param  slateHash_      The slateHash to retrieve the funded proposals from.
      * @return                 The array of proposalIds that are in the funded slate hash.
      */
-    function getFundedProposalSlate(bytes32 slateHash_) external view returns (uint256[] memory);
+    function getFundedProposalSlate(
+        bytes32 slateHash_
+    ) external view returns (uint256[] memory);
 
     /**
      * @notice Get the number of discrete votes that can be cast on proposals given a specified voting power.
      * @dev    This is calculated by taking the square root of the voting power, and adjusting for WAD decimals.
      * @dev    This approach results in precision loss, and prospective users should be careful.
-     * @param  votingPower     The provided voting power to calculate discrete votes for.
-     * @return                 The square root of the votingPower as a WAD.
+     * @param  votingPower_ The provided voting power to calculate discrete votes for.
+     * @return The square root of the votingPower as a WAD.
      */
-    function getFundingPowerVotes(uint256 votingPower) external pure returns (uint256);
+    function getFundingPowerVotes(
+        uint256 votingPower_
+    ) external pure returns (uint256);
 
     /**
      * @notice Mapping of proposalIds to {Proposal} structs.
@@ -267,7 +287,9 @@ interface IStandardFunding {
      * @return qvBudgetAllocated The amount of quadratic vote budget allocated to the proposal in it's distribution period's funding round.
      * @return executed          True if the proposal has been executed.
      */
-    function getProposalInfo(uint256 proposalId_) external view returns (uint256, uint256, uint256, uint256, int256, bool);
+    function getProposalInfo(
+        uint256 proposalId_
+    ) external view returns (uint256, uint24, uint128, uint128, int128, bool);
 
     /**
      * @notice Retrieve the top ten proposals that have received the most votes in a given distribution period's screening round.
@@ -276,7 +298,9 @@ interface IStandardFunding {
      * @param  distributionId_ The distributionId of the distribution period to query.
      * @return topTenProposals Array of the top ten proposal's proposalIds.
      */
-    function getTopTenProposals(uint256 distributionId_) external view returns (uint256[] memory);
+    function getTopTenProposals(
+        uint24 distributionId_
+    ) external view returns (uint256[] memory);
 
     /**
      * @notice Get the current state of a given voter in the funding stage.
@@ -286,7 +310,10 @@ interface IStandardFunding {
      * @return remainingVotingPower The voter's remaining quadratic voting power in the given distribution period's funding round.
      * @return votesCast            The voter's number of proposals voted on in the funding stage.
      */
-    function getVoterInfo(uint256 distributionId_, address account_) external view returns (uint256, uint256, uint256);
+    function getVoterInfo(
+        uint24 distributionId_,
+        address account_
+    ) external view returns (uint128, uint128, uint256);
 
     /**
      * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
