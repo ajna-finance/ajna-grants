@@ -226,12 +226,12 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /// @inheritdoc IExtraordinaryFunding
     function getExtraordinaryProposalInfo(
         uint256 proposalId_
-    ) external view override returns (uint256, uint256, uint256, uint256, uint256, bool, bool) {
+    ) external view override returns (uint256, uint128, uint128, uint128, uint112, bool, bool) {
         return (
             extraordinaryFundingProposals[proposalId_].proposalId,
-            extraordinaryFundingProposals[proposalId_].tokensRequested,
             extraordinaryFundingProposals[proposalId_].startBlock,
             extraordinaryFundingProposals[proposalId_].endBlock,
+            extraordinaryFundingProposals[proposalId_].tokensRequested,
             extraordinaryFundingProposals[proposalId_].votesReceived,
             extraordinaryFundingProposals[proposalId_].succeeded,
             extraordinaryFundingProposals[proposalId_].executed

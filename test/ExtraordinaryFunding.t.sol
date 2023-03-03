@@ -290,10 +290,10 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // check proposal state
         (
             uint256 proposalId,
-            uint256 tokensRequested,
-            uint256 startBlock,
-            uint256 endBlock,
-            uint256 votesReceived,
+            uint128 startBlock,
+            uint128 endBlock,
+            uint128 tokensRequested,
+            uint112 votesReceived,
             bool succeeded,
             bool executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
@@ -457,10 +457,10 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // check proposal state
         (
             uint256 proposalId,
-            uint256 tokensRequested,
             ,
             ,
-            uint256 votesReceived,
+            uint128 tokensRequested,
+            uint112 votesReceived,
             bool succeeded,
             bool executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
@@ -568,7 +568,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             */
             if (i >= 6) {
                 // check that proposals which have enough votes won't pass if they requested too many tokens from the treasury
-                (, uint256 tokensRequested, , , uint256 votesReceived, , ) = _grantFund.getExtraordinaryProposalInfo(testProposal[i].proposalId);
+                (, , , uint128 tokensRequested, uint112 votesReceived, , ) = _grantFund.getExtraordinaryProposalInfo(testProposal[i].proposalId);
 
                 if (votesReceived >= tokensRequested + _grantFund.getSliceOfNonTreasury(_grantFund.getMinimumThresholdPercentage())) {
                     vm.expectRevert(Funding.InvalidProposal.selector);

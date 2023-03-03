@@ -709,16 +709,16 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /// @inheritdoc IStandardFunding
     function getTopTenProposals(
-        uint256 distributionId_
+        uint24 distributionId_
     ) external view returns (uint256[] memory) {
         return topTenProposals[distributionId_];
     }
 
     /// @inheritdoc IStandardFunding
     function getVoterInfo(
-        uint256 distributionId_,
+        uint24 distributionId_,
         address account_
-    ) external view returns (uint256, uint256, uint256) {
+    ) external view returns (uint128, uint128, uint256) {
         return (
             quadraticVoters[distributionId_][account_].votingPower,
             quadraticVoters[distributionId_][account_].remainingVotingPower,

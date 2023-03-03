@@ -299,7 +299,7 @@ interface IStandardFunding {
      * @return topTenProposals Array of the top ten proposal's proposalIds.
      */
     function getTopTenProposals(
-        uint256 distributionId_
+        uint24 distributionId_
     ) external view returns (uint256[] memory);
 
     /**
@@ -311,9 +311,9 @@ interface IStandardFunding {
      * @return votesCast            The voter's number of proposals voted on in the funding stage.
      */
     function getVoterInfo(
-        uint256 distributionId_,
+        uint24 distributionId_,
         address account_
-    ) external view returns (uint256, uint256, uint256);
+    ) external view returns (uint128, uint128, uint256);
 
     /**
      * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.

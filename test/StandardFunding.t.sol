@@ -814,7 +814,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.castVoteWithReasonAndParams(screenedProposals[5].proposalId, voteYes, "", abi.encode(5_000_000 * 1e18));
 
         // check remaining votes available to the above token holders
-        (uint256 voterPower, uint256 votingPowerRemaining, uint256 votesCast) = _grantFund.getVoterInfo(distributionId, _tokenHolder1);
+        (uint128 voterPower, uint128 votingPowerRemaining, uint256 votesCast) = _grantFund.getVoterInfo(distributionId, _tokenHolder1);
         assertEq(voterPower, 2_500_000_000_000_000 * 1e18);
         assertEq(votingPowerRemaining, 0);
         assertEq(votesCast, 1);

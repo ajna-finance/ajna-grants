@@ -34,8 +34,8 @@ interface IExtraordinaryFunding {
         uint128  startBlock;      // Block number of the start of the extraordinary funding proposal voting period.
         uint128  endBlock;        // Block number of the end of the extraordinary funding proposal voting period.
         uint128  tokensRequested; // Number of AJNA tokens requested.
-        bool     succeeded;       // Whether the proposal succeeded or not.
         uint112  votesReceived;   // Total votes received for this proposal.
+        bool     succeeded;       // Whether the proposal succeeded or not.
         bool     executed;        // Whether the proposal has been executed or not.
     }
 
@@ -101,16 +101,16 @@ interface IExtraordinaryFunding {
      *  @notice Mapping of proposalIds to {ExtraordinaryFundingProposal} structs.
      *  @param  proposalId_     The proposalId to retrieve information about.
      *  @return proposalId      The retrieved struct's proposalId.
-     *  @return tokensRequested Amount of Ajna tokens requested by the proposal.
      *  @return startBlock      The block at which the proposal was submitted.
      *  @return endBlock        The block by which the proposal must pass.
+     *  @return tokensRequested Amount of Ajna tokens requested by the proposal.
      *  @return votesReceived   Number of votes the proposal has received. One Ajna token is one vote.
      *  @return succeeded       Whether the proposal received enough votes to pass required thresholds.
      *  @return executed        Whether a succesful proposal has been executed.
      */
     function getExtraordinaryProposalInfo(
         uint256 proposalId_
-    ) external view returns (uint256, uint256, uint256, uint256, uint256, bool, bool);
+    ) external view returns (uint256, uint128, uint128, uint128, uint112, bool, bool);
 
     /**
      * @notice Get the current minimum threshold percentage of Ajna tokens required for a proposal to exceed.
