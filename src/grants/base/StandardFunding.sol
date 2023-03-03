@@ -500,10 +500,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // determine if voter is voting for or against the proposal
         voteParams_.votesUsed < 0 ? support = 0 : support = 1;
 
-        uint256 votingPower = voter_.votingPower;
+        uint128 votingPower = voter_.votingPower;
 
         // the total amount of voting power used by the voter before this vote executes
-        uint256 voterPowerUsedPreVote = votingPower - voter_.remainingVotingPower;
+        uint128 voterPowerUsedPreVote = votingPower - voter_.remainingVotingPower;
 
         FundingVoteParams[] storage votesCast = voter_.votesCast;
 
@@ -531,7 +531,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
 
         // calculate the cumulative cost of all votes made by the voter
-        uint256 cumulativeVotePowerUsed = _sumSquareOfVotesCast(votesCast);
+        uint128 cumulativeVotePowerUsed = uint128(_sumSquareOfVotesCast(votesCast));
 
         // check that the voter has enough voting power remaining to cast the vote
         if (cumulativeVotePowerUsed > votingPower) revert InsufficientVotingPower();
@@ -540,7 +540,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         voter_.remainingVotingPower = votingPower - cumulativeVotePowerUsed;
 
         // calculate the change in voting power used by the voter in this vote in order to accurately track the total voting power used in the funding stage
-        uint256 incrementalVotingPowerUsed = cumulativeVotePowerUsed - voterPowerUsedPreVote;
+        uint256 incrementalVotingPowerUsed = uint256(cumulativeVotePowerUsed - voterPowerUsedPreVote);
 
         // update accumulator for total voting power used in the funding stage in order to calculate delegate rewards
         currentDistribution_.fundingVotePowerCast += incrementalVotingPowerUsed;

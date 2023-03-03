@@ -124,7 +124,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             // set initial voting power and remaining voting power
             if (voter.votingPower == 0) {
 
-                uint256 newVotingPower = _getFundingStageVotingPower(msg.sender, screeningStageEndBlock);
+                uint128 newVotingPower = uint128(_getFundingStageVotingPower(msg.sender, screeningStageEndBlock));
 
                 voter.votingPower          = newVotingPower;
                 voter.remainingVotingPower = newVotingPower;
@@ -235,7 +235,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 // set initial voting power and remaining voting power
                 if (voter.votingPower == 0) {
 
-                    uint256 newVotingPower = _getFundingStageVotingPower(msg.sender, screeningStageEndBlock);
+                    uint128 newVotingPower = uint128(_getFundingStageVotingPower(msg.sender, screeningStageEndBlock));
 
                     voter.votingPower          = newVotingPower;
                     voter.remainingVotingPower = newVotingPower;

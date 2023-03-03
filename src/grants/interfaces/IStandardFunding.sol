@@ -144,8 +144,8 @@ interface IStandardFunding {
      * @notice Contains information about voters during a distribution period's funding stage.
      */
     struct QuadraticVoter {
-        uint256 votingPower;           // amount of votes originally available to the voter, equal to the sum of the square of their initial votes
-        uint256 remainingVotingPower;  // remaining voting power in the given period
+        uint128 votingPower;           // amount of votes originally available to the voter, equal to the sum of the square of their initial votes
+        uint128 remainingVotingPower;  // remaining voting power in the given period
         FundingVoteParams[] votesCast; // array of votes cast by the voter
     }
 
