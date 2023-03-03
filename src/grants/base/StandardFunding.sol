@@ -143,9 +143,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function _updateTreasury(
         uint24 distributionId_
     ) private {
-        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
+        bytes32 fundedSlateHash = distributions[distributionId_].fundedSlateHash;
+        uint256 fundsAvailable  = distributions[distributionId_].fundsAvailable;
 
-        uint256[] memory fundingProposalIds = fundedProposalSlates[currentDistribution.fundedSlateHash];
+        uint256[] memory fundingProposalIds = fundedProposalSlates[fundedSlateHash];
 
         uint256 totalTokensRequested;
         uint256 numFundedProposals = fundingProposalIds.length;
@@ -159,22 +160,22 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
 
         // readd non distributed tokens to the treasury
-        treasury += (currentDistribution.fundsAvailable - totalTokensRequested);
+        treasury += (fundsAvailable - totalTokensRequested);
 
         isSurplusFundsUpdated[distributionId_] = true;
     }
 
     /// @inheritdoc IStandardFunding
     function startNewDistributionPeriod() external returns (uint24 newDistributionId_) {
-        QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
+        uint256 currentDistributionEndBlock = distributions[currentDistributionId].endBlock;
 
         // check that there isn't currently an active distribution period
-        if (block.number <= currentDistribution.endBlock) revert DistributionPeriodStillActive();
+        if (block.number <= currentDistributionEndBlock) revert DistributionPeriodStillActive();
 
         // update Treasury with unused funds from last two distributions
         {   
             // Check if any last distribution exists and its challenge stage is over
-            if ( currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistribution.endBlock))) {
+            if ( currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistributionEndBlock))) {
                 // Add unused funds from last distribution to treasury
                 _updateTreasury(currentDistributionId);
             }
