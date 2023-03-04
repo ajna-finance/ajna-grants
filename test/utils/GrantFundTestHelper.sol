@@ -92,7 +92,7 @@ abstract contract GrantFundTestHelper is Test {
         return false;
     }
 
-    function _claimDelegateReward(GrantFund grantFund_, address voter_, uint256 distributionId_, uint256 claimedReward_) internal {
+    function _claimDelegateReward(GrantFund grantFund_, address voter_, uint24 distributionId_, uint256 claimedReward_) internal {
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit DelegateRewardClaimed(voter_, distributionId_, claimedReward_);
@@ -143,7 +143,7 @@ abstract contract GrantFundTestHelper is Test {
         uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
         uint256 startBlock = block.number.toUint64() + grantFund_.votingDelay().toUint64();
 
-        (, , , uint256 endBlock, , ) = grantFund_.getDistributionPeriodInfo(grantFund_.getDistributionId());
+        (, , uint48 endBlock, , , ) = grantFund_.getDistributionPeriodInfo(grantFund_.getDistributionId());
 
         // submit proposal
         changePrank(proposer_);
@@ -298,6 +298,26 @@ abstract contract GrantFundTestHelper is Test {
         }
         changePrank(voter_);
         grantFund_.fundingVotesMulti(voteParams_);
+    }
+
+    function _screeningVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
+        string memory reason = "";
+        uint8 support = 1; // can only vote yes in the screening stage
+        bytes memory params = abi.encode(votesAllocated_);
+
+        changePrank(voter_);
+        vm.expectEmit(true, true, false, true);
+        emit VoteCast(voter_, proposalId_, support, votesAllocated_, "");
+        grantFund_.castVoteWithReasonAndParams(proposalId_, support, reason, params);
+    }
+
+    function _screeningVoteMulti(GrantFund grantFund_, IStandardFunding.ScreeningVoteParams[] memory voteParams_, address voter_) internal {
+        for (uint256 i = 0; i < voteParams_.length; ++i) {
+            vm.expectEmit(true, true, false, true);
+            emit VoteCast(voter_, voteParams_[i].proposalId, 1, voteParams_[i].votes, "");
+        }
+        changePrank(voter_);
+        grantFund_.screeningVoteMulti(voteParams_);
     }
 
     // Returns a random proposal Index from all proposals

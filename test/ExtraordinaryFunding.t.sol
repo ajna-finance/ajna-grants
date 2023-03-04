@@ -98,6 +98,13 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _token.transfer(address(_grantFund), 500_000_000 * 1e18);
     }
 
+    function testGrantFundGovernorHardcodedOverrides(uint256 proposalId_) external {
+        assertEq(_grantFund.votingDelay(), 0);
+        assertEq(_grantFund.quorum(proposalId_), 0);
+        assertEq(_grantFund.votingPeriod(), 0);
+        assertEq(_grantFund.COUNTING_MODE(), "support=bravo&quorum=for,abstain");
+    }
+
     function testGetVotingPowerExtraordinary() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
@@ -213,7 +220,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(minimumThresholdPercentage, 0.500000000000000000 * 1e18);
     }
 
-    /** 
+    /**
      * @notice Calculate the number of tokens equivalent to various percentages assuming a treasury balance of 500,000,000.
      */
     function testGetSliceOfNonTreasury() external {
@@ -224,6 +231,19 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         percentageRequested = 0.055000000000000000 * 1e18;
         percentageOfTreasury = _grantFund.getSliceOfNonTreasury(percentageRequested);
         assertEq(percentageOfTreasury, 82_500_000 * 1e18);
+    }
+
+    /**
+     * @notice Calculate the number of tokens equivalent to various percentages assuming a treasury balance of 500,000,000.
+     */
+    function testGetSliceOfTreasury() external {
+        uint256 percentageRequested = 0.100000000000000000 * 1e18;
+        uint256 percentageOfTreasury = _grantFund.getSliceOfTreasury(percentageRequested);
+        assertEq(percentageOfTreasury, 50_000_000 * 1e18);
+
+        percentageRequested = 0.055000000000000000 * 1e18;
+        percentageOfTreasury = _grantFund.getSliceOfTreasury(percentageRequested);
+        assertEq(percentageOfTreasury, 27_500_000 * 1e18);
     }
 
     function testProposeExtraordinary() external {
@@ -270,10 +290,10 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // check proposal state
         (
             uint256 proposalId,
-            uint256 tokensRequested,
-            uint256 startBlock,
-            uint256 endBlock,
-            uint256 votesReceived,
+            uint128 startBlock,
+            uint128 endBlock,
+            uint128 tokensRequested,
+            uint112 votesReceived,
             bool succeeded,
             bool executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
@@ -320,7 +340,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             500_000_000 * 1e18
         );
 
-        vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInvalid.selector);
+        vm.expectRevert(Funding.InvalidProposal.selector);
         _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
 
         // check can't invoke with invalid calldata
@@ -331,7 +351,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             50_000_000 * 1e18
         );
 
-        vm.expectRevert(Funding.InvalidSignature.selector);
+        vm.expectRevert(Funding.InvalidProposal.selector);
         _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "burn extraordinary");
 
         // check can't submit proposal with end block higher than limit
@@ -344,7 +364,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             _tokenHolder1,
             50_000_000 * 1e18
         );
-        vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInvalid.selector);
+        vm.expectRevert(Funding.InvalidProposal.selector);
         _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
     }
 
@@ -437,10 +457,10 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // check proposal state
         (
             uint256 proposalId,
-            uint256 tokensRequested,
             ,
             ,
-            uint256 votesReceived,
+            uint128 tokensRequested,
+            uint112 votesReceived,
             bool succeeded,
             bool executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
@@ -548,10 +568,10 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             */
             if (i >= 6) {
                 // check that proposals which have enough votes won't pass if they requested too many tokens from the treasury
-                (, uint256 tokensRequested, , , uint256 votesReceived, , ) = _grantFund.getExtraordinaryProposalInfo(testProposal[i].proposalId);
+                (, , , uint128 tokensRequested, uint112 votesReceived, , ) = _grantFund.getExtraordinaryProposalInfo(testProposal[i].proposalId);
 
                 if (votesReceived >= tokensRequested + _grantFund.getSliceOfNonTreasury(_grantFund.getMinimumThresholdPercentage())) {
-                    vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInvalid.selector);
+                    vm.expectRevert(Funding.InvalidProposal.selector);
                     _grantFund.executeExtraordinary(testProposal[i].targets, testProposal[i].values, testProposal[i].calldatas, keccak256(bytes(testProposal[i].description)));
                     continue;
                 }
