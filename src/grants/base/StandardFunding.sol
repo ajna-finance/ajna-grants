@@ -101,9 +101,60 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     */
     mapping(uint256 => mapping(address => uint256)) public screeningVotesCast;
 
-    /*****************************************/
-    /*** Distribution Management Functions ***/
-    /*****************************************/
+    /**************************************************/
+    /*** Distribution Management Functions External ***/
+    /**************************************************/
+
+    /// @inheritdoc IStandardFunding
+    function startNewDistributionPeriod() external returns (uint24 newDistributionId_) {
+        uint256 currentDistributionEndBlock = distributions[currentDistributionId].endBlock;
+
+        // check that there isn't currently an active distribution period
+        if (block.number <= currentDistributionEndBlock) revert DistributionPeriodStillActive();
+
+        // update Treasury with unused funds from last two distributions
+        {
+            // Check if any last distribution exists and its challenge stage is over
+            if ( currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistributionEndBlock))) {
+                // Add unused funds from last distribution to treasury
+                _updateTreasury(currentDistributionId);
+            }
+
+            // checks if any second last distribution exist and its unused funds are not added into treasury
+            if ( currentDistributionId > 1 && !isSurplusFundsUpdated[currentDistributionId - 1]) {
+                // Add unused funds from second last distribution to treasury
+                _updateTreasury(currentDistributionId - 1);
+            }
+        }
+
+        // set the distribution period to start at the current block
+        uint48 startBlock = uint48(block.number);
+        uint48 endBlock = startBlock + DISTRIBUTION_PERIOD_LENGTH;
+
+        // set new value for currentDistributionId
+        newDistributionId_ = _setNewDistributionId();
+
+        // create QuarterlyDistribution struct
+        QuarterlyDistribution storage newDistributionPeriod = distributions[newDistributionId_];
+        newDistributionPeriod.id              = newDistributionId_;
+        newDistributionPeriod.startBlock      = startBlock;
+        newDistributionPeriod.endBlock        = endBlock;
+        uint256 gbc                           = Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);
+        newDistributionPeriod.fundsAvailable  = uint128(gbc);
+
+        // decrease the treasury by the amount that is held for allocation in the new distribution period
+        treasury -= gbc;
+
+        emit QuarterlyDistributionStarted(
+            newDistributionId_,
+            startBlock,
+            endBlock
+        );
+    }
+
+    /**************************************************/
+    /*** Distribution Management Functions Internal ***/
+    /**************************************************/
 
     /**
      * @notice Get the block number at which this distribution period's challenge stage ends.
@@ -125,15 +176,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 endBlock_
     ) internal pure returns (uint256) {
         return endBlock_ - FUNDING_PERIOD_LENGTH;
-    }
-
-    /**
-     * @notice Set a new DistributionPeriod Id.
-     * @dev    Increments the previous Id nonce by 1.
-     * @return newId_ The new distribution period Id.
-     */
-    function _setNewDistributionId() private returns (uint24 newId_) {
-        newId_ = currentDistributionId += 1;
     }
 
     /**
@@ -165,95 +207,82 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         isSurplusFundsUpdated[distributionId_] = true;
     }
 
+    /**
+     * @notice Set a new DistributionPeriod Id.
+     * @dev    Increments the previous Id nonce by 1.
+     * @return newId_ The new distribution period Id.
+     */
+    function _setNewDistributionId() private returns (uint24 newId_) {
+        newId_ = currentDistributionId += 1;
+    }
+
+    /************************************/
+    /*** Delegation Rewards Functions ***/
+    /************************************/
+
     /// @inheritdoc IStandardFunding
-    function startNewDistributionPeriod() external returns (uint24 newDistributionId_) {
-        uint256 currentDistributionEndBlock = distributions[currentDistributionId].endBlock;
+    function claimDelegateReward(
+        uint24 distributionId_
+    ) external returns(uint256 rewardClaimed_) {
+        // Revert if delegatee didn't vote in screening stage
+        if(screeningVotesCast[distributionId_][msg.sender] == 0) revert DelegateRewardInvalid();
 
-        // check that there isn't currently an active distribution period
-        if (block.number <= currentDistributionEndBlock) revert DistributionPeriodStillActive();
+        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
 
-        // update Treasury with unused funds from last two distributions
-        {   
-            // Check if any last distribution exists and its challenge stage is over
-            if ( currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistributionEndBlock))) {
-                // Add unused funds from last distribution to treasury
-                _updateTreasury(currentDistributionId);
-            }
+        // Check if Challenge Period is still active
+        if(block.number < _getChallengeStageEndBlock(currentDistribution.endBlock)) revert ChallengePeriodNotEnded();
 
-            // checks if any second last distribution exist and its unused funds are not added into treasury
-            if ( currentDistributionId > 1 && !isSurplusFundsUpdated[currentDistributionId - 1]) {
-                // Add unused funds from second last distribution to treasury
-                _updateTreasury(currentDistributionId - 1);
-            }
-        }
+        // check rewards haven't already been claimed
+        if(hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
 
-        // set the distribution period to start at the current block
-        uint48 startBlock = uint48(block.number);
-        uint48 endBlock = startBlock + DISTRIBUTION_PERIOD_LENGTH;
+        QuadraticVoter memory voter = quadraticVoters[distributionId_][msg.sender];
 
-        // set new value for currentDistributionId
-        newDistributionId_ = _setNewDistributionId();
+        // calculate rewards earned for voting
+        rewardClaimed_ = _getDelegateReward(currentDistribution, voter);
 
-        // create QuarterlyDistribution struct
-        QuarterlyDistribution storage newDistributionPeriod = distributions[newDistributionId_];
-        newDistributionPeriod.id              = newDistributionId_;
-        newDistributionPeriod.startBlock      = startBlock;
-        newDistributionPeriod.endBlock        = endBlock;
-        uint256 gbc                           = Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);  
-        newDistributionPeriod.fundsAvailable  = uint128(gbc);
+        hasClaimedReward[distributionId_][msg.sender] = true;
 
-        // decrease the treasury by the amount that is held for allocation in the new distribution period
-        treasury -= gbc;
-
-        emit QuarterlyDistributionStarted(
-            newDistributionId_,
-            startBlock,
-            endBlock
+        emit DelegateRewardClaimed(
+            msg.sender,
+            distributionId_,
+            rewardClaimed_
         );
+
+        // transfer rewards to delegatee
+        IERC20(ajnaTokenAddress).safeTransfer(msg.sender, rewardClaimed_);
     }
 
     /**
-     * @notice Calculates the sum of funding votes allocated to a list of proposals.
-     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
-     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @param  proposalIdSubset_ Array of proposal Ids to sum.
-     * @return sum_ The sum of the funding votes across the given proposals.
+     * @notice Calculate the delegate rewards that have accrued to a given voter, in a given distribution period.
+     * @dev    Voter must have voted in both the screening and funding stages, and is proportional to their share of votes across the stages.
+     * @param  currentDistribution_ Struct of the distribution period to calculat rewards for.
+     * @param  voter_               Struct of the funding stages voter.
+     * @return rewards_             The delegate rewards accrued to the voter.
      */
-    function _sumProposalFundingVotes(
-        uint256[] memory proposalIdSubset_
-    ) internal view returns (uint128 sum_) {
-        for (uint i = 0; i < proposalIdSubset_.length;) {
-            sum_ += uint128(standardFundingProposals[proposalIdSubset_[i]].fundingVotesReceived);
+    function _getDelegateReward(
+        QuarterlyDistribution memory currentDistribution_,
+        QuadraticVoter memory voter_
+    ) internal pure returns (uint256 rewards_) {
+        // calculate the total voting power available to the voter that was allocated in the funding stage
+        uint256 votingPowerAllocatedByDelegatee = voter_.votingPower - voter_.remainingVotingPower;
 
-            unchecked { ++i; }
-        }
+        // if none of the voter's voting power was allocated, they recieve no rewards
+        if (votingPowerAllocatedByDelegatee == 0) return 0;
+
+        // calculate reward
+        // delegateeReward = 10 % of GBC distributed as per delegatee Voting power allocated
+        rewards_ = Maths.wdiv(
+            Maths.wmul(
+                currentDistribution_.fundsAvailable,
+                votingPowerAllocatedByDelegatee
+            ),
+            currentDistribution_.fundingVotePowerCast
+        ) / 10;
     }
 
-    /**
-     * @notice Check an array of proposalIds for duplicate IDs.
-     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
-     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @param  proposalIds_ Array of proposal Ids to check.
-     * @return Boolean indicating the presence of a duplicate. True if it has a duplicate; false if not.
-     */
-    function _hasDuplicates(
-        uint256[] calldata proposalIds_
-    ) internal pure returns (bool) {
-        uint256 numProposals = proposalIds_.length;
-
-        for (uint i = 0; i < numProposals; ) {
-            for (uint j = i + 1; j < numProposals; ) {
-                if (proposalIds_[i] == proposalIds_[j]) return true;
-
-                unchecked { ++j; }
-
-            }
-
-            unchecked { ++i; }
-
-        }
-        return false;
-    }
+    /***********************************/
+    /*** Proposal Functions External ***/
+    /***********************************/
 
     /// @inheritdoc IStandardFunding
     function checkSlate(
@@ -333,70 +362,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return newTopSlate;
     }
 
-    /**
-     * @notice Calculate the delegate rewards that have accrued to a given voter, in a given distribution period.
-     * @dev    Voter must have voted in both the screening and funding stages, and is proportional to their share of votes across the stages.
-     * @param  currentDistribution_ Struct of the distribution period to calculat rewards for.
-     * @param  voter_               Struct of the funding stages voter.
-     * @return rewards_             The delegate rewards accrued to the voter.
-     */
-    function _getDelegateReward(
-        QuarterlyDistribution memory currentDistribution_,
-        QuadraticVoter memory voter_
-    ) internal pure returns (uint256 rewards_) {
-        // calculate the total voting power available to the voter that was allocated in the funding stage
-        uint256 votingPowerAllocatedByDelegatee = voter_.votingPower - voter_.remainingVotingPower;
-
-        // if none of the voter's voting power was allocated, they recieve no rewards
-        if (votingPowerAllocatedByDelegatee == 0) return 0;
-
-        // calculate reward
-        // delegateeReward = 10 % of GBC distributed as per delegatee Voting power allocated
-        rewards_ = Maths.wdiv(
-            Maths.wmul(
-                currentDistribution_.fundsAvailable,
-                votingPowerAllocatedByDelegatee
-            ),
-            currentDistribution_.fundingVotePowerCast
-        ) / 10;
-    }
-
-    /// @inheritdoc IStandardFunding
-    function claimDelegateReward(
-        uint24 distributionId_
-    ) external returns(uint256 rewardClaimed_) {
-        // Revert if delegatee didn't vote in screening stage 
-        if(screeningVotesCast[distributionId_][msg.sender] == 0) revert DelegateRewardInvalid();
-
-        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
-
-        // Check if Challenge Period is still active 
-        if(block.number < _getChallengeStageEndBlock(currentDistribution.endBlock)) revert ChallengePeriodNotEnded();
-
-        // check rewards haven't already been claimed
-        if(hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
-
-        QuadraticVoter memory voter = quadraticVoters[distributionId_][msg.sender];
-
-        // calculate rewards earned for voting
-        rewardClaimed_ = _getDelegateReward(currentDistribution, voter);
-
-        hasClaimedReward[distributionId_][msg.sender] = true;
-
-        emit DelegateRewardClaimed(
-            msg.sender,
-            distributionId_,
-            rewardClaimed_
-        );
-
-        // transfer rewards to delegatee
-        IERC20(ajnaTokenAddress).safeTransfer(msg.sender, rewardClaimed_);
-    }
-
-    /**************************/
-    /*** Proposal Functions ***/
-    /**************************/
-
     /// @inheritdoc IStandardFunding
     function executeStandard(
         address[] memory targets_,
@@ -454,29 +419,56 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         );
     }
 
-    /************************/
-    /*** Voting Functions ***/
-    /************************/
+    /***********************************/
+    /*** Proposal Functions Internal ***/
+    /***********************************/
 
     /**
-     * @notice Sum the square of each vote cast by a voter.
-     * @dev    Used to calculate if a voter has enough voting power to cast their votes.
+     * @notice Check an array of proposalIds for duplicate IDs.
      * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
      * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @param  votesCast_           The array of votes cast by a voter.
-     * @return votesCastSumSquared_ The sum of the square of each vote cast.
+     * @param  proposalIds_ Array of proposal Ids to check.
+     * @return Boolean indicating the presence of a duplicate. True if it has a duplicate; false if not.
      */
-    function _sumSquareOfVotesCast(
-        FundingVoteParams[] memory votesCast_
-    ) internal pure returns (uint256 votesCastSumSquared_) {
-        uint256 numVotesCast = votesCast_.length;
+    function _hasDuplicates(
+        uint256[] calldata proposalIds_
+    ) internal pure returns (bool) {
+        uint256 numProposals = proposalIds_.length;
 
-        for (uint256 i = 0; i < numVotesCast; ) {
-            votesCastSumSquared_ += Maths.wpow(uint256(Maths.abs(votesCast_[i].votesUsed)), 2);
+        for (uint i = 0; i < numProposals; ) {
+            for (uint j = i + 1; j < numProposals; ) {
+                if (proposalIds_[i] == proposalIds_[j]) return true;
+
+                unchecked { ++j; }
+
+            }
+
+            unchecked { ++i; }
+
+        }
+        return false;
+    }
+
+    /**
+     * @notice Calculates the sum of funding votes allocated to a list of proposals.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param  proposalIdSubset_ Array of proposal Ids to sum.
+     * @return sum_ The sum of the funding votes across the given proposals.
+     */
+    function _sumProposalFundingVotes(
+        uint256[] memory proposalIdSubset_
+    ) internal view returns (uint128 sum_) {
+        for (uint i = 0; i < proposalIdSubset_.length;) {
+            sum_ += uint128(standardFundingProposals[proposalIdSubset_[i]].fundingVotesReceived);
 
             unchecked { ++i; }
         }
     }
+
+    /************************/
+    /*** Voting Functions ***/
+    /************************/
 
     /**
      * @notice Vote on a proposal in the funding stage of the Distribution Period.
@@ -628,6 +620,106 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /**
+     * @notice Identify where in an array of proposalIds the proposal exists.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param  proposalId_ The proposalId to search for.
+     * @param  array_      The array of proposalIds to search.
+     * @return index_      The index of the proposalId in the array, else -1.
+     */
+    function _findProposalIndex(
+        uint256 proposalId_,
+        uint256[] memory array_
+    ) internal pure returns (int256 index_) {
+        index_ = -1; // default value indicating proposalId not in the array
+        int256 arrayLength = int256(array_.length);
+
+        for (int256 i = 0; i < arrayLength;) {
+            //slither-disable-next-line incorrect-equality
+            if (array_[uint256(i)] == proposalId_) {
+                index_ = i;
+                break;
+            }
+
+            unchecked { ++i; }
+        }
+    }
+
+    /**
+     * @notice Identify where in an array of FundingVoteParams structs the proposal exists.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param proposalId_ The proposalId to search for.
+     * @param voteParams_ The array of FundingVoteParams structs to search.
+     * @return index_ The index of the proposalId in the array, else -1.
+     */
+    function _findProposalIndexOfVotesCast(
+        uint256 proposalId_,
+        FundingVoteParams[] memory voteParams_
+    ) internal pure returns (int256 index_) {
+        index_ = -1; // default value indicating proposalId not in the array
+
+        int256 numVotesCast = int256(voteParams_.length);
+        for (int256 i = 0; i < numVotesCast; ) {
+            //slither-disable-next-line incorrect-equality
+            if (voteParams_[uint256(i)].proposalId == proposalId_) {
+                index_ = i;
+                break;
+            }
+
+            unchecked { ++i; }
+        }
+    }
+
+    /**
+     * @notice Sort the 10 proposals which will make it through screening and move on to the funding round.
+     * @dev    Implements the descending insertion sort algorithm.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param arr_ The array of proposals to sort by votes recieved.
+     */
+    function _insertionSortProposalsByVotes(
+        uint256[] storage arr_
+    ) internal {
+        int256 arrayLength = int256(arr_.length);
+
+        for (int i = 1; i < arrayLength;) {
+            Proposal memory key = standardFundingProposals[arr_[uint(i)]];
+            int j = i;
+
+            while (j > 0 && key.votesReceived > standardFundingProposals[arr_[uint(j - 1)]].votesReceived) {
+                // swap values if left item < right item
+                uint256 temp = arr_[uint(j - 1)];
+                arr_[uint(j - 1)] = arr_[uint(j)];
+                arr_[uint(j)] = temp;
+
+                unchecked { --j; }
+            }
+
+            unchecked { ++i; }
+        }
+    }
+
+    /**
+     * @notice Sum the square of each vote cast by a voter.
+     * @dev    Used to calculate if a voter has enough voting power to cast their votes.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param  votesCast_           The array of votes cast by a voter.
+     * @return votesCastSumSquared_ The sum of the square of each vote cast.
+     */
+    function _sumSquareOfVotesCast(
+        FundingVoteParams[] memory votesCast_
+    ) internal pure returns (uint256 votesCastSumSquared_) {
+        uint256 numVotesCast = votesCast_.length;
+
+        for (uint256 i = 0; i < numVotesCast; ) {
+            votesCastSumSquared_ += Maths.wpow(uint256(Maths.abs(votesCast_[i].votesUsed)), 2);
+
+            unchecked { ++i; }
+        }
+    }
+
+    /**
      * @notice Check to see if a proposal is in the current funded slate hash of proposals.
      * @param  proposalId_ The proposalId to check.
      * @return             True if the proposal is in the it's distribution period's slate hash.
@@ -730,90 +822,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /// @inheritdoc IStandardFunding
     function maximumQuarterlyDistribution() external view returns (uint256) {
         return Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);
-    }
-
-    /*************************/
-    /*** Sorting Functions ***/
-    /*************************/
-
-    /**
-     * @notice Identify where in an array of proposalIds the proposal exists.
-     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
-     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @param  proposalId_ The proposalId to search for.
-     * @param  array_      The array of proposalIds to search.
-     * @return index_      The index of the proposalId in the array, else -1.
-     */
-    function _findProposalIndex(
-        uint256 proposalId_,
-        uint256[] memory array_
-    ) internal pure returns (int256 index_) {
-        index_ = -1; // default value indicating proposalId not in the array
-        int256 arrayLength = int256(array_.length);
-
-        for (int256 i = 0; i < arrayLength;) {
-            //slither-disable-next-line incorrect-equality
-            if (array_[uint256(i)] == proposalId_) {
-                index_ = i;
-                break;
-            }
-
-            unchecked { ++i; }
-        }
-    }
-
-    /**
-     * @notice Identify where in an array of FundingVoteParams structs the proposal exists.
-     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
-     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @param proposalId_ The proposalId to search for.
-     * @param voteParams_ The array of FundingVoteParams structs to search.
-     * @return index_ The index of the proposalId in the array, else -1.
-     */
-    function _findProposalIndexOfVotesCast(
-        uint256 proposalId_,
-        FundingVoteParams[] memory voteParams_
-    ) internal pure returns (int256 index_) {
-        index_ = -1; // default value indicating proposalId not in the array
-
-        int256 numVotesCast = int256(voteParams_.length);
-        for (int256 i = 0; i < numVotesCast; ) {
-            //slither-disable-next-line incorrect-equality
-            if (voteParams_[uint256(i)].proposalId == proposalId_) {
-                index_ = i;
-                break;
-            }
-
-            unchecked { ++i; }
-        }
-    }
-
-    /**
-     * @notice Sort the 10 proposals which will make it through screening and move on to the funding round.
-     * @dev    Implements the descending insertion sort algorithm.
-     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @param arr_ The array of proposals to sort by votes recieved.
-     */
-    function _insertionSortProposalsByVotes(
-        uint256[] storage arr_
-    ) internal {
-        int256 arrayLength = int256(arr_.length);
-
-        for (int i = 1; i < arrayLength;) {
-            Proposal memory key = standardFundingProposals[arr_[uint(i)]];
-            int j = i;
-
-            while (j > 0 && key.votesReceived > standardFundingProposals[arr_[uint(j - 1)]].votesReceived) {
-                // swap values if left item < right item
-                uint256 temp = arr_[uint(j - 1)];
-                arr_[uint(j - 1)] = arr_[uint(j)];
-                arr_[uint(j)] = temp;
-
-                unchecked { --j; }
-            }
-
-            unchecked { ++i; }
-        }
     }
 
 }

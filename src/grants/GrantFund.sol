@@ -95,9 +95,9 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         }
     }
 
-    /************************/
-    /*** Voting Functions ***/
-    /************************/
+    /*********************************/
+    /*** Voting Functions External ***/
+    /*********************************/
 
     /**
      * @notice Cast an array of funding votes in one transaction.
@@ -186,12 +186,16 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         }
     }
 
+    /*********************************/
+    /*** Voting Functions Internal ***/
+    /*********************************/
+
     /**
      * @notice Vote on a proposal in the screening or funding stage of the Distribution Period.
      * @dev Override channels all other castVote methods through here.
      * @param proposalId_ The current proposal being voted upon.
      * @param account_    The voting account.
-     * @param params_     The amount of votes being allocated in the funding stage.
+     * @param params_     The amount of votes being cast in the screening or funding stage.
      * @return votesCast_ The amount of votes cast.
      */
      function _castVote(
@@ -220,7 +224,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             // screening stage
             if (block.number >= currentDistribution.startBlock && block.number <= screeningStageEndBlock) {
 
-                // decode the amount of votes to allocated to the proposal
+                // decode the amount of votes to allocate to the proposal
                 votesCast_ = abi.decode(params_, (uint256));
 
                 // allocate the votes to the proposal
@@ -241,7 +245,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                     voter.remainingVotingPower = newVotingPower;
                 }
 
-                // decode the amount of votes to allocated to the proposal
+                // decode the amount of votes to allocate to the proposal
                 FundingVoteParams memory newVote = FundingVoteParams(proposalId_, abi.decode(params_, (int256)));
 
                 // allocate the votes to the proposal
