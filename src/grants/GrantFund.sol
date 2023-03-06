@@ -16,8 +16,6 @@ import { IGrantFund } from "./interfaces/IGrantFund.sol";
 
 contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
-    using SafeCast for uint;
-
     IVotes public immutable token;
 
     /*******************/

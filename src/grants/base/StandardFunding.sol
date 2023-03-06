@@ -14,8 +14,6 @@ import { Maths } from "../libraries/Maths.sol";
 
 abstract contract StandardFunding is Funding, IStandardFunding {
 
-    using SafeCast for uint;
-    using SafeCast for int;
     using SafeERC20 for IERC20;
 
     /***********************/
@@ -669,7 +667,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         index_ = -1; // default value indicating proposalId not in the array
 
         // since we are converting from uint256 to int256, we can safely assume that the value will not overflow
-        int256 numVotesCast = SafeCast.toInt256(voteParams_.length);
+        int256 numVotesCast = int256(voteParams_.length);
         for (int256 i = 0; i < numVotesCast; ) {
             //slither-disable-next-line incorrect-equality
             if (voteParams_[uint256(i)].proposalId == proposalId_) {
@@ -691,7 +689,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function _insertionSortProposalsByVotes(
         uint256[] storage arr_
     ) internal {
-        int256 arrayLength = SafeCast.toInt256(arr_.length);
+        int256 arrayLength = int256(arr_.length);
 
         for (int i = 1; i < arrayLength;) {
             Proposal memory key = standardFundingProposals[arr_[uint(i)]];

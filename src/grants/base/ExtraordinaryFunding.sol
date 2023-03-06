@@ -13,8 +13,6 @@ import { Maths } from "../libraries/Maths.sol";
 
 abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
-    using SafeCast for uint;
-
     /***********************/
     /*** State Variables ***/
     /***********************/
