@@ -8,8 +8,6 @@ import { SafeCast }        from "@oz/utils/math/SafeCast.sol";
 
 abstract contract Funding is Governor, ReentrancyGuard {
 
-    using SafeCast for uint;
-
     /*********************/
     /*** Custom Errors ***/
     /*********************/
