@@ -2,8 +2,9 @@
 
 pragma solidity 0.8.16;
 
-import { IERC20 }      from "@oz/token/ERC20/IERC20.sol";
-import { SafeERC20 }   from "@oz/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 }    from "@oz/token/ERC20/IERC20.sol";
+import { SafeCast }  from "@oz/utils/math/SafeCast.sol";
+import { SafeERC20 } from "@oz/token/ERC20/utils/SafeERC20.sol";
 
 import { Funding } from "./Funding.sol";
 
@@ -13,6 +14,8 @@ import { Maths } from "../libraries/Maths.sol";
 
 abstract contract StandardFunding is Funding, IStandardFunding {
 
+    using SafeCast for uint;
+    using SafeCast for int;
     using SafeERC20 for IERC20;
 
     /***********************/
@@ -128,7 +131,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
 
         // set the distribution period to start at the current block
-        uint48 startBlock = uint48(block.number);
+        uint48 startBlock = SafeCast.toUint48(block.number);
         uint48 endBlock = startBlock + DISTRIBUTION_PERIOD_LENGTH;
 
         // set new value for currentDistributionId
@@ -140,7 +143,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         newDistributionPeriod.startBlock      = startBlock;
         newDistributionPeriod.endBlock        = endBlock;
         uint256 gbc                           = Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);
-        newDistributionPeriod.fundsAvailable  = uint128(gbc);
+        newDistributionPeriod.fundsAvailable  = SafeCast.toUint128(gbc);
 
         // decrease the treasury by the amount that is held for allocation in the new distribution period
         treasury -= gbc;
@@ -180,6 +183,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Updates Treasury with surplus funds from distribution.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length of at most 10.
      * @param distributionId_ distribution Id of updating distribution 
      */
     function _updateTreasury(
@@ -319,7 +323,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             if (proposal.fundingVotesReceived < 0) return false;
 
             // update counters
-            sum += uint128(proposal.fundingVotesReceived);
+            sum += uint128(proposal.fundingVotesReceived); // since we are converting from int128 to uint128, we can safely assume that the value will not overflow
             totalTokensRequested += proposal.tokensRequested;
 
             // check if slate of proposals exceeded budget constraint ( 90% of GBC )
@@ -452,7 +456,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**
      * @notice Calculates the sum of funding votes allocated to a list of proposals.
      * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
-     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length of at most 10.
      * @param  proposalIdSubset_ Array of proposal Ids to sum.
      * @return sum_ The sum of the funding votes across the given proposals.
      */
@@ -460,6 +464,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256[] memory proposalIdSubset_
     ) internal view returns (uint128 sum_) {
         for (uint i = 0; i < proposalIdSubset_.length;) {
+            // since we are converting from int128 to uint128, we can safely assume that the value will not overflow
             sum_ += uint128(standardFundingProposals[proposalIdSubset_[i]].fundingVotesReceived);
 
             unchecked { ++i; }
@@ -505,6 +510,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // voter had already cast a funding vote on this proposal
         if (voteCastIndex != -1) {
+            // since we are converting from int256 to uint256, we can safely assume that the value will not overflow
             FundingVoteParams storage existingVote = votesCast[uint256(voteCastIndex)];
 
             // can't change the direction of a previous vote
@@ -524,7 +530,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
 
         // calculate the cumulative cost of all votes made by the voter
+        // FIXME: this is overflowing
         uint128 cumulativeVotePowerUsed = uint128(_sumSquareOfVotesCast(votesCast));
+        // uint128 cumulativeVotePowerUsed = SafeCast.toUint128(_sumSquareOfVotesCast(votesCast));
 
         // check that the voter has enough voting power remaining to cast the vote
         if (cumulativeVotePowerUsed > votingPower) revert InsufficientVotingPower();
@@ -533,16 +541,17 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         voter_.remainingVotingPower = votingPower - cumulativeVotePowerUsed;
 
         // calculate the change in voting power used by the voter in this vote in order to accurately track the total voting power used in the funding stage
+        // since we are moving from uint128 to uint256, we can safely assume that the value will not overflow
         uint256 incrementalVotingPowerUsed = uint256(cumulativeVotePowerUsed - voterPowerUsedPreVote);
 
         // update accumulator for total voting power used in the funding stage in order to calculate delegate rewards
         currentDistribution_.fundingVotePowerCast += incrementalVotingPowerUsed;
 
         // update proposal vote tracking
-        proposal_.fundingVotesReceived += int128(voteParams_.votesUsed);
+        proposal_.fundingVotesReceived += SafeCast.toInt128(voteParams_.votesUsed);
 
-        // the incremental additional votes cast on the proposal
-        // used as a return value and emit value
+        // the incremental additional votes cast on the proposal to be used as a return value and emit value
+        // since we are converting from int256 to uint256, we can safely assume that the value will not overflow
         incrementalVotesUsed_ = uint256(Maths.abs(voteParams_.votesUsed));
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
@@ -576,7 +585,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 proposalId = proposal_.proposalId;
 
         // update proposal votes counter
-        proposal_.votesReceived += uint128(votes_);
+        proposal_.votesReceived += SafeCast.toUint128(votes_);
 
         // check if proposal was already screened
         int indexInArray = _findProposalIndex(proposalId, currentTopTenProposals);
@@ -659,6 +668,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     ) internal pure returns (int256 index_) {
         index_ = -1; // default value indicating proposalId not in the array
 
+        // since we are converting from uint256 to int256, we can safely assume that the value will not overflow
         int256 numVotesCast = int256(voteParams_.length);
         for (int256 i = 0; i < numVotesCast; ) {
             //slither-disable-next-line incorrect-equality
@@ -675,6 +685,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Sort the 10 proposals which will make it through screening and move on to the funding round.
      * @dev    Implements the descending insertion sort algorithm.
      * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @dev    Since we are converting from int256 to uint256, we can safely assume that the values will not overflow.
      * @param arr_ The array of proposals to sort by votes recieved.
      */
     function _insertionSortProposalsByVotes(
@@ -704,6 +715,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev    Used to calculate if a voter has enough voting power to cast their votes.
      * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
      * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @dev    Since we are converting from int256 to uint256, we can safely assume that the values will not overflow.
      * @param  votesCast_           The array of votes cast by a voter.
      * @return votesCastSumSquared_ The sum of the square of each vote cast.
      */

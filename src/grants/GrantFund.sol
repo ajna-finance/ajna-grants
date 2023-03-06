@@ -2,9 +2,10 @@
 
 pragma solidity 0.8.16;
 
-import { Governor }    from "@oz/governance/Governor.sol";
-import { IGovernor }   from "@oz/governance/IGovernor.sol";
-import { IVotes }      from "@oz/governance/utils/IVotes.sol";
+import { Governor }  from "@oz/governance/Governor.sol";
+import { IGovernor } from "@oz/governance/IGovernor.sol";
+import { IVotes }    from "@oz/governance/utils/IVotes.sol";
+import { SafeCast }  from "@oz/utils/math/SafeCast.sol";
 
 import { Maths } from "./libraries/Maths.sol";
 
@@ -14,6 +15,8 @@ import { StandardFunding }      from "./base/StandardFunding.sol";
 import { IGrantFund } from "./interfaces/IGrantFund.sol";
 
 contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
+
+    using SafeCast for uint;
 
     IVotes public immutable token;
 
@@ -124,7 +127,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
             // set initial voting power and remaining voting power
             if (voter.votingPower == 0) {
 
-                uint128 newVotingPower = uint128(_getFundingStageVotingPower(msg.sender, screeningStageEndBlock));
+                uint128 newVotingPower = SafeCast.toUint128(_getFundingStageVotingPower(msg.sender, screeningStageEndBlock));
 
                 voter.votingPower          = newVotingPower;
                 voter.remainingVotingPower = newVotingPower;
@@ -239,7 +242,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
                 // set initial voting power and remaining voting power
                 if (voter.votingPower == 0) {
 
-                    uint128 newVotingPower = uint128(_getFundingStageVotingPower(msg.sender, screeningStageEndBlock));
+                    uint128 newVotingPower = SafeCast.toUint128(_getFundingStageVotingPower(msg.sender, screeningStageEndBlock));
 
                     voter.votingPower          = newVotingPower;
                     voter.remainingVotingPower = newVotingPower;
