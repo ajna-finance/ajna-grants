@@ -530,9 +530,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
 
         // calculate the cumulative cost of all votes made by the voter
-        // FIXME: this is overflowing
-        uint128 cumulativeVotePowerUsed = uint128(_sumSquareOfVotesCast(votesCast));
-        // uint128 cumulativeVotePowerUsed = SafeCast.toUint128(_sumSquareOfVotesCast(votesCast));
+        // and check that attempted votes cast doesn't overflow uint128
+        uint256 sumOfTheSquareOfVotesCast = _sumSquareOfVotesCast(votesCast);
+        if (sumOfTheSquareOfVotesCast > type(uint128).max) revert InsufficientVotingPower();
+        uint128 cumulativeVotePowerUsed = SafeCast.toUint128(sumOfTheSquareOfVotesCast);
 
         // check that the voter has enough voting power remaining to cast the vote
         if (cumulativeVotePowerUsed > votingPower) revert InsufficientVotingPower();
@@ -551,8 +552,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         proposal_.fundingVotesReceived += SafeCast.toInt128(voteParams_.votesUsed);
 
         // the incremental additional votes cast on the proposal to be used as a return value and emit value
-        // since we are converting from int256 to uint256, we can safely assume that the value will not overflow
-        incrementalVotesUsed_ = uint256(Maths.abs(voteParams_.votesUsed));
+        incrementalVotesUsed_ = SafeCast.toUint256(Maths.abs(voteParams_.votesUsed));
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         // emits the amount of incremental votes cast for the proposal, not the voting power cost or total votes on a proposal
@@ -669,7 +669,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         index_ = -1; // default value indicating proposalId not in the array
 
         // since we are converting from uint256 to int256, we can safely assume that the value will not overflow
-        int256 numVotesCast = int256(voteParams_.length);
+        int256 numVotesCast = SafeCast.toInt256(voteParams_.length);
         for (int256 i = 0; i < numVotesCast; ) {
             //slither-disable-next-line incorrect-equality
             if (voteParams_[uint256(i)].proposalId == proposalId_) {
@@ -691,7 +691,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function _insertionSortProposalsByVotes(
         uint256[] storage arr_
     ) internal {
-        int256 arrayLength = int256(arr_.length);
+        int256 arrayLength = SafeCast.toInt256(arr_.length);
 
         for (int i = 1; i < arrayLength;) {
             Proposal memory key = standardFundingProposals[arr_[uint(i)]];
@@ -715,7 +715,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev    Used to calculate if a voter has enough voting power to cast their votes.
      * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
      * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @dev    Since we are converting from int256 to uint256, we can safely assume that the values will not overflow.
      * @param  votesCast_           The array of votes cast by a voter.
      * @return votesCastSumSquared_ The sum of the square of each vote cast.
      */
@@ -725,7 +724,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 numVotesCast = votesCast_.length;
 
         for (uint256 i = 0; i < numVotesCast; ) {
-            votesCastSumSquared_ += Maths.wpow(uint256(Maths.abs(votesCast_[i].votesUsed)), 2);
+            votesCastSumSquared_ += Maths.wpow(SafeCast.toUint256(Maths.abs(votesCast_[i].votesUsed)), 2);
 
             unchecked { ++i; }
         }
