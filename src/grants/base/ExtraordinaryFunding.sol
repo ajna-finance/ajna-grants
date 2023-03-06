@@ -2,7 +2,8 @@
 
 pragma solidity 0.8.16;
 
-import { IERC20 } from "@oz/token/ERC20/IERC20.sol";
+import { IERC20 }   from "@oz/token/ERC20/IERC20.sol";
+import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
 import { Funding } from "./Funding.sol";
 
@@ -47,6 +48,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
 
+        // since we are casting from uint128 to uint256, we can safely assume that the value will not overflow
         uint256 tokensRequested = uint256(proposal.tokensRequested);
 
         // revert if executed or if the proposal has received more votes than minimumThreshold and tokensRequestedPercentage of all tokens
@@ -95,8 +97,8 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         // store newly created proposal
         newProposal.proposalId      = proposalId_;
-        newProposal.startBlock      = uint128(block.number);
-        newProposal.endBlock        = uint128(endBlock_);
+        newProposal.startBlock      = SafeCast.toUint128(block.number);
+        newProposal.endBlock        = SafeCast.toUint128(endBlock_);
         newProposal.tokensRequested = totalTokensRequested;
 
         emit ProposalCreated(
@@ -137,7 +139,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         // check voting power at snapshot block
         votes_ = _getVotes(account_, block.number, abi.encode(proposalId_));
-        proposal.votesReceived += uint112(votes_);
+        proposal.votesReceived += SafeCast.toUint112(votes_);
 
         // record that voter has voted on this extraorindary funding proposal
         hasVotedExtraordinary[proposalId_][account_] = true;

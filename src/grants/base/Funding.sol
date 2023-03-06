@@ -4,6 +4,7 @@ pragma solidity 0.8.16;
 
 import { Governor }        from "@oz/governance/Governor.sol";
 import { ReentrancyGuard } from "@oz/security/ReentrancyGuard.sol";
+import { SafeCast }        from "@oz/utils/math/SafeCast.sol";
 
 abstract contract Funding is Governor, ReentrancyGuard {
 
@@ -118,7 +119,7 @@ abstract contract Funding is Governor, ReentrancyGuard {
             }
 
             // update tokens requested for additional calldata
-            tokensRequested_ += uint128(tokensRequested);
+            tokensRequested_ += SafeCast.toUint128(tokensRequested);
 
             unchecked { ++i; }
         }
