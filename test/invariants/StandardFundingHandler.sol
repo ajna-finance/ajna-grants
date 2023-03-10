@@ -10,6 +10,7 @@ import { InvariantTest}        from "./InvariantTest.sol";
 import { GrantFundTestHelper } from "../utils/GrantFundTestHelper.sol";
 
 import { GrantFund } from "../../src/grants/GrantFund.sol";
+import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
 
 contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
 
@@ -145,10 +146,19 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
     /*** SFM Functions ***/
     /*********************/
 
-    function submitProposal(
-        address actor_
-    ) external returns (TestProposal memory newProposal_) {
+    function startNewDistributionPeriod() external returns (uint24 newDistributionId_) {
+        try _grantFund.startNewDistributionPeriod() returns (uint24 newDistributionId) {
+            newDistributionId_ = newDistributionId;
+        }
+        catch (bytes memory _err){
+            bytes32 err = keccak256(_err);
+            require(
+                err == keccak256(abi.encodeWithSignature("DistributionPeriodStillActive()"))
+            );
+        }
+    }
 
+    function proposeStandard() external {
         // get a random number between 1 and 5
         uint256 numProposalParams = constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 1, 5);
 
@@ -163,23 +173,54 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
             string memory description
         ) = generateProposalParams(testProposalParams);
 
-        // create and submit proposal
-        newProposal_ = _createProposalStandard(
-            _grantFund,
-            actor_,
-            targets,
-            values,
-            calldatas,
-            description
-        );
+        try _grantFund.proposeStandard(targets, values, calldatas, description) returns (uint256 proposalId) {
+            standardFundingProposals.push(proposalId);
+        }
+        catch (bytes memory _err){
+            bytes32 err = keccak256(_err);
+            require(
+                err == keccak256(abi.encodeWithSignature("ProposalAlreadyExists()")) ||
+                err == keccak256(abi.encodeWithSignature("ScreeningPeriodEnded()"))
+            );
+        }
 
-        // add proposal to list of proposals
-        standardFundingProposals.push(newProposal_.proposalId);
     }
 
-    function getStandardFundingProposalsCount() external view returns(uint256) {
-        return standardFundingProposals.length;
+    function screeningVoteMulti(uint256 actorIndex_, uint256 numberOfVotes_) external useRandomActor(actorIndex_) {
+
+        // get actor voting power
+        uint256 votingPower = _grantFund.getVotesWithParams(_actor, block.number, bytes("Screening"));
+
+        // construct vote params
+        IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](standardFundingProposals.length);
+        for (uint256 i = 0; i < numberOfVotes_; i++) {
+            uint256 proposalId = randomProposal();
+            uint256 vote = constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, votingPower);
+            screeningVoteParams[i] = IStandardFunding.ScreeningVoteParams({
+                proposalId: proposalId,
+                votes: vote
+            });
+        }
+
+        try _grantFund.screeningVoteMulti(screeningVoteParams) {
+            // TODO: check sorting
+        }
+        catch (bytes memory _err){
+            bytes32 err = keccak256(_err);
+            require(
+                err == keccak256(abi.encodeWithSignature("InvalidVote()")) ||
+                err == keccak256(abi.encodeWithSignature("InsufficientVotingPower()"))
+            );
+        }
     }
+
+    function fundingVoteMulti() external {
+
+    }
+
+    /*****************************/
+    /*** SFM Utility Functions ***/
+    /*****************************/
 
     function generateProposalParams(TestProposalParams[] memory testProposalParams_) internal view
         returns(
@@ -223,6 +264,10 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
                 tokensRequested: randomTokenAmount(_grantFund.maximumQuarterlyDistribution())
             });
         }
+    }
+
+    function randomProposal() public view returns (uint256) {
+        return standardFundingProposals[constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, standardFundingProposals.length - 1)];
     }
 
 }
