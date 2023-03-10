@@ -7,7 +7,7 @@ import { StandardFundingHandler } from "./StandardFundingHandler.sol";
 
 contract StandardFundingInvariant is TestBase {
 
-    uint256 internal constant NUM_ACTORS = 100;
+    uint256 internal constant NUM_ACTORS = 50;
 
     StandardFundingHandler internal _standardFundingHandler;
 
@@ -24,9 +24,24 @@ contract StandardFundingInvariant is TestBase {
             NUM_ACTORS,
             tokensNotInTreasury
         );
+
+        // start the first distribution period
+        _grantFund.startNewDistributionPeriod();
+        emit log_string("here");
     }
 
-    function invariant_S1() public {
+    function invariant_SS1() public {
+        emit log_string("here 2");
+
+        uint256 actorCount = _standardFundingHandler.getActorsCount();
+
+        // actors submit proposals
+        for (uint256 i = 0; i < actorCount; ++i) {
+            if (_standardFundingHandler.shouldSubmitProposal()) {
+                _standardFundingHandler.submitProposal(_standardFundingHandler.actors(i));
+            }
+        }
+
         // invariant: grant fund should have the same balance as the treasury
         assertEq(_token.balanceOf(address(_grantFund)), treasury);
     }

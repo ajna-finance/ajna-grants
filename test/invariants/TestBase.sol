@@ -23,8 +23,10 @@ contract TestBase is InvariantTest, Test {
     uint256 treasury = 500_000_000 * 1e18;
 
     function setUp() public virtual {
-
         vm.createSelectFork(vm.envString("ETH_RPC_URL"), _startBlock);
+
+        // provide cheatcode access to the standard funding handler
+        vm.allowCheatcodes(0x4447E7a83995B5cCDCc9A6cd8Bc470305C940DA3);
 
         // Ajna Token contract address on mainnet
         _token = IAjnaToken(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
