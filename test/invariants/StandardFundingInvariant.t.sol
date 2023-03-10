@@ -29,7 +29,7 @@ contract StandardFundingInvariant is TestBase {
         targetSender(address(0x1234));
     }
 
-    function invariant_SS1_SS3_SS4() public {
+    function invariant_SS1_SS3_SS4_SS5() public {
         uint256 actorCount = _standardFundingHandler.getActorsCount();
 
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
@@ -40,14 +40,17 @@ contract StandardFundingInvariant is TestBase {
         if (topTenProposals.length > 1) {
             for (uint256 i = 0; i < topTenProposals.length - 1; ++i) {
                 // invariant SS3: proposals should be sorted in descending order
-                (, , uint256 votesReceivedCurr, , , ) = _grantFund.getProposalInfo(topTenProposals[i]);
-                (, , uint256 votesReceivedNext, , , ) = _grantFund.getProposalInfo(topTenProposals[i + 1]);
+                (, uint24 distributionIdCurr, uint256 votesReceivedCurr, , , ) = _grantFund.getProposalInfo(topTenProposals[i]);
+                (, uint24 distributionIdNext, uint256 votesReceivedNext, , , ) = _grantFund.getProposalInfo(topTenProposals[i + 1]);
                 assertTrue(votesReceivedCurr >= votesReceivedNext);
 
                 // invariant SS4: votes recieved for a proposal can only be positive
                 // only proposals that recieve votes will make it into the top ten list
                 assertTrue(votesReceivedCurr > 0);
                 assertTrue(votesReceivedNext > 0);
+
+                // invariant SS5: distribution id for a proposal should be the same as the current distribution id
+                assertTrue(distributionIdCurr == distributionIdNext && distributionIdCurr == _grantFund.getDistributionId());
             }
         }
 
@@ -64,24 +67,43 @@ contract StandardFundingInvariant is TestBase {
         assertTrue(standardFundingProposalsSubmitted >= topTenProposals.length);
     }
 
-    // TODO: need to track voter's voting power and vote cast
     function invariant_SS2() public {
+        uint256 actorCount = _standardFundingHandler.getActorsCount();
 
+        for (uint256 i = 0; i < actorCount; ++i) {
+            address actor = _standardFundingHandler.actors(i);
+
+            uint256 votingPower = _standardFundingHandler.getVotes(actor);
+            // TODO: expand this assertion
+            // invariant SS2: can only vote up to the amount of voting power at the snapshot blocks
+            assertTrue(_standardFundingHandler.sumVoterScreeningVotes(actor) <= votingPower);
+
+            for (uint256 j = 0; j < _standardFundingHandler.numVotingActorScreeningVotes(actor); ++j) {
+                (, uint256 screeningVotes, , uint256 proposalId) = _standardFundingHandler.getVotingActorsInfo(actor, j);
+                // invariant can only cast positive votes
+                assertTrue(screeningVotes > 0);
+
+                // check voter only votes upon proposals that they have submitted
+                assertTrue(_standardFundingHandler.findProposalIndex(proposalId, _standardFundingHandler.getStandardFundingProposals()) != -1);
+            }
+        }
     }
 
-    function invariant_FS1() public {
+    function invariant_FS1_FS2() public {
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
 
         // invariant: 10 or less proposals should make it through the screening stage
         assertTrue(topTenProposals.length <= 10);
 
-        // invariant: only proposals in the top ten list should be able to recieve funding votes
+        // invariant FS1: only proposals in the top ten list should be able to recieve funding votes
         for (uint256 j = 0; j < _standardFundingHandler.getStandardFundingProposalsLength(); ++j) {
             uint256 proposalId = _standardFundingHandler.standardFundingProposals(j);
-            (, , , , int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(proposalId);
+            (, uint24 distributionId, , , int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(proposalId);
             if (_standardFundingHandler.findProposalIndex(proposalId, topTenProposals) == -1) {
                 assertEq(fundingVotesReceived, 0);
             }
+            // invariant FS2: distribution id for a proposal should be the same as the current distribution id
+            assertEq(distributionId, _grantFund.getDistributionId());
         }
     }
 

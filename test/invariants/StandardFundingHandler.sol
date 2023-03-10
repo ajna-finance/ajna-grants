@@ -190,19 +190,34 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
         // get actor voting power
         uint256 votingPower = _grantFund.getVotesWithParams(_actor, block.number, bytes("Screening"));
 
+        // proposals voted on
+        uint256[] memory proposalsVotedOn = new uint256[](numberOfVotes_);
+        // proposal votes
+        uint256[] memory votes = new uint256[](numberOfVotes_);
+
         // construct vote params
         IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](standardFundingProposals.length);
         for (uint256 i = 0; i < numberOfVotes_; i++) {
             uint256 proposalId = randomProposal();
-            uint256 vote = constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, votingPower);
+            votes[i] = constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, votingPower);
             screeningVoteParams[i] = IStandardFunding.ScreeningVoteParams({
                 proposalId: proposalId,
-                votes: vote
+                votes: votes[i]
             });
         }
 
         try _grantFund.screeningVoteMulti(screeningVoteParams) {
-            // TODO: check sorting
+            // update actor vote count
+            uint256 startIndex = votingActors[_actor].screeningVotes.length;
+            startIndex == 0 ? 0 : startIndex - 1;
+            uint256 j;
+            for (uint256 i = startIndex; i < numberOfVotes_; ++i) {
+                votingActors[_actor].screeningVotes[i] = votes[j];
+                votingActors[_actor].screeningProposalIds[proposalsVotedOn[i]] = proposalsVotedOn[j];
+
+                ++i;
+                ++j;
+            }
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -224,15 +239,15 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
             // TODO: replace proposalId with retrieval from top ten list?
             uint256 proposalId = randomProposal();
             // TODO: figure out how to best generate negative votes to cast
-            int256 vote = int256(constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, votingPower));
+            int256 votes = int256(constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, votingPower));
             fundingVoteParams[i] = IStandardFunding.FundingVoteParams({
                 proposalId: proposalId,
-                votesUsed: vote
+                votesUsed: votes
             });
         }
 
         try _grantFund.fundingVotesMulti(fundingVoteParams) {
-            // TODO: check sorting
+
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -243,6 +258,10 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
             );
         }
 
+    }
+
+    function getVotes(address actor_) external view returns (uint256) {
+        return _grantFund.getVotes(actor_, block.number);
     }
 
     /*****************************/
@@ -301,6 +320,10 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
         return standardFundingProposals.length;
     }
 
+    function getStandardFundingProposals() external view returns (uint256[] memory) {
+        return standardFundingProposals;
+    }
+
     function findProposalIndex(
         uint256 proposalId_,
         uint256[] memory array_
@@ -316,6 +339,36 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
             }
 
             unchecked { ++i; }
+        }
+    }
+
+    // record the votes of actors over time
+    mapping(address => VotingActor) votingActors;
+
+    struct VotingActor {
+        int256[] fundingVotes;
+        uint256[] screeningVotes;
+        uint256[] fundingProposalIds;
+        uint256[] screeningProposalIds;
+    }
+
+    // TODO: will need to handle this per distribution period
+    function getVotingActorsInfo(address actor_, uint256 index_) external view returns (int256, uint256, uint256, uint256) {
+        return (
+            votingActors[actor_].fundingVotes[index_],
+            votingActors[actor_].screeningVotes[index_],
+            votingActors[actor_].fundingProposalIds[index_],
+            votingActors[actor_].screeningProposalIds[index_]
+        );
+    }
+
+    function numVotingActorScreeningVotes(address actor_) external view returns (uint256) {
+        return votingActors[actor_].screeningVotes.length;
+    }
+
+    function sumVoterScreeningVotes(address actor_) public view returns (uint256 sum_) {
+        for (uint256 i = 0; i < votingActors[actor_].screeningVotes.length; ++i) {
+            sum_ += votingActors[actor_].screeningVotes[i];
         }
     }
 
