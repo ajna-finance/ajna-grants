@@ -187,7 +187,6 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
     }
 
     function screeningVoteMulti(uint256 actorIndex_, uint256 numberOfVotes_) external useRandomActor(actorIndex_) {
-
         // get actor voting power
         uint256 votingPower = _grantFund.getVotesWithParams(_actor, block.number, bytes("Screening"));
 
@@ -214,7 +213,35 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
         }
     }
 
-    function fundingVoteMulti() external {
+    // FIXME: need to be able to randomly advance time
+    function fundingVotesMulti(uint256 actorIndex_, uint256 numberOfVotes_) external useRandomActor(actorIndex_) {
+        // get actor voting power
+        uint256 votingPower = _grantFund.getVotesWithParams(_actor, block.number, bytes("Funding"));
+
+        // construct vote params
+        IStandardFunding.FundingVoteParams[] memory fundingVoteParams = new IStandardFunding.FundingVoteParams[](standardFundingProposals.length);
+        for (uint256 i = 0; i < numberOfVotes_; i++) {
+            // TODO: replace proposalId with retrieval from top ten list?
+            uint256 proposalId = randomProposal();
+            // TODO: figure out how to best generate negative votes to cast
+            int256 vote = int256(constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, votingPower));
+            fundingVoteParams[i] = IStandardFunding.FundingVoteParams({
+                proposalId: proposalId,
+                votesUsed: vote
+            });
+        }
+
+        try _grantFund.fundingVotesMulti(fundingVoteParams) {
+            // TODO: check sorting
+        }
+        catch (bytes memory _err){
+            bytes32 err = keccak256(_err);
+            require(
+                err == keccak256(abi.encodeWithSignature("InvalidVote()")) ||
+                err == keccak256(abi.encodeWithSignature("InsufficientVotingPower()")) ||
+                err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()"))
+            );
+        }
 
     }
 
@@ -268,6 +295,28 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
 
     function randomProposal() public view returns (uint256) {
         return standardFundingProposals[constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, standardFundingProposals.length - 1)];
+    }
+
+    function getStandardFundingProposalsLength() external view returns (uint256) {
+        return standardFundingProposals.length;
+    }
+
+    function findProposalIndex(
+        uint256 proposalId_,
+        uint256[] memory array_
+    ) public pure returns (int256 index_) {
+        index_ = -1; // default value indicating proposalId not in the array
+        int256 arrayLength = int256(array_.length);
+
+        for (int256 i = 0; i < arrayLength;) {
+            //slither-disable-next-line incorrect-equality
+            if (array_[uint256(i)] == proposalId_) {
+                index_ = i;
+                break;
+            }
+
+            unchecked { ++i; }
+        }
     }
 
 }
