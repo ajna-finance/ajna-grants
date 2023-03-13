@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.16;
 
+import { console } from "@std/console.sol";
+
 import { TestBase } from "./TestBase.sol";
 import { StandardFundingHandler } from "./StandardFundingHandler.sol";
 
@@ -106,5 +108,24 @@ contract StandardFundingInvariant is TestBase {
             assertEq(distributionId, _grantFund.getDistributionId());
         }
     }
+
+
+    function invariant_call_summary() external view virtual {
+        console.log("\nCall Summary\n");
+        console.log("--SFM----------");
+        console.log("SFH.startNewDistributionPeriod ",  _standardFundingHandler.numberOfCalls("SFH.startNewDistributionPeriod"));
+        console.log("SFH.proposeStandard            ",  _standardFundingHandler.numberOfCalls("SFH.proposeStandard"));
+        console.log("SFH.screeningVoteMulti         ",  _standardFundingHandler.numberOfCalls("SFH.screeningVoteMulti"));
+        console.log("SFH.fundingVotesMulti          ",  _standardFundingHandler.numberOfCalls("SFH.fundingVotesMulti"));
+        console.log("------------------");
+        console.log(
+            "Sum",
+            _standardFundingHandler.numberOfCalls("SFH.startNewDistributionPeriod") +
+            _standardFundingHandler.numberOfCalls("SFH.proposeStandard") +
+            _standardFundingHandler.numberOfCalls("SFH.screeningVoteMulti") +
+            _standardFundingHandler.numberOfCalls("SFH.fundingVotesMulti")
+        );
+    }
+
 
 }

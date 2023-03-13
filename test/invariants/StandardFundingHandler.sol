@@ -22,9 +22,11 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
     // test params
     address internal _actor; // currently active actor, used in useRandomActor modifier
     address[] public actors;
+    uint256[] public standardFundingProposals;
     address _tokenDeployer;
 
-    uint256[] public standardFundingProposals;
+    // Logging
+    mapping(bytes32 => uint256) public numberOfCalls;
 
     constructor(address payable grantFund_, address token_, address tokenDeployer_, uint256 numOfActors_, uint256 tokensToDistribute_) {
         // Ajna Token contract address on mainnet
@@ -147,6 +149,8 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
     /*********************/
 
     function startNewDistributionPeriod() external returns (uint24 newDistributionId_) {
+        numberOfCalls['SFH.startNewDistributionPeriod']++;
+
         try _grantFund.startNewDistributionPeriod() returns (uint24 newDistributionId) {
             newDistributionId_ = newDistributionId;
         }
@@ -159,6 +163,8 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
     }
 
     function proposeStandard() external {
+        numberOfCalls['SFH.proposeStandard']++;
+
         // get a random number between 1 and 5
         uint256 numProposalParams = constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 1, 5);
 
@@ -187,6 +193,8 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
     }
 
     function screeningVoteMulti(uint256 actorIndex_, uint256 numberOfVotes_) external useRandomActor(actorIndex_) {
+        numberOfCalls['SFH.screeningVoteMulti']++;
+
         // get actor voting power
         uint256 votingPower = _grantFund.getVotesWithParams(_actor, block.number, bytes("Screening"));
 
@@ -230,6 +238,8 @@ contract StandardFundingHandler is InvariantTest, GrantFundTestHelper {
 
     // FIXME: need to be able to randomly advance time
     function fundingVotesMulti(uint256 actorIndex_, uint256 numberOfVotes_) external useRandomActor(actorIndex_) {
+        numberOfCalls['SFH.fundingVotesMulti']++;
+
         // get actor voting power
         uint256 votingPower = _grantFund.getVotesWithParams(_actor, block.number, bytes("Funding"));
 
