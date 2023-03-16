@@ -37,6 +37,9 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
     // randomness counter
     uint256 private counter = 1;
 
+    // time counter
+    uint256 private systemTime = 0;
+
     // record the votes of actors over time
     mapping(address => VotingActor) votingActors;
     struct VotingActor {
@@ -170,6 +173,7 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
 
     function startNewDistributionPeriod(uint256 actorIndex_) external useRandomActor(actorIndex_) returns (uint24 newDistributionId_) {
         numberOfCalls['SFH.startNewDistributionPeriod']++;
+        systemTime++;
 
         // vm.roll(block.number + 100);
         // vm.rollFork(block.number + 100);
@@ -190,6 +194,7 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
 
     function proposeStandard(uint256 actorIndex_) external useRandomActor(actorIndex_) {
         numberOfCalls['SFH.proposeStandard']++;
+        systemTime++;
 
         // get a random number between 1 and 5
         uint256 numProposalParams = constrictToRange(randomSeed(), 1, 5);
@@ -222,6 +227,9 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
 
     function screeningVoteMulti(uint256 actorIndex_, uint128 numberOfVotes_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
         numberOfCalls['SFH.screeningVoteMulti']++;
+        systemTime++;
+
+        // bind proposalsToVoteOn_ to the number of proposals
         proposalsToVoteOn_ = bound(proposalsToVoteOn_, 0, standardFundingProposals.length);
 
         vm.roll(block.number + 100);
@@ -277,6 +285,9 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
     // FIXME: need to be able to randomly advance time
     function fundingVotesMulti(uint256 actorIndex_, uint256 numberOfVotes_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
         numberOfCalls['SFH.fundingVotesMulti']++;
+        systemTime++;
+
+        // bind proposalsToVoteOn_ to the number of proposals
         proposalsToVoteOn_ = bound(proposalsToVoteOn_, 0, standardFundingProposals.length);
 
         vm.roll(block.number + 100);
@@ -287,9 +298,7 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
         if (block.number < endBlock - 72000) {
 
             // check if we should activate the funding stage
-            // 1/10 chance of activating funding stage
-            bool shouldActivateFundingStage = randomAmount(10) == 2 ? true : false;
-            if (shouldActivateFundingStage) {
+            if (systemTime >= 1500) {
                 // skip time into the funding stage
                 uint256 fundingStageStartBlock = endBlock - 72000;
                 vm.roll(fundingStageStartBlock + 100);
@@ -347,15 +356,22 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
 
     }
 
-    function checkSlate(uint256 actorIndex_) external useRandomActor(actorIndex_) {
+    function checkSlate(uint256 actorIndex_, uint256 proposalSeed) external useRandomActor(actorIndex_) {
         numberOfCalls['SFH.checkSlate']++;
+        systemTime++;
 
         // check that the distribution period ended
         if (keccak256(getStage()) != keccak256(bytes("Challenge"))) {
             return;
         }
 
+        if (systemTime > 2800) {
+            return;
+        }
+
         numberOfCalls['SFH.checkSlate.success']++;
+
+        uint256 proposalsToCheck = constrictToRange(proposalSeed, 0, standardFundingProposals.length);
 
         // get top ten proposals
         // uint256[] memory topTen = _grantFund.getTopTenProposals();
