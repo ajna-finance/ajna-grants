@@ -45,49 +45,49 @@ contract StandardFundingInvariant is TestBase {
         targetContract(address(_standardFundingHandler));
 
         // skip time for snapshots and start distribution period
-        // vm.roll(block.number + 100);
+        vm.roll(block.number + 100);
         // vm.rollFork(block.number + 100);
         _grantFund.startNewDistributionPeriod();
 
     }
 
-    // function invariant_SS1_SS3_SS4_SS5() public {
-    //     uint256 actorCount = _standardFundingHandler.getActorsCount();
+    function invariant_SS1_SS3_SS4_SS5() public {
+        uint256 actorCount = _standardFundingHandler.getActorsCount();
 
-    //     uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
+        uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
 
-    //     // invariant: 10 or less proposals should make it through the screening stage
-    //     assertTrue(topTenProposals.length <= 10);
+        // invariant: 10 or less proposals should make it through the screening stage
+        assertTrue(topTenProposals.length <= 10);
 
-    //     if (topTenProposals.length > 1) {
-    //         for (uint256 i = 0; i < topTenProposals.length - 1; ++i) {
-    //             // invariant SS3: proposals should be sorted in descending order
-    //             (, uint24 distributionIdCurr, uint256 votesReceivedCurr, , , ) = _grantFund.getProposalInfo(topTenProposals[i]);
-    //             (, uint24 distributionIdNext, uint256 votesReceivedNext, , , ) = _grantFund.getProposalInfo(topTenProposals[i + 1]);
-    //             assertTrue(votesReceivedCurr >= votesReceivedNext);
+        if (topTenProposals.length > 1) {
+            for (uint256 i = 0; i < topTenProposals.length - 1; ++i) {
+                // invariant SS3: proposals should be sorted in descending order
+                (, uint24 distributionIdCurr, uint256 votesReceivedCurr, , , ) = _grantFund.getProposalInfo(topTenProposals[i]);
+                (, uint24 distributionIdNext, uint256 votesReceivedNext, , , ) = _grantFund.getProposalInfo(topTenProposals[i + 1]);
+                assertTrue(votesReceivedCurr >= votesReceivedNext);
 
-    //             // invariant SS4: votes recieved for a proposal can only be positive
-    //             // only proposals that recieve votes will make it into the top ten list
-    //             assertTrue(votesReceivedCurr > 0);
-    //             assertTrue(votesReceivedNext > 0);
+                // invariant SS4: votes recieved for a proposal can only be positive
+                // only proposals that recieve votes will make it into the top ten list
+                assertTrue(votesReceivedCurr > 0);
+                assertTrue(votesReceivedNext > 0);
 
-    //             // invariant SS5: distribution id for a proposal should be the same as the current distribution id
-    //             assertTrue(distributionIdCurr == distributionIdNext && distributionIdCurr == _grantFund.getDistributionId());
-    //         }
-    //     }
+                // invariant SS5: distribution id for a proposal should be the same as the current distribution id
+                assertTrue(distributionIdCurr == distributionIdNext && distributionIdCurr == _grantFund.getDistributionId());
+            }
+        }
 
-    //     uint256 standardFundingProposalsSubmitted = _standardFundingHandler.standardFundingProposalCount();
+        uint256 standardFundingProposalsSubmitted = _standardFundingHandler.standardFundingProposalCount();
 
-    //     // check invariants against all submitted proposals
-    //     for (uint256 j = 0; j < standardFundingProposalsSubmitted; ++j) {
-    //         (, , uint256 votesReceived, , , ) = _grantFund.getProposalInfo(_standardFundingHandler.standardFundingProposals(j));
-    //         // invariant SS4: votes recieved for a proposal can only be positive
-    //         assertTrue(votesReceived >= 0);
-    //     }
+        // check invariants against all submitted proposals
+        for (uint256 j = 0; j < standardFundingProposalsSubmitted; ++j) {
+            (, , uint256 votesReceived, , , ) = _grantFund.getProposalInfo(_standardFundingHandler.standardFundingProposals(j));
+            // invariant SS4: votes recieved for a proposal can only be positive
+            assertTrue(votesReceived >= 0);
+        }
 
-    //     // not all proposals submitted by actors will make it through the screening stage
-    //     assertTrue(standardFundingProposalsSubmitted >= topTenProposals.length);
-    // }
+        // not all proposals submitted by actors will make it through the screening stage
+        assertTrue(standardFundingProposalsSubmitted >= topTenProposals.length);
+    }
 
     function invariant_SS2() public {
         uint256 actorCount = _standardFundingHandler.getActorsCount();
@@ -95,20 +95,22 @@ contract StandardFundingInvariant is TestBase {
         for (uint256 i = 0; i < actorCount; ++i) {
             address actor = _standardFundingHandler.actors(i);
 
-            uint256 votingPower = _standardFundingHandler.getVotes(actor);
+            uint256 votingPower = _grantFund.getVotesWithParams(actor, block.number, bytes("Screening"));
+
             // TODO: expand this assertion
             // invariant SS2: can only vote up to the amount of voting power at the snapshot blocks
             assertTrue(_standardFundingHandler.sumVoterScreeningVotes(actor) <= votingPower);
 
-            console.log("num votes", _standardFundingHandler.numVotingActorScreeningVotes(actor));
+            uint256[] memory votingActorScreeningVotes = _standardFundingHandler.votingActorScreeningVotes(actor);
+            uint256[] memory votingActorScreeningProposalIds = _standardFundingHandler.votingActorScreeningProposalIds(actor);
 
-            for (uint256 j = 0; j < _standardFundingHandler.numVotingActorScreeningVotes(actor); ++j) {
-                (, uint256 screeningVotes, , uint256 proposalId) = _standardFundingHandler.getVotingActorsInfo(actor, j);
+            for (uint256 j = 0; j < votingActorScreeningVotes.length; ++j) {
                 // invariant can only cast positive votes
-                assertTrue(screeningVotes > 0);
+                console.log("screening votes recieved", votingActorScreeningVotes[j]);
+                assertTrue(votingActorScreeningVotes[j] > 0);
 
                 // check voter only votes upon proposals that they have submitted
-                assertTrue(_findProposalIndex(proposalId, _standardFundingHandler.getStandardFundingProposals()) != -1);
+                assertTrue(_findProposalIndex(votingActorScreeningProposalIds[j], _standardFundingHandler.getStandardFundingProposals()) != -1);
             }
         }
     }
@@ -152,7 +154,10 @@ contract StandardFundingInvariant is TestBase {
         // sum proposal votes of each actor
         for (uint256 i = 0; i < _standardFundingHandler.getActorsCount(); ++i) {
             address actor = _standardFundingHandler.actors(i);
-            console.log("Actor", actor, "Votes", _standardFundingHandler.sumVoterScreeningVotes(actor));
+            console.log("Actor: ", actor);
+            console.log("Screening Voting Power: ", _grantFund.getVotesWithParams(actor, block.number, bytes("Screening")));
+            console.log("Screening Votes Cast:   ", _standardFundingHandler.sumVoterScreeningVotes(actor));
+            console.log("------------------");
         }
         console.log("------------------");
         console.log("Number of Actors", _standardFundingHandler.getActorsCount());

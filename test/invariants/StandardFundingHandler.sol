@@ -215,7 +215,7 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
         numberOfCalls['SFH.screeningVoteMulti']++;
         proposalsToVoteOn_ = bound(proposalsToVoteOn_, 0, standardFundingProposals.length);
 
-        // vm.roll(block.number + 100);
+        vm.roll(block.number + 100);
         // vm.rollFork(block.number + 100);
 
         // get actor voting power
@@ -396,6 +396,22 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
             votingActors[actor_].fundingProposalIds[index_],
             votingActors[actor_].screeningProposalIds[index_]
         );
+    }
+
+    function votingActorScreeningVotes(address actor_) external view returns (uint256[] memory) {
+        return votingActors[actor_].screeningVotes;
+    }
+
+    function votingActorFundingVotes(address actor_) external view returns (int256[] memory) {
+        return votingActors[actor_].fundingVotes;
+    }
+
+    function votingActorScreeningProposalIds(address actor_) external view returns (uint256[] memory) {
+        return votingActors[actor_].screeningProposalIds;
+    }
+
+    function votingActorFundingProposalIds(address actor_) external view returns (uint256[] memory) {
+        return votingActors[actor_].fundingProposalIds;
     }
 
     function numVotingActorScreeningVotes(address actor_) public returns (uint256) {
