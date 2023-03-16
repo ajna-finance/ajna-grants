@@ -16,7 +16,7 @@ runs = 150
 
 [invariant]
 runs           = 1     # The number of calls to make in the invariant tests
-depth          = 500    # The number of times to run the invariant tests
+depth          = 3000    # The number of times to run the invariant tests
 call_override  = false  # Override calls
 fail_on_revert = true  # Fail the test if the contract reverts
 dictionary_weight = 80

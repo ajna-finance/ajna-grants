@@ -34,6 +34,9 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
 
     uint256 public screeningVotesCast;
 
+    // randomness counter
+    uint256 private counter = 1;
+
     // record the votes of actors over time
     mapping(address => VotingActor) votingActors;
     struct VotingActor {
@@ -136,12 +139,12 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
         if (max == type(uint256).max && x != 0) result++;
     }
 
-    function randomAmount(uint256 maxAmount) internal view returns (uint256) {
-        return constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 1, maxAmount);
+    function randomAmount(uint256 maxAmount_) internal returns (uint256) {
+        return constrictToRange(randomSeed(), 1, maxAmount_);
     }
 
-    function randomActor() internal view returns (address) {
-        return actors[constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, actors.length - 1)];
+    function randomActor() internal returns (address) {
+        return actors[constrictToRange(randomSeed(), 0, actors.length - 1)];
     }
 
     function shouldSelfDelegate() internal returns (bool) {
@@ -150,6 +153,11 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
         vm.roll(block.number + 1);
 
         return number >= 5 ? true : false;
+    }
+
+    function randomSeed() internal returns (uint256) {
+        counter++;
+        return uint256(keccak256(abi.encodePacked(block.number, block.difficulty, counter, standardFundingProposalCount)));
     }
 
     function getActorsCount() external view returns(uint256) {
@@ -184,7 +192,7 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
         numberOfCalls['SFH.proposeStandard']++;
 
         // get a random number between 1 and 5
-        uint256 numProposalParams = constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 1, 5);
+        uint256 numProposalParams = constrictToRange(randomSeed(), 1, 5);
 
         // generate list of recipients and tokens requested
         TestProposalParams[] memory testProposalParams = generateTestProposalParams(numProposalParams);
@@ -234,7 +242,7 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
             uint256 proposalId = randomProposal();
 
             // track actor state change
-            votes[i] = constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, votingPower);
+            votes[i] = constrictToRange(randomSeed(), 0, votingPower);
             proposalsVotedOn[i] = proposalId;
 
             // generate screening vote params
@@ -264,25 +272,33 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
         }
     }
 
+
+    // TODO: implement time counter incremeneted monotonically per call depth
     // FIXME: need to be able to randomly advance time
     function fundingVotesMulti(uint256 actorIndex_, uint256 numberOfVotes_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
         numberOfCalls['SFH.fundingVotesMulti']++;
         proposalsToVoteOn_ = bound(proposalsToVoteOn_, 0, standardFundingProposals.length);
 
-        // console.log(block.number);
         vm.roll(block.number + 100);
-        // // vm.rollFork(block.number + 100);
-        // console.log(block.number);
 
-        // console.log(block.number - 50, block.number);
-
-        // TODO: skip time into the funding stage
         // check where block is in the distribution period
         uint24 distributionId = _grantFund.getDistributionId();
+        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        if (block.number < endBlock - 72000) {
 
-        (, uint256 startBlock, uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        uint256 fundingStageStartBlock = endBlock - 72000;
-        vm.roll(fundingStageStartBlock + 100);
+            // check if we should activate the funding stage
+            // 1/10 chance of activating funding stage
+            bool shouldActivateFundingStage = randomAmount(10) == 2 ? true : false;
+            if (shouldActivateFundingStage) {
+                // skip time into the funding stage
+                uint256 fundingStageStartBlock = endBlock - 72000;
+                vm.roll(fundingStageStartBlock + 100);
+                numberOfCalls['SFH.FundingStage']++;
+            }
+            else {
+                return;
+            }
+        }
 
         // get actor voting power
         uint256 votingPower = _grantFund.getVotesWithParams(_actor, block.number - 50, bytes("Funding"));
@@ -298,15 +314,18 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
             // TODO: replace proposalId with retrieval from top ten list?
             uint256 proposalId = randomProposal();
             // TODO: figure out how to best generate negative votes to cast
-            votes[i] = int256(constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, votingPower));
+
+            votes[i] = int256(constrictToRange(randomSeed(), 0, votingPower));
             proposalsVotedOn[i] = proposalId;
             fundingVoteParams[i] = IStandardFunding.FundingVoteParams({
                 proposalId: proposalId,
                 votesUsed: votes[i]
             });
+            // revert(Strings.toString(uint256(votes[i])));
         }
 
-        try _grantFund.fundingVotesMulti(fundingVoteParams) {
+        try _grantFund.fundingVotesMulti(fundingVoteParams) returns (uint256 votesCast) {
+            numberOfCalls['SFH.fundingVotesMulti.success']++;
             // update actor funding votes counts
             VotingActor storage actor = votingActors[_actor];
             for (uint256 i = 0; i < proposalsToVoteOn_; ) {
@@ -315,6 +334,7 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
 
                 ++i;
             }
+            // assertEq(votesCast, proposalsToVoteOn_);
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -324,6 +344,23 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
                 err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()"))
             );
         }
+
+    }
+
+    function checkSlate(uint256 actorIndex_) external useRandomActor(actorIndex_) {
+        numberOfCalls['SFH.checkSlate']++;
+
+        // check that the distribution period ended
+        if (keccak256(getStage()) != keccak256(bytes("Challenge"))) {
+            return;
+        }
+
+        numberOfCalls['SFH.checkSlate.success']++;
+
+        // get top ten proposals
+        // uint256[] memory topTen = _grantFund.getTopTenProposals();
+
+
 
     }
 
@@ -371,7 +408,7 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
         description_ = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo));
     }
 
-    function generateTestProposalParams(uint256 numParams_) internal view returns (TestProposalParams[] memory testProposalParams_) {
+    function generateTestProposalParams(uint256 numParams_) internal returns (TestProposalParams[] memory testProposalParams_) {
         testProposalParams_ = new TestProposalParams[](numParams_);
 
         // FIXME: these values aren't random
@@ -383,9 +420,24 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
         }
     }
 
-    function randomProposal() internal view returns (uint256) {
-        return standardFundingProposals[constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, standardFundingProposals.length - 1)];
+    function randomProposal() internal returns (uint256) {
+        return standardFundingProposals[constrictToRange(randomSeed(), 0, standardFundingProposals.length - 1)];
     }
+
+    function getStage() internal view returns (bytes memory stage_) {
+        uint24 distributionId = _grantFund.getDistributionId();
+        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        if (block.number < endBlock - 72000) {
+            stage_ = bytes("Screening");
+        }
+        else if (block.number > endBlock - 72000 && block.number < endBlock) {
+            stage_ = bytes("Funding");
+        }
+        else if (block.number > endBlock) {
+            stage_ = bytes("Challenge");
+        }
+    }
+
 
     /*****************************/
     /*** SFM Getter Functions ****/
@@ -421,7 +473,7 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
         return votingActors[actor_].fundingProposalIds;
     }
 
-    function numVotingActorScreeningVotes(address actor_) public returns (uint256) {
+    function numVotingActorScreeningVotes(address actor_) external view returns (uint256) {
         return votingActors[actor_].screeningVotes.length;
     }
 
