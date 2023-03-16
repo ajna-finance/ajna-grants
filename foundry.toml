@@ -15,7 +15,10 @@ rpc_storage_caching = { chains = ["mainnet"], endpoints = "all" }
 runs = 150
 
 [invariant]
-runs           = 1000     # The number of calls to make in the invariant tests
-depth          = 10    # The number of times to run the invariant tests
+runs           = 1     # The number of calls to make in the invariant tests
+depth          = 500    # The number of times to run the invariant tests
 call_override  = false  # Override calls
-fail_on_revert = false  # Fail the test if the contract reverts
+fail_on_revert = true  # Fail the test if the contract reverts
+dictionary_weight = 80
+include_storage = true
+include_push_bytes = true

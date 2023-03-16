@@ -271,6 +271,25 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.castVote(proposalId_, support_);
     }
 
+    function _findProposalIndex(
+        uint256 proposalId_,
+        uint256[] memory array_
+    ) internal pure returns (int256 index_) {
+        index_ = -1; // default value indicating proposalId not in the array
+        int256 arrayLength = int256(array_.length);
+
+        for (int256 i = 0; i < arrayLength;) {
+            //slither-disable-next-line incorrect-equality
+            if (array_[uint256(i)] == proposalId_) {
+                index_ = i;
+                break;
+            }
+
+            unchecked { ++i; }
+        }
+    }
+
+
     function _fundingVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_, int256 votesAllocated_) internal {
         string memory reason = "";
         bytes memory params = abi.encode(votesAllocated_);
