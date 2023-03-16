@@ -59,6 +59,10 @@ contract StandardFundingInvariant is TestBase {
         // invariant: 10 or less proposals should make it through the screening stage
         assertTrue(topTenProposals.length <= 10);
 
+        if (_standardFundingHandler.screeningVotesCast() > 0) {
+            assertTrue(topTenProposals.length > 0);
+        }
+
         if (topTenProposals.length > 1) {
             for (uint256 i = 0; i < topTenProposals.length - 1; ++i) {
                 // invariant SS3: proposals should be sorted in descending order
@@ -106,7 +110,6 @@ contract StandardFundingInvariant is TestBase {
 
             for (uint256 j = 0; j < votingActorScreeningVotes.length; ++j) {
                 // invariant can only cast positive votes
-                console.log("screening votes recieved", votingActorScreeningVotes[j]);
                 assertTrue(votingActorScreeningVotes[j] > 0);
 
                 // check voter only votes upon proposals that they have submitted
@@ -115,23 +118,23 @@ contract StandardFundingInvariant is TestBase {
         }
     }
 
-    // function invariant_FS1_FS2() public {
-    //     uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
+    function invariant_FS1_FS2() public {
+        uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
 
-    //     // invariant: 10 or less proposals should make it through the screening stage
-    //     assertTrue(topTenProposals.length <= 10);
+        // invariant: 10 or less proposals should make it through the screening stage
+        assertTrue(topTenProposals.length <= 10);
 
-    //     // invariant FS1: only proposals in the top ten list should be able to recieve funding votes
-    //     for (uint256 j = 0; j < _standardFundingHandler.standardFundingProposalCount(); ++j) {
-    //         uint256 proposalId = _standardFundingHandler.standardFundingProposals(j);
-    //         (, uint24 distributionId, , , int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(proposalId);
-    //         if (_findProposalIndex(proposalId, topTenProposals) == -1) {
-    //             assertEq(fundingVotesReceived, 0);
-    //         }
-    //         // invariant FS2: distribution id for a proposal should be the same as the current distribution id
-    //         assertEq(distributionId, _grantFund.getDistributionId());
-    //     }
-    // }
+        // invariant FS1: only proposals in the top ten list should be able to recieve funding votes
+        for (uint256 j = 0; j < _standardFundingHandler.standardFundingProposalCount(); ++j) {
+            uint256 proposalId = _standardFundingHandler.standardFundingProposals(j);
+            (, uint24 distributionId, , , int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(proposalId);
+            if (_findProposalIndex(proposalId, topTenProposals) == -1) {
+                assertEq(fundingVotesReceived, 0);
+            }
+            // invariant FS2: distribution id for a proposal should be the same as the current distribution id
+            assertEq(distributionId, _grantFund.getDistributionId());
+        }
+    }
 
     function invariant_call_summary() external view {
         console.log("\nCall Summary\n");
@@ -157,6 +160,8 @@ contract StandardFundingInvariant is TestBase {
             console.log("Actor: ", actor);
             console.log("Screening Voting Power: ", _grantFund.getVotesWithParams(actor, block.number, bytes("Screening")));
             console.log("Screening Votes Cast:   ", _standardFundingHandler.sumVoterScreeningVotes(actor));
+            // console.log("Funding Voting Power:   ", _grantFund.getVotesWithParams(actor, block.number, bytes("Funding")));
+            console.log("Funding Votes Cast:     ", uint256(_standardFundingHandler.sumVoterFundingVotes(actor)));
             console.log("------------------");
         }
         console.log("------------------");

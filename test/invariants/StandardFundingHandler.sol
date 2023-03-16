@@ -32,6 +32,8 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
     // list of submitted standard funding proposals
     uint256[] public standardFundingProposals;
 
+    uint256 public screeningVotesCast;
+
     // record the votes of actors over time
     mapping(address => VotingActor) votingActors;
     struct VotingActor {
@@ -42,7 +44,6 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
     }
 
     // ghost variables
-    uint256 ghost_zeroProposalsToVoteOn;
 
     // Logging
     mapping(bytes32 => uint256) public numberOfCalls;
@@ -249,6 +250,7 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
             for (uint256 i = 0; i < proposalsToVoteOn_; ) {
                 actor.screeningVotes.push(votes[i]);
                 actor.screeningProposalIds.push(proposalsVotedOn[i]);
+                screeningVotesCast++;
 
                 ++i;
             }
@@ -265,58 +267,63 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
     // FIXME: need to be able to randomly advance time
     function fundingVotesMulti(uint256 actorIndex_, uint256 numberOfVotes_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
         numberOfCalls['SFH.fundingVotesMulti']++;
-        // proposalsToVoteOn_ = bound(proposalsToVoteOn_, 0, standardFundingProposals.length);
-        // // if (proposalsToVoteOn_ == 0) {
-        // //     ghost_zeroProposalsToVoteOn++;
-        // // }        
+        proposalsToVoteOn_ = bound(proposalsToVoteOn_, 0, standardFundingProposals.length);
 
         // console.log(block.number);
-        // vm.roll(block.number + 100);
+        vm.roll(block.number + 100);
         // // vm.rollFork(block.number + 100);
         // console.log(block.number);
 
         // console.log(block.number - 50, block.number);
 
-        // // get actor voting power
-        // uint256 votingPower = _grantFund.getVotesWithParams(_actor, block.number - 50, bytes("Funding"));
+        // TODO: skip time into the funding stage
+        // check where block is in the distribution period
+        uint24 distributionId = _grantFund.getDistributionId();
 
-        // // new proposals voted on
-        // uint256[] memory proposalsVotedOn = new uint256[](proposalsToVoteOn_);
-        // // new proposal votes
-        // int256[] memory votes = new int256[](proposalsToVoteOn_);
+        (, uint256 startBlock, uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        uint256 fundingStageStartBlock = endBlock - 72000;
+        vm.roll(fundingStageStartBlock + 100);
 
-        // // construct vote params
-        // IStandardFunding.FundingVoteParams[] memory fundingVoteParams = new IStandardFunding.FundingVoteParams[](proposalsToVoteOn_);
-        // for (uint256 i = 0; i < proposalsToVoteOn_; i++) {
-        //     // TODO: replace proposalId with retrieval from top ten list?
-        //     uint256 proposalId = randomProposal();
-        //     // TODO: figure out how to best generate negative votes to cast
-        //     votes[i] = int256(constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, votingPower));
-        //     proposalsVotedOn[i] = proposalId;
-        //     fundingVoteParams[i] = IStandardFunding.FundingVoteParams({
-        //         proposalId: proposalId,
-        //         votesUsed: votes[i]
-        //     });
-        // }
+        // get actor voting power
+        uint256 votingPower = _grantFund.getVotesWithParams(_actor, block.number - 50, bytes("Funding"));
 
-        // try _grantFund.fundingVotesMulti(fundingVoteParams) {
-        //     // update actor funding votes counts
-        //     VotingActor storage actor = votingActors[_actor];
-        //     for (uint256 i = 0; i < proposalsToVoteOn_; ) {
-        //         actor.fundingVotes.push(votes[i]);
-        //         actor.fundingProposalIds.push(proposalsVotedOn[i]);
+        // new proposals voted on
+        uint256[] memory proposalsVotedOn = new uint256[](proposalsToVoteOn_);
+        // new proposal votes
+        int256[] memory votes = new int256[](proposalsToVoteOn_);
 
-        //         ++i;
-        //     }
-        // }
-        // catch (bytes memory _err){
-        //     bytes32 err = keccak256(_err);
-        //     require(
-        //         err == keccak256(abi.encodeWithSignature("InvalidVote()")) ||
-        //         err == keccak256(abi.encodeWithSignature("InsufficientVotingPower()")) ||
-        //         err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()"))
-        //     );
-        // }
+        // construct vote params
+        IStandardFunding.FundingVoteParams[] memory fundingVoteParams = new IStandardFunding.FundingVoteParams[](proposalsToVoteOn_);
+        for (uint256 i = 0; i < proposalsToVoteOn_; i++) {
+            // TODO: replace proposalId with retrieval from top ten list?
+            uint256 proposalId = randomProposal();
+            // TODO: figure out how to best generate negative votes to cast
+            votes[i] = int256(constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, votingPower));
+            proposalsVotedOn[i] = proposalId;
+            fundingVoteParams[i] = IStandardFunding.FundingVoteParams({
+                proposalId: proposalId,
+                votesUsed: votes[i]
+            });
+        }
+
+        try _grantFund.fundingVotesMulti(fundingVoteParams) {
+            // update actor funding votes counts
+            VotingActor storage actor = votingActors[_actor];
+            for (uint256 i = 0; i < proposalsToVoteOn_; ) {
+                actor.fundingVotes.push(votes[i]);
+                actor.fundingProposalIds.push(proposalsVotedOn[i]);
+
+                ++i;
+            }
+        }
+        catch (bytes memory _err){
+            bytes32 err = keccak256(_err);
+            require(
+                err == keccak256(abi.encodeWithSignature("InvalidVote()")) ||
+                err == keccak256(abi.encodeWithSignature("InsufficientVotingPower()")) ||
+                err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()"))
+            );
+        }
 
     }
 
@@ -421,6 +428,12 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
     function sumVoterScreeningVotes(address actor_) public view returns (uint256 sum_) {
         for (uint256 i = 0; i < votingActors[actor_].screeningVotes.length; ++i) {
             sum_ += votingActors[actor_].screeningVotes[i];
+        }
+    }
+
+    function sumVoterFundingVotes(address actor_) public view returns (int256 sum_) {
+        for (uint256 i = 0; i < votingActors[actor_].fundingVotes.length; ++i) {
+            sum_ += votingActors[actor_].fundingVotes[i];
         }
     }
 
