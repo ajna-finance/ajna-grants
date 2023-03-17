@@ -141,7 +141,7 @@ abstract contract GrantFundTestHelper is Test {
     function _createProposalStandard(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (TestProposal memory) {
         // generate expected proposal state
         uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
-        uint256 startBlock = block.number.toUint64() + grantFund_.votingDelay().toUint64();
+        uint256 startBlock = block.number.toUint64();
 
         (, , uint48 endBlock, , , ) = grantFund_.getDistributionPeriodInfo(grantFund_.getDistributionId());
 
@@ -263,18 +263,15 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     function _extraordinaryVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_) internal {
-        uint256 votingWeight = grantFund_.getVotesWithParams(voter_, block.number, abi.encode(proposalId_));
+        uint256 votingWeight = grantFund_.getVotesExtraordinary(voter_, proposalId_);
 
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support_, votingWeight, "");
-        grantFund_.castVote(proposalId_, support_);
+        grantFund_.voteExtraordinary(voter_, proposalId_);
     }
 
     function _fundingVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_, int256 votesAllocated_) internal {
-        string memory reason = "";
-        bytes memory params = abi.encode(votesAllocated_);
-
         // convert negative votes to account for budget expenditure and check emit value
         uint256 voteAllocatedEmit;
         if (votesAllocated_ < 0) {
@@ -284,10 +281,16 @@ abstract contract GrantFundTestHelper is Test {
             voteAllocatedEmit = uint256(votesAllocated_);
         }
 
+        // construct vote params
+        IStandardFunding.FundingVoteParams[] memory params = new IStandardFunding.FundingVoteParams[](1);
+        params[0].proposalId = proposalId_;
+        params[1].votesUsed = votesAllocated_;
+
+        // cast funding vote
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support_, voteAllocatedEmit, "");
-        grantFund_.castVoteWithReasonAndParams(proposalId_, support_, reason, params);
+        grantFund_.fundingVotesMulti(params);
     }
 
     function _fundingVoteMulti(GrantFund grantFund_, IStandardFunding.FundingVoteParams[] memory voteParams_, address voter_) internal {
@@ -300,15 +303,29 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.fundingVotesMulti(voteParams_);
     }
 
+    function _fundingVoteNoLog(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
+        // construct vote params
+        IStandardFunding.FundingVoteParams[] memory params = new IStandardFunding.FundingVoteParams[](1);
+        params[0].proposalId = proposalId_;
+        params[1].votesUsed = votesAllocated_;
+
+        // cast funding vote
+        changePrank(voter_);
+        grantFund_.fundingVotesMulti(params);
+    }
+
     function _screeningVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
-        string memory reason = "";
         uint8 support = 1; // can only vote yes in the screening stage
-        bytes memory params = abi.encode(votesAllocated_);
+
+        // construct vote params
+        IStandardFunding.ScreeningVoteParams[] memory params = new IStandardFunding.ScreeningVoteParams[](1);
+        params[0].proposalId = proposalId_;
+        params[1].votes = votesAllocated_;
 
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support, votesAllocated_, "");
-        grantFund_.castVoteWithReasonAndParams(proposalId_, support, reason, params);
+        grantFund_.screeningVoteMulti(params);
     }
 
     function _screeningVoteMulti(GrantFund grantFund_, IStandardFunding.ScreeningVoteParams[] memory voteParams_, address voter_) internal {
@@ -318,6 +335,16 @@ abstract contract GrantFundTestHelper is Test {
         }
         changePrank(voter_);
         grantFund_.screeningVoteMulti(voteParams_);
+    }
+
+    function _screeningVoteNoLog(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
+        // construct vote params
+        IStandardFunding.ScreeningVoteParams[] memory params = new IStandardFunding.ScreeningVoteParams[](1);
+        params[0].proposalId = proposalId_;
+        params[1].votes = votesAllocated_;
+
+        changePrank(voter_);
+        grantFund_.screeningVoteMulti(params);
     }
 
     // Returns a random proposal Index from all proposals
@@ -337,11 +364,11 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     function _getScreeningVotes(GrantFund grantFund_, address voter_) internal view returns (uint256 votes) {
-        votes = grantFund_.getVotesWithParams(voter_, block.number, bytes("Screening"));
+        votes = grantFund_.getVotesScreening(voter_);
     }
 
     function _getFundingVotes(GrantFund grantFund_, address voter_) internal view returns (uint256 votes) {
-        votes = grantFund_.getVotesWithParams(voter_, block.number, bytes("Funding"));
+        votes = grantFund_.getVotesFunding(voter_);
     }
 
     // TODO: rename this method
@@ -451,15 +478,6 @@ abstract contract GrantFundTestHelper is Test {
         for (uint256 i = 0; i < voters_.length; ++i) {
             token_.transfer(voters_[i], amount_);
         }
-    }
-
-    function _vote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_, uint256 votingWeightSnapshotBlock_) internal {
-        uint256 votingWeight = grantFund_.getVotes(voter_, votingWeightSnapshotBlock_);
-
-        changePrank(voter_);
-        vm.expectEmit(true, true, false, true);
-        emit VoteCast(voter_, proposalId_, support_, votingWeight, "");
-        grantFund_.castVote(proposalId_, support_);
     }
 
 }

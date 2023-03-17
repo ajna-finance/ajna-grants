@@ -64,7 +64,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         fundedExtraordinaryProposals.push(proposalId_);
 
-        super.execute(targets_, values_, calldatas_, descriptionHash_);
+        _execute(proposalId_, targets_, values_, calldatas_);
 
         proposal.executed = true;
 
@@ -138,7 +138,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         }
 
         // check voting power at snapshot block
-        votes_ = _getVotes(account_, block.number, abi.encode(proposalId_));
+        votes_ = _getVotesExtraordinary(account_, proposalId_);
         proposal.votesReceived += SafeCast.toUint112(votes_);
 
         // record that voter has voted on this extraorindary funding proposal
@@ -167,6 +167,16 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /********************************/
     /*** Internal View Functions ****/
     /********************************/
+
+    function _getExtraordinaryProposalState(uint256 proposalId_) internal view returns (ProposalState) {
+        // TODO: check if it's a valid proposal?
+        bool voteSucceeded = _extraordinaryFundingVoteSucceeded(proposalId_);
+
+        if (extraordinaryFundingProposals[proposalId_].executed)                                        return ProposalState.Executed;
+        else if (extraordinaryFundingProposals[proposalId_].endBlock >= block.number && !voteSucceeded) return ProposalState.Active;
+        else if (voteSucceeded)                                                                          return ProposalState.Succeeded;
+        else                                                                                             return ProposalState.Defeated;
+    }
 
     function _getMinimumThresholdPercentage() internal view returns (uint256) {
         // default minimum threshold is 50
@@ -200,6 +210,22 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         uint256 percentage_
     ) internal view returns (uint256) {
         return Maths.wmul(treasury, percentage_);
+    }
+
+    function _getVotesExtraordinary(address account_, uint256 proposalId_) internal view returns (uint256 votes_) {
+        // one token one vote for extraordinary funding
+        if (proposalId_ != 0) {
+            // get the number of votes available to voters at the start of the proposal, and 33 blocks before the start of the proposal
+            uint256 startBlock = extraordinaryFundingProposals[proposalId_].startBlock;
+
+            votes_ = _getVotesSinceSnapshot(
+                account_,
+                startBlock - VOTING_POWER_SNAPSHOT_DELAY,
+                startBlock
+            );
+        } else {
+            revert ExtraordinaryFundingProposalInactive();
+        }
     }
 
     /********************************/
@@ -238,6 +264,10 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             extraordinaryFundingProposals[proposalId_].succeeded,
             extraordinaryFundingProposals[proposalId_].executed
         );
+    }
+
+    function getVotesExtraordinary(address account_, uint256 proposalId_) external view returns (uint256 votes_) {
+        votes_ = _getVotesExtraordinary(account_, proposalId_);
     }
 
 }

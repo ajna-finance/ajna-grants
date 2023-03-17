@@ -378,7 +378,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
         if (block.number <= _getChallengeStageEndBlock(distributions[distributionId].endBlock)) revert ExecuteProposalInvalid();
 
-        super.execute(targets_, values_, calldatas_, descriptionHash_);
+        // super.execute(targets_, values_, calldatas_, descriptionHash_);
+
+        // check proposal state
+        ProposalState status = _standardProposalState(proposalId_);
+        if (status != ProposalState.Succeeded || status != ProposalState.Queued) revert ProposalNotSuccessful();
 
         standardFundingProposals[proposalId_].executed = true;
     }
@@ -467,6 +471,15 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
             unchecked { ++i; }
         }
+    }
+
+    function _standardProposalState(uint256 proposalId_) internal view returns (ProposalState) {
+        // TODO: check if it's a valid proposal?
+        Proposal memory proposal = standardFundingProposals[proposalId_];
+        if (proposal.executed)                                                    return ProposalState.Executed;
+        else if (distributions[proposal.distributionId].endBlock >= block.number) return ProposalState.Active;
+        else if (_standardFundingVoteSucceeded(proposalId_))                     return ProposalState.Succeeded;
+        else                                                                      return ProposalState.Defeated;
     }
 
     /************************/
@@ -577,7 +590,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 distributionId = proposal_.distributionId;
 
         // check that the voter has enough voting power to cast the vote
-        if (screeningVotesCast[distributionId][account_] + votes_ > _getVotes(account_, block.number, bytes("Screening"))) revert InsufficientVotingPower();
+        if (screeningVotesCast[distributionId][account_] + votes_ > _getVotesScreening(account_)) revert InsufficientVotingPower();
 
         uint256[] storage currentTopTenProposals = topTenProposals[distributionId];
         uint256 proposalId = proposal_.proposalId;
@@ -740,6 +753,48 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return _findProposalIndex(proposalId_, fundedProposalSlates[distributions[distributionId].fundedSlateHash]) != -1;
     }
 
+    function _getVotesScreening(address account_) internal view returns (uint256 votes_) {
+        QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
+
+        // calculate voting weight based on the number of tokens held at the snapshot blocks of the screening stage
+        votes_ = _getVotesSinceSnapshot(
+            account_,
+            currentDistribution.startBlock - VOTING_POWER_SNAPSHOT_DELAY,
+            currentDistribution.startBlock
+        );
+    }
+
+    function _getVotesFunding(address account_) internal view returns (uint256 votes_) {
+        QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
+        QuadraticVoter memory voter = quadraticVoters[currentDistribution.id][account_];
+
+        // voter has already allocated some of their budget this period
+        if (voter.votingPower != 0) {
+            votes_ = voter.remainingVotingPower;
+        }
+        // voter hasn't yet called _castVote in this period
+        else {
+            votes_ = _getFundingStageVotingPower(account_, _getScreeningStageEndBlock(currentDistribution.endBlock));
+        }
+    }
+
+     /**
+     * @notice Retrieve the funding stage voting power of an account.
+     * @dev    Returns the square of the voter's voting power at the snapshot blocks.
+     * @param account_                The voting account.
+     * @param screeningStageEndBlock_ The block number at which the screening stage end and the funding stage beings.
+     * @return votingPower_           The voting power of the account.
+     */
+    function _getFundingStageVotingPower(address account_, uint256 screeningStageEndBlock_) internal view returns (uint256 votingPower_) {
+        votingPower_ = Maths.wpow(
+            _getVotesSinceSnapshot(
+                account_,
+                screeningStageEndBlock_ - VOTING_POWER_SNAPSHOT_DELAY,
+                screeningStageEndBlock_
+            ), 2
+        );
+    }
+
     /**************************/
     /*** External Functions ***/
     /**************************/
@@ -832,5 +887,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function maximumQuarterlyDistribution() external view returns (uint256) {
         return Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);
     }
+
+    function getVotesScreening(address account_) external view returns (uint256 votes_) {
+        votes_ = _getVotesScreening(account_);
+    }
+
+    function getVotesFunding(address account_) external view returns (uint256 votes_) {
+        votes_ = _getVotesFunding(account_);
+    }
+
 
 }
