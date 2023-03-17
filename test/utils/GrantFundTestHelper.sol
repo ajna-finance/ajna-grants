@@ -284,7 +284,7 @@ abstract contract GrantFundTestHelper is Test {
         // construct vote params
         IStandardFunding.FundingVoteParams[] memory params = new IStandardFunding.FundingVoteParams[](1);
         params[0].proposalId = proposalId_;
-        params[1].votesUsed = votesAllocated_;
+        params[0].votesUsed = votesAllocated_;
 
         // cast funding vote
         changePrank(voter_);
@@ -307,7 +307,7 @@ abstract contract GrantFundTestHelper is Test {
         // construct vote params
         IStandardFunding.FundingVoteParams[] memory params = new IStandardFunding.FundingVoteParams[](1);
         params[0].proposalId = proposalId_;
-        params[1].votesUsed = votesAllocated_;
+        params[0].votesUsed = votesAllocated_;
 
         // cast funding vote
         changePrank(voter_);
@@ -320,7 +320,7 @@ abstract contract GrantFundTestHelper is Test {
         // construct vote params
         IStandardFunding.ScreeningVoteParams[] memory params = new IStandardFunding.ScreeningVoteParams[](1);
         params[0].proposalId = proposalId_;
-        params[1].votes = votesAllocated_;
+        params[0].votes = votesAllocated_;
 
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
@@ -341,7 +341,7 @@ abstract contract GrantFundTestHelper is Test {
         // construct vote params
         IStandardFunding.ScreeningVoteParams[] memory params = new IStandardFunding.ScreeningVoteParams[](1);
         params[0].proposalId = proposalId_;
-        params[1].votes = votesAllocated_;
+        params[0].votes = votesAllocated_;
 
         changePrank(voter_);
         grantFund_.screeningVoteMulti(params);

@@ -48,7 +48,10 @@ interface IFunding {
     /*** Custom Events ***/
     /*********************/
 
-    event ProposalExecuted(uint256 indexed proposalId);
+    /**
+     * @dev Emitted when a proposal is executed.
+     */
+    event ProposalExecuted(uint256 proposalId);
 
     /**
      * @dev Emitted when a proposal is created.
@@ -65,6 +68,9 @@ interface IFunding {
         string description
     );
 
+    /**
+     * @dev Emitted when votes are cast on a proposal.
+     */
     event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason);
 
     /***************/
@@ -79,6 +85,9 @@ interface IFunding {
         Extraordinary
     }
 
+    /**
+     * @dev Enum listing a proposal's lifecycle.
+     */
     enum ProposalState {
         Pending,
         Active,

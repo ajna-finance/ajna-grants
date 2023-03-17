@@ -381,8 +381,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // super.execute(targets_, values_, calldatas_, descriptionHash_);
 
         // check proposal state
-        ProposalState status = _standardProposalState(proposalId_);
-        if (status != ProposalState.Succeeded || status != ProposalState.Queued) revert ProposalNotSuccessful();
+        // ProposalState status = _standardProposalState(proposalId_);
+        // if (status != ProposalState.Succeeded || status != ProposalState.Queued) revert ProposalNotSuccessful();
+        if (!_standardFundingVoteSucceeded(proposalId_) || standardFundingProposals[proposalId_].executed) revert ProposalNotSuccessful();
+
+        _execute(proposalId_, targets_, values_, calldatas_);
 
         standardFundingProposals[proposalId_].executed = true;
     }
@@ -482,9 +485,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         else                                                                      return ProposalState.Defeated;
     }
 
-    /************************/
-    /*** Voting Functions ***/
-    /************************/
+    /*********************************/
+    /*** Voting Functions External ***/
+    /*********************************/
+
+    /*********************************/
+    /*** Voting Functions Internal ***/
+    /*********************************/
 
     /**
      * @notice Vote on a proposal in the funding stage of the Distribution Period.
@@ -753,6 +760,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return _findProposalIndex(proposalId_, fundedProposalSlates[distributions[distributionId].fundedSlateHash]) != -1;
     }
 
+    // TODO: update this to allow usage of arbitrary distribution periods?
+    /**
+     * @notice Retrieve the number of votes available to an account in the current screening stage.
+     * @param  account_ The account to retrieve votes for.
+     * @return votes_   The number of votes available to an account in this screening stage.
+     */
     function _getVotesScreening(address account_) internal view returns (uint256 votes_) {
         QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
 
@@ -764,6 +777,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         );
     }
 
+    // TODO: update this to allow usage of arbitrary distribution periods?
+    /**
+     * @notice Retrieve the number of votes available to an account in the current funding stage.
+     * @param  account_ The account to retrieve votes for.
+     * @return votes_   e number of votes available to an account in this funding stage.
+     */
     function _getVotesFunding(address account_) internal view returns (uint256 votes_) {
         QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
         QuadraticVoter memory voter = quadraticVoters[currentDistribution.id][account_];

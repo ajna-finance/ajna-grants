@@ -159,7 +159,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check revert if additional votes exceed the voter's voting power in the screening stage
         vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
-        // _grantFund.castVoteWithReasonAndParams(proposal.proposalId, 1, "", abi.encode(16_000_000 * 1e18));
         _screeningVoteNoLog(_grantFund, _tokenHolder1, proposal.proposalId, 16_000_000 * 1e18);
 
         // check revert for using full voting power in screeningVoteMulti
@@ -250,8 +249,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check revert if additional votes exceed the budget
         vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
-        // _grantFund.castVoteWithReasonAndParams(proposal.proposalId, 1, "", abi.encode(16_000_000 * 1e18));
-        _fundingVoteNoLog(_grantFund, _tokenHolder1, proposal.proposalId, -16_000_000 * 1e18);
+        _fundingVoteNoLog(_grantFund, _tokenHolder1, proposal.proposalId, 16_000_000 * 1e18);
     }
 
     function testPropose() external {
@@ -671,7 +669,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
      *  @dev    Reverts:
      *              - IStandardFunding.InsufficientVotingPower
      *              - IStandardFunding.ExecuteProposalInvalid
-     *              - "Governor: proposal not successful"
+     *              - IFunding.ProposalNotSuccessful
      */
     function testDistributionPeriodEndToEnd() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
@@ -801,7 +799,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         changePrank(_tokenHolder5);
         vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
-        // _grantFund.castVoteWithReasonAndParams(screenedProposals[3].proposalId, voteNo, "", abi.encode(-2_600_000_000_000_000 * 1e18));
         _fundingVoteNoLog(_grantFund, _tokenHolder5, screenedProposals[3].proposalId, -2_600_000_000_000_000 * 1e18);
 
         // check tokenHolder5 partial vote budget calculations
@@ -811,8 +808,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // should revert if tokenHolder5 attempts to change the direction of a vote
         changePrank(_tokenHolder5);
         vm.expectRevert(IStandardFunding.FundingVoteWrongDirection.selector);
-        // _grantFund.castVoteWithReasonAndParams(screenedProposals[5].proposalId, voteYes, "", abi.encode(5_000_000 * 1e18));
-        _fundingVoteNoLog(_grantFund, _tokenHolder5, screenedProposals[3].proposalId, 5_000_000 * 1e18);
+        _fundingVoteNoLog(_grantFund, _tokenHolder5, screenedProposals[5].proposalId, 5_000_000 * 1e18);
 
         // check remaining votes available to the above token holders
         (uint128 voterPower, uint128 votingPowerRemaining, uint256 votesCast) = _grantFund.getVoterInfo(distributionId, _tokenHolder1);
@@ -830,12 +826,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         (voterPower, votingPowerRemaining, votesCast) = _grantFund.getVoterInfo(distributionId, _tokenHolder4);
         assertEq(voterPower, 2_500_000_000_000_000 * 1e18);
         assertEq(votingPowerRemaining, 0);
-        assertEq(uint256(votingPowerRemaining), _getScreeningVotes(_grantFund, _tokenHolder4));
+        assertEq(uint256(votingPowerRemaining), _getFundingVotes(_grantFund, _tokenHolder4));
         assertEq(votesCast, 2);
         (voterPower, votingPowerRemaining, votesCast) = _grantFund.getVoterInfo(distributionId, _tokenHolder5);
         assertEq(voterPower, 2_500_000_000_000_000 * 1e18);
         assertEq(votingPowerRemaining, 475_000_000_000_000 * 1e18);
-        assertEq(uint256(votingPowerRemaining), _getScreeningVotes(_grantFund, _tokenHolder5));
+        assertEq(uint256(votingPowerRemaining), _getFundingVotes(_grantFund, _tokenHolder5));
         assertEq(votesCast, 1);
 
         assertEq(_grantFund.getFundingPowerVotes(2_500_000_000_000_000 * 1e18), 50_000_000 * 1e18);
@@ -965,11 +961,11 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _executeProposal(_grantFund, _token, testProposals[4]);
 
         // check that shouldn't be able to execute unfunded proposals
-        vm.expectRevert("Governor: proposal not successful");
+        vm.expectRevert(IFunding.ProposalNotSuccessful.selector);
         _grantFund.executeStandard(testProposals[1].targets, testProposals[1].values, testProposals[1].calldatas, keccak256(bytes(testProposals[1].description)));
 
         // check that shouldn't be able to execute a proposal twice
-        vm.expectRevert("Governor: proposal not successful");
+        vm.expectRevert(IFunding.ProposalNotSuccessful.selector);
         _grantFund.executeStandard(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
 
         /******************************/
@@ -1136,7 +1132,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // check revert if attempts to cast screening votes on proposals from first distribution period
         changePrank(_tokenHolder10);
         vm.expectRevert(IStandardFunding.InvalidVote.selector);
-        // _grantFund.castVoteWithReasonAndParams(testProposals_distribution1[0].proposalId, 0, "", abi.encode(50_000_000 * 1e18));
         _screeningVoteNoLog(_grantFund, _tokenHolder10, testProposals_distribution1[0].proposalId, 50_000_000 * 1e18);
 
         IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](2);
@@ -1164,7 +1159,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // check revert if attempts to cast funding votes on proposals from first distribution period
         changePrank(_tokenHolder10);
         vm.expectRevert(IStandardFunding.InvalidVote.selector);
-        // _grantFund.castVoteWithReasonAndParams(testProposals_distribution1[0].proposalId, 0, "", abi.encode(50_000_000 * 1e18));
         _fundingVoteNoLog(_grantFund, _tokenHolder10, testProposals_distribution1[0].proposalId, 50_000_000 * 1e18);
 
         IStandardFunding.FundingVoteParams[] memory fundingVoteParams = new IStandardFunding.FundingVoteParams[](6);
