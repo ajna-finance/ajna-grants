@@ -489,6 +489,93 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /*** Voting Functions External ***/
     /*********************************/
 
+    /**
+     * @notice Cast an array of funding votes in one transaction.
+     * @dev    Calls out to StandardFunding._fundingVote().
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param voteParams_ The array of votes on proposals to cast.
+     * @return votesCast_ The total number of votes cast across all of the proposals.
+     */
+    function fundingVotesMulti(
+        FundingVoteParams[] memory voteParams_
+    ) external returns (uint256 votesCast_) {
+        QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
+        QuadraticVoter        storage voter               = quadraticVoters[currentDistribution.id][msg.sender];
+
+        uint256 endBlock = currentDistribution.endBlock;
+
+        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(endBlock);
+
+        // check that the funding stage is active
+        if (block.number > screeningStageEndBlock && block.number <= endBlock) {
+
+            // this is the first time a voter has attempted to vote this period,
+            // set initial voting power and remaining voting power
+            if (voter.votingPower == 0) {
+
+                uint128 newVotingPower = SafeCast.toUint128(_getFundingStageVotingPower(msg.sender, screeningStageEndBlock));
+
+                voter.votingPower          = newVotingPower;
+                voter.remainingVotingPower = newVotingPower;
+            }
+
+            uint256 numVotesCast = voteParams_.length;
+
+            for (uint256 i = 0; i < numVotesCast; ) {
+                Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
+
+                // check that the proposal is part of the current distribution period
+                if (proposal.distributionId != currentDistribution.id) revert InvalidVote();
+
+                // cast each successive vote
+                votesCast_ += _fundingVote(
+                    currentDistribution,
+                    proposal,
+                    msg.sender,
+                    voter,
+                    voteParams_[i]
+                );
+
+                unchecked { ++i; }
+            }
+        }
+    }
+
+    /**
+     * @notice Cast an array of screening votes in one transaction.
+     * @dev    Calls out to StandardFunding._screeningVote().
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param voteParams_ The array of votes on proposals to cast.
+     * @return votesCast_ The total number of votes cast across all of the proposals.
+     */
+    function screeningVoteMulti(
+        ScreeningVoteParams[] memory voteParams_
+    ) external returns (uint256 votesCast_) {
+        QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
+
+        // check screening stage is active
+        if (block.number >= currentDistribution.startBlock && block.number <= _getScreeningStageEndBlock(currentDistribution.endBlock)) {
+
+            uint256 numVotesCast = voteParams_.length;
+
+            for (uint256 i = 0; i < numVotesCast; ) {
+                Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
+
+                // check that the proposal is part of the current distribution period
+                if (proposal.distributionId != currentDistribution.id) revert InvalidVote();
+
+                uint256 votes = voteParams_[i].votes;
+
+                // cast each successive vote
+                votesCast_ += votes;
+                _screeningVote(msg.sender, proposal, votes);
+
+                unchecked { ++i; }
+            }
+        }
+    }
+
     /*********************************/
     /*** Voting Functions Internal ***/
     /*********************************/
@@ -748,6 +835,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
     }
 
+    /*******************************/
+    /*** Internal View Functions ***/
+    /*******************************/
+
     /**
      * @notice Check to see if a proposal is in the current funded slate hash of proposals.
      * @param  proposalId_ The proposalId to check.
@@ -814,9 +905,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         );
     }
 
-    /**************************/
-    /*** External Functions ***/
-    /**************************/
+    /*******************************/
+    /*** External View Functions ***/
+    /*******************************/
 
     /// @inheritdoc IStandardFunding
     function getDelegateReward(
@@ -915,5 +1006,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         votes_ = _getVotesFunding(account_);
     }
 
+    function getFundingVotesCast(uint24 distributionId_, address account_) external view returns (FundingVoteParams[] memory) {
+        return quadraticVoters[distributionId_][account_].votesCast;
+    }
 
 }

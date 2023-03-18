@@ -398,13 +398,13 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.proposeStandard(targets, values, proposalCalldata, description);
     }
 
-    function testHasVoted() external {
+    function testVotesCast() external {
         _selfDelegateVoters(_token, _votersArr);
 
         vm.roll(_startBlock + 100);
         // start distribution period
         _startDistributionPeriod(_grantFund);
-        _grantFund.getDistributionId();
+        uint24 distributionId = _grantFund.getDistributionId();
 
         vm.roll(_startBlock + 200);
 
@@ -415,8 +415,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
 
         // ensure that user has not voted
-        bool hasVoted = _grantFund.hasVoted(testProposals[0].proposalId, _tokenHolder1);
-        assertFalse(hasVoted);
+        uint256 screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder1);
+        assertEq(screeningVotesCast, 0);
 
         // cast screening stage vote
         IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](2);
@@ -432,13 +432,13 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVoteMulti(_grantFund, screeningVoteParams, _tokenHolder1);
 
         // check that user has voted
-        hasVoted = _grantFund.hasVoted(testProposals[0].proposalId, _tokenHolder1);
-        assertTrue(hasVoted);
+        screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder1);
+        assertEq(screeningVotesCast, 50_000_000 * 1e18);
 
         _screeningVote(_grantFund, _tokenHolder2, testProposals[1].proposalId, 5_000_000 * 1e18);
 
-        hasVoted = _grantFund.hasVoted(testProposals[1].proposalId, _tokenHolder2);
-        assertTrue(hasVoted);
+        screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder2);
+        assertEq(screeningVotesCast, 5_000_000 * 1e18);
 
         changePrank(_tokenHolder1);
 
@@ -446,14 +446,19 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 600_000);
 
         // should be false if user has not voted in funding stage but voted in screening stage
-        hasVoted = _grantFund.hasVoted(testProposals[1].proposalId, _tokenHolder1);
-        assertFalse(hasVoted);
+        IStandardFunding.FundingVoteParams[] memory fundingVoteParams = _grantFund.getFundingVotesCast(distributionId, _tokenHolder1);
+        assertEq(fundingVoteParams.length, 0);
 
         // voter allocates all of their voting power in support of the proposal
-        _fundingVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, voteYes, 50_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, voteNo, -50_000_000 * 1e18);
         // check if user vote is updated after voting in funding stage 
-        hasVoted = _grantFund.hasVoted(testProposals[1].proposalId, _tokenHolder1);
-        assertTrue(hasVoted);
+        fundingVoteParams = _grantFund.getFundingVotesCast(distributionId, _tokenHolder1);
+        assertEq(fundingVoteParams.length, 1);
+        assertEq(fundingVoteParams[0].proposalId, testProposals[1].proposalId);
+        assertEq(fundingVoteParams[0].votesUsed, -50_000_000 * 1e18);
+
+        // check revert if attempts to vote again
+        assertInsufficientVotingPowerRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, -1);
     }
 
     function testMaximumQuarterlyDistribution() external {

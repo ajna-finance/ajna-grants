@@ -464,7 +464,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 200_000);
 
         // ensure user has not voted
-        bool hasVoted = _grantFund.hasVoted(proposalId, _tokenHolder24);
+        bool hasVoted = _grantFund.getHasVotedExtraordinary(proposalId, _tokenHolder24);
         assertFalse(hasVoted);
         
         changePrank(_tokenHolder24);

@@ -480,4 +480,13 @@ abstract contract GrantFundTestHelper is Test {
         }
     }
 
+    /****************/
+    /*** Asserts ***/
+    /***************/
+
+    function assertInsufficientVotingPowerRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
+        vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
+        _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
+    }
+
 }

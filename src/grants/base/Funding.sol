@@ -20,12 +20,6 @@ abstract contract Funding is IFunding, ReentrancyGuard {
     address public ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
 
     /**
-     * @notice Mapping checking if a voter has voted on a given proposal.
-     * @dev proposalId => address => bool.
-     */
-    mapping(uint256 => mapping(address => bool)) internal hasVotedExtraordinary;
-
-    /**
      * @notice Number of blocks prior to a given voting stage to check an accounts voting power.
      * @dev    Prevents flashloan attacks or duplicate voting with multiple accounts.
      */
@@ -133,9 +127,9 @@ abstract contract Funding is IFunding, ReentrancyGuard {
         }
     }
 
-    /**************************/
+    /************************/
     /*** Public Functions ***/
-    /**************************/
+    /************************/
 
     function hashProposal(
         address[] memory targets,
