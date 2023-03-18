@@ -56,14 +56,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     ) public view returns (ProposalState) {
         FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
 
-        // standard proposal state checks
-        if (mechanism == FundingMechanism.Standard) {
-            return _standardProposalState(proposalId_);
-        }
-        // extraordinary funding proposal state
-        else {
-            return _getExtraordinaryProposalState(proposalId_);
-        }
+        return mechanism == FundingMechanism.Standard ? _standardProposalState(proposalId_) : _getExtraordinaryProposalState(proposalId_);
     }
 
 }
