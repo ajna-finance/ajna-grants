@@ -32,7 +32,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @notice Mapping checking if a voter has voted on a given proposal.
      * @dev proposalId => address => bool.
      */
-    mapping(uint256 => mapping(address => bool)) internal hasVotedExtraordinary;
+    mapping(uint256 => mapping(address => bool)) public hasVotedExtraordinary;
 
     /**
      * @notice The maximum length of a proposal's voting period, in blocks.
@@ -282,10 +282,6 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
     function getVotesExtraordinary(address account_, uint256 proposalId_) external view returns (uint256 votes_) {
         votes_ = _getVotesExtraordinary(account_, proposalId_);
-    }
-
-    function getHasVotedExtraordinary(uint256 proposalId_, address account_) external view returns (bool hasVoted_) {
-        hasVoted_ = hasVotedExtraordinary[proposalId_][account_];
     }
 
 }

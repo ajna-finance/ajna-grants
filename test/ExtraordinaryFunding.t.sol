@@ -3,7 +3,6 @@ pragma solidity 0.8.16;
 
 import { IVotes }    from "@oz/governance/utils/IVotes.sol";
 
-// import { Funding }               from "../src/grants/base/Funding.sol";
 import { GrantFund }             from "../src/grants/GrantFund.sol";
 import { IExtraordinaryFunding } from "../src/grants/interfaces/IExtraordinaryFunding.sol";
 import { IFunding }              from "../src/grants/interfaces/IFunding.sol";
@@ -464,7 +463,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 200_000);
 
         // ensure user has not voted
-        bool hasVoted = _grantFund.getHasVotedExtraordinary(proposalId, _tokenHolder24);
+        bool hasVoted = _grantFund.hasVotedExtraordinary(proposalId, _tokenHolder24);
         assertFalse(hasVoted);
         
         changePrank(_tokenHolder24);
