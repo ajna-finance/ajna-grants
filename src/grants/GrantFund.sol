@@ -20,6 +20,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     /*** Constructor ***/
     /*******************/
 
+    // TODO: remove token from constructor entirely in favor of constant variable in funding
     constructor(IVotes token_, uint256 treasury_)
     {
         ajnaTokenAddress = address(token_);
