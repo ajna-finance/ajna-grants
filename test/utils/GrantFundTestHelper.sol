@@ -480,7 +480,7 @@ abstract contract GrantFundTestHelper is Test {
         }
     }
 
-    /****************/
+    /***************/
     /*** Asserts ***/
     /***************/
 

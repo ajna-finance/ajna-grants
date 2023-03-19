@@ -372,22 +372,21 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         bytes32 descriptionHash_
     ) external nonReentrant returns (uint256 proposalId_) {
         proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
+        Proposal storage proposal = standardFundingProposals[proposalId_];
 
-        uint24 distributionId = standardFundingProposals[proposalId_].distributionId;
+        uint24 distributionId = proposal.distributionId;
 
         // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
         if (block.number <= _getChallengeStageEndBlock(distributions[distributionId].endBlock)) revert ExecuteProposalInvalid();
 
-        // super.execute(targets_, values_, calldatas_, descriptionHash_);
-
         // check proposal state
         // ProposalState status = _standardProposalState(proposalId_);
         // if (status != ProposalState.Succeeded || status != ProposalState.Queued) revert ProposalNotSuccessful();
-        if (!_standardFundingVoteSucceeded(proposalId_) || standardFundingProposals[proposalId_].executed) revert ProposalNotSuccessful();
+        if (!_standardFundingVoteSucceeded(proposalId_) || proposal.executed) revert ProposalNotSuccessful();
 
         _execute(proposalId_, targets_, values_, calldatas_);
 
-        standardFundingProposals[proposalId_].executed = true;
+        proposal.executed = true;
     }
 
     /// @inheritdoc IStandardFunding
@@ -861,7 +860,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
 
         // calculate voting weight based on the number of tokens held at the snapshot blocks of the screening stage
-        votes_ = _getVotesSinceSnapshot(
+        votes_ = _getVotesAtSnapshotBlocks(
             account_,
             currentDistribution.startBlock - VOTING_POWER_SNAPSHOT_DELAY,
             currentDistribution.startBlock
@@ -897,7 +896,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      */
     function _getFundingStageVotingPower(address account_, uint256 screeningStageEndBlock_) internal view returns (uint256 votingPower_) {
         votingPower_ = Maths.wpow(
-            _getVotesSinceSnapshot(
+            _getVotesAtSnapshotBlocks(
                 account_,
                 screeningStageEndBlock_ - VOTING_POWER_SNAPSHOT_DELAY,
                 screeningStageEndBlock_

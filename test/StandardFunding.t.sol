@@ -4,7 +4,6 @@ pragma solidity 0.8.16;
 import { IVotes }    from "@oz/governance/utils/IVotes.sol";
 import { SafeCast }  from "@oz/utils/math/SafeCast.sol";
 
-// import { Funding }          from "../src/grants/base/Funding.sol";
 import { GrantFund }        from "../src/grants/GrantFund.sol";
 import { IFunding }              from "../src/grants/interfaces/IFunding.sol";
 import { IStandardFunding } from "../src/grants/interfaces/IStandardFunding.sol";

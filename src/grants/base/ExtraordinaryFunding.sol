@@ -57,16 +57,9 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         // since we are casting from uint128 to uint256, we can safely assume that the value will not overflow
         uint256 tokensRequested = uint256(proposal.tokensRequested);
 
-        // revert if executed or if the proposal has received more votes than minimumThreshold and tokensRequestedPercentage of all tokens
-        if (
-            proposal.executed ||
-            proposal.votesReceived < tokensRequested + _getSliceOfNonTreasury(_getMinimumThresholdPercentage())
-        ) revert ExecuteExtraordinaryProposalInvalid();
-
-        proposal.succeeded = true;
-
-        // check tokens requested are available for claiming from the treasury
-        if (tokensRequested > _getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert InvalidProposal();
+        // check the proposal succeeded, or already executed
+        // revert otherwise
+        if (proposal.executed || !_extraordinaryProposalSucceeded(proposalId_, tokensRequested)) revert ExecuteExtraordinaryProposalInvalid();
 
         fundedExtraordinaryProposals.push(proposalId_);
 
@@ -153,7 +146,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         // check voting power at snapshot block
         votes_ = _getVotesExtraordinary(account_, proposalId_);
-        proposal.votesReceived += SafeCast.toUint112(votes_);
+        proposal.votesReceived += SafeCast.toUint120(votes_);
 
         // record that voter has voted on this extraorindary funding proposal
         hasVotedExtraordinary[proposalId_][account_] = true;
@@ -172,10 +165,26 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @param  proposalId_ The ID of the proposal being checked.
      * @return             Boolean indicating whether the proposal has succeeded.
      */
-    function _extraordinaryFundingVoteSucceeded(
-        uint256 proposalId_
+    function _extraordinaryProposalSucceeded(
+        uint256 proposalId_,
+        uint256 tokensRequested_
     ) internal view returns (bool) {
-        return extraordinaryFundingProposals[proposalId_].succeeded;
+        ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
+
+        bool isInvalid = false;
+
+        // TODO: check for overflows
+        // check proposal's votes received exceeds the minimum threshold required
+        if (uint256(proposal.votesReceived) < tokensRequested_ + _getSliceOfNonTreasury(_getMinimumThresholdPercentage())) {
+            isInvalid = true;
+        }
+
+        // check tokens requested are available for claiming from the treasury
+        if (tokensRequested_ > _getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) {
+            isInvalid = true;
+        }
+
+        return isInvalid ? false : true;
     }
 
     /********************************/
@@ -183,13 +192,14 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /********************************/
 
     function _getExtraordinaryProposalState(uint256 proposalId_) internal view returns (ProposalState) {
-        // TODO: check if it's a valid proposal?
-        bool voteSucceeded = _extraordinaryFundingVoteSucceeded(proposalId_);
+        ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
 
-        if (extraordinaryFundingProposals[proposalId_].executed)                                        return ProposalState.Executed;
-        else if (extraordinaryFundingProposals[proposalId_].endBlock >= block.number && !voteSucceeded) return ProposalState.Active;
-        else if (voteSucceeded)                                                                          return ProposalState.Succeeded;
-        else                                                                                             return ProposalState.Defeated;
+        bool voteSucceeded = _extraordinaryProposalSucceeded(proposalId_, uint256(proposal.tokensRequested));
+
+        if (proposal.executed)                                        return ProposalState.Executed;
+        else if (proposal.endBlock >= block.number && !voteSucceeded) return ProposalState.Active;
+        else if (voteSucceeded)                                       return ProposalState.Succeeded;
+        else                                                          return ProposalState.Defeated;
     }
 
     function _getMinimumThresholdPercentage() internal view returns (uint256) {
@@ -232,7 +242,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             // get the number of votes available to voters at the start of the proposal, and 33 blocks before the start of the proposal
             uint256 startBlock = extraordinaryFundingProposals[proposalId_].startBlock;
 
-            votes_ = _getVotesSinceSnapshot(
+            votes_ = _getVotesAtSnapshotBlocks(
                 account_,
                 startBlock - VOTING_POWER_SNAPSHOT_DELAY,
                 startBlock
@@ -268,16 +278,22 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /// @inheritdoc IExtraordinaryFunding
     function getExtraordinaryProposalInfo(
         uint256 proposalId_
-    ) external view override returns (uint256, uint128, uint128, uint128, uint112, bool, bool) {
+    ) external view override returns (uint256, uint128, uint128, uint128, uint120, bool) {
         return (
             extraordinaryFundingProposals[proposalId_].proposalId,
             extraordinaryFundingProposals[proposalId_].startBlock,
             extraordinaryFundingProposals[proposalId_].endBlock,
             extraordinaryFundingProposals[proposalId_].tokensRequested,
             extraordinaryFundingProposals[proposalId_].votesReceived,
-            extraordinaryFundingProposals[proposalId_].succeeded,
             extraordinaryFundingProposals[proposalId_].executed
         );
+    }
+
+    function getExtraordinaryProposalSucceeded(uint256 proposalId_) external view returns (bool) {
+        // since we are casting from uint128 to uint256, we can safely assume that the value will not overflow
+        uint256 tokensRequested = uint256(extraordinaryFundingProposals[proposalId_].tokensRequested);
+
+        return _extraordinaryProposalSucceeded(proposalId_, tokensRequested);
     }
 
     function getVotesExtraordinary(address account_, uint256 proposalId_) external view returns (uint256 votes_) {

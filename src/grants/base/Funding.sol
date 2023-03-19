@@ -58,7 +58,7 @@ abstract contract Funding is IFunding, ReentrancyGuard {
      * @param voteStartBlock_ The block number the proposal became available for voting.
      * @return                The voting power of the account.
      */
-    function _getVotesSinceSnapshot(
+    function _getVotesAtSnapshotBlocks(
         address account_,
         uint256 snapshot_,
         uint256 voteStartBlock_

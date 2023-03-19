@@ -279,8 +279,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             uint128 startBlock,
             uint128 endBlock,
             uint128 tokensRequested,
-            uint112 votesReceived,
-            bool succeeded,
+            uint120 votesReceived,
             bool executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
 
@@ -290,8 +289,9 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(startBlock, block.number);
         assertEq(endBlock, endBlockParam);
         assertEq(votesReceived, 0);
-        assertFalse(succeeded);
+        // assertFalse(succeeded);
         assertFalse(executed);
+        assertFalse(_grantFund.getExtraordinaryProposalSucceeded(testProposal.proposalId));
 
         // should revert is same proposal is being proposed
         vm.expectRevert(IFunding.ProposalAlreadyExists.selector);
@@ -438,7 +438,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // check proposal status
         proposalState = _grantFund.state(testProposal.proposalId);
-        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Active));
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Succeeded));
 
         // check proposal state
         (
@@ -446,15 +446,14 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             ,
             ,
             uint128 tokensRequested,
-            uint112 votesReceived,
-            bool succeeded,
+            uint120 votesReceived,
             bool executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
         assertEq(proposalId, testProposal.proposalId);
         assertEq(tokensRequested, tokensRequestedParam);
         assertEq(votesReceived, 23 * 50_000_000 * 1e18);
-        assertFalse(succeeded);
         assertFalse(executed);
+        assertTrue(_grantFund.getExtraordinaryProposalSucceeded(testProposal.proposalId));
 
         // minimum threshold percentage should be at default levels before the succesful proposal is executed
         uint256 minimumThresholdPercentage = _grantFund.getMinimumThresholdPercentage();
@@ -465,15 +464,16 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // ensure user has not voted
         bool hasVoted = _grantFund.hasVotedExtraordinary(proposalId, _tokenHolder24);
         assertFalse(hasVoted);
-        
+
         changePrank(_tokenHolder24);
+
         // Should revert if user tries to vote after proposal's end block
         vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInactive.selector);
         _grantFund.voteExtraordinary(_tokenHolder24, proposalId);
 
         // check state is succeeded as expected
         proposalState = _grantFund.state(testProposal.proposalId);
-        // assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Succeeded));
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Succeeded));
 
         // execute proposal
         _executeExtraordinaryProposal(_grantFund, _token, testProposal);
@@ -487,12 +487,12 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             ,
             ,
             votesReceived,
-            succeeded,
             executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
         assertEq(votesReceived, 23 * 50_000_000 * 1e18);
-        assertTrue(succeeded);
+        // assertTrue(succeeded);
         assertTrue(executed);
+        assertTrue(_grantFund.getExtraordinaryProposalSucceeded(testProposal.proposalId));
 
         // check tokens transferred to the recipient address
         assertEq(_token.balanceOf(_tokenHolder1), 100_000_000 * 1e18);
@@ -619,10 +619,11 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             */
             if (i >= 6) {
                 // check that proposals which have enough votes won't pass if they requested too many tokens from the treasury
-                (, , , uint128 tokensRequested, uint112 votesReceived, , ) = _grantFund.getExtraordinaryProposalInfo(testProposal[i].proposalId);
+                (, , , uint128 tokensRequested, uint120 votesReceived, ) = _grantFund.getExtraordinaryProposalInfo(testProposal[i].proposalId);
 
+                // check if the proposal requested too many tokens
                 if (votesReceived >= tokensRequested + _grantFund.getSliceOfNonTreasury(_grantFund.getMinimumThresholdPercentage())) {
-                    vm.expectRevert(IFunding.InvalidProposal.selector);
+                    vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
                     _grantFund.executeExtraordinary(testProposal[i].targets, testProposal[i].values, testProposal[i].calldatas, keccak256(bytes(testProposal[i].description)));
                     continue;
                 }
