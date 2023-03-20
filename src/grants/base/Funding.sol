@@ -2,12 +2,13 @@
 
 pragma solidity 0.8.16;
 
+import { Address }         from "@oz/utils/Address.sol";
+import { IVotes }          from "@oz/governance/utils/IVotes.sol";
 import { ReentrancyGuard } from "@oz/security/ReentrancyGuard.sol";
 import { SafeCast }        from "@oz/utils/math/SafeCast.sol";
-import { Address }         from "@oz/utils/Address.sol";
-import { IVotes }    from "@oz/governance/utils/IVotes.sol";
 
 import { Maths } from "../libraries/Maths.sol";
+
 import { IFunding } from "../interfaces/IFunding.sol";
 
 abstract contract Funding is IFunding, ReentrancyGuard {
@@ -34,6 +35,12 @@ abstract contract Funding is IFunding, ReentrancyGuard {
     /*** Internal Functions ***/
     /**************************/
 
+     /**
+     * @notice Execute the calldata of a passed proposal.
+     * @param targets_   The list of smart contract targets for the calldata execution. Should be the Ajna token address.
+     * @param values_    Unused. Should be 0 since all calldata is executed on the Ajna token's transfer method.
+     * @param calldatas_ The list of calldatas to execute.
+     */
     function _execute(
         uint256 proposalId_,
         address[] memory targets_,

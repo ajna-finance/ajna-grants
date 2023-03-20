@@ -364,11 +364,11 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     function _getScreeningVotes(GrantFund grantFund_, address voter_) internal view returns (uint256 votes) {
-        votes = grantFund_.getVotesScreening(voter_);
+        votes = grantFund_.getVotesScreening(grantFund_.getDistributionId(), voter_);
     }
 
     function _getFundingVotes(GrantFund grantFund_, address voter_) internal view returns (uint256 votes) {
-        votes = grantFund_.getVotesFunding(voter_);
+        votes = grantFund_.getVotesFunding(grantFund_.getDistributionId(), voter_);
     }
 
     // TODO: rename this method

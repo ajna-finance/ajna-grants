@@ -679,10 +679,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         Proposal storage proposal_,
         uint256 votes_
     ) internal {
-        uint256 distributionId = proposal_.distributionId;
+        uint24 distributionId = proposal_.distributionId;
 
         // check that the voter has enough voting power to cast the vote
-        if (screeningVotesCast[distributionId][account_] + votes_ > _getVotesScreening(account_)) revert InsufficientVotingPower();
+        if (screeningVotesCast[distributionId][account_] + votes_ > _getVotesScreening(distributionId, account_)) revert InsufficientVotingPower();
 
         uint256[] storage currentTopTenProposals = topTenProposals[distributionId];
         uint256 proposalId = proposal_.proposalId;
@@ -849,14 +849,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return _findProposalIndex(proposalId_, fundedProposalSlates[distributions[distributionId].fundedSlateHash]) != -1;
     }
 
-    // TODO: update this to allow usage of arbitrary distribution periods?
     /**
      * @notice Retrieve the number of votes available to an account in the current screening stage.
      * @param  account_ The account to retrieve votes for.
      * @return votes_   The number of votes available to an account in this screening stage.
      */
-    function _getVotesScreening(address account_) internal view returns (uint256 votes_) {
-        QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
+    function _getVotesScreening(uint24 distributionId_, address account_) internal view returns (uint256 votes_) {
+        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
 
         // calculate voting weight based on the number of tokens held at the snapshot blocks of the screening stage
         votes_ = _getVotesAtSnapshotBlocks(
@@ -866,15 +865,15 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         );
     }
 
-    // TODO: update this to allow usage of arbitrary distribution periods?
     /**
      * @notice Retrieve the number of votes available to an account in the current funding stage.
-     * @param  account_ The account to retrieve votes for.
-     * @return votes_   e number of votes available to an account in this funding stage.
+     * @param  distributionId_ The distributionId of the distribution period to retrieve votes at.
+     * @param  account_        The account to retrieve votes for.
+     * @return votes_          The number of votes available to an account in this funding stage.
      */
-    function _getVotesFunding(address account_) internal view returns (uint256 votes_) {
-        QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
-        QuadraticVoter memory voter = quadraticVoters[currentDistribution.id][account_];
+    function _getVotesFunding(uint24 distributionId_, address account_) internal view returns (uint256 votes_) {
+        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
+        QuadraticVoter memory voter = quadraticVoters[distributionId_][account_];
 
         // voter has already allocated some of their budget this period
         if (voter.votingPower != 0) {
@@ -996,12 +995,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);
     }
 
-    function getVotesScreening(address account_) external view returns (uint256 votes_) {
-        votes_ = _getVotesScreening(account_);
+    function getVotesScreening(uint24 distributionId_, address account_) external view returns (uint256 votes_) {
+        votes_ = _getVotesScreening(distributionId_, account_);
     }
 
-    function getVotesFunding(address account_) external view returns (uint256 votes_) {
-        votes_ = _getVotesFunding(account_);
+    function getVotesFunding(uint24 distributionId_, address account_) external view returns (uint256 votes_) {
+        votes_ = _getVotesFunding(distributionId_, account_);
     }
 
     function getFundingVotesCast(uint24 distributionId_, address account_) external view returns (FundingVoteParams[] memory) {

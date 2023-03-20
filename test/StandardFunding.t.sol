@@ -107,7 +107,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // check voting power after screening stage has started
         vm.roll(_startBlock + 100);
 
-        uint256 votingPower = _grantFund.getVotesScreening(_tokenHolder1);
+        uint256 votingPower = _getScreeningVotes(_grantFund, _tokenHolder1);
         assertEq(votingPower, 50_000_000 * 1e18);
 
         // skip forward 150 blocks and transfer some tokens after voting power was determined
@@ -117,7 +117,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _token.transfer(_tokenHolder2, 25_000_000 * 1e18);
 
         // check voting power is unchanged
-        votingPower = _grantFund.getVotesScreening(_tokenHolder1);
+        votingPower = _getScreeningVotes(_grantFund, _tokenHolder1);
         assertEq(votingPower, 50_000_000 * 1e18);
 
         // check voting power won't change with token transfer to an address that didn't make it into the snapshot
@@ -125,9 +125,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         changePrank(_tokenHolder1);
         _token.transfer(nonVotingAddress, 10_000_000 * 1e18);
 
-        votingPower = _grantFund.getVotesScreening(_tokenHolder1);
+        votingPower = _getScreeningVotes(_grantFund, _tokenHolder1);
         assertEq(votingPower, 50_000_000 * 1e18);
-        votingPower = _grantFund.getVotesScreening(nonVotingAddress);
+        votingPower = _getScreeningVotes(_grantFund, nonVotingAddress);
         assertEq(votingPower, 0);
 
         // generate proposal targets
