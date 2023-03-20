@@ -1447,7 +1447,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(voters.length, noOfVoters);
 
         // Transfer random ajna tokens to all voters and self delegate
-        uint256[] memory votes = _getVotes(noOfVoters, voters, _token, _tokenDeployer);
+        uint256[] memory votes = _setVotingPower(noOfVoters, voters, _token, _tokenDeployer);
         assertEq(votes.length, noOfVoters);
 
         vm.roll(block.number + 100);

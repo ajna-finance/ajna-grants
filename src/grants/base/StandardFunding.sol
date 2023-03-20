@@ -379,9 +379,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
         if (block.number <= _getChallengeStageEndBlock(distributions[distributionId].endBlock)) revert ExecuteProposalInvalid();
 
-        // check proposal state
-        // ProposalState status = _standardProposalState(proposalId_);
-        // if (status != ProposalState.Succeeded || status != ProposalState.Queued) revert ProposalNotSuccessful();
+        // check proposal is succesful and hasn't already been executed
         if (!_standardFundingVoteSucceeded(proposalId_) || proposal.executed) revert ProposalNotSuccessful();
 
         _execute(proposalId_, targets_, values_, calldatas_);
@@ -475,8 +473,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     function _standardProposalState(uint256 proposalId_) internal view returns (ProposalState) {
-        // TODO: check if it's a valid proposal?
         Proposal memory proposal = standardFundingProposals[proposalId_];
+
         if (proposal.executed)                                                    return ProposalState.Executed;
         else if (distributions[proposal.distributionId].endBlock >= block.number) return ProposalState.Active;
         else if (_standardFundingVoteSucceeded(proposalId_))                     return ProposalState.Succeeded;
@@ -512,7 +510,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             // set initial voting power and remaining voting power
             if (voter.votingPower == 0) {
 
-                uint128 newVotingPower = SafeCast.toUint128(_getFundingStageVotingPower(msg.sender, screeningStageEndBlock));
+                uint128 newVotingPower = SafeCast.toUint128(_getVotesFunding(currentDistributionId, msg.sender));
 
                 voter.votingPower          = newVotingPower;
                 voter.remainingVotingPower = newVotingPower;
@@ -833,10 +831,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
     }
 
-    /*******************************/
-    /*** Internal View Functions ***/
-    /*******************************/
-
     /**
      * @notice Check to see if a proposal is in the current funded slate hash of proposals.
      * @param  proposalId_ The proposalId to check.
@@ -881,25 +875,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
         // voter hasn't yet called _castVote in this period
         else {
-            votes_ = _getFundingStageVotingPower(account_, _getScreeningStageEndBlock(currentDistribution.endBlock));
-        }
-    }
-
-     /**
-     * @notice Retrieve the funding stage voting power of an account.
-     * @dev    Returns the square of the voter's voting power at the snapshot blocks.
-     * @param account_                The voting account.
-     * @param screeningStageEndBlock_ The block number at which the screening stage end and the funding stage beings.
-     * @return votingPower_           The voting power of the account.
-     */
-    function _getFundingStageVotingPower(address account_, uint256 screeningStageEndBlock_) internal view returns (uint256 votingPower_) {
-        votingPower_ = Maths.wpow(
+            uint48 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.endBlock);
+            votes_ = Maths.wpow(
             _getVotesAtSnapshotBlocks(
                 account_,
                 screeningStageEndBlock_ - VOTING_POWER_SNAPSHOT_DELAY,
                 screeningStageEndBlock_
-            ), 2
-        );
+            ), 2);
+        }
     }
 
     /*******************************/

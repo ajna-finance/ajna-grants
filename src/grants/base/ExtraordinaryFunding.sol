@@ -172,7 +172,6 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         bool isInvalid = false;
 
-        // TODO: check for overflows
         // check proposal's votes received exceeds the minimum threshold required
         if (uint256(proposal.votesReceived) < tokensRequested_ + _getSliceOfNonTreasury(_getMinimumThresholdPercentage())) {
             isInvalid = true;

@@ -347,6 +347,20 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.screeningVote(params);
     }
 
+    // Transfers a random amount of tokens to N voters and self delegates votes
+    function _setVotingPower(uint256 noOfVoters_, address[] memory voters_, IAjnaToken token_, address tokenDeployer_) internal returns(uint256[] memory) {
+        uint256[] memory votes_ = new uint256[](noOfVoters_);
+        for(uint i = 0; i < noOfVoters_; i++) {
+            uint256 votes = _randomVote();
+            changePrank(tokenDeployer_);
+            token_.transfer(voters_[i], votes);
+            changePrank(voters_[i]);
+            token_.delegate(voters_[i]);
+            votes_[i] = votes;
+        }
+        return votes_;
+    }
+
     // Returns a random proposal Index from all proposals
     function _getRandomProposal(uint256 noOfProposals_) internal returns(uint256 proposal_) {
         // calculate random proposal Index between 0 and noOfProposals_
@@ -369,21 +383,6 @@ abstract contract GrantFundTestHelper is Test {
 
     function _getFundingVotes(GrantFund grantFund_, address voter_) internal view returns (uint256 votes) {
         votes = grantFund_.getVotesFunding(grantFund_.getDistributionId(), voter_);
-    }
-
-    // TODO: rename this method
-    // Transfers a random amount of tokens to N voters and self delegates votes
-    function _getVotes(uint256 noOfVoters_, address[] memory voters_, IAjnaToken token_, address tokenDeployer_) internal returns(uint256[] memory) {
-        uint256[] memory votes_ = new uint256[](noOfVoters_);
-        for(uint i = 0; i < noOfVoters_; i++) {
-            uint256 votes = _randomVote();
-            changePrank(tokenDeployer_);
-            token_.transfer(voters_[i], votes);
-            changePrank(voters_[i]);
-            token_.delegate(voters_[i]);
-            votes_[i] = votes;
-        }
-        return votes_;
     }
 
     // Submits N Proposal with fixed token requested
