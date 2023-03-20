@@ -160,7 +160,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
         _screeningVoteNoLog(_grantFund, _tokenHolder1, proposal.proposalId, 16_000_000 * 1e18);
 
-        // check revert for using full voting power in screeningVoteMulti
+        // check revert for using full voting power in screeningVote
         IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](3);
         screeningVoteParams[0] = IStandardFunding.ScreeningVoteParams({
             proposalId: proposal.proposalId,
@@ -177,7 +177,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         changePrank(_tokenHolder3);
         vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
-        _grantFund.screeningVoteMulti(screeningVoteParams);
+        _grantFund.screeningVote(screeningVoteParams);
     }
 
     function testGetVotingPowerFundingStage() external {
@@ -428,7 +428,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             votes: 30_000_000 * 1e18
         });
 
-        _screeningVoteMulti(_grantFund, screeningVoteParams, _tokenHolder1);
+        _screeningVote(_grantFund, screeningVoteParams, _tokenHolder1);
 
         // check that user has voted
         screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder1);
@@ -610,7 +610,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             proposalId: testProposals[9].proposalId,
             votes: 5_000_000 * 1e18
         });
-        _screeningVoteMulti(_grantFund, screeningVoteParams, _tokenHolder1);
+        _screeningVote(_grantFund, screeningVoteParams, _tokenHolder1);
 
         // check top ten proposals
         GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
@@ -626,7 +626,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             proposalId: testProposals[11].proposalId,
             votes: 15_000_000 * 1e18
         });
-        _screeningVoteMulti(_grantFund, screeningVoteParams, _tokenHolder2);
+        _screeningVote(_grantFund, screeningVoteParams, _tokenHolder2);
 
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         assertEq(screenedProposals.length, 10);
@@ -787,7 +787,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         });
         changePrank(_tokenHolder4);
         vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
-        _grantFund.fundingVotesMulti(fundingVoteParams);
+        _grantFund.fundingVote(fundingVoteParams);
 
         // tokenholder4 divides their full votingpower into two proposals in one transaction
         fundingVoteParams[0] = IStandardFunding.FundingVoteParams({
@@ -964,6 +964,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _executeProposal(_grantFund, _token, testProposals[0]);
         _executeProposal(_grantFund, _token, testProposals[4]);
 
+        // check the status of unfunded proposals is defeated
+        assertFalse(uint8(_grantFund.state(testProposals[1].proposalId)) == uint8(IFunding.ProposalState.Succeeded));
+        assertEq(uint8(_grantFund.state(testProposals[1].proposalId)), uint8(IFunding.ProposalState.Defeated));
+
         // check that shouldn't be able to execute unfunded proposals
         vm.expectRevert(IFunding.ProposalNotSuccessful.selector);
         _grantFund.executeStandard(testProposals[1].targets, testProposals[1].values, testProposals[1].calldatas, keccak256(bytes(testProposals[1].description)));
@@ -1105,8 +1109,20 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // skip to the end of Challenge period
         vm.roll(_startBlock + 700_000);
 
+        // check proposal status isn't defeated
+        IFunding.ProposalState proposalState = _grantFund.state(testProposals_distribution1[0].proposalId);
+        assert(uint8(proposalState) != uint8(IFunding.ProposalState.Defeated));
+
+        // check proposal status is succeeded
+        proposalState = _grantFund.state(testProposals_distribution1[0].proposalId);
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Succeeded));
+
         // execute funded proposals
         _executeProposal(_grantFund, _token, testProposals_distribution1[0]);
+
+        // check proposal status updates to executed
+        proposalState = _grantFund.state(testProposals_distribution1[0].proposalId);
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Executed));
 
         /**********************************/
         /*** Second Distribution Period ***/
@@ -1148,7 +1164,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             votes: 20_000_000 * 1e18
         });
         vm.expectRevert(IStandardFunding.InvalidVote.selector);
-        _grantFund.screeningVoteMulti(screeningVoteParams);
+        _grantFund.screeningVote(screeningVoteParams);
 
         // skip time to move from screening period to funding period
         vm.roll(_startBlock + 1_300_000);
@@ -1175,7 +1191,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             votesUsed: 21_000_000 * 1e18
         });
         vm.expectRevert(IStandardFunding.InvalidVote.selector);
-        _grantFund.fundingVotesMulti(fundingVoteParams);
+        _grantFund.fundingVote(fundingVoteParams);
 
         // skip to the Challenge period
         vm.roll(_startBlock + 1_350_000);

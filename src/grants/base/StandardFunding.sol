@@ -448,7 +448,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 if (proposalIds_[i] == proposalIds_[j]) return true;
 
                 unchecked { ++j; }
-
             }
 
             unchecked { ++i; }
@@ -496,7 +495,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @param voteParams_ The array of votes on proposals to cast.
      * @return votesCast_ The total number of votes cast across all of the proposals.
      */
-    function fundingVotesMulti(
+    function fundingVote(
         FundingVoteParams[] memory voteParams_
     ) external returns (uint256 votesCast_) {
         QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
@@ -545,10 +544,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Cast an array of screening votes in one transaction.
      * @dev    Calls out to StandardFunding._screeningVote().
      * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @param voteParams_ The array of votes on proposals to cast.
-     * @return votesCast_ The total number of votes cast across all of the proposals.
+     * @param  voteParams_ The array of votes on proposals to cast.
+     * @return votesCast_  The total number of votes cast across all of the proposals.
      */
-    function screeningVoteMulti(
+    function screeningVote(
         ScreeningVoteParams[] memory voteParams_
     ) external returns (uint256 votesCast_) {
         QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];

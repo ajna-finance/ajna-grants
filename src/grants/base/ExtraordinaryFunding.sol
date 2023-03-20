@@ -117,7 +117,6 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /*** Voting Functions ***/
     /************************/
 
-
     function voteExtraordinary(
         address account_,
         uint256 proposalId_

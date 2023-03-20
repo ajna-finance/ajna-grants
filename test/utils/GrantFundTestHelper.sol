@@ -290,7 +290,7 @@ abstract contract GrantFundTestHelper is Test {
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support_, voteAllocatedEmit, "");
-        grantFund_.fundingVotesMulti(params);
+        grantFund_.fundingVote(params);
     }
 
     function _fundingVoteMulti(GrantFund grantFund_, IStandardFunding.FundingVoteParams[] memory voteParams_, address voter_) internal {
@@ -300,7 +300,7 @@ abstract contract GrantFundTestHelper is Test {
             emit VoteCast(voter_, voteParams_[i].proposalId, support, uint256(Maths.abs(voteParams_[i].votesUsed)), "");
         }
         changePrank(voter_);
-        grantFund_.fundingVotesMulti(voteParams_);
+        grantFund_.fundingVote(voteParams_);
     }
 
     function _fundingVoteNoLog(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
@@ -311,7 +311,7 @@ abstract contract GrantFundTestHelper is Test {
 
         // cast funding vote
         changePrank(voter_);
-        grantFund_.fundingVotesMulti(params);
+        grantFund_.fundingVote(params);
     }
 
     function _screeningVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
@@ -325,16 +325,16 @@ abstract contract GrantFundTestHelper is Test {
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support, votesAllocated_, "");
-        grantFund_.screeningVoteMulti(params);
+        grantFund_.screeningVote(params);
     }
 
-    function _screeningVoteMulti(GrantFund grantFund_, IStandardFunding.ScreeningVoteParams[] memory voteParams_, address voter_) internal {
+    function _screeningVote(GrantFund grantFund_, IStandardFunding.ScreeningVoteParams[] memory voteParams_, address voter_) internal {
         for (uint256 i = 0; i < voteParams_.length; ++i) {
             vm.expectEmit(true, true, false, true);
             emit VoteCast(voter_, voteParams_[i].proposalId, 1, voteParams_[i].votes, "");
         }
         changePrank(voter_);
-        grantFund_.screeningVoteMulti(voteParams_);
+        grantFund_.screeningVote(voteParams_);
     }
 
     function _screeningVoteNoLog(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
@@ -344,7 +344,7 @@ abstract contract GrantFundTestHelper is Test {
         params[0].votes = votesAllocated_;
 
         changePrank(voter_);
-        grantFund_.screeningVoteMulti(params);
+        grantFund_.screeningVote(params);
     }
 
     // Returns a random proposal Index from all proposals
