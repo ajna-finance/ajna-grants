@@ -50,7 +50,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         bytes[] memory calldatas_,
         bytes32 descriptionHash_
     ) external nonReentrant override returns (uint256 proposalId_) {
-        proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, descriptionHash_);
 
         ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
 
@@ -79,7 +79,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         bytes[] memory calldatas_,
         string memory description_) external override returns (uint256 proposalId_) {
 
-        proposalId_ = hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
 
         ExtraordinaryFundingProposal storage newProposal = extraordinaryFundingProposals[proposalId_];
 
@@ -189,6 +189,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /**
      * @notice Get the current ProposalState of a given proposal.
      * @dev    Used by GrantFund.state() for analytics compatability purposes.
+     * @param  proposalId_ The ID of the proposal being checked.
      * @return The proposals status in the ProposalState enum.
      */
     function _getExtraordinaryProposalState(uint256 proposalId_) internal view returns (ProposalState) {

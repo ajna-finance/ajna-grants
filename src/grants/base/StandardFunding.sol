@@ -371,7 +371,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         bytes[] memory calldatas_,
         bytes32 descriptionHash_
     ) external nonReentrant returns (uint256 proposalId_) {
-        proposalId_ = hashProposal(targets_, values_, calldatas_, descriptionHash_);
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, descriptionHash_);
         Proposal storage proposal = standardFundingProposals[proposalId_];
 
         uint24 distributionId = proposal.distributionId;
@@ -394,7 +394,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         bytes[] memory calldatas_,
         string memory description_
     ) external returns (uint256 proposalId_) {
-        proposalId_ = hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
 
         Proposal storage newProposal = standardFundingProposals[proposalId_];
 
@@ -472,6 +472,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
     }
 
+    /**
+     * @notice Get the current ProposalState of a given proposal.
+     * @dev    Used by GrantFund.state() for analytics compatability purposes.
+     * @param  proposalId_ The ID of the proposal being checked.
+     * @return The proposals status in the ProposalState enum.
+     */
     function _standardProposalState(uint256 proposalId_) internal view returns (ProposalState) {
         Proposal memory proposal = standardFundingProposals[proposalId_];
 
@@ -512,6 +518,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             // set initial voting power and remaining voting power
             if (votingPower == 0) {
 
+                // calculate the voting power available to the voting power in this funding stage
                 uint128 newVotingPower = SafeCast.toUint128(_getVotesFunding(msg.sender, votingPower, voter.remainingVotingPower, screeningStageEndBlock));
 
                 voter.votingPower          = newVotingPower;
@@ -990,7 +997,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /// @inheritdoc IStandardFunding
     function getVotesFunding(uint24 distributionId_, address account_) external view override returns (uint256 votes_) {
-        QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
+        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
         QuadraticVoter        memory voter               = quadraticVoters[currentDistribution.id][account_];
 
         uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.endBlock);
