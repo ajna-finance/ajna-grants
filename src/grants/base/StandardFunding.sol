@@ -107,7 +107,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**************************************************/
 
     /// @inheritdoc IStandardFunding
-    function startNewDistributionPeriod() external returns (uint24 newDistributionId_) {
+    function startNewDistributionPeriod() external override returns (uint24 newDistributionId_) {
         uint256 currentDistributionEndBlock = distributions[currentDistributionId].endBlock;
 
         // check that there isn't currently an active distribution period
@@ -225,7 +225,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /// @inheritdoc IStandardFunding
     function claimDelegateReward(
         uint24 distributionId_
-    ) external returns(uint256 rewardClaimed_) {
+    ) external override returns(uint256 rewardClaimed_) {
         // Revert if delegatee didn't vote in screening stage
         if(screeningVotesCast[distributionId_][msg.sender] == 0) revert DelegateRewardInvalid();
 
@@ -290,7 +290,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function checkSlate(
         uint256[] calldata proposalIds_,
         uint24 distributionId_
-    ) external returns (bool) {
+    ) external override returns (bool) {
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
 
         uint256 endBlock = currentDistribution.endBlock;
@@ -370,7 +370,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256[] memory values_,
         bytes[] memory calldatas_,
         bytes32 descriptionHash_
-    ) external nonReentrant returns (uint256 proposalId_) {
+    ) external nonReentrant override returns (uint256 proposalId_) {
         proposalId_ = _hashProposal(targets_, values_, calldatas_, descriptionHash_);
         Proposal storage proposal = standardFundingProposals[proposalId_];
 
@@ -393,7 +393,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256[] memory values_,
         bytes[] memory calldatas_,
         string memory description_
-    ) external returns (uint256 proposalId_) {
+    ) external override returns (uint256 proposalId_) {
         proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
 
         Proposal storage newProposal = standardFundingProposals[proposalId_];
@@ -491,19 +491,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /*** Voting Functions External ***/
     /*********************************/
 
-    /**
-     * @notice Cast an array of funding votes in one transaction.
-     * @dev    Calls out to StandardFunding._fundingVote().
-     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
-     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @param voteParams_ The array of votes on proposals to cast.
-     * @return votesCast_ The total number of votes cast across all of the proposals.
-     */
+    /// @inheritdoc IStandardFunding
     function fundingVote(
         FundingVoteParams[] memory voteParams_
-    ) external returns (uint256 votesCast_) {
+    ) external override returns (uint256 votesCast_) {
         QuarterlyDistribution storage currentDistribution = distributions[currentDistributionId];
-        QuadraticVoter        storage voter               = quadraticVoters[currentDistribution.id][msg.sender];
+        QuadraticVoter        storage voter               = quadraticVoters[currentDistributionId][msg.sender];
 
         uint256 endBlock = currentDistribution.endBlock;
 
@@ -531,7 +524,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 Proposal storage proposal = standardFundingProposals[voteParams_[i].proposalId];
 
                 // check that the proposal is part of the current distribution period
-                if (proposal.distributionId != currentDistribution.id) revert InvalidVote();
+                if (proposal.distributionId != currentDistributionId) revert InvalidVote();
+
+                // check that the proposal being voted on is in the top ten screened proposals
+                if (_findProposalIndex(voteParams_[i].proposalId, topTenProposals[currentDistributionId]) == -1) revert InvalidVote();
 
                 // cast each successive vote
                 votesCast_ += _fundingVote(
@@ -547,16 +543,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
     }
 
-    /**
-     * @notice Cast an array of screening votes in one transaction.
-     * @dev    Calls out to StandardFunding._screeningVote().
-     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @param  voteParams_ The array of votes on proposals to cast.
-     * @return votesCast_  The total number of votes cast across all of the proposals.
-     */
+    /// @inheritdoc IStandardFunding
     function screeningVote(
         ScreeningVoteParams[] memory voteParams_
-    ) external returns (uint256 votesCast_) {
+    ) external override returns (uint256 votesCast_) {
         QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
 
         // check screening stage is active
@@ -905,7 +895,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function getDelegateReward(
         uint24 distributionId_,
         address voter_
-    ) external view returns (uint256 rewards_) {
+    ) external view override returns (uint256 rewards_) {
         QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
         QuadraticVoter memory voter = quadraticVoters[distributionId_][voter_];
 
@@ -913,14 +903,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
-    function getDistributionId() external view returns (uint24) {
+    function getDistributionId() external view override returns (uint24) {
         return currentDistributionId;
     }
 
     /// @inheritdoc IStandardFunding
     function getDistributionPeriodInfo(
         uint24 distributionId_
-    ) external view returns (uint24, uint48, uint48, uint128, uint256, bytes32) {
+    ) external view override returns (uint24, uint48, uint48, uint128, uint256, bytes32) {
         return (
             distributions[distributionId_].id,
             distributions[distributionId_].startBlock,
@@ -934,28 +924,31 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /// @inheritdoc IStandardFunding
     function getFundedProposalSlate(
         bytes32 slateHash_
-    ) external view returns (uint256[] memory) {
+    ) external view override returns (uint256[] memory) {
         return fundedProposalSlates[slateHash_];
     }
 
     /// @inheritdoc IStandardFunding
     function getFundingPowerVotes(
         uint256 votingPower_
-    ) external pure returns (uint256) {
+    ) external pure override returns (uint256) {
         return Maths.wsqrt(votingPower_);
     }
 
     /// @inheritdoc IStandardFunding
-    function getSlateHash(
-        uint256[] calldata proposalIds_
-    ) external pure returns (bytes32) {
-        return keccak256(abi.encode(proposalIds_));
+    function getFundingVotesCast(uint24 distributionId_, address account_) external view override returns (FundingVoteParams[] memory) {
+        return quadraticVoters[distributionId_][account_].votesCast;
+    }
+
+    /// @inheritdoc IStandardFunding
+    function getMaximumQuarterlyDistribution() external view override returns (uint256) {
+        return Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);
     }
 
     /// @inheritdoc IStandardFunding
     function getProposalInfo(
         uint256 proposalId_
-    ) external view returns (uint256, uint24, uint128, uint128, int128, bool) {
+    ) external view override returns (uint256, uint24, uint128, uint128, int128, bool) {
         return (
             standardFundingProposals[proposalId_].proposalId,
             standardFundingProposals[proposalId_].distributionId,
@@ -967,9 +960,16 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
+    function getSlateHash(
+        uint256[] calldata proposalIds_
+    ) external pure override returns (bytes32) {
+        return keccak256(abi.encode(proposalIds_));
+    }
+
+    /// @inheritdoc IStandardFunding
     function getTopTenProposals(
         uint24 distributionId_
-    ) external view returns (uint256[] memory) {
+    ) external view override returns (uint256[] memory) {
         return topTenProposals[distributionId_];
     }
 
@@ -977,7 +977,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function getVoterInfo(
         uint24 distributionId_,
         address account_
-    ) external view returns (uint128, uint128, uint256) {
+    ) external view override returns (uint128, uint128, uint256) {
         return (
             quadraticVoters[distributionId_][account_].votingPower,
             quadraticVoters[distributionId_][account_].remainingVotingPower,
@@ -986,17 +986,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
-    function maximumQuarterlyDistribution() external view returns (uint256) {
-        return Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);
-    }
-
-    /// @inheritdoc IStandardFunding
-    function getVotesScreening(uint24 distributionId_, address account_) external view override returns (uint256 votes_) {
-        votes_ = _getVotesScreening(distributionId_, account_);
-    }
-
-    /// @inheritdoc IStandardFunding
-    function getVotesFunding(uint24 distributionId_, address account_) external view override returns (uint256 votes_) {
+    function getVotesFunding(
+        uint24 distributionId_,
+        address account_
+    ) external view override returns (uint256 votes_) {
         QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
         QuadraticVoter        memory voter               = quadraticVoters[currentDistribution.id][account_];
 
@@ -1006,8 +999,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
-    function getFundingVotesCast(uint24 distributionId_, address account_) external view override returns (FundingVoteParams[] memory) {
-        return quadraticVoters[distributionId_][account_].votesCast;
+    function getVotesScreening(
+        uint24 distributionId_,
+        address account_
+    ) external view override returns (uint256 votes_) {
+        votes_ = _getVotesScreening(distributionId_, account_);
     }
 
 }

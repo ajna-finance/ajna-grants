@@ -461,7 +461,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     }
 
     function testMaximumQuarterlyDistribution() external {
-        uint256 maximumQuarterlyDistribution = _grantFund.maximumQuarterlyDistribution();
+        uint256 maximumQuarterlyDistribution = _grantFund.getMaximumQuarterlyDistribution();
 
         // distribution should be 2% of starting amount (500_000_000), or 10_000_000
         assertEq(maximumQuarterlyDistribution, 10_000_000 * 1e18);

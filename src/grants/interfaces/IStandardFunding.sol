@@ -175,15 +175,6 @@ interface IStandardFunding {
     ) external returns(uint256 rewardClaimed_);
 
     /**
-     * @notice Generate a unique hash of a list of proposal Ids for usage as a key for comparing proposal slates.
-     * @param  proposalIds_ Array of proposal Ids to hash.
-     * @return Bytes32      hash of the list of proposals.
-     */
-    function getSlateHash(
-        uint256[] calldata proposalIds_
-    ) external pure returns (bytes32);
-
-    /**
      * @notice Start a new Distribution Period and reset appropriate state.
      * @dev    Can be kicked off by anyone assuming a distribution period isn't already active.
      * @return newDistributionId_ The new distribution period Id.
@@ -221,6 +212,33 @@ interface IStandardFunding {
         bytes[] memory calldatas_,
         string memory description_
     ) external returns (uint256 proposalId_);
+
+    /************************/
+    /*** Voting Functions ***/
+    /************************/
+
+    /**
+     * @notice Cast an array of funding votes in one transaction.
+     * @dev    Calls out to StandardFunding._fundingVote().
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param voteParams_ The array of votes on proposals to cast.
+     * @return votesCast_ The total number of votes cast across all of the proposals.
+     */
+    function fundingVote(
+        FundingVoteParams[] memory voteParams_
+    ) external returns (uint256 votesCast_);
+
+    /**
+     * @notice Cast an array of screening votes in one transaction.
+     * @dev    Calls out to StandardFunding._screeningVote().
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param  voteParams_ The array of votes on proposals to cast.
+     * @return votesCast_  The total number of votes cast across all of the proposals.
+     */
+    function screeningVote(
+        ScreeningVoteParams[] memory voteParams_
+    ) external returns (uint256 votesCast_);
 
     /**********************/
     /*** View Functions ***/
@@ -278,6 +296,20 @@ interface IStandardFunding {
     ) external pure returns (uint256);
 
     /**
+     * @notice Get the list of funding votes cast by an account in a given distribution period.
+     * @param  distributionId_   The distributionId of the distribution period to check.
+     * @param  account_          The address of the voter to check.
+     * @return FundingVoteParams The list of FundingVoteParams structs that have been succesfully cast the voter.
+     */
+    function getFundingVotesCast(uint24 distributionId_, address account_) external view returns (FundingVoteParams[] memory);
+
+    /**
+     * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
+     * @return The number of Ajna tokens.
+     */
+    function getMaximumQuarterlyDistribution() external view returns (uint256);
+
+    /**
      * @notice Mapping of proposalIds to {Proposal} structs.
      * @param  proposalId_       The proposalId to retrieve the Proposal struct for.
      * @return proposalId        The retrieved struct's proposalId.
@@ -292,29 +324,13 @@ interface IStandardFunding {
     ) external view returns (uint256, uint24, uint128, uint128, int128, bool);
 
     /**
-     * @notice Get the voter's voting power in the screening stage of a distribution period.
-     * @param  distributionId_ The distributionId of the distribution period to check.
-     * @param  account_        The address of the voter to check.
-     * @return votes_          The voter's voting power.
+     * @notice Generate a unique hash of a list of proposal Ids for usage as a key for comparing proposal slates.
+     * @param  proposalIds_ Array of proposal Ids to hash.
+     * @return Bytes32      hash of the list of proposals.
      */
-    function getVotesScreening(uint24 distributionId_, address account_) external view returns (uint256 votes_);
-
-    /**
-     * @notice Get the remaining quadratic voting power available to the voter in the funding stage of a distribution period.
-     * @dev    This value will be the square of the voter's token balance at the snapshot blocks.
-     * @param  distributionId_ The distributionId of the distribution period to check.
-     * @param  account_        The address of the voter to check.
-     * @return votes_          The voter's remaining quadratic voting power.
-     */
-    function getVotesFunding(uint24 distributionId_, address account_) external view returns (uint256 votes_);
-
-    /**
-     * @notice Get the list of funding votes cast by an account in a given distribution period.
-     * @param  distributionId_   The distributionId of the distribution period to check.
-     * @param  account_          The address of the voter to check.
-     * @return FundingVoteParams The list of FundingVoteParams structs that have been succesfully cast the voter.
-     */
-    function getFundingVotesCast(uint24 distributionId_, address account_) external view returns (FundingVoteParams[] memory);
+    function getSlateHash(
+        uint256[] calldata proposalIds_
+    ) external pure returns (bytes32);
 
     /**
      * @notice Retrieve the top ten proposals that have received the most votes in a given distribution period's screening round.
@@ -341,9 +357,20 @@ interface IStandardFunding {
     ) external view returns (uint128, uint128, uint256);
 
     /**
-     * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
-     * @return The number of Ajna tokens.
+     * @notice Get the remaining quadratic voting power available to the voter in the funding stage of a distribution period.
+     * @dev    This value will be the square of the voter's token balance at the snapshot blocks.
+     * @param  distributionId_ The distributionId of the distribution period to check.
+     * @param  account_        The address of the voter to check.
+     * @return votes_          The voter's remaining quadratic voting power.
      */
-    function maximumQuarterlyDistribution() external view returns (uint256);
+    function getVotesFunding(uint24 distributionId_, address account_) external view returns (uint256 votes_);
+
+    /**
+     * @notice Get the voter's voting power in the screening stage of a distribution period.
+     * @param  distributionId_ The distributionId of the distribution period to check.
+     * @param  account_        The address of the voter to check.
+     * @return votes_          The voter's voting power.
+     */
+    function getVotesScreening(uint24 distributionId_, address account_) external view returns (uint256 votes_);
 
 }
