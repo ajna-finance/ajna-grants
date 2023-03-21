@@ -292,6 +292,31 @@ interface IStandardFunding {
     ) external view returns (uint256, uint24, uint128, uint128, int128, bool);
 
     /**
+     * @notice Get the voter's voting power in the screening stage of a distribution period.
+     * @param  distributionId_ The distributionId of the distribution period to check.
+     * @param  account_        The address of the voter to check.
+     * @return votes_          The voter's voting power.
+     */
+    function getVotesScreening(uint24 distributionId_, address account_) external view returns (uint256 votes_);
+
+    /**
+     * @notice Get the remaining quadratic voting power available to the voter in the funding stage of a distribution period.
+     * @dev    This value will be the square of the voter's token balance at the snapshot blocks.
+     * @param  distributionId_ The distributionId of the distribution period to check.
+     * @param  account_        The address of the voter to check.
+     * @return votes_          The voter's remaining quadratic voting power.
+     */
+    function getVotesFunding(uint24 distributionId_, address account_) external view returns (uint256 votes_);
+
+    /**
+     * @notice Get the list of funding votes cast by an account in a given distribution period.
+     * @param  distributionId_   The distributionId of the distribution period to check.
+     * @param  account_          The address of the voter to check.
+     * @return FundingVoteParams The list of FundingVoteParams structs that have been succesfully cast the voter.
+     */
+    function getFundingVotesCast(uint24 distributionId_, address account_) external view returns (FundingVoteParams[] memory);
+
+    /**
      * @notice Retrieve the top ten proposals that have received the most votes in a given distribution period's screening round.
      * @dev    It may return less than 10 proposals if less than 10 have been submitted. 
      * @dev    Values are subject to change if the queried distribution period's screening round is ongoing.

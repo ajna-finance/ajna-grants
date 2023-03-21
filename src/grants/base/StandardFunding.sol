@@ -849,13 +849,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @return votes_   The number of votes available to an account in this screening stage.
      */
     function _getVotesScreening(uint24 distributionId_, address account_) internal view returns (uint256 votes_) {
-        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
+        uint256 startBlock = distributions[distributionId_].startBlock;
 
         // calculate voting weight based on the number of tokens held at the snapshot blocks of the screening stage
         votes_ = _getVotesAtSnapshotBlocks(
             account_,
-            currentDistribution.startBlock - VOTING_POWER_SNAPSHOT_DELAY,
-            currentDistribution.startBlock
+            startBlock - VOTING_POWER_SNAPSHOT_DELAY,
+            startBlock
         );
     }
 
@@ -875,12 +875,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
         // voter hasn't yet called _castVote in this period
         else {
-            uint48 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.endBlock);
+            uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.endBlock);
             votes_ = Maths.wpow(
             _getVotesAtSnapshotBlocks(
                 account_,
-                screeningStageEndBlock_ - VOTING_POWER_SNAPSHOT_DELAY,
-                screeningStageEndBlock_
+                screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY,
+                screeningStageEndBlock
             ), 2);
         }
     }
@@ -978,15 +978,18 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);
     }
 
-    function getVotesScreening(uint24 distributionId_, address account_) external view returns (uint256 votes_) {
+    /// @inheritdoc IStandardFunding
+    function getVotesScreening(uint24 distributionId_, address account_) external view override returns (uint256 votes_) {
         votes_ = _getVotesScreening(distributionId_, account_);
     }
 
-    function getVotesFunding(uint24 distributionId_, address account_) external view returns (uint256 votes_) {
+    /// @inheritdoc IStandardFunding
+    function getVotesFunding(uint24 distributionId_, address account_) external view override returns (uint256 votes_) {
         votes_ = _getVotesFunding(distributionId_, account_);
     }
 
-    function getFundingVotesCast(uint24 distributionId_, address account_) external view returns (FundingVoteParams[] memory) {
+    /// @inheritdoc IStandardFunding
+    function getFundingVotesCast(uint24 distributionId_, address account_) external view override returns (FundingVoteParams[] memory) {
         return quadraticVoters[distributionId_][account_].votesCast;
     }
 

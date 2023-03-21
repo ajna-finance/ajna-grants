@@ -162,27 +162,22 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /**
      * @notice Check if a proposal for extraordinary funding has succeeded.
      * @param  proposalId_ The ID of the proposal being checked.
-     * @return             Boolean indicating whether the proposal has succeeded.
+     * @return Boolean indicating whether the proposal has succeeded.
      */
     function _extraordinaryProposalSucceeded(
         uint256 proposalId_,
         uint256 tokensRequested_
     ) internal view returns (bool) {
-        ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
+        uint256 votesReceived          = uint256(extraordinaryFundingProposals[proposalId_].votesReceived);
+        uint256 minThresholdPercentage = _getMinimumThresholdPercentage();
 
-        bool isInvalid = false;
-
-        // check proposal's votes received exceeds the minimum threshold required
-        if (uint256(proposal.votesReceived) < tokensRequested_ + _getSliceOfNonTreasury(_getMinimumThresholdPercentage())) {
-            isInvalid = true;
-        }
-
-        // check tokens requested are available for claiming from the treasury
-        if (tokensRequested_ > _getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) {
-            isInvalid = true;
-        }
-
-        return isInvalid ? false : true;
+        return
+            // succeeded if proposal's votes received doesn't exceed the minimum threshold required
+            (uint256(votesReceived) >= tokensRequested_ + _getSliceOfNonTreasury(minThresholdPercentage))
+            &&
+            // succeeded if tokens requested are available for claiming from the treasury
+            (tokensRequested_ <= _getSliceOfTreasury(Maths.WAD - minThresholdPercentage))
+        ;
     }
 
     /********************************/
@@ -234,20 +229,22 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         return Maths.wmul(treasury, percentage_);
     }
 
+    /**
+     * @notice Get the voting power available to a voter for a given proposal.
+     * @param  account_        The address of the voter to check.
+     * @param  proposalId_     The ID of the proposal being voted on.
+     * @return votes_          The number of votes available to be cast in voteExtraordinary.
+     */
     function _getVotesExtraordinary(address account_, uint256 proposalId_) internal view returns (uint256 votes_) {
-        // one token one vote for extraordinary funding
-        if (proposalId_ != 0) {
-            // get the number of votes available to voters at the start of the proposal, and 33 blocks before the start of the proposal
-            uint256 startBlock = extraordinaryFundingProposals[proposalId_].startBlock;
+        if (proposalId_ == 0) revert ExtraordinaryFundingProposalInactive();
 
-            votes_ = _getVotesAtSnapshotBlocks(
-                account_,
-                startBlock - VOTING_POWER_SNAPSHOT_DELAY,
-                startBlock
-            );
-        } else {
-            revert ExtraordinaryFundingProposalInactive();
-        }
+        uint256 startBlock = extraordinaryFundingProposals[proposalId_].startBlock;
+
+        votes_ = _getVotesAtSnapshotBlocks(
+            account_,
+            startBlock - VOTING_POWER_SNAPSHOT_DELAY,
+            startBlock
+        );
     }
 
     /********************************/
