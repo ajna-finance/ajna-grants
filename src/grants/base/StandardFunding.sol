@@ -268,7 +268,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // calculate the total voting power available to the voter that was allocated in the funding stage
         uint256 votingPowerAllocatedByDelegatee = voter_.votingPower - voter_.remainingVotingPower;
 
-        // if none of the voter's voting power was allocated, they recieve no rewards
+        // if none of the voter's voting power was allocated, they receive no rewards
         if (votingPowerAllocatedByDelegatee == 0) return 0;
 
         // calculate reward
@@ -786,7 +786,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev    Implements the descending insertion sort algorithm.
      * @dev    Counters incremented in an unchecked block due to being bounded by array length.
      * @dev    Since we are converting from int256 to uint256, we can safely assume that the values will not overflow.
-     * @param arr_ The array of proposals to sort by votes recieved.
+     * @param arr_ The array of proposals to sort by votes received.
      */
     function _insertionSortProposalsByVotes(
         uint256[] storage arr_

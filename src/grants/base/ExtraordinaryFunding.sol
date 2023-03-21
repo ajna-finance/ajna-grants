@@ -57,12 +57,12 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         // since we are casting from uint128 to uint256, we can safely assume that the value will not overflow
         uint256 tokensRequested = uint256(proposal.tokensRequested);
 
-        // check the proposal succeeded, or already executed
-        // revert otherwise
+        // check proposal is succesful and hasn't already been executed
         if (proposal.executed || !_extraordinaryProposalSucceeded(proposalId_, tokensRequested)) revert ExecuteExtraordinaryProposalInvalid();
 
         fundedExtraordinaryProposals.push(proposalId_);
 
+        // execute proposal's calldata
         _execute(proposalId_, targets_, values_, calldatas_);
 
         proposal.executed = true;

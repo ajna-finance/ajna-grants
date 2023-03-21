@@ -82,13 +82,15 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _votingToken = IVotes(address(_token));
 
         // deploy growth fund contract
-        _grantFund = new GrantFund(_votingToken, treasury);
+        _grantFund = new GrantFund();
 
         // initial minter distributes tokens to test addresses
         _transferAjnaTokens(_token, _votersArr, 50_000_000 * 1e18, _tokenDeployer);
 
         // initial minter distributes treasury to grantFund
-        _token.transfer(address(_grantFund), treasury);
+        changePrank(_tokenDeployer);
+        _token.approve(address(_grantFund), 500_000_000 * 1e18);
+        _grantFund.fundTreasury(500_000_000 * 1e18);
     }
 
     /*************/
@@ -981,7 +983,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         /******************************/
 
         // Claim delegate reward for all delegatees
-        // delegates who didn't vote with their full power recieve fewer rewards
+        // delegates who didn't vote with their full power receive fewer rewards
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder1);
         assertEq(delegateRewards, 211_327.134404057480980557 * 1e18);
         _claimDelegateReward(

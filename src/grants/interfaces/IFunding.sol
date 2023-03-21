@@ -25,11 +25,6 @@ interface IFunding {
     error InvalidProposal();
 
     /**
-     * @notice User attempted to interacted with a method not implemented in the GrantFund.
-     */
-    error MethodNotImplemented();
-
-    /**
      * @notice User attempted to submit a duplicate proposal.
      */
     error ProposalAlreadyExists();
