@@ -74,6 +74,23 @@ interface IExtraordinaryFunding {
         string memory description_
     ) external returns (uint256 proposalId_);
 
+    /************************/
+    /*** Voting Functions ***/
+    /************************/
+
+    /**
+     * @notice Vote on a proposal for extraordinary funding.
+     * @dev    Votes can only be cast affirmatively, or not cast at all.
+     * @dev    A proposal can only be voted upon once, with the entirety of a voter's voting power.
+     * @param  account_    The voting account.
+     * @param  proposalId_ The ID of the proposal being voted upon.
+     * @return votesCast_  The amount of votes cast.
+     */
+    function voteExtraordinary(
+        address account_,
+        uint256 proposalId_
+    ) external returns (uint256 votesCast_);
+
     /**********************/
     /*** View Functions ***/
     /**********************/
@@ -111,9 +128,24 @@ interface IExtraordinaryFunding {
     ) external view returns (uint256, uint128, uint128, uint128, uint120, bool);
 
     /**
+     * @notice Check if an extraordinary funding proposal met the requirements for execution.
+     * @param  proposalId_ The ID of the proposal to check the status of.
+     * @return True if the proposal was successful, false if not.
+     */
+    function getExtraordinaryProposalSucceeded(uint256 proposalId_) external view returns (bool);
+
+    /**
      * @notice Get the current minimum threshold percentage of Ajna tokens required for a proposal to exceed.
      * @return The minimum threshold percentage, in WAD.
      */
     function getMinimumThresholdPercentage() external view returns (uint256);
+
+    /**
+     * @notice Get an accounts voting power available for casting on a given proposal.
+     * @param  account_    The address of the voter to check.
+     * @param  proposalId_ The ID of the proposal being voted on.
+     * @return votes_      An accounts voting power at the snapshot blocks of the proposal.
+     */
+    function getVotesExtraordinary(address account_, uint256 proposalId_) external view returns (uint256 votes_);
 
 }

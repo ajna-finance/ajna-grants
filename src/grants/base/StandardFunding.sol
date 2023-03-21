@@ -506,11 +506,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check that the funding stage is active
         if (block.number > screeningStageEndBlock && block.number <= endBlock) {
 
-            // this is the first time a voter has attempted to vote this period,
-            // set initial voting power and remaining voting power
-            if (voter.votingPower == 0) {
+            uint128 votingPower = voter.votingPower;
 
-                uint128 newVotingPower = SafeCast.toUint128(_getVotesFunding(currentDistributionId, msg.sender));
+            // if this is the first time a voter has attempted to vote this period,
+            // set initial voting power and remaining voting power
+            if (votingPower == 0) {
+
+                uint128 newVotingPower = SafeCast.toUint128(_getVotesFunding(msg.sender, votingPower, voter.remainingVotingPower, screeningStageEndBlock));
 
                 voter.votingPower          = newVotingPower;
                 voter.remainingVotingPower = newVotingPower;
@@ -861,26 +863,29 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Retrieve the number of votes available to an account in the current funding stage.
-     * @param  distributionId_ The distributionId of the distribution period to retrieve votes at.
-     * @param  account_        The account to retrieve votes for.
+     * @param  account_                The address of the voter to check.
+     * @param  votingPower_            The voter's voting power in the funding round. Equal to the square of their tokens in the voting snapshot.
+     * @param  remainingVotingPower_   The voter's remaining quadratic voting power in the given distribution period's funding round.
+     * @param  screeningStageEndBlock_ The block number at which the screening stage ends.
      * @return votes_          The number of votes available to an account in this funding stage.
      */
-    function _getVotesFunding(uint24 distributionId_, address account_) internal view returns (uint256 votes_) {
-        QuarterlyDistribution memory currentDistribution = distributions[distributionId_];
-        QuadraticVoter memory voter = quadraticVoters[distributionId_][account_];
-
+    function _getVotesFunding(
+        address account_,
+        uint256 votingPower_,
+        uint256 remainingVotingPower_,
+        uint256 screeningStageEndBlock_
+    ) internal view returns (uint256 votes_) {
         // voter has already allocated some of their budget this period
-        if (voter.votingPower != 0) {
-            votes_ = voter.remainingVotingPower;
+        if (votingPower_ != 0) {
+            votes_ = remainingVotingPower_;
         }
         // voter hasn't yet called _castVote in this period
         else {
-            uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.endBlock);
             votes_ = Maths.wpow(
             _getVotesAtSnapshotBlocks(
                 account_,
-                screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY,
-                screeningStageEndBlock
+                screeningStageEndBlock_ - VOTING_POWER_SNAPSHOT_DELAY,
+                screeningStageEndBlock_
             ), 2);
         }
     }
@@ -985,7 +990,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /// @inheritdoc IStandardFunding
     function getVotesFunding(uint24 distributionId_, address account_) external view override returns (uint256 votes_) {
-        votes_ = _getVotesFunding(distributionId_, account_);
+        QuarterlyDistribution memory currentDistribution = distributions[currentDistributionId];
+        QuadraticVoter        memory voter               = quadraticVoters[currentDistribution.id][account_];
+
+        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.endBlock);
+
+        votes_ = _getVotesFunding(account_, voter.votingPower, voter.remainingVotingPower, screeningStageEndBlock);
     }
 
     /// @inheritdoc IStandardFunding

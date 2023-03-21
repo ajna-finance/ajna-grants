@@ -117,23 +117,25 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /*** Voting Functions ***/
     /************************/
 
+    /// @inheritdoc IExtraordinaryFunding
     function voteExtraordinary(
         address account_,
         uint256 proposalId_
-    ) external returns (uint256 votesCast_) {
-        votesCast_ = _extraordinaryFundingVote(proposalId_, account_);
+    ) external override returns (uint256 votesCast_) {
+        votesCast_ = _extraordinaryFundingVote(account_, proposalId_);
     }
 
     /**
      * @notice Vote on a proposal for extraordinary funding.
      * @dev    Votes can only be cast affirmatively, or not cast at all.
-     * @param  proposalId_ The ID of the current proposal being voted upon.
+     * @dev    A proposal can only be voted upon once, with the entirety of a voter's voting power.
      * @param  account_    The voting account.
+     * @param  proposalId_ The ID of the proposal being voted upon.
      * @return votes_      The amount of votes cast.
      */
     function _extraordinaryFundingVote(
-        uint256 proposalId_,
-        address account_
+        address account_,
+        uint256 proposalId_
     ) internal returns (uint256 votes_) {
         if (hasVotedExtraordinary[proposalId_][account_]) revert AlreadyVoted();
 
@@ -173,7 +175,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         return
             // succeeded if proposal's votes received doesn't exceed the minimum threshold required
-            (uint256(votesReceived) >= tokensRequested_ + _getSliceOfNonTreasury(minThresholdPercentage))
+            (votesReceived >= tokensRequested_ + _getSliceOfNonTreasury(minThresholdPercentage))
             &&
             // succeeded if tokens requested are available for claiming from the treasury
             (tokensRequested_ <= _getSliceOfTreasury(Maths.WAD - minThresholdPercentage))
@@ -184,6 +186,11 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /*** Internal View Functions ****/
     /********************************/
 
+    /**
+     * @notice Get the current ProposalState of a given proposal.
+     * @dev    Used by GrantFund.state() for analytics compatability purposes.
+     * @return The proposals status in the ProposalState enum.
+     */
     function _getExtraordinaryProposalState(uint256 proposalId_) internal view returns (ProposalState) {
         ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
 
@@ -195,6 +202,11 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         else                                                          return ProposalState.Defeated;
     }
 
+    /**
+     * @notice Get the minimum percentage of ajna tokens required for a proposal to pass.
+     * @dev    The minimum threshold increases according to the number of funded EFM proposals.
+     * @return The minimum threshold percentage, as a WAD.
+     */
     function _getMinimumThresholdPercentage() internal view returns (uint256) {
         // default minimum threshold is 50
         if (fundedExtraordinaryProposals.length == 0) {
@@ -284,14 +296,18 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         );
     }
 
-    function getExtraordinaryProposalSucceeded(uint256 proposalId_) external view returns (bool) {
+    /// @inheritdoc IExtraordinaryFunding
+    function getExtraordinaryProposalSucceeded(uint256 proposalId_) external view override returns (bool) {
         // since we are casting from uint128 to uint256, we can safely assume that the value will not overflow
         uint256 tokensRequested = uint256(extraordinaryFundingProposals[proposalId_].tokensRequested);
 
         return _extraordinaryProposalSucceeded(proposalId_, tokensRequested);
     }
 
-    function getVotesExtraordinary(address account_, uint256 proposalId_) external view returns (uint256 votes_) {
+    /// @inheritdoc IExtraordinaryFunding
+    function getVotesExtraordinary(address account_, uint256 proposalId_) external view override returns (uint256 votes_) {
+        if (hasVotedExtraordinary[proposalId_][account_]) votes_ = 0;
+
         votes_ = _getVotesExtraordinary(account_, proposalId_);
     }
 
