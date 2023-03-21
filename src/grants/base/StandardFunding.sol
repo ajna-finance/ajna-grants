@@ -875,12 +875,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
         // voter hasn't yet called _castVote in this period
         else {
-            uint48 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.endBlock);
+            uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.endBlock);
             votes_ = Maths.wpow(
             _getVotesAtSnapshotBlocks(
                 account_,
-                screeningStageEndBlock_ - VOTING_POWER_SNAPSHOT_DELAY,
-                screeningStageEndBlock_
+                screeningStageEndBlock - VOTING_POWER_SNAPSHOT_DELAY,
+                screeningStageEndBlock
             ), 2);
         }
     }

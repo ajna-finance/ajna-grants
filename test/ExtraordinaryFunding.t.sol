@@ -515,7 +515,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // set proposal params
         uint256 endBlockParam = block.number + 100_000;
-        uint256 tokensRequestedParam = 50_000_000 * 1e18;
 
         // generate proposal targets
         address[] memory targets = new address[](1);
