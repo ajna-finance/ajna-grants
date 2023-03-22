@@ -66,13 +66,14 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         _fundedExtraordinaryProposals.push(proposalId_);
 
-        // execute proposal's calldata
-        _execute(proposalId_, targets_, values_, calldatas_);
-
+        // update proposal state
         proposal.executed = true;
 
         // update treasury
         treasury -= tokensRequested;
+
+        // execute proposal's calldata
+        _execute(proposalId_, targets_, values_, calldatas_);
     }
 
     /// @inheritdoc IExtraordinaryFunding

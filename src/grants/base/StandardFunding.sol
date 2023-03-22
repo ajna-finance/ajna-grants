@@ -354,9 +354,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check proposal is succesful and hasn't already been executed
         if (!_standardFundingVoteSucceeded(proposalId_) || proposal.executed) revert ProposalNotSuccessful();
 
-        _execute(proposalId_, targets_, values_, calldatas_);
-
         proposal.executed = true;
+
+        _execute(proposalId_, targets_, values_, calldatas_);
     }
 
     /// @inheritdoc IStandardFunding
