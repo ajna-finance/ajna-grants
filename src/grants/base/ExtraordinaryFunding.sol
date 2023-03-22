@@ -13,6 +13,15 @@ import { Maths } from "../libraries/Maths.sol";
 
 abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
+    /*****************/
+    /*** Constants ***/
+    /*****************/
+
+    /**
+     * @notice The maximum length of a proposal's voting period, in blocks.
+     */
+    uint256 internal constant MAX_EFM_PROPOSAL_LENGTH = 216_000; // number of blocks in one month
+
     /***********************/
     /*** State Variables ***/
     /***********************/
@@ -21,23 +30,18 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @notice Mapping of extant extraordinary funding proposals.
      * @dev proposalId => ExtraordinaryFundingProposal.
      */
-    mapping (uint256 => ExtraordinaryFundingProposal) internal extraordinaryFundingProposals;
+    mapping (uint256 => ExtraordinaryFundingProposal) internal _extraordinaryFundingProposals;
 
     /**
      * @notice The list of extraordinary funding proposalIds that have been executed.
      */
-    uint256[] internal fundedExtraordinaryProposals;
+    uint256[] internal _fundedExtraordinaryProposals;
 
     /**
      * @notice Mapping checking if a voter has voted on a given proposal.
      * @dev proposalId => address => bool.
      */
     mapping(uint256 => mapping(address => bool)) public hasVotedExtraordinary;
-
-    /**
-     * @notice The maximum length of a proposal's voting period, in blocks.
-     */
-    uint256 internal constant MAX_EFM_PROPOSAL_LENGTH = 216_000; // number of blocks in one month
 
     /**************************/
     /*** Proposal Functions ***/
@@ -52,7 +56,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     ) external nonReentrant override returns (uint256 proposalId_) {
         proposalId_ = _hashProposal(targets_, values_, calldatas_, descriptionHash_);
 
-        ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
+        ExtraordinaryFundingProposal storage proposal = _extraordinaryFundingProposals[proposalId_];
 
         // since we are casting from uint128 to uint256, we can safely assume that the value will not overflow
         uint256 tokensRequested = uint256(proposal.tokensRequested);
@@ -60,7 +64,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         // check proposal is succesful and hasn't already been executed
         if (proposal.executed || !_extraordinaryProposalSucceeded(proposalId_, tokensRequested)) revert ExecuteExtraordinaryProposalInvalid();
 
-        fundedExtraordinaryProposals.push(proposalId_);
+        _fundedExtraordinaryProposals.push(proposalId_);
 
         // execute proposal's calldata
         _execute(proposalId_, targets_, values_, calldatas_);
@@ -81,7 +85,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
 
-        ExtraordinaryFundingProposal storage newProposal = extraordinaryFundingProposals[proposalId_];
+        ExtraordinaryFundingProposal storage newProposal = _extraordinaryFundingProposals[proposalId_];
 
         // check if proposal already exists (proposal id not 0)
         if (newProposal.proposalId != 0) revert ProposalAlreadyExists();
@@ -139,7 +143,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     ) internal returns (uint256 votes_) {
         if (hasVotedExtraordinary[proposalId_][account_]) revert AlreadyVoted();
 
-        ExtraordinaryFundingProposal storage proposal = extraordinaryFundingProposals[proposalId_];
+        ExtraordinaryFundingProposal storage proposal = _extraordinaryFundingProposals[proposalId_];
 
         if (proposal.startBlock > block.number || proposal.endBlock < block.number || proposal.executed) {
             revert ExtraordinaryFundingProposalInactive();
@@ -170,7 +174,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         uint256 proposalId_,
         uint256 tokensRequested_
     ) internal view returns (bool) {
-        uint256 votesReceived          = uint256(extraordinaryFundingProposals[proposalId_].votesReceived);
+        uint256 votesReceived          = uint256(_extraordinaryFundingProposals[proposalId_].votesReceived);
         uint256 minThresholdPercentage = _getMinimumThresholdPercentage();
 
         return
@@ -193,7 +197,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @return The proposals status in the ProposalState enum.
      */
     function _getExtraordinaryProposalState(uint256 proposalId_) internal view returns (ProposalState) {
-        ExtraordinaryFundingProposal memory proposal = extraordinaryFundingProposals[proposalId_];
+        ExtraordinaryFundingProposal memory proposal = _extraordinaryFundingProposals[proposalId_];
 
         bool voteSucceeded = _extraordinaryProposalSucceeded(proposalId_, uint256(proposal.tokensRequested));
 
@@ -210,12 +214,12 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      */
     function _getMinimumThresholdPercentage() internal view returns (uint256) {
         // default minimum threshold is 50
-        if (fundedExtraordinaryProposals.length == 0) {
+        if (_fundedExtraordinaryProposals.length == 0) {
             return 0.5 * 1e18;
         }
         // minimum threshold increases according to the number of funded EFM proposals
         else {
-            return 0.5 * 1e18 + (fundedExtraordinaryProposals.length * (0.05 * 1e18));
+            return 0.5 * 1e18 + (_fundedExtraordinaryProposals.length * (0.05 * 1e18));
         }
     }
 
@@ -251,7 +255,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     function _getVotesExtraordinary(address account_, uint256 proposalId_) internal view returns (uint256 votes_) {
         if (proposalId_ == 0) revert ExtraordinaryFundingProposalInactive();
 
-        uint256 startBlock = extraordinaryFundingProposals[proposalId_].startBlock;
+        uint256 startBlock = _extraordinaryFundingProposals[proposalId_].startBlock;
 
         votes_ = _getVotesAtSnapshotBlocks(
             account_,
@@ -288,19 +292,19 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         uint256 proposalId_
     ) external view override returns (uint256, uint128, uint128, uint128, uint120, bool) {
         return (
-            extraordinaryFundingProposals[proposalId_].proposalId,
-            extraordinaryFundingProposals[proposalId_].startBlock,
-            extraordinaryFundingProposals[proposalId_].endBlock,
-            extraordinaryFundingProposals[proposalId_].tokensRequested,
-            extraordinaryFundingProposals[proposalId_].votesReceived,
-            extraordinaryFundingProposals[proposalId_].executed
+            _extraordinaryFundingProposals[proposalId_].proposalId,
+            _extraordinaryFundingProposals[proposalId_].startBlock,
+            _extraordinaryFundingProposals[proposalId_].endBlock,
+            _extraordinaryFundingProposals[proposalId_].tokensRequested,
+            _extraordinaryFundingProposals[proposalId_].votesReceived,
+            _extraordinaryFundingProposals[proposalId_].executed
         );
     }
 
     /// @inheritdoc IExtraordinaryFunding
     function getExtraordinaryProposalSucceeded(uint256 proposalId_) external view override returns (bool) {
         // since we are casting from uint128 to uint256, we can safely assume that the value will not overflow
-        uint256 tokensRequested = uint256(extraordinaryFundingProposals[proposalId_].tokensRequested);
+        uint256 tokensRequested = uint256(_extraordinaryFundingProposals[proposalId_].tokensRequested);
 
         return _extraordinaryProposalSucceeded(proposalId_, tokensRequested);
     }
