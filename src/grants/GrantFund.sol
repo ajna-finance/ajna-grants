@@ -28,6 +28,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         proposalId_ = _hashProposal(targets_, values_, calldatas_, descriptionHash_);
     }
 
+    // TODO: fix can create a duplicate proposalId in both standard and extraordinary proposals?
     /**
      * @notice Given a proposalId, find if it is a standard or extraordinary proposal.
      * @param proposalId_ The id of the proposal to query the mechanism of.

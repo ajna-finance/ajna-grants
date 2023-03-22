@@ -8,9 +8,9 @@ pragma solidity 0.8.16;
  */
 interface IStandardFunding {
 
-    /*********************/
-    /*** Custom Errors ***/
-    /*********************/
+    /**************/
+    /*** Errors ***/
+    /**************/
 
     /**
      * @notice User attempted to execute a proposal before the distribution period ended.
@@ -36,6 +36,11 @@ interface IStandardFunding {
      * @notice Delegatee attempted to claim delegate reward before the challenge period ended.
      */
     error ChallengePeriodNotEnded();
+
+    /**
+     * @notice User provided a slate of proposalIds that is invalid.
+     */
+    error InvalidProposalSlate();
 
     /**
      * @notice Delegatee attempted to claim delegate reward when not voted in screening.
@@ -159,7 +164,7 @@ interface IStandardFunding {
      * @param  distributionId_ Id of the current quarterly distribution.
      * @return isNewTopSlate   Boolean indicating whether the new proposal slate was set as the new top slate for distribution.
      */
-    function checkSlate(
+    function updateSlate(
         uint256[] calldata proposalIds_,
         uint24 distributionId_
     ) external returns (bool);
@@ -302,12 +307,6 @@ interface IStandardFunding {
      * @return FundingVoteParams The list of FundingVoteParams structs that have been succesfully cast the voter.
      */
     function getFundingVotesCast(uint24 distributionId_, address account_) external view returns (FundingVoteParams[] memory);
-
-    /**
-     * @notice Get the current maximum possible distribution of Ajna tokens that will be released from the treasury this quarter.
-     * @return The number of Ajna tokens.
-     */
-    function getMaximumQuarterlyDistribution() external view returns (uint256);
 
     /**
      * @notice Mapping of proposalIds to {Proposal} structs.

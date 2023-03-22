@@ -5,6 +5,7 @@ import { GrantFund }           from "../src/grants/GrantFund.sol";
 import { GrantFundTestHelper } from "./utils/GrantFundTestHelper.sol";
 import { IAjnaToken }          from "./utils/IAjnaToken.sol";
 import { IFunding }            from "../src/grants/interfaces/IFunding.sol";
+import { IStandardFunding }    from "../src/grants/interfaces/IStandardFunding.sol";
 import { Maths }               from "../src/grants/libraries/Maths.sol";
 
 contract GrantFundTest is GrantFundTestHelper {
@@ -94,12 +95,19 @@ contract GrantFundTest is GrantFundTestHelper {
         // start distribution period
         uint24 distributionId = _startDistributionPeriod(_grantFund);
 
+        // calculate expected funds available
+        uint256 expectedFundsAvailable = Maths.wmul(50_000_000 * 1e18, 0.02 * 1e18);
+
+        // get distribution period info and check funds available doesn't update for the distribution period
+        (, , , uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        assertEq(fundsAvailable, expectedFundsAvailable);
+
         // fund treasury after distribution period started
         _grantFund.fundTreasury(50_000_000 * 1e18);
 
         // get distribution period info and check funds available doesn't update for the distribution period
-        (, , , uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(fundsAvailable, Maths.wmul(50_000_000 * 1e18, 0.02 * 1e18));
+        (, , , fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        assertEq(fundsAvailable, expectedFundsAvailable);
     }
 
     function testTreasuryInsufficientBalanceStandard() external {
@@ -109,7 +117,7 @@ contract GrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 100);
 
         // start distribution period
-        uint24 distributionId = _startDistributionPeriod(_grantFund);
+        _startDistributionPeriod(_grantFund);
 
         // fund treasury after distribution period started
         changePrank(_tokenDeployer);
@@ -136,23 +144,12 @@ contract GrantFundTest is GrantFundTestHelper {
         // generate proposal message 
         string memory description = "Proposal for Ajna token transfer to tester address";
 
-        // submit proposal
-        uint256 proposalId = _grantFund.proposeStandard(targets, values, calldatas, description);
+        // should revert when standard funding proposal created for an amount greater than that in the treasury
+        vm.expectRevert(IFunding.InvalidProposal.selector);
+        _grantFund.proposeStandard(targets, values, calldatas, description);
 
-        // cast screening vote
-        _screeningVote(_grantFund, _tokenHolder1, proposalId, 20_000_000 * 1e18);
-
-        // skip to funding stage
-        vm.roll(_startBlock + 600_000);
-
-        // cast funding vote
-        _fundingVote(_grantFund, _tokenHolder1, proposalId, voteYes, 10_000_000 * 1e18);
-
-        // fails in checkSlate as GBC is 0
-        uint256[] memory potentialProposalSlate = new uint256[](1);
-        potentialProposalSlate[0] = proposalId;
-        bool proposalSlateUpdated = _grantFund.checkSlate(potentialProposalSlate, distributionId);
-        assertFalse(proposalSlateUpdated);
+        // screening vote should revert invalid vote if proposal was rejected
+        // vm.expectRevert(IStandardFunding.InvalidVote.selector);
     }
 
 }

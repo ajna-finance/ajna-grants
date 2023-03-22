@@ -29,7 +29,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /**
      * @notice Length of the challengephase of the distribution period in blocks.
      * @dev    Roughly equivalent to the number of blocks in 7 days.
-     * @dev    The period in which funded proposal slates can be checked in checkSlate.
+     * @dev    The period in which funded proposal slates can be checked in updateSlate.
      */
     uint256 internal constant CHALLENGE_PERIOD_LENGTH = 50400;
 
@@ -287,50 +287,17 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /***********************************/
 
     /// @inheritdoc IStandardFunding
-    function checkSlate(
+    function updateSlate(
         uint256[] calldata proposalIds_,
         uint24 distributionId_
     ) external override returns (bool) {
         QuarterlyDistribution storage currentDistribution = distributions[distributionId_];
 
-        uint256 endBlock = currentDistribution.endBlock;
-
-        // check that the function is being called within the challenge period
-        if (block.number <= endBlock || block.number > _getChallengeStageEndBlock(endBlock)) {
-            return false;
-        }
-
-        // check that the slate has no duplicates
-        if (_hasDuplicates(proposalIds_)) return false;
-
-        uint256 gbc = currentDistribution.fundsAvailable;
-        uint128 sum = 0;
-        uint256 totalTokensRequested = 0;
+        // store number of proposals for reduced gas cost of iterations
         uint256 numProposalsInSlate = proposalIds_.length;
 
-        // check ways that the potential proposal slate is invalid or worse than existing
-        // if worse than existing return false
-        for (uint i = 0; i < numProposalsInSlate; ) {
-
-            // check if Proposal is in the topTenProposals list
-            if (_findProposalIndex(proposalIds_[i], topTenProposals[distributionId_]) == -1) return false;
-
-            Proposal memory proposal = standardFundingProposals[proposalIds_[i]];
-
-            // account for fundingVotesReceived possibly being negative
-            if (proposal.fundingVotesReceived < 0) return false;
-
-            // update counters
-            sum += uint128(proposal.fundingVotesReceived); // since we are converting from int128 to uint128, we can safely assume that the value will not overflow
-            totalTokensRequested += proposal.tokensRequested;
-
-            // check if slate of proposals exceeded budget constraint ( 90% of GBC )
-            if (totalTokensRequested > (gbc * 9 / 10)) {
-                return false;
-            }
-
-            unchecked { ++i; }
-        }
+        // check the each proposal in the slate is valid, and get the sum of the proposals fundingVotesReceived
+        uint256 sum = _validateSlate(distributionId_, currentDistribution.endBlock, currentDistribution.fundsAvailable, proposalIds_, numProposalsInSlate);
 
         // get pointers for comparing proposal slates
         bytes32 currentSlateHash = currentDistribution.fundedSlateHash;
@@ -412,6 +379,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         newProposal.distributionId  = currentDistribution.id;
         newProposal.tokensRequested = _validateCallDatas(targets_, values_, calldatas_); // check proposal parameters are valid and update tokensRequested
 
+        // revert if proposal requested more tokens than are available in the distribution period
+        if (newProposal.tokensRequested > (currentDistribution.fundsAvailable * 9 / 10)) revert InvalidProposal();
+
         emit ProposalCreated(
             proposalId_,
             msg.sender,
@@ -428,6 +398,52 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /***********************************/
     /*** Proposal Functions Internal ***/
     /***********************************/
+
+    /**
+     * @notice Check the validity of a potential slate of proposals to execute, and sum the slate's fundingVotesReceived.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through both voting stages.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param  distributionId_                   Id of the distribution period to check the slate for.
+     * @param  endBlock                          End block of the distribution period.
+     * @param  distributionPeriodFundsAvailable_ Funds available for distribution in the distribution period.
+     * @param  proposalIds_                      Array of proposal Ids to check.
+     * @param  numProposalsInSlate_              Number of proposals in the slate.
+     * @return sum_                              The total funding votes received by all proposals in the proposed slate.
+     */
+    function _validateSlate(uint24 distributionId_, uint256 endBlock, uint256 distributionPeriodFundsAvailable_, uint256[] calldata proposalIds_, uint256 numProposalsInSlate_) internal view returns (uint256 sum_) {
+        // check that the function is being called within the challenge period
+        if (block.number <= endBlock || block.number > _getChallengeStageEndBlock(endBlock)) {
+            revert InvalidProposalSlate();
+        }
+
+        // check that the slate has no duplicates
+        if (_hasDuplicates(proposalIds_)) revert InvalidProposalSlate();
+
+        uint256 gbc = distributionPeriodFundsAvailable_;
+        uint256 totalTokensRequested = 0;
+
+        // check each proposal in the slate is valid
+        for (uint i = 0; i < numProposalsInSlate_; ) {
+            Proposal memory proposal = standardFundingProposals[proposalIds_[i]];
+
+            // check if Proposal is in the topTenProposals list
+            if (_findProposalIndex(proposalIds_[i], topTenProposals[distributionId_]) == -1) revert InvalidProposalSlate();
+
+            // account for fundingVotesReceived possibly being negative
+            if (proposal.fundingVotesReceived < 0) revert InvalidProposalSlate();
+
+            // update counters
+            sum_ += uint128(proposal.fundingVotesReceived); // since we are converting from int128 to uint128, we can safely assume that the value will not overflow
+            totalTokensRequested += proposal.tokensRequested;
+
+            // check if slate of proposals exceeded budget constraint ( 90% of GBC )
+            if (totalTokensRequested > (gbc * 9 / 10)) {
+                revert InvalidProposalSlate();
+            }
+
+            unchecked { ++i; }
+        }
+    }
 
     /**
      * @notice Check an array of proposalIds for duplicate IDs.
@@ -938,11 +954,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /// @inheritdoc IStandardFunding
     function getFundingVotesCast(uint24 distributionId_, address account_) external view override returns (FundingVoteParams[] memory) {
         return quadraticVoters[distributionId_][account_].votesCast;
-    }
-
-    /// @inheritdoc IStandardFunding
-    function getMaximumQuarterlyDistribution() external view override returns (uint256) {
-        return Maths.wmul(treasury, GLOBAL_BUDGET_CONSTRAINT);
     }
 
     /// @inheritdoc IStandardFunding

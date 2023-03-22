@@ -404,9 +404,17 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // token holders vote on the proposal to pass it
         _extraordinaryVote(_grantFund, _tokenHolder1, testProposal.proposalId, 1);
 
+        // check hasVotedExtraordinary updated so the token holder can't vote again
+        bool hasVoted = _grantFund.hasVotedExtraordinary(testProposal.proposalId, _tokenHolder1);
+        assertTrue(hasVoted);
+
         // should revert if user tries to vote again
         vm.expectRevert(IFunding.AlreadyVoted.selector);
         _grantFund.voteExtraordinary(_tokenHolder1, testProposal.proposalId);
+
+        // available votes should be 0 after voting
+        uint256 availableVotes = _grantFund.getVotesExtraordinary(_tokenHolder1, testProposal.proposalId);
+        assertEq(availableVotes, 0);
 
         // partial votes should leave the proposal as active, not succeed
         proposalState = _grantFund.state(testProposal.proposalId);
@@ -462,7 +470,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 200_000);
 
         // ensure user has not voted
-        bool hasVoted = _grantFund.hasVotedExtraordinary(proposalId, _tokenHolder24);
+        hasVoted = _grantFund.hasVotedExtraordinary(proposalId, _tokenHolder24);
         assertFalse(hasVoted);
 
         changePrank(_tokenHolder24);

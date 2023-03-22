@@ -8,9 +8,9 @@ pragma solidity 0.8.16;
  */
 interface IExtraordinaryFunding {
 
-    /*********************/
-    /*** Custom Errors ***/
-    /*********************/
+    /**************/
+    /*** Errors ***/
+    /**************/
 
     /**
      * @notice The current block isn't in the specified range of active blocks.
@@ -142,10 +142,11 @@ interface IExtraordinaryFunding {
 
     /**
      * @notice Get an accounts voting power available for casting on a given proposal.
+     * @dev    If the account has already voted on the proposal, the returned value will be 0.
      * @param  account_    The address of the voter to check.
      * @param  proposalId_ The ID of the proposal being voted on.
-     * @return votes_      An accounts voting power at the snapshot blocks of the proposal.
+     * @return             An accounts current voting power.
      */
-    function getVotesExtraordinary(address account_, uint256 proposalId_) external view returns (uint256 votes_);
+    function getVotesExtraordinary(address account_, uint256 proposalId_) external view returns (uint256);
 
 }

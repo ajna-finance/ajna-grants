@@ -306,10 +306,9 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     }
 
     /// @inheritdoc IExtraordinaryFunding
-    function getVotesExtraordinary(address account_, uint256 proposalId_) external view override returns (uint256 votes_) {
-        if (hasVotedExtraordinary[proposalId_][account_]) votes_ = 0;
-
-        votes_ = _getVotesExtraordinary(account_, proposalId_);
+    function getVotesExtraordinary(address account_, uint256 proposalId_) external view override returns (uint256) {
+        if (hasVotedExtraordinary[proposalId_][account_]) return 0;
+        return _getVotesExtraordinary(account_, proposalId_);
     }
 
 }
