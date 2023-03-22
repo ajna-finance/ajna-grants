@@ -57,8 +57,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _tokenHolder15
     ];
 
-    uint256 _initialAjnaTokenSupply   = 2_000_000_000 * 1e18;
-
     // at this block on mainnet, all ajna tokens belongs to _tokenDeployer
     uint256 internal _startBlock      = 16354861;
 

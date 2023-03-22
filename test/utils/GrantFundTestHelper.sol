@@ -41,6 +41,7 @@ abstract contract GrantFundTestHelper is Test {
     /*** Growth Fund Events ***/
     /**************************/
 
+    event FundTreasury(uint256 amount, uint256 treasuryBalance);
     event FundedSlateUpdated(uint256 indexed distributionId_, bytes32 indexed fundedSlateHash_);
     event QuarterlyDistributionStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
     event DelegateRewardClaimed(address indexed delegateeAddress_, uint256 indexed distributionId_, uint256 rewardClaimed_);
@@ -466,10 +467,10 @@ abstract contract GrantFundTestHelper is Test {
         vm.roll(block.number + 1);
     }
 
-    function _startDistributionPeriod(GrantFund grantFund_) internal {
+    function _startDistributionPeriod(GrantFund grantFund_) internal returns (uint24 distributionId) {
         vm.expectEmit(true, true, false, true);
         emit QuarterlyDistributionStarted(grantFund_.getDistributionId() + 1, block.number, block.number + 648000);
-        grantFund_.startNewDistributionPeriod();
+        distributionId = grantFund_.startNewDistributionPeriod();
     }
 
     function _transferAjnaTokens(IAjnaToken token_, address[] memory voters_, uint256 amount_, address tokenDeployer_) internal {
