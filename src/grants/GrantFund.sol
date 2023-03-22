@@ -61,10 +61,10 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         // update treasury accounting
         treasury += fundingAmount_;
 
+        emit FundTreasury(fundingAmount_, treasury);
+
         // transfer ajna tokens to the treasury
         token.safeTransferFrom(msg.sender, address(this), fundingAmount_);
-
-        emit FundTreasury(fundingAmount_, treasury);
     }
 
 }
