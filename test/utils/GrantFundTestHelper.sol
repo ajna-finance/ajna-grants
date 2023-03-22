@@ -41,6 +41,7 @@ abstract contract GrantFundTestHelper is Test {
     /*** Growth Fund Events ***/
     /**************************/
 
+    event FundTreasury(uint256 amount, uint256 treasuryBalance);
     event FundedSlateUpdated(uint256 indexed distributionId_, bytes32 indexed fundedSlateHash_);
     event QuarterlyDistributionStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
     event DelegateRewardClaimed(address indexed delegateeAddress_, uint256 indexed distributionId_, uint256 rewardClaimed_);
@@ -141,7 +142,7 @@ abstract contract GrantFundTestHelper is Test {
     function _createProposalStandard(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (TestProposal memory) {
         // generate expected proposal state
         uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
-        uint256 startBlock = block.number.toUint64() + grantFund_.votingDelay().toUint64();
+        uint256 startBlock = block.number.toUint64();
 
         (, , uint48 endBlock, , , ) = grantFund_.getDistributionPeriodInfo(grantFund_.getDistributionId());
 
@@ -183,7 +184,6 @@ abstract contract GrantFundTestHelper is Test {
         TestProposal[] memory testProposals = new TestProposal[](testProposalParams_.length);
 
         for (uint256 i = 0; i < testProposalParams_.length; ++i) {
-
             // generate description string
             string memory descriptionPartOne = "Proposal to transfer ";
             string memory descriptionPartTwo = Strings.toString(testProposalParams_[i].tokensRequested);
@@ -263,18 +263,15 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     function _extraordinaryVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_) internal {
-        uint256 votingWeight = grantFund_.getVotesWithParams(voter_, block.number, abi.encode(proposalId_));
+        uint256 votingWeight = grantFund_.getVotesExtraordinary(voter_, proposalId_);
 
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support_, votingWeight, "");
-        grantFund_.castVote(proposalId_, support_);
+        grantFund_.voteExtraordinary(voter_, proposalId_);
     }
 
     function _fundingVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_, int256 votesAllocated_) internal {
-        string memory reason = "";
-        bytes memory params = abi.encode(votesAllocated_);
-
         // convert negative votes to account for budget expenditure and check emit value
         uint256 voteAllocatedEmit;
         if (votesAllocated_ < 0) {
@@ -284,10 +281,16 @@ abstract contract GrantFundTestHelper is Test {
             voteAllocatedEmit = uint256(votesAllocated_);
         }
 
+        // construct vote params
+        IStandardFunding.FundingVoteParams[] memory params = new IStandardFunding.FundingVoteParams[](1);
+        params[0].proposalId = proposalId_;
+        params[0].votesUsed = votesAllocated_;
+
+        // cast funding vote
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support_, voteAllocatedEmit, "");
-        grantFund_.castVoteWithReasonAndParams(proposalId_, support_, reason, params);
+        grantFund_.fundingVote(params);
     }
 
     function _fundingVoteMulti(GrantFund grantFund_, IStandardFunding.FundingVoteParams[] memory voteParams_, address voter_) internal {
@@ -297,27 +300,65 @@ abstract contract GrantFundTestHelper is Test {
             emit VoteCast(voter_, voteParams_[i].proposalId, support, uint256(Maths.abs(voteParams_[i].votesUsed)), "");
         }
         changePrank(voter_);
-        grantFund_.fundingVotesMulti(voteParams_);
+        grantFund_.fundingVote(voteParams_);
+    }
+
+    function _fundingVoteNoLog(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
+        // construct vote params
+        IStandardFunding.FundingVoteParams[] memory params = new IStandardFunding.FundingVoteParams[](1);
+        params[0].proposalId = proposalId_;
+        params[0].votesUsed = votesAllocated_;
+
+        // cast funding vote
+        changePrank(voter_);
+        grantFund_.fundingVote(params);
     }
 
     function _screeningVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
-        string memory reason = "";
         uint8 support = 1; // can only vote yes in the screening stage
-        bytes memory params = abi.encode(votesAllocated_);
+
+        // construct vote params
+        IStandardFunding.ScreeningVoteParams[] memory params = new IStandardFunding.ScreeningVoteParams[](1);
+        params[0].proposalId = proposalId_;
+        params[0].votes = votesAllocated_;
 
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support, votesAllocated_, "");
-        grantFund_.castVoteWithReasonAndParams(proposalId_, support, reason, params);
+        grantFund_.screeningVote(params);
     }
 
-    function _screeningVoteMulti(GrantFund grantFund_, IStandardFunding.ScreeningVoteParams[] memory voteParams_, address voter_) internal {
+    function _screeningVote(GrantFund grantFund_, IStandardFunding.ScreeningVoteParams[] memory voteParams_, address voter_) internal {
         for (uint256 i = 0; i < voteParams_.length; ++i) {
             vm.expectEmit(true, true, false, true);
             emit VoteCast(voter_, voteParams_[i].proposalId, 1, voteParams_[i].votes, "");
         }
         changePrank(voter_);
-        grantFund_.screeningVoteMulti(voteParams_);
+        grantFund_.screeningVote(voteParams_);
+    }
+
+    function _screeningVoteNoLog(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
+        // construct vote params
+        IStandardFunding.ScreeningVoteParams[] memory params = new IStandardFunding.ScreeningVoteParams[](1);
+        params[0].proposalId = proposalId_;
+        params[0].votes = votesAllocated_;
+
+        changePrank(voter_);
+        grantFund_.screeningVote(params);
+    }
+
+    // Transfers a random amount of tokens to N voters and self delegates votes
+    function _setVotingPower(uint256 noOfVoters_, address[] memory voters_, IAjnaToken token_, address tokenDeployer_) internal returns(uint256[] memory) {
+        uint256[] memory votes_ = new uint256[](noOfVoters_);
+        for(uint i = 0; i < noOfVoters_; i++) {
+            uint256 votes = _randomVote();
+            changePrank(tokenDeployer_);
+            token_.transfer(voters_[i], votes);
+            changePrank(voters_[i]);
+            token_.delegate(voters_[i]);
+            votes_[i] = votes;
+        }
+        return votes_;
     }
 
     // Returns a random proposal Index from all proposals
@@ -337,26 +378,11 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     function _getScreeningVotes(GrantFund grantFund_, address voter_) internal view returns (uint256 votes) {
-        votes = grantFund_.getVotesWithParams(voter_, block.number, bytes("Screening"));
+        votes = grantFund_.getVotesScreening(grantFund_.getDistributionId(), voter_);
     }
 
     function _getFundingVotes(GrantFund grantFund_, address voter_) internal view returns (uint256 votes) {
-        votes = grantFund_.getVotesWithParams(voter_, block.number, bytes("Funding"));
-    }
-
-    // TODO: rename this method
-    // Transfers a random amount of tokens to N voters and self delegates votes
-    function _getVotes(uint256 noOfVoters_, address[] memory voters_, IAjnaToken token_, address tokenDeployer_) internal returns(uint256[] memory) {
-        uint256[] memory votes_ = new uint256[](noOfVoters_);
-        for(uint i = 0; i < noOfVoters_; i++) {
-            uint256 votes = _randomVote();
-            changePrank(tokenDeployer_);
-            token_.transfer(voters_[i], votes);
-            changePrank(voters_[i]);
-            token_.delegate(voters_[i]);
-            votes_[i] = votes;
-        }
-        return votes_;
+        votes = grantFund_.getVotesFunding(grantFund_.getDistributionId(), voter_);
     }
 
     // Submits N Proposal with fixed token requested
@@ -440,10 +466,10 @@ abstract contract GrantFundTestHelper is Test {
         vm.roll(block.number + 1);
     }
 
-    function _startDistributionPeriod(GrantFund grantFund_) internal {
+    function _startDistributionPeriod(GrantFund grantFund_) internal returns (uint24 distributionId) {
         vm.expectEmit(true, true, false, true);
         emit QuarterlyDistributionStarted(grantFund_.getDistributionId() + 1, block.number, block.number + 648000);
-        grantFund_.startNewDistributionPeriod();
+        distributionId = grantFund_.startNewDistributionPeriod();
     }
 
     function _transferAjnaTokens(IAjnaToken token_, address[] memory voters_, uint256 amount_, address tokenDeployer_) internal {
@@ -453,13 +479,23 @@ abstract contract GrantFundTestHelper is Test {
         }
     }
 
-    function _vote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_, uint256 votingWeightSnapshotBlock_) internal {
-        uint256 votingWeight = grantFund_.getVotes(voter_, votingWeightSnapshotBlock_);
+    /***************/
+    /*** Asserts ***/
+    /***************/
 
-        changePrank(voter_);
-        vm.expectEmit(true, true, false, true);
-        emit VoteCast(voter_, proposalId_, support_, votingWeight, "");
-        grantFund_.castVote(proposalId_, support_);
+    function assertInsufficientVotingPowerRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
+        vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
+        _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
+    }
+
+    function assertFundingVoteInvalidVoteRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
+        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
+    }
+
+    function assertScreeningVoteInvalidVoteRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
+        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        _screeningVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 
 }

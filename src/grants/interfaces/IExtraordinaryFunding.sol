@@ -8,9 +8,9 @@ pragma solidity 0.8.16;
  */
 interface IExtraordinaryFunding {
 
-    /*********************/
-    /*** Custom Errors ***/
-    /*********************/
+    /**************/
+    /*** Errors ***/
+    /**************/
 
     /**
      * @notice The current block isn't in the specified range of active blocks.
@@ -34,8 +34,7 @@ interface IExtraordinaryFunding {
         uint128  startBlock;      // Block number of the start of the extraordinary funding proposal voting period.
         uint128  endBlock;        // Block number of the end of the extraordinary funding proposal voting period.
         uint128  tokensRequested; // Number of AJNA tokens requested.
-        uint112  votesReceived;   // Total votes received for this proposal.
-        bool     succeeded;       // Whether the proposal succeeded or not.
+        uint120  votesReceived;   // Total votes received for this proposal.
         bool     executed;        // Whether the proposal has been executed or not.
     }
 
@@ -75,6 +74,23 @@ interface IExtraordinaryFunding {
         string memory description_
     ) external returns (uint256 proposalId_);
 
+    /************************/
+    /*** Voting Functions ***/
+    /************************/
+
+    /**
+     * @notice Vote on a proposal for extraordinary funding.
+     * @dev    Votes can only be cast affirmatively, or not cast at all.
+     * @dev    A proposal can only be voted upon once, with the entirety of a voter's voting power.
+     * @param  account_    The voting account.
+     * @param  proposalId_ The ID of the proposal being voted upon.
+     * @return votesCast_  The amount of votes cast.
+     */
+    function voteExtraordinary(
+        address account_,
+        uint256 proposalId_
+    ) external returns (uint256 votesCast_);
+
     /**********************/
     /*** View Functions ***/
     /**********************/
@@ -105,17 +121,32 @@ interface IExtraordinaryFunding {
      *  @return endBlock        The block by which the proposal must pass.
      *  @return tokensRequested Amount of Ajna tokens requested by the proposal.
      *  @return votesReceived   Number of votes the proposal has received. One Ajna token is one vote.
-     *  @return succeeded       Whether the proposal received enough votes to pass required thresholds.
      *  @return executed        Whether a succesful proposal has been executed.
      */
     function getExtraordinaryProposalInfo(
         uint256 proposalId_
-    ) external view returns (uint256, uint128, uint128, uint128, uint112, bool, bool);
+    ) external view returns (uint256, uint128, uint128, uint128, uint120, bool);
+
+    /**
+     * @notice Check if an extraordinary funding proposal met the requirements for execution.
+     * @param  proposalId_ The ID of the proposal to check the status of.
+     * @return True if the proposal was successful, false if not.
+     */
+    function getExtraordinaryProposalSucceeded(uint256 proposalId_) external view returns (bool);
 
     /**
      * @notice Get the current minimum threshold percentage of Ajna tokens required for a proposal to exceed.
      * @return The minimum threshold percentage, in WAD.
      */
     function getMinimumThresholdPercentage() external view returns (uint256);
+
+    /**
+     * @notice Get an accounts voting power available for casting on a given proposal.
+     * @dev    If the account has already voted on the proposal, the returned value will be 0.
+     * @param  account_    The address of the voter to check.
+     * @param  proposalId_ The ID of the proposal being voted on.
+     * @return             An accounts current voting power.
+     */
+    function getVotesExtraordinary(address account_, uint256 proposalId_) external view returns (uint256);
 
 }

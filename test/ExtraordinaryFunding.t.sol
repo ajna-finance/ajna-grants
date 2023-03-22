@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import { IGovernor } from "@oz/governance/IGovernor.sol";
 import { IVotes }    from "@oz/governance/utils/IVotes.sol";
 
-
-import { Funding }               from "../src/grants/base/Funding.sol";
 import { GrantFund }             from "../src/grants/GrantFund.sol";
 import { IExtraordinaryFunding } from "../src/grants/interfaces/IExtraordinaryFunding.sol";
-
+import { IFunding }              from "../src/grants/interfaces/IFunding.sol";
 import { GrantFundTestHelper } from "./utils/GrantFundTestHelper.sol";
 import { IAjnaToken }          from "./utils/IAjnaToken.sol";
 
@@ -72,8 +69,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _tokenHolder24
     ];
 
-    uint256 _initialAjnaTokenSupply   = 2_000_000_000 * 1e18;
-
     // at this block on mainnet, all ajna tokens belongs to _tokenDeployer
     uint256 internal _startBlock      = 16354861;
 
@@ -89,20 +84,15 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _votingToken = IVotes(address(_token));
 
         // deploy growth fund contract
-        _grantFund = new GrantFund(_votingToken, 500_000_000 * 1e18);
+        _grantFund = new GrantFund();
 
         // initial minter distributes tokens to test addresses
         _transferAjnaTokens(_token, _votersArr, 50_000_000 * 1e18, _tokenDeployer);
 
         // initial minter distributes treasury to grantFund
-        _token.transfer(address(_grantFund), 500_000_000 * 1e18);
-    }
-
-    function testGrantFundGovernorHardcodedOverrides(uint256 proposalId_) external {
-        assertEq(_grantFund.votingDelay(), 0);
-        assertEq(_grantFund.quorum(proposalId_), 0);
-        assertEq(_grantFund.votingPeriod(), 0);
-        assertEq(_grantFund.COUNTING_MODE(), "support=bravo&quorum=for,abstain");
+        changePrank(_tokenDeployer);
+        _token.approve(address(_grantFund), 500_000_000 * 1e18);
+        _grantFund.fundTreasury(500_000_000 * 1e18);
     }
 
     function testGetVotingPowerExtraordinary() external {
@@ -110,10 +100,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _selfDelegateVoters(_token, _votersArr);
 
         vm.roll(_startBlock + 50);
-
-        // check voting power is 0 whenn no proposal is available for voting
-        uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number - 1, "");
-        assertEq(votingPower, 0);
 
         // generate proposal targets
         address[] memory targets = new address[](1);
@@ -143,8 +129,12 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         );
 
         // check voting power is greater than 0 for extant proposal
-        votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, abi.encode(testProposal.proposalId));
+        uint256 votingPower = _grantFund.getVotesExtraordinary(_tokenHolder1, testProposal.proposalId);
         assertEq(votingPower, 50_000_000 * 1e18);
+
+        // check voting with proposalId = 0
+        vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInactive.selector);
+        _grantFund.getVotesExtraordinary(_tokenHolder1, 0);
     }
 
     function testGetVotingPowerDelegateTokens() external {
@@ -153,10 +143,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _delegateVotes(_token, _tokenHolder2, _tokenHolder2);
 
         vm.roll(_startBlock + 17);
-
-        // check voting power is 0 whenn no proposal is available for voting
-        uint256 votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number - 1, "");
-        assertEq(votingPower, 0);
 
         // generate proposal targets
         address[] memory targets = new address[](1);
@@ -192,7 +178,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         );
 
         // check voting power at vote start
-        votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, abi.encode(testProposal.proposalId));
+        uint256 votingPower = _grantFund.getVotesExtraordinary(_tokenHolder1, testProposal.proposalId);
         assertEq(votingPower, 25_000_000 * 1e18);
 
         vm.roll(_startBlock + 100);
@@ -202,15 +188,15 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _token.transfer(_tokenHolder2, 20_000_000 * 1e18);
 
         // check voting power of tokenHolder1 matches minimum of snapshot period
-        votingPower = _grantFund.getVotesWithParams(_tokenHolder1, block.number, abi.encode(testProposal.proposalId));
+        votingPower = _grantFund.getVotesExtraordinary(_tokenHolder1, testProposal.proposalId);
         assertEq(votingPower, 25_000_000 * 1e18);
 
         // check voting power of tokenHolder2 is 50_000_000, since received tokens during the snapshot period need to be redelegated
-        votingPower = _grantFund.getVotesWithParams(_tokenHolder2, block.number, abi.encode(testProposal.proposalId));
+        votingPower = _grantFund.getVotesExtraordinary(_tokenHolder2, testProposal.proposalId);
         assertEq(votingPower, 50_000_000 * 1e18);
 
         // check voting power of tokenHolder3 is 0, since they missed the snapshot
-        votingPower = _grantFund.getVotesWithParams(_tokenHolder3, block.number, abi.encode(testProposal.proposalId));
+        votingPower = _grantFund.getVotesExtraordinary(_tokenHolder3, testProposal.proposalId);
         assertEq(votingPower, 0);
     }
 
@@ -284,8 +270,8 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         );
 
         // check proposal status
-        IGovernor.ProposalState proposalState = _grantFund.state(testProposal.proposalId);
-        assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Active));
+        IFunding.ProposalState proposalState = _grantFund.state(testProposal.proposalId);
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Active));
 
         // check proposal state
         (
@@ -293,8 +279,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             uint128 startBlock,
             uint128 endBlock,
             uint128 tokensRequested,
-            uint112 votesReceived,
-            bool succeeded,
+            uint120 votesReceived,
             bool executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
 
@@ -304,15 +289,16 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(startBlock, block.number);
         assertEq(endBlock, endBlockParam);
         assertEq(votesReceived, 0);
-        assertFalse(succeeded);
+        // assertFalse(succeeded);
         assertFalse(executed);
+        assertFalse(_grantFund.getExtraordinaryProposalSucceeded(testProposal.proposalId));
 
         // should revert is same proposal is being proposed
-        vm.expectRevert(Funding.ProposalAlreadyExists.selector);
+        vm.expectRevert(IFunding.ProposalAlreadyExists.selector);
         _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "Extraordinary Proposal for Ajna token transfer to tester address");
 
         // check findMechanism identifies it as an extraOrdinary proposal
-        assert(_grantFund.findMechanismOfProposal(proposalId) == Funding.FundingMechanism.Extraordinary);
+        assert(_grantFund.findMechanismOfProposal(proposalId) == IFunding.FundingMechanism.Extraordinary);
     }
 
     function testProposeExtraordinaryInvalid() external {
@@ -340,7 +326,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             500_000_000 * 1e18
         );
 
-        vm.expectRevert(Funding.InvalidProposal.selector);
+        vm.expectRevert(IFunding.InvalidProposal.selector);
         _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
 
         // check can't invoke with invalid calldata
@@ -351,7 +337,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             50_000_000 * 1e18
         );
 
-        vm.expectRevert(Funding.InvalidProposal.selector);
+        vm.expectRevert(IFunding.InvalidProposal.selector);
         _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "burn extraordinary");
 
         // check can't submit proposal with end block higher than limit
@@ -364,7 +350,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             _tokenHolder1,
             50_000_000 * 1e18
         );
-        vm.expectRevert(Funding.InvalidProposal.selector);
+        vm.expectRevert(IFunding.InvalidProposal.selector);
         _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
     }
 
@@ -412,19 +398,27 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.executeExtraordinary(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));
 
         // check proposal status
-        IGovernor.ProposalState proposalState = _grantFund.state(testProposal.proposalId);
-        assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Active));
+        IFunding.ProposalState proposalState = _grantFund.state(testProposal.proposalId);
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Active));
 
         // token holders vote on the proposal to pass it
         _extraordinaryVote(_grantFund, _tokenHolder1, testProposal.proposalId, 1);
 
+        // check hasVotedExtraordinary updated so the token holder can't vote again
+        bool hasVoted = _grantFund.hasVotedExtraordinary(testProposal.proposalId, _tokenHolder1);
+        assertTrue(hasVoted);
+
         // should revert if user tries to vote again
-        vm.expectRevert(Funding.AlreadyVoted.selector);
-        _grantFund.castVote(testProposal.proposalId, 1);
+        vm.expectRevert(IFunding.AlreadyVoted.selector);
+        _grantFund.voteExtraordinary(_tokenHolder1, testProposal.proposalId);
+
+        // available votes should be 0 after voting
+        uint256 availableVotes = _grantFund.getVotesExtraordinary(_tokenHolder1, testProposal.proposalId);
+        assertEq(availableVotes, 0);
 
         // partial votes should leave the proposal as active, not succeed
         proposalState = _grantFund.state(testProposal.proposalId);
-        assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Active));
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Active));
 
         // additional votes push the proposal over the threshold
         _extraordinaryVote(_grantFund, _tokenHolder2, testProposal.proposalId, 1);
@@ -452,7 +446,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // check proposal status
         proposalState = _grantFund.state(testProposal.proposalId);
-        assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Active));
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Succeeded));
 
         // check proposal state
         (
@@ -460,15 +454,14 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             ,
             ,
             uint128 tokensRequested,
-            uint112 votesReceived,
-            bool succeeded,
+            uint120 votesReceived,
             bool executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
         assertEq(proposalId, testProposal.proposalId);
         assertEq(tokensRequested, tokensRequestedParam);
         assertEq(votesReceived, 23 * 50_000_000 * 1e18);
-        assertFalse(succeeded);
         assertFalse(executed);
+        assertTrue(_grantFund.getExtraordinaryProposalSucceeded(testProposal.proposalId));
 
         // minimum threshold percentage should be at default levels before the succesful proposal is executed
         uint256 minimumThresholdPercentage = _grantFund.getMinimumThresholdPercentage();
@@ -477,32 +470,37 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 200_000);
 
         // ensure user has not voted
-        bool hasVoted = _grantFund.hasVoted(proposalId, _tokenHolder24);
+        hasVoted = _grantFund.hasVotedExtraordinary(proposalId, _tokenHolder24);
         assertFalse(hasVoted);
-        
+
         changePrank(_tokenHolder24);
+
         // Should revert if user tries to vote after proposal's end block
         vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInactive.selector);
-        _grantFund.castVote(proposalId, voteYes);
+        _grantFund.voteExtraordinary(_tokenHolder24, proposalId);
+
+        // check state is succeeded as expected
+        proposalState = _grantFund.state(testProposal.proposalId);
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Succeeded));
 
         // execute proposal
         _executeExtraordinaryProposal(_grantFund, _token, testProposal);
 
         // check state updated as expected
         proposalState = _grantFund.state(testProposal.proposalId);
-        assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Executed));
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Executed));
         (
             ,
             ,
             ,
             ,
             votesReceived,
-            succeeded,
             executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
         assertEq(votesReceived, 23 * 50_000_000 * 1e18);
-        assertTrue(succeeded);
+        // assertTrue(succeeded);
         assertTrue(executed);
+        assertTrue(_grantFund.getExtraordinaryProposalSucceeded(testProposal.proposalId));
 
         // check tokens transferred to the recipient address
         assertEq(_token.balanceOf(_tokenHolder1), 100_000_000 * 1e18);
@@ -515,6 +513,66 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // minimum threshold percentage should increase after the succesful proposal is executed
         minimumThresholdPercentage = _grantFund.getMinimumThresholdPercentage();
         assertEq(minimumThresholdPercentage, 0.550000000000000000 * 1e18);
+    }
+
+    function testExtraordinaryProposalFails() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _votersArr);
+
+        vm.roll(_startBlock + 100);
+
+        // set proposal params
+        uint256 endBlockParam = block.number + 100_000;
+
+        // generate proposal targets
+        address[] memory targets = new address[](1);
+        targets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            50_000_000 * 1e18
+        );
+
+        // create and submit proposal
+        TestProposalExtraordinary memory testProposal = _createProposalExtraordinary(
+            _grantFund,
+            _tokenHolder1,
+            endBlockParam,
+            targets,
+            values,
+            calldatas,
+            "Extraordinary Proposal for Ajna token transfer to tester address"
+        );
+
+        vm.roll(_startBlock + 150);
+
+        // additional votes push the proposal over the threshold
+        _extraordinaryVote(_grantFund, _tokenHolder2, testProposal.proposalId, 1);
+        _extraordinaryVote(_grantFund, _tokenHolder3, testProposal.proposalId, 1);
+        _extraordinaryVote(_grantFund, _tokenHolder4, testProposal.proposalId, 1);
+
+        // check proposal status is active
+        IFunding.ProposalState proposalState = _grantFund.state(testProposal.proposalId);
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Active));
+
+        // skip to a proposals end block
+        vm.roll(_startBlock + 217_000);
+
+        // check proposal status is defeated
+        proposalState = _grantFund.state(testProposal.proposalId);
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Defeated));
+
+        // check can't execute defeated proposal
+        vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
+        _grantFund.executeExtraordinary(testProposal.targets, testProposal.values, testProposal.calldatas, keccak256(bytes(testProposal.description)));
+
     }
 
     function testFuzzExtraordinaryFunding(uint256 noOfVoters_, uint256 noOfProposals_) external {
@@ -568,16 +626,17 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             */
             if (i >= 6) {
                 // check that proposals which have enough votes won't pass if they requested too many tokens from the treasury
-                (, , , uint128 tokensRequested, uint112 votesReceived, , ) = _grantFund.getExtraordinaryProposalInfo(testProposal[i].proposalId);
+                (, , , uint128 tokensRequested, uint120 votesReceived, ) = _grantFund.getExtraordinaryProposalInfo(testProposal[i].proposalId);
 
+                // check if the proposal requested too many tokens
                 if (votesReceived >= tokensRequested + _grantFund.getSliceOfNonTreasury(_grantFund.getMinimumThresholdPercentage())) {
-                    vm.expectRevert(Funding.InvalidProposal.selector);
+                    vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
                     _grantFund.executeExtraordinary(testProposal[i].targets, testProposal[i].values, testProposal[i].calldatas, keccak256(bytes(testProposal[i].description)));
                     continue;
                 }
                 else {
                     // check state has been marked as Defeated
-                    assertEq(uint8(_grantFund.state(testProposal[i].proposalId)), uint8(IGovernor.ProposalState.Defeated));
+                    assertEq(uint8(_grantFund.state(testProposal[i].proposalId)), uint8(IFunding.ProposalState.Defeated));
 
                     vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
                     _grantFund.executeExtraordinary(testProposal[i].targets, testProposal[i].values, testProposal[i].calldatas, keccak256(bytes(testProposal[i].description)));
@@ -587,7 +646,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
                 _executeExtraordinaryProposal(_grantFund, _token, testProposal[i]);
 
                 // check state is updated to Executed after proposal is executed
-                assertEq(uint8(_grantFund.state(testProposal[i].proposalId)), uint8(IGovernor.ProposalState.Executed));
+                assertEq(uint8(_grantFund.state(testProposal[i].proposalId)), uint8(IFunding.ProposalState.Executed));
             }
         }
         
