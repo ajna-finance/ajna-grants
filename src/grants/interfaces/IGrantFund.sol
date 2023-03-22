@@ -60,8 +60,7 @@ interface IGrantFund is
     /**
      * @notice Transfers Ajna tokens to the GrantFund contract.
      * @param fundingAmount_ The amount of Ajna tokens to transfer.
-     * @return ProposalState of the given proposal.
      */
-    function fundTreasury(uint256 fundingAmount_) external returns (uint256);
+    function fundTreasury(uint256 fundingAmount_) external;
 
 }

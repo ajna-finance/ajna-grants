@@ -36,8 +36,8 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     function findMechanismOfProposal(
         uint256 proposalId_
     ) public view returns (FundingMechanism) {
-        if (standardFundingProposals[proposalId_].proposalId != 0)           return FundingMechanism.Standard;
-        else if (extraordinaryFundingProposals[proposalId_].proposalId != 0) return FundingMechanism.Extraordinary;
+        if (_standardFundingProposals[proposalId_].proposalId != 0)           return FundingMechanism.Standard;
+        else if (_extraordinaryFundingProposals[proposalId_].proposalId != 0) return FundingMechanism.Extraordinary;
         else revert ProposalNotFound();
     }
 
@@ -55,7 +55,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     /**************************/
 
     /// @inheritdoc IGrantFund
-    function fundTreasury(uint256 fundingAmount_) external override returns (uint256) {
+    function fundTreasury(uint256 fundingAmount_) external override {
         IERC20 token = IERC20(ajnaTokenAddress);
 
         // update treasury accounting
@@ -65,8 +65,6 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
         // transfer ajna tokens to the treasury
         token.safeTransferFrom(msg.sender, address(this), fundingAmount_);
-
-        return treasury;
     }
 
 }
