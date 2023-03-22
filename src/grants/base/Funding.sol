@@ -13,18 +13,26 @@ import { IFunding } from "../interfaces/IFunding.sol";
 
 abstract contract Funding is IFunding, ReentrancyGuard {
 
-    /***********************/
-    /*** State Variables ***/
-    /***********************/
+    /******************/
+    /*** Immutables ***/
+    /******************/
 
     // address of the ajna token used in grant coordination
-    address public ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
+    address public immutable ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
+
+    /*****************/
+    /*** Constants ***/
+    /*****************/
 
     /**
      * @notice Number of blocks prior to a given voting stage to check an accounts voting power.
      * @dev    Prevents flashloan attacks or duplicate voting with multiple accounts.
      */
     uint256 internal constant VOTING_POWER_SNAPSHOT_DELAY = 33;
+
+    /***********************/
+    /*** State Variables ***/
+    /***********************/
 
     /**
      * @notice Total funds available for Funding Mechanism
