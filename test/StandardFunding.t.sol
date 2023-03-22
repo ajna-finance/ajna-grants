@@ -885,14 +885,13 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         bool proposalSlateUpdated = _grantFund.updateSlate(potentialProposalSlate, distributionId);
         assertTrue(proposalSlateUpdated);
 
+        // should not update slate if current funding slate is same as potentialProposalSlate 
+        assertFalse(_grantFund.updateSlate(potentialProposalSlate, distributionId));
+
         // ensure updateSlate will revert if a proposal had negative votes
         potentialProposalSlate[0] = screenedProposals[5].proposalId;
         vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
         _grantFund.updateSlate(potentialProposalSlate, distributionId);
-
-        // FIXME: should not update slate if current funding slate is same as potentialProposalSlate 
-        // vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
-        // _grantFund.updateSlate(potentialProposalSlate, distributionId);
 
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
