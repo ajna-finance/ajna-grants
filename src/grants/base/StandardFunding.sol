@@ -504,7 +504,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         if (proposal.executed)                                                     return ProposalState.Executed;
         else if (_distributions[proposal.distributionId].endBlock >= block.number) return ProposalState.Active;
-        else if (_standardFundingVoteSucceeded(proposalId_))                       return ProposalState.Succeeded;
+        else if (_standardFundingVoteSucceeded(proposalId_))                      return ProposalState.Succeeded;
         else                                                                       return ProposalState.Defeated;
     }
 
@@ -526,43 +526,42 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 screeningStageEndBlock = _getScreeningStageEndBlock(endBlock);
 
         // check that the funding stage is active
-        if (block.number > screeningStageEndBlock && block.number <= endBlock) {
+        if (block.number <= screeningStageEndBlock || block.number > endBlock) revert InvalidVote();
 
-            uint128 votingPower = voter.votingPower;
+        uint128 votingPower = voter.votingPower;
 
-            // if this is the first time a voter has attempted to vote this period,
-            // set initial voting power and remaining voting power
-            if (votingPower == 0) {
+        // if this is the first time a voter has attempted to vote this period,
+        // set initial voting power and remaining voting power
+        if (votingPower == 0) {
 
-                // calculate the voting power available to the voting power in this funding stage
-                uint128 newVotingPower = SafeCast.toUint128(_getVotesFunding(msg.sender, votingPower, voter.remainingVotingPower, screeningStageEndBlock));
+            // calculate the voting power available to the voting power in this funding stage
+            uint128 newVotingPower = SafeCast.toUint128(_getVotesFunding(msg.sender, votingPower, voter.remainingVotingPower, screeningStageEndBlock));
 
-                voter.votingPower          = newVotingPower;
-                voter.remainingVotingPower = newVotingPower;
-            }
+            voter.votingPower          = newVotingPower;
+            voter.remainingVotingPower = newVotingPower;
+        }
 
-            uint256 numVotesCast = voteParams_.length;
+        uint256 numVotesCast = voteParams_.length;
 
-            for (uint256 i = 0; i < numVotesCast; ) {
-                Proposal storage proposal = _standardFundingProposals[voteParams_[i].proposalId];
+        for (uint256 i = 0; i < numVotesCast; ) {
+            Proposal storage proposal = _standardFundingProposals[voteParams_[i].proposalId];
 
-                // check that the proposal is part of the current distribution period
-                if (proposal.distributionId != currentDistributionId) revert InvalidVote();
+            // check that the proposal is part of the current distribution period
+            if (proposal.distributionId != currentDistributionId) revert InvalidVote();
 
-                // check that the proposal being voted on is in the top ten screened proposals
-                if (_findProposalIndex(voteParams_[i].proposalId, _topTenProposals[currentDistributionId]) == -1) revert InvalidVote();
+            // check that the proposal being voted on is in the top ten screened proposals
+            if (_findProposalIndex(voteParams_[i].proposalId, _topTenProposals[currentDistributionId]) == -1) revert InvalidVote();
 
-                // cast each successive vote
-                votesCast_ += _fundingVote(
-                    currentDistribution,
-                    proposal,
-                    msg.sender,
-                    voter,
-                    voteParams_[i]
-                );
+            // cast each successive vote
+            votesCast_ += _fundingVote(
+                currentDistribution,
+                proposal,
+                msg.sender,
+                voter,
+                voteParams_[i]
+            );
 
-                unchecked { ++i; }
-            }
+            unchecked { ++i; }
         }
     }
 
@@ -573,24 +572,23 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution memory currentDistribution = _distributions[_currentDistributionId];
 
         // check screening stage is active
-        if (block.number >= currentDistribution.startBlock && block.number <= _getScreeningStageEndBlock(currentDistribution.endBlock)) {
+        if (block.number < currentDistribution.startBlock || block.number > _getScreeningStageEndBlock(currentDistribution.endBlock)) revert InvalidVote();
 
-            uint256 numVotesCast = voteParams_.length;
+        uint256 numVotesCast = voteParams_.length;
 
-            for (uint256 i = 0; i < numVotesCast; ) {
-                Proposal storage proposal = _standardFundingProposals[voteParams_[i].proposalId];
+        for (uint256 i = 0; i < numVotesCast; ) {
+            Proposal storage proposal = _standardFundingProposals[voteParams_[i].proposalId];
 
-                // check that the proposal is part of the current distribution period
-                if (proposal.distributionId != currentDistribution.id) revert InvalidVote();
+            // check that the proposal is part of the current distribution period
+            if (proposal.distributionId != currentDistribution.id) revert InvalidVote();
 
-                uint256 votes = voteParams_[i].votes;
+            uint256 votes = voteParams_[i].votes;
 
-                // cast each successive vote
-                votesCast_ += votes;
-                _screeningVote(msg.sender, proposal, votes);
+            // cast each successive vote
+            votesCast_ += votes;
+            _screeningVote(msg.sender, proposal, votes);
 
-                unchecked { ++i; }
-            }
+            unchecked { ++i; }
         }
     }
 

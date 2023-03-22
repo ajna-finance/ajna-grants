@@ -395,6 +395,11 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // create proposal should revert since a non Ajna token contract target was used
         vm.expectRevert(IFunding.InvalidProposal.selector);
         _grantFund.proposeStandard(targets, values, proposalCalldata, description);
+
+        // create proposal withs no targets should revert
+        targets = new address[](0);
+        vm.expectRevert(IFunding.InvalidProposal.selector);
+        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
     }
 
     function testVotesCast() external {
@@ -710,12 +715,18 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVote(_grantFund, _tokenHolder9, testProposals[4].proposalId, _getScreeningVotes(_grantFund, _tokenHolder9));
         _screeningVote(_grantFund, _tokenHolder10, testProposals[5].proposalId, _getScreeningVotes(_grantFund, _tokenHolder10));
 
+        // check can't cast funding votes in the screening stage
+        assertFundingVoteInvalidVoteRevert(_grantFund, _tokenHolder1, testProposals[0].proposalId, -50_000_000 * 1e18);
+
         /*********************/
         /*** Funding Stage ***/
         /*********************/
 
         // skip time to move from screening period to funding period
         vm.roll(_startBlock + 600_000);
+
+        // check can't cast screening votes in the funding stage
+        assertScreeningVoteInvalidVoteRevert(_grantFund, _tokenHolder11, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder11));
 
         // check topTenProposals array is correct after screening period - only six should have advanced
         GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
@@ -732,6 +743,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(screenedProposals[4].votesReceived, 50_000_000 * 1e18);
         assertEq(screenedProposals[5].proposalId, testProposals[5].proposalId);
         assertEq(screenedProposals[5].votesReceived, 50_000_000 * 1e18);
+
+        // check can't cast funding vote on proposal that didn't make it through the screening stage
+        assertFundingVoteInvalidVoteRevert(_grantFund, _tokenHolder1, testProposals[6].proposalId, 50_000_000 * 1e18);
 
         // funding period votes for two competing slates, 1, or 2 and 3
         _fundingVote(_grantFund, _tokenHolder1, screenedProposals[0].proposalId, voteYes, 50_000_000 * 1e18);
@@ -870,6 +884,11 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         emit FundedSlateUpdated(distributionId, _grantFund.getSlateHash(potentialProposalSlate));
         bool proposalSlateUpdated = _grantFund.updateSlate(potentialProposalSlate, distributionId);
         assertTrue(proposalSlateUpdated);
+
+        // ensure updateSlate will revert if a proposal had negative votes
+        potentialProposalSlate[0] = screenedProposals[5].proposalId;
+        vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
+        _grantFund.updateSlate(potentialProposalSlate, distributionId);
 
         // FIXME: should not update slate if current funding slate is same as potentialProposalSlate 
         // vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);

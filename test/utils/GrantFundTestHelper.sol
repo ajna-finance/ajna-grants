@@ -488,4 +488,14 @@ abstract contract GrantFundTestHelper is Test {
         _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 
+    function assertFundingVoteInvalidVoteRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
+        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
+    }
+
+    function assertScreeningVoteInvalidVoteRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
+        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        _screeningVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
+    }
+
 }
