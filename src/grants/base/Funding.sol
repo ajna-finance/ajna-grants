@@ -2,69 +2,37 @@
 
 pragma solidity 0.8.16;
 
-import { Governor }        from "@oz/governance/Governor.sol";
+import { Address }         from "@oz/utils/Address.sol";
+import { IVotes }          from "@oz/governance/utils/IVotes.sol";
 import { ReentrancyGuard } from "@oz/security/ReentrancyGuard.sol";
 import { SafeCast }        from "@oz/utils/math/SafeCast.sol";
 
-abstract contract Funding is Governor, ReentrancyGuard {
+import { Maths } from "../libraries/Maths.sol";
 
-    /*********************/
-    /*** Custom Errors ***/
-    /*********************/
+import { IFunding } from "../interfaces/IFunding.sol";
 
-    /**
-     * @notice Voter has already voted on a proposal in the screening stage in a quarter.
-     */
-    error AlreadyVoted();
+abstract contract Funding is IFunding, ReentrancyGuard {
 
-    /**
-     * @notice User submitted a proposal with invalid paramteres.
-     * @dev    A proposal is invalid if it has a mismatch in the number of targets, values, or calldatas.
-     * @dev    It is also invalid if it's calldata selector doesn't equal transfer().
-     */
-    error InvalidProposal();
-
-    /**
-     * @notice User attempted to interacted with a method not implemented in the GrantFund.
-     */
-    error MethodNotImplemented();
-
-    /**
-     * @notice User attempted to submit a duplicate proposal.
-     */
-    error ProposalAlreadyExists();
-
-    /**
-     * @notice Provided proposalId isn't present in either funding mechanisms storage mappings.
-     */
-    error ProposalNotFound();
-
-    /***********************/
-    /*** State Variables ***/
-    /***********************/
+    /******************/
+    /*** Immutables ***/
+    /******************/
 
     // address of the ajna token used in grant coordination
-    address public ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
+    address public immutable ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
 
-    /**
-     * @notice Enum listing available proposal types.
-     */
-    enum FundingMechanism {
-        Standard,
-        Extraordinary
-    }
-
-    /**
-     * @notice Mapping checking if a voter has voted on a given proposal.
-     * @dev proposalId => address => bool.
-     */
-    mapping(uint256 => mapping(address => bool)) internal hasVotedExtraordinary;
+    /*****************/
+    /*** Constants ***/
+    /*****************/
 
     /**
      * @notice Number of blocks prior to a given voting stage to check an accounts voting power.
      * @dev    Prevents flashloan attacks or duplicate voting with multiple accounts.
      */
     uint256 internal constant VOTING_POWER_SNAPSHOT_DELAY = 33;
+
+    /***********************/
+    /*** State Variables ***/
+    /***********************/
 
     /**
      * @notice Total funds available for Funding Mechanism
@@ -74,6 +42,55 @@ abstract contract Funding is Governor, ReentrancyGuard {
     /**************************/
     /*** Internal Functions ***/
     /**************************/
+
+     /**
+     * @notice Execute the calldata of a passed proposal.
+     * @param targets_   The list of smart contract targets for the calldata execution. Should be the Ajna token address.
+     * @param values_    Unused. Should be 0 since all calldata is executed on the Ajna token's transfer method.
+     * @param calldatas_ The list of calldatas to execute.
+     */
+    function _execute(
+        uint256 proposalId_,
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory calldatas_
+    ) internal {
+        // use common event name to maintain consistency with tally
+        emit ProposalExecuted(proposalId_);
+
+        string memory errorMessage = "Governor: call reverted without message";
+        for (uint256 i = 0; i < targets_.length; ++i) {
+            (bool success, bytes memory returndata) = targets_[i].call{value: values_[i]}(calldatas_[i]);
+            Address.verifyCallResult(success, returndata, errorMessage);
+        }
+    }
+
+     /**
+     * @notice Retrieve the voting power of an account.
+     * @dev    Voting power is the minimum of the amount of votes available at a snapshot block 33 blocks prior to voting start, and at the vote starting block.
+     * @param account_        The voting account.
+     * @param snapshot_       One of the block numbers to retrieve the voting power at. 33 blocks prior to the block at which a proposal is available for voting.
+     * @param voteStartBlock_ The block number the proposal became available for voting.
+     * @return                The voting power of the account.
+     */
+    function _getVotesAtSnapshotBlocks(
+        address account_,
+        uint256 snapshot_,
+        uint256 voteStartBlock_
+    ) internal view returns (uint256) {
+        IVotes token = IVotes(ajnaTokenAddress);
+
+        // calculate the number of votes available at the snapshot block
+        uint256 votes1 = token.getPastVotes(account_, snapshot_);
+
+        // enable voting weight to be calculated during the voting period's start block
+        voteStartBlock_ = voteStartBlock_ != block.number ? voteStartBlock_ : block.number - 1;
+
+        // calculate the number of votes available at the stage's start block
+        uint256 votes2 = token.getPastVotes(account_, voteStartBlock_);
+
+        return Maths.min(votes2, votes1);
+    }
 
     /**
      * @notice Verifies proposal's targets, values, and calldatas match specifications.
@@ -123,5 +140,23 @@ abstract contract Funding is Governor, ReentrancyGuard {
 
             unchecked { ++i; }
         }
+    }
+
+    /**
+     * @notice Create a proposalId from a hash of proposal's targets, values, and calldatas arrays, and a description hash.
+     * @dev    Consistent with proposalId generation methods used in OpenZeppelin Governor.
+     * @param targets_         The addresses of the contracts to call.
+     * @param values_          The amounts of ETH to send to each target.
+     * @param calldatas_       The calldata to send to each target.
+     * @param descriptionHash_ The hash of the proposal's description string. Generated by keccak256(bytes(description))).
+     * @return proposalId_     The hashed proposalId created from the provided params.
+     */
+    function _hashProposal(
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory calldatas_,
+        bytes32 descriptionHash_
+    ) internal pure returns (uint256 proposalId_) {
+        proposalId_ = uint256(keccak256(abi.encode(targets_, values_, calldatas_, descriptionHash_)));
     }
 }

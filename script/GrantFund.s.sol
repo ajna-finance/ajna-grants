@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import { Script } from "forge-std/Script.sol";
-import "forge-std/console.sol";
+import { Script }  from "forge-std/Script.sol";
+import { console } from "forge-std/console.sol";
 
-import { IVotes }    from "@oz/governance/utils/IVotes.sol";
 import { IERC20 }    from "@oz/token/ERC20/IERC20.sol";
 
 import { GrantFund } from "src/grants/GrantFund.sol";
@@ -19,7 +18,7 @@ contract DeployGrantFund is Script {
 
         vm.startBroadcast();
         uint256 treasury = Maths.wmul(ajna.totalSupply(), TREASURY_PCT_OF_AJNA_SUPPLY);
-        address grantFund = address(new GrantFund(IVotes(address(ajna)), treasury));
+        address grantFund = address(new GrantFund());
         vm.stopBroadcast();
 
         console.log("GrantFund deployed to %s", grantFund);
