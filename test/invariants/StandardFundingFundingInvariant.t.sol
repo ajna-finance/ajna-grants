@@ -9,9 +9,24 @@ import { StandardFundingHandler } from "./handlers/StandardFundingHandler.sol";
 
 contract StandardFundingFundingInvariant is StandardFundingTestBase {
 
-    // TODO: override setup to start with 10 funded proposals
+    // override setup to start tests in the funding stage with already screened proposals
+    function setUp() public override {
+        super.setUp();
 
-    function invariant_FS1_FS2() public {
+        // create 15 proposals
+        _standardFundingHandler.createProposals(15);
+
+        // vote on proposals
+        _standardFundingHandler.screeningVoteProposals();
+
+        // skip time into the funding stage
+        uint24 distributionId = _grantFund.getDistributionId();
+        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        uint256 fundingStageStartBlock = endBlock - 72000;
+        vm.roll(fundingStageStartBlock + 100);
+    }
+
+    function invariant_FS1_FS2() external {
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
 
         // invariant: 10 or less proposals should make it through the screening stage

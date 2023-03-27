@@ -119,9 +119,9 @@ contract StandardFundingHandler is FundingHandler {
         // uint256 votingPower = _grantFund.getVotesWithParams(_actor, block.number, bytes("Screening"));
         uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), _actor);
 
-        // new proposals voted on
+        // track new proposals voted on
         uint256[] memory proposalsVotedOn = new uint256[](proposalsToVoteOn_);
-        // new proposal votes
+        // track new proposal votes cast
         uint256[] memory votes = new uint256[](proposalsToVoteOn_);
 
         // construct vote params
@@ -144,6 +144,7 @@ contract StandardFundingHandler is FundingHandler {
         try _grantFund.screeningVote(screeningVoteParams) {
             // update actor screeningVotes count if vote was successful
             VotingActor storage actor = votingActors[_actor];
+
             for (uint256 i = 0; i < proposalsToVoteOn_; ) {
                 actor.screeningVotes.push(votes[i]);
                 actor.screeningProposalIds.push(proposalsVotedOn[i]);
@@ -174,21 +175,21 @@ contract StandardFundingHandler is FundingHandler {
         vm.roll(block.number + 100);
 
         // check where block is in the distribution period
-        uint24 distributionId = _grantFund.getDistributionId();
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        if (block.number < endBlock - 72000) {
+        // uint24 distributionId = _grantFund.getDistributionId();
+        // (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        // if (block.number < endBlock - 72000) {
 
-            // check if we should activate the funding stage
-            if (systemTime >= 1500) {
-                // skip time into the funding stage
-                uint256 fundingStageStartBlock = endBlock - 72000;
-                vm.roll(fundingStageStartBlock + 100);
-                numberOfCalls['SFH.FundingStage']++;
-            }
-            else {
-                return;
-            }
-        }
+        //     // check if we should activate the funding stage
+        //     if (systemTime >= 1500) {
+        //         // skip time into the funding stage
+        //         uint256 fundingStageStartBlock = endBlock - 72000;
+        //         vm.roll(fundingStageStartBlock + 100);
+        //         numberOfCalls['SFH.FundingStage']++;
+        //     }
+        //     else {
+        //         return;
+        //     }
+        // }
 
         // get actor voting power
         uint256 votingPower = _grantFund.getVotesFunding(_grantFund.getDistributionId(), _actor);
@@ -303,13 +304,19 @@ contract StandardFundingHandler is FundingHandler {
         testProposalParams_ = new TestProposalParams[](numParams_);
 
         // FIXME: these values aren't random
+        uint256 totalTokensRequested = 0;
         for (uint256 i = 0; i < numParams_; ++i) {
             // get distribution info
             uint24 distributionId = _grantFund.getDistributionId();
             (, , , uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+
+            // account for amount that was previously requested
+            uint256 additionalTokensRequested = randomAmount((fundsAvailable * 9 /10) - totalTokensRequested);
+            totalTokensRequested += additionalTokensRequested;
+
             testProposalParams_[i] = TestProposalParams({
                 recipient: randomActor(),
-                tokensRequested: randomAmount(fundsAvailable)
+                tokensRequested: additionalTokensRequested
             });
         }
     }
@@ -332,6 +339,100 @@ contract StandardFundingHandler is FundingHandler {
         }
     }
 
+    function _createProposals(uint256 numProposals_) internal returns (uint256[] memory proposalIds_) {
+        proposalIds_ = new uint256[](numProposals_);
+        for (uint256 i = 0; i < numProposals_; ++i) {
+            proposalIds_[i] = _createProposal();
+        }
+    }
+
+    function _createProposal() internal returns (uint256 proposalId_) {
+        // get a random number between 1 and 5
+        uint256 numProposalParams = constrictToRange(randomSeed(), 1, 5);
+        // uint256 numProposalParams = 3;
+
+        // TODO: increase randomness of number of params
+        // generate list of recipients and tokens requested
+        TestProposalParams[] memory testProposalParams = generateTestProposalParams(numProposalParams);
+
+        // generate proposal params
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory description
+        ) = generateProposalParams(testProposalParams);
+
+        // create proposal
+        proposalId_ = _grantFund.proposeStandard(targets, values, calldatas, description);
+
+        // record new proposal
+        standardFundingProposals.push(proposalId_);
+        standardFundingProposalCount++;
+    }
+
+    function createProposals(uint256 numProposals) external returns (uint256[] memory proposalIds_) {
+        proposalIds_ = _createProposals(numProposals);
+    }
+
+    function screeningVoteProposals() external {
+        for (uint256 i = 0; i < actors.length; ++i) {
+            // get an actor who hasn't already voted
+            address actor = actors[i];
+
+            // actor votes on random number of proposals
+            _screeningVoteProposal(actor);
+        }
+    }
+
+    function _screeningVoteProposal(address actor_) internal {
+        uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), actor_);
+
+        // get random number of proposals to vote on
+        uint256 numProposalsToVoteOn = constrictToRange(randomSeed(), 1, 10);
+
+        // track new proposals voted on
+        uint256[] memory proposalsVotedOn = new uint256[](numProposalsToVoteOn);
+        // track new proposal votes cast
+        uint256[] memory votes = new uint256[](numProposalsToVoteOn);
+
+        uint256 totalVotesUsed = 0;
+
+        // calculate which proposals should be voted upon
+        IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](numProposalsToVoteOn);
+        for (uint256 i = 0; i < numProposalsToVoteOn; ++i) {
+            // get a random proposal
+            uint256 proposalId = randomProposal();
+
+            // account for already used voting power
+            uint256 additionalVotesUsed = randomAmount(votingPower - totalVotesUsed);
+            totalVotesUsed += additionalVotesUsed;
+
+            // track actor state change
+            votes[i] = additionalVotesUsed;
+            proposalsVotedOn[i] = proposalId;
+
+            // generate screening vote params
+            screeningVoteParams[i] = IStandardFunding.ScreeningVoteParams({
+                proposalId: proposalId,
+                votes: votes[i]
+            });
+        }
+
+        // cast votes
+        changePrank(actor_);
+        _grantFund.screeningVote(screeningVoteParams);
+
+        // record cast votes
+        VotingActor storage actor = votingActors[actor_];
+        for (uint256 i = 0; i < numProposalsToVoteOn; ) {
+            actor.screeningVotes.push(votes[i]);
+            actor.screeningProposalIds.push(proposalsVotedOn[i]);
+            screeningVotesCast++;
+
+            ++i;
+        }
+    }
 
     /*****************************/
     /*** SFM Getter Functions ****/

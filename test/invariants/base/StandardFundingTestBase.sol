@@ -13,7 +13,7 @@ contract StandardFundingTestBase is TestBase {
 
     StandardFundingHandler internal _standardFundingHandler;
 
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
 
         // TODO: modify this setup to enable use of random tokens not in treasury
