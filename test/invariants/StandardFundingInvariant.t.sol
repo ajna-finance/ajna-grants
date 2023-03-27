@@ -32,9 +32,9 @@ contract StandardFundingInvariant is TestBase {
         bytes4[] memory selectors = new bytes4[](5);
         selectors[0] = _standardFundingHandler.startNewDistributionPeriod.selector;
         selectors[1] = _standardFundingHandler.proposeStandard.selector;
-        selectors[2] = _standardFundingHandler.screeningVoteMulti.selector;
-        selectors[3] = _standardFundingHandler.fundingVotesMulti.selector;
-        selectors[4] = _standardFundingHandler.checkSlate.selector;
+        selectors[2] = _standardFundingHandler.screeningVote.selector;
+        selectors[3] = _standardFundingHandler.fundingVote.selector;
+        selectors[4] = _standardFundingHandler.updateSlate.selector;
 
         // ensure utility functions are excluded from the invariant runs
         targetSelector(FuzzSelector({
@@ -100,7 +100,7 @@ contract StandardFundingInvariant is TestBase {
         for (uint256 i = 0; i < actorCount; ++i) {
             address actor = _standardFundingHandler.actors(i);
 
-            uint256 votingPower = _grantFund.getVotesWithParams(actor, block.number, bytes("Screening"));
+            uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), actor);
 
             // TODO: expand this assertion
             // invariant SS2: can only vote up to the amount of voting power at the snapshot blocks
@@ -142,28 +142,31 @@ contract StandardFundingInvariant is TestBase {
         console.log("--SFM----------");
         console.log("SFH.startNewDistributionPeriod ",  _standardFundingHandler.numberOfCalls("SFH.startNewDistributionPeriod"));
         console.log("SFH.proposeStandard            ",  _standardFundingHandler.numberOfCalls("SFH.proposeStandard"));
-        console.log("SFH.screeningVoteMulti         ",  _standardFundingHandler.numberOfCalls("SFH.screeningVoteMulti"));
-        console.log("SFH.fundingVotesMulti          ",  _standardFundingHandler.numberOfCalls("SFH.fundingVotesMulti"));
-        console.log("SFH.checkSlate                 ",  _standardFundingHandler.numberOfCalls("SFH.checkSlate"));
+        console.log("SFH.screeningVote         ",  _standardFundingHandler.numberOfCalls("SFH.screeningVote"));
+        console.log("SFH.fundingVote          ",  _standardFundingHandler.numberOfCalls("SFH.fundingVote"));
+        console.log("SFH.updateSlate                 ",  _standardFundingHandler.numberOfCalls("SFH.updateSlate"));
         console.log("------------------");
         console.log(
             "Total Calls:",
             _standardFundingHandler.numberOfCalls("SFH.startNewDistributionPeriod") +
             _standardFundingHandler.numberOfCalls("SFH.proposeStandard") +
-            _standardFundingHandler.numberOfCalls("SFH.screeningVoteMulti") +
-            _standardFundingHandler.numberOfCalls("SFH.fundingVotesMulti") +
-            _standardFundingHandler.numberOfCalls("SFH.checkSlate")
+            _standardFundingHandler.numberOfCalls("SFH.screeningVote") +
+            _standardFundingHandler.numberOfCalls("SFH.fundingVote") +
+            _standardFundingHandler.numberOfCalls("SFH.updateSlate")
         );
         console.log(" ");
         console.log("--Proposal Stats--");
         console.log("Number of Proposals", _standardFundingHandler.standardFundingProposalCount());
         console.log("------------------");
+
+        uint24 distributionId = _grantFund.getDistributionId();
+
         // sum proposal votes of each actor
         for (uint256 i = 0; i < _standardFundingHandler.getActorsCount(); ++i) {
             address actor = _standardFundingHandler.actors(i);
             console.log("Actor: ", actor);
             console.log("Delegate: ", _token.delegates(actor));
-            console.log("Screening Voting Power: ", _grantFund.getVotesWithParams(actor, block.number, bytes("Screening")));
+            console.log("Screening Voting Power: ", _grantFund.getVotesScreening(distributionId, actor));
             console.log("Screening Votes Cast:   ", _standardFundingHandler.sumVoterScreeningVotes(actor));
             console.log("Screening proposals voted for:   ", _standardFundingHandler.numVotingActorScreeningVotes(actor));
 
@@ -174,9 +177,9 @@ contract StandardFundingInvariant is TestBase {
         console.log("------------------");
         console.log("Number of Actors", _standardFundingHandler.getActorsCount());
         console.log("number of funding stage starts       ", _standardFundingHandler.numberOfCalls("SFH.FundingStage"));
-        console.log("number of funding stage success votes", _standardFundingHandler.numberOfCalls("SFH.fundingVotesMulti.success"));
+        console.log("number of funding stage success votes", _standardFundingHandler.numberOfCalls("SFH.fundingVote.success"));
         console.log("distributionId", _grantFund.getDistributionId());
-        console.log("SFH.checkSlate.success", _standardFundingHandler.numberOfCalls("SFH.checkSlate.success"));
+        console.log("SFH.updateSlate.success", _standardFundingHandler.numberOfCalls("SFH.updateSlate.success"));
     }
 
 }

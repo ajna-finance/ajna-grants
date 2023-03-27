@@ -35,12 +35,13 @@ contract TestBase is Test, GrantFundTestHelper {
         _votingToken = IVotes(address(_token));
 
         // deploy growth fund contract
-        _grantFund = new GrantFund(_votingToken, treasury);
+        _grantFund = new GrantFund();
 
         vm.startPrank(_tokenDeployer);
 
         // initial minter distributes treasury to grantFund
-        _token.transfer(address(_grantFund), treasury);
+        _token.approve(address(_grantFund), treasury);
+        _grantFund.fundTreasury(treasury);
 
         // exclude unrelated contracts
         excludeContract(address(_token));

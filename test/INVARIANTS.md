@@ -51,3 +51,8 @@
 - #### Vote Extraordinary:
     - **VE1**: A proposal can only be voted on once.
     - **VE2**: A proposal can only be voted on if the block number is less than or equal to the proposals end block and the MAX_EFM_PROPOSAL_LENGTH of 216_000 blocks.
+
+
+## Grant Fund Invariants:
+   - **GF1**: Unused proposal states should always be 0.
+   - **GF2**: Treasury should always be less than or equal to the contract's token blance.

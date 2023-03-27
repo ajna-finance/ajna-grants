@@ -219,14 +219,16 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
             bytes32 err = keccak256(_err);
             require(
                 err == keccak256(abi.encodeWithSignature("ProposalAlreadyExists()")) ||
-                err == keccak256(abi.encodeWithSignature("ScreeningPeriodEnded()"))
+                err == keccak256(abi.encodeWithSignature("ScreeningPeriodEnded()")) ||
+                err == keccak256(abi.encodeWithSignature("InvalidProposal()"))
             );
         }
 
     }
 
-    function screeningVoteMulti(uint256 actorIndex_, uint128 numberOfVotes_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
-        numberOfCalls['SFH.screeningVoteMulti']++;
+    function screeningVote(uint256 actorIndex_, uint128 numberOfVotes_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
+        numberOfCalls['SFH.screeningVote']++;
+
         systemTime++;
 
         // bind proposalsToVoteOn_ to the number of proposals
@@ -236,7 +238,8 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
         // vm.rollFork(block.number + 100);
 
         // get actor voting power
-        uint256 votingPower = _grantFund.getVotesWithParams(_actor, block.number, bytes("Screening"));
+        // uint256 votingPower = _grantFund.getVotesWithParams(_actor, block.number, bytes("Screening"));
+        uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), _actor);
 
         // new proposals voted on
         uint256[] memory proposalsVotedOn = new uint256[](proposalsToVoteOn_);
@@ -260,7 +263,7 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
             });
         }
 
-        try _grantFund.screeningVoteMulti(screeningVoteParams) {
+        try _grantFund.screeningVote(screeningVoteParams) {
             // update actor screeningVotes count if vote was successful
             VotingActor storage actor = votingActors[_actor];
             for (uint256 i = 0; i < proposalsToVoteOn_; ) {
@@ -283,8 +286,8 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
 
     // TODO: implement time counter incremeneted monotonically per call depth
     // FIXME: need to be able to randomly advance time
-    function fundingVotesMulti(uint256 actorIndex_, uint256 numberOfVotes_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
-        numberOfCalls['SFH.fundingVotesMulti']++;
+    function fundingVote(uint256 actorIndex_, uint256 numberOfVotes_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
+        numberOfCalls['SFH.fundingVote']++;
         systemTime++;
 
         // bind proposalsToVoteOn_ to the number of proposals
@@ -310,7 +313,7 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
         }
 
         // get actor voting power
-        uint256 votingPower = _grantFund.getVotesWithParams(_actor, block.number - 50, bytes("Funding"));
+        uint256 votingPower = _grantFund.getVotesFunding(_grantFund.getDistributionId(), _actor);
 
         // new proposals voted on
         uint256[] memory proposalsVotedOn = new uint256[](proposalsToVoteOn_);
@@ -333,8 +336,8 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
             // revert(Strings.toString(uint256(votes[i])));
         }
 
-        try _grantFund.fundingVotesMulti(fundingVoteParams) returns (uint256 votesCast) {
-            numberOfCalls['SFH.fundingVotesMulti.success']++;
+        try _grantFund.fundingVote(fundingVoteParams) returns (uint256 votesCast) {
+            numberOfCalls['SFH.fundingVote.success']++;
             // update actor funding votes counts
             VotingActor storage actor = votingActors[_actor];
             for (uint256 i = 0; i < proposalsToVoteOn_; ) {
@@ -356,8 +359,8 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
 
     }
 
-    function checkSlate(uint256 actorIndex_, uint256 proposalSeed) external useRandomActor(actorIndex_) {
-        numberOfCalls['SFH.checkSlate']++;
+    function updateSlate(uint256 actorIndex_, uint256 proposalSeed) external useRandomActor(actorIndex_) {
+        numberOfCalls['SFH.updateSlate']++;
         systemTime++;
 
         // check that the distribution period ended
@@ -369,19 +372,13 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
             return;
         }
 
-        numberOfCalls['SFH.checkSlate.success']++;
+        numberOfCalls['SFH.updateSlate.success']++;
 
         uint256 proposalsToCheck = constrictToRange(proposalSeed, 0, standardFundingProposals.length);
 
         // get top ten proposals
         // uint256[] memory topTen = _grantFund.getTopTenProposals();
 
-
-
-    }
-
-    function getVotes(address actor_) external view returns (uint256) {
-        return _grantFund.getVotes(actor_, block.number);
     }
 
     /*****************************/
@@ -429,9 +426,12 @@ contract StandardFundingHandler is Test, GrantFundTestHelper {
 
         // FIXME: these values aren't random
         for (uint256 i = 0; i < numParams_; ++i) {
+            // get distribution info
+            uint24 distributionId = _grantFund.getDistributionId();
+            (, , , uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
             testProposalParams_[i] = TestProposalParams({
                 recipient: randomActor(),
-                tokensRequested: randomAmount(_grantFund.maximumQuarterlyDistribution())
+                tokensRequested: randomAmount(fundsAvailable)
             });
         }
     }

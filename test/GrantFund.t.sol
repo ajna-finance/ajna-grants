@@ -147,9 +147,6 @@ contract GrantFundTest is GrantFundTestHelper {
         // should revert when standard funding proposal created for an amount greater than that in the treasury
         vm.expectRevert(IFunding.InvalidProposal.selector);
         _grantFund.proposeStandard(targets, values, calldatas, description);
-
-        // screening vote should revert invalid vote if proposal was rejected
-        // vm.expectRevert(IStandardFunding.InvalidVote.selector);
     }
 
 }
