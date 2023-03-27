@@ -5,10 +5,10 @@ pragma solidity 0.8.16;
 import { IVotes } from "@oz/governance/utils/IVotes.sol";
 import { Test }   from "@std/Test.sol";
 
-import { IAjnaToken }   from "../utils/IAjnaToken.sol";
-import { GrantFundTestHelper } from "../utils/GrantFundTestHelper.sol";
+import { IAjnaToken }   from "../../utils/IAjnaToken.sol";
+import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
 
-import { GrantFund }        from "../../src/grants/GrantFund.sol";
+import { GrantFund }        from "../../../src/grants/GrantFund.sol";
 
 contract TestBase is Test, GrantFundTestHelper {
     IAjnaToken        internal  _token;

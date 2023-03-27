@@ -6,12 +6,11 @@ import { Test }     from "forge-std/Test.sol";
 import { IVotes }   from "@oz/governance/utils/IVotes.sol";
 import { Strings }  from "@oz/utils/Strings.sol";
 
-import { IAjnaToken }          from "../utils/IAjnaToken.sol";
-// import { InvariantTest}        from "./InvariantTest.sol";
-import { GrantFundTestHelper } from "../utils/GrantFundTestHelper.sol";
+import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
+import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
 
-import { GrantFund } from "../../src/grants/GrantFund.sol";
-import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
+import { GrantFund } from "../../../src/grants/GrantFund.sol";
+import { IStandardFunding } from "../../../src/grants/interfaces/IStandardFunding.sol";
 
 contract FundingHandler is Test, GrantFundTestHelper {
 
@@ -23,11 +22,13 @@ contract FundingHandler is Test, GrantFundTestHelper {
     // test params
     address internal _actor; // currently active actor, used in useRandomActor modifier
     address[] public actors;
-    uint256[] public standardFundingProposals;
     address _tokenDeployer;
 
-    // Logging
+    // logging
     mapping(bytes32 => uint256) public numberOfCalls;
+
+    // randomness counter
+    uint256 internal counter = 1;
 
     constructor(address payable grantFund_, address token_, address tokenDeployer_, uint256 numOfActors_, uint256 tokensToDistribute_) {
         // Ajna Token contract address on mainnet
@@ -70,7 +71,7 @@ contract FundingHandler is Test, GrantFundTestHelper {
             if (tokensToDistribute_ - tokensDistributed == 0) {
                 break;
             }
-            uint256 incrementalTokensDistributed = randomTokenAmount(tokensToDistribute_ - tokensDistributed);
+            uint256 incrementalTokensDistributed = randomAmount(tokensToDistribute_ - tokensDistributed);
             changePrank(_tokenDeployer);
             _token.transfer(actor, incrementalTokensDistributed);
             tokensDistributed += incrementalTokensDistributed;
@@ -98,7 +99,7 @@ contract FundingHandler is Test, GrantFundTestHelper {
         uint256 x,
         uint256 min,
         uint256 max
-    ) public pure returns (uint256 result) {
+    ) internal pure returns (uint256 result) {
         require(max >= min, "MAX_LESS_THAN_MIN");
 
         uint256 size = max - min;
@@ -117,12 +118,12 @@ contract FundingHandler is Test, GrantFundTestHelper {
         if (max == type(uint256).max && x != 0) result++;
     }
 
-    function randomTokenAmount(uint256 maxAmount) public view returns (uint256) {
-        return constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 1, maxAmount);
+    function randomAmount(uint256 maxAmount_) internal returns (uint256) {
+        return constrictToRange(randomSeed(), 1, maxAmount_);
     }
 
-    function randomActor() public view returns (address) {
-        return actors[constrictToRange(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))), 0, actors.length - 1)];
+    function randomActor() internal returns (address) {
+        return actors[constrictToRange(randomSeed(), 0, actors.length - 1)];
     }
 
     function shouldSelfDelegate() internal returns (bool) {
@@ -131,6 +132,11 @@ contract FundingHandler is Test, GrantFundTestHelper {
         vm.roll(block.number + 1);
 
         return number >= 5 ? true : false;
+    }
+
+    function randomSeed() internal returns (uint256) {
+        counter++;
+        return uint256(keccak256(abi.encodePacked(block.number, block.difficulty, counter)));
     }
 
     function getActorsCount() external view returns(uint256) {
