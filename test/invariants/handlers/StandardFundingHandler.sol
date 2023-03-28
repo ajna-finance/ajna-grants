@@ -165,9 +165,9 @@ contract StandardFundingHandler is FundingHandler {
 
         // TODO: implement time counter incremeneted monotonically per call depth
         // check where block is in the distribution period
-        // uint24 distributionId = _grantFund.getDistributionId();
-        // (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        // if (block.number < endBlock - 72000) {
+        uint24 distributionId = _grantFund.getDistributionId();
+        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        if (block.number < endBlock - 72000) {
 
         //     // check if we should activate the funding stage
         //     if (systemTime >= 1500) {
@@ -177,9 +177,9 @@ contract StandardFundingHandler is FundingHandler {
         //         numberOfCalls['SFH.FundingStage']++;
         //     }
         //     else {
-        //         return;
+                return;
         //     }
-        // }
+        }
 
         // get actor voting power
         uint256 votingPower = _grantFund.getVotesFunding(_grantFund.getDistributionId(), _actor);
@@ -244,6 +244,12 @@ contract StandardFundingHandler is FundingHandler {
         // uint256[] memory topTen = _grantFund.getTopTenProposals();
 
         // get random slate of proposals
+
+    }
+
+    function executeStandard(uint256 actorIndex_) external useRandomActor(actorIndex_) {
+        numberOfCalls['SFH.executeStandard']++;
+        systemTime++;
 
     }
 

@@ -11,6 +11,23 @@ import { StandardFundingHandler } from "./handlers/StandardFundingHandler.sol";
 
 contract StandardFundingScreeningInvariant is StandardFundingTestBase {
 
+    function setUp() public override {
+        super.setUp();
+
+        // set the list of function selectors to run
+        bytes4[] memory selectors = new bytes4[](3);
+        selectors[0] = _standardFundingHandler.startNewDistributionPeriod.selector;
+        selectors[1] = _standardFundingHandler.proposeStandard.selector;
+        selectors[2] = _standardFundingHandler.screeningVote.selector;
+
+        // ensure utility functions are excluded from the invariant runs
+        targetSelector(FuzzSelector({
+            addr: address(_standardFundingHandler),
+            selectors: selectors
+        }));
+
+    }
+
     function invariant_SS1_SS3_SS4_SS5() public {
         uint256 actorCount = _standardFundingHandler.getActorsCount();
 
@@ -82,9 +99,9 @@ contract StandardFundingScreeningInvariant is StandardFundingTestBase {
         console.log("--SFM----------");
         console.log("SFH.startNewDistributionPeriod ",  _standardFundingHandler.numberOfCalls("SFH.startNewDistributionPeriod"));
         console.log("SFH.proposeStandard            ",  _standardFundingHandler.numberOfCalls("SFH.proposeStandard"));
-        console.log("SFH.screeningVote         ",  _standardFundingHandler.numberOfCalls("SFH.screeningVote"));
-        console.log("SFH.fundingVote          ",  _standardFundingHandler.numberOfCalls("SFH.fundingVote"));
-        console.log("SFH.updateSlate                 ",  _standardFundingHandler.numberOfCalls("SFH.updateSlate"));
+        console.log("SFH.screeningVote              ",  _standardFundingHandler.numberOfCalls("SFH.screeningVote"));
+        console.log("SFH.fundingVote                ",  _standardFundingHandler.numberOfCalls("SFH.fundingVote"));
+        console.log("SFH.updateSlate                ",  _standardFundingHandler.numberOfCalls("SFH.updateSlate"));
         console.log("------------------");
         console.log(
             "Total Calls:",

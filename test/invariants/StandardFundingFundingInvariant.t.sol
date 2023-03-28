@@ -26,6 +26,17 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
         uint256 fundingStageStartBlock = endBlock - 72000;
         vm.roll(fundingStageStartBlock + 100);
+
+        // set the list of function selectors to run
+        bytes4[] memory selectors = new bytes4[](2);
+        selectors[0] = _standardFundingHandler.fundingVote.selector;
+        selectors[1] = _standardFundingHandler.updateSlate.selector;
+
+        // ensure utility functions are excluded from the invariant runs
+        targetSelector(FuzzSelector({
+            addr: address(_standardFundingHandler),
+            selectors: selectors
+        }));
     }
 
     function invariant_FS1_FS2() external {
@@ -58,13 +69,12 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
             // get the voting info of the actor
             (IStandardFunding.FundingVoteParams[] memory fundingVoteParams, ) = _standardFundingHandler.getVotingActorsInfo(actor);
 
-            // check each proposal that was voted on's funding votes received
-
             uint256 sumOfSquares = _standardFundingHandler.sumSquareOfVotesCast(fundingVoteParams);
 
             // invariant FS3: sum of square of votes cast <= voting power of actor
             assertLt(sumOfSquares, votingPower);
 
+            // TODO: check each proposal that was voted on's funding votes received
 
         }
 
@@ -75,9 +85,9 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
         console.log("--SFM----------");
         console.log("SFH.startNewDistributionPeriod ",  _standardFundingHandler.numberOfCalls("SFH.startNewDistributionPeriod"));
         console.log("SFH.proposeStandard            ",  _standardFundingHandler.numberOfCalls("SFH.proposeStandard"));
-        console.log("SFH.screeningVote         ",  _standardFundingHandler.numberOfCalls("SFH.screeningVote"));
-        console.log("SFH.fundingVote          ",  _standardFundingHandler.numberOfCalls("SFH.fundingVote"));
-        console.log("SFH.updateSlate                 ",  _standardFundingHandler.numberOfCalls("SFH.updateSlate"));
+        console.log("SFH.screeningVote              ",  _standardFundingHandler.numberOfCalls("SFH.screeningVote"));
+        console.log("SFH.fundingVote                ",  _standardFundingHandler.numberOfCalls("SFH.fundingVote"));
+        console.log("SFH.updateSlate                ",  _standardFundingHandler.numberOfCalls("SFH.updateSlate"));
         console.log("------------------");
         console.log(
             "Total Calls:",

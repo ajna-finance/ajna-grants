@@ -28,20 +28,6 @@ contract StandardFundingTestBase is TestBase {
             tokensNotInTreasury
         );
 
-        // get the list of function selectors to run
-        bytes4[] memory selectors = new bytes4[](5);
-        selectors[0] = _standardFundingHandler.startNewDistributionPeriod.selector;
-        selectors[1] = _standardFundingHandler.proposeStandard.selector;
-        selectors[2] = _standardFundingHandler.screeningVote.selector;
-        selectors[3] = _standardFundingHandler.fundingVote.selector;
-        selectors[4] = _standardFundingHandler.updateSlate.selector;
-
-        // ensure utility functions are excluded from the invariant runs
-        targetSelector(FuzzSelector({
-            addr: address(_standardFundingHandler),
-            selectors: selectors
-        }));
-
         // explicitly target handler
         targetContract(address(_standardFundingHandler));
 
