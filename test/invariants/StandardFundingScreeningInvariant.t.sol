@@ -4,6 +4,8 @@ pragma solidity 0.8.16;
 
 import { console } from "@std/console.sol";
 
+import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
+
 import { StandardFundingTestBase } from "./base/StandardFundingTestBase.sol";
 import { StandardFundingHandler } from "./handlers/StandardFundingHandler.sol";
 
@@ -63,15 +65,14 @@ contract StandardFundingScreeningInvariant is StandardFundingTestBase {
             // invariant SS2: can only vote up to the amount of voting power at the snapshot blocks
             assertTrue(_standardFundingHandler.sumVoterScreeningVotes(actor) <= votingPower);
 
-            uint256[] memory votingActorScreeningVotes = _standardFundingHandler.votingActorScreeningVotes(actor);
-            uint256[] memory votingActorScreeningProposalIds = _standardFundingHandler.votingActorScreeningProposalIds(actor);
+            ( , IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams) = _standardFundingHandler.getVotingActorsInfo(actor);
 
-            for (uint256 j = 0; j < votingActorScreeningVotes.length; ++j) {
-                // invariant can only cast positive votes
-                assertTrue(votingActorScreeningVotes[j] > 0);
+            for (uint256 j = 0; j < screeningVoteParams.length; ++j) {
+                // invariant: can only cast positive votes
+                assertTrue(screeningVoteParams[j].votes > 0);
 
                 // check voter only votes upon proposals that they have submitted
-                assertTrue(_findProposalIndex(votingActorScreeningProposalIds[j], _standardFundingHandler.getStandardFundingProposals()) != -1);
+                assertTrue(_findProposalIndex(screeningVoteParams[j].proposalId, _standardFundingHandler.getStandardFundingProposals()) != -1);
             }
         }
     }
@@ -103,11 +104,17 @@ contract StandardFundingScreeningInvariant is StandardFundingTestBase {
         // sum proposal votes of each actor
         for (uint256 i = 0; i < _standardFundingHandler.getActorsCount(); ++i) {
             address actor = _standardFundingHandler.actors(i);
+            // get actor info
+            (
+                IStandardFunding.FundingVoteParams[] memory fundingVoteParams,
+                IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams
+            ) = _standardFundingHandler.getVotingActorsInfo(actor);
+
             console.log("Actor: ", actor);
             console.log("Delegate: ", _token.delegates(actor));
             console.log("Screening Voting Power: ", _grantFund.getVotesScreening(distributionId, actor));
             console.log("Screening Votes Cast:   ", _standardFundingHandler.sumVoterScreeningVotes(actor));
-            console.log("Screening proposals voted for:   ", _standardFundingHandler.numVotingActorScreeningVotes(actor));
+            console.log("Screening proposals voted for:   ", screeningVoteParams.length);
             console.log("------------------");
         }
     }
