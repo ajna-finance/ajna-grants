@@ -82,12 +82,10 @@ interface IExtraordinaryFunding {
      * @notice Vote on a proposal for extraordinary funding.
      * @dev    Votes can only be cast affirmatively, or not cast at all.
      * @dev    A proposal can only be voted upon once, with the entirety of a voter's voting power.
-     * @param  account_    The voting account.
      * @param  proposalId_ The ID of the proposal being voted upon.
      * @return votesCast_  The amount of votes cast.
      */
     function voteExtraordinary(
-        address account_,
         uint256 proposalId_
     ) external returns (uint256 votesCast_);
 
