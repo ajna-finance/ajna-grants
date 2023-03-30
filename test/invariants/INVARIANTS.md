@@ -18,6 +18,8 @@
     - **FS1**: Only 10 proposals can be voted on in the funding stage
     - **FS2**: Votes can only be cast on a proposal in it's distribution period's funding stage.
     - **FS3**: Sum of square of votes cast by a given actor are less than or equal to the actor's Ajna delegated balance, squared.
+    - **FS4**: All voter funding votes on a proposal should be cast in the same direction.
+    - **FS5**: Proposals not in the top ten proposals should have fundingVotesReceived = 0.
 
 - #### Challenge Stage:
     - **CS1**: Funded proposal slate's cumulative tokens requested should be less than or equal to 90% of the GBC.

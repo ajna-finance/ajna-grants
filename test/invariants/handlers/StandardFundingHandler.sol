@@ -105,7 +105,7 @@ contract StandardFundingHandler is FundingHandler {
 
     }
 
-    function screeningVote(uint256 actorIndex_, uint128 numberOfVotes_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
+    function screeningVote(uint256 actorIndex_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
         numberOfCalls['SFH.screeningVote']++;
 
         systemTime++;
@@ -154,7 +154,7 @@ contract StandardFundingHandler is FundingHandler {
         }
     }
 
-    function fundingVote(uint256 actorIndex_, uint256 numberOfVotes_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
+    function fundingVote(uint256 actorIndex_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
         numberOfCalls['SFH.fundingVote']++;
         systemTime++;
 
@@ -184,35 +184,67 @@ contract StandardFundingHandler is FundingHandler {
         // get actor voting power
         uint256 votingPower = _grantFund.getVotesFunding(_grantFund.getDistributionId(), _actor);
 
-        // TODO: record FundingVoteParams and ScreeningVoteParams in VotingActor
+        // Take the square root of the voting power to determine how many votes are actually available for casting
+        uint256 availableVotes = _grantFund.getFundingPowerVotes(votingPower);
+
         // construct vote params
         IStandardFunding.FundingVoteParams[] memory fundingVoteParams = new IStandardFunding.FundingVoteParams[](proposalsToVoteOn_);
-        for (uint256 i = 0; i < proposalsToVoteOn_; i++) {
+        for (uint256 i = 0; i < proposalsToVoteOn_; ) {
             // TODO: replace proposalId with retrieval from top ten list?
             uint256 proposalId = randomProposal();
-            // TODO: figure out how to best generate negative votes to cast
 
-            // TODO: account for past votes cast
+            // TODO: account for past votes cast in determining votes to use
+            int256 votesToCast = int256(constrictToRange(randomSeed(), 0, availableVotes));
+
+            // flip a coin to see if should instead use a negative vote
+            if (randomSeed() % 2 == 0) {
+                numberOfCalls['SFH.negativeFundingVote']++;
+                // generate negative vote
+                fundingVoteParams[i] = IStandardFunding.FundingVoteParams({
+                    proposalId: proposalId,
+                    votesUsed: -1 * votesToCast
+                });
+                ++i;
+                continue;
+            }
 
             fundingVoteParams[i] = IStandardFunding.FundingVoteParams({
                 proposalId: proposalId,
-                votesUsed: int256(constrictToRange(randomSeed(), 0, votingPower))
+                votesUsed: votesToCast
             });
-            // revert(Strings.toString(uint256(votes[i])));
+
+            ++i;
         }
 
         try _grantFund.fundingVote(fundingVoteParams) returns (uint256 votesCast) {
             numberOfCalls['SFH.fundingVote.success']++;
+
+            // assertGt(votesCast, 0);
+
+            // TODO: account for possibly being negative
+            // check votesCast is equal to the sum of votes cast
+            assertEq(votesCast, SafeCast.toUint256(sumVoterFundingVotes(_actor, fundingVoteParams)));
+
             // update actor funding votes counts
+            // TODO: find and replace previous vote record for that proposlId, in that distributonId
             VotingActor storage actor = votingActors[_actor];
             for (uint256 i = 0; i < proposalsToVoteOn_; ) {
-                actor.fundingVotes.push(fundingVoteParams[i]);
+
+                // update existing proposal voting record as opposed to a new entry in the list
+                int256 voteCastIndex = _findProposalIndexOfVotesCast(fundingVoteParams[i].proposalId, actor.fundingVotes);
+                // voter had already cast a funding vote on this proposal
+                if (voteCastIndex != -1) {
+                    actor.fundingVotes[uint256(voteCastIndex)].votesUsed += fundingVoteParams[i].votesUsed;
+                }
+                else {
+                    actor.fundingVotes.push(fundingVoteParams[i]);
+                }
 
                 ++i;
             }
-            // assertEq(votesCast, proposalsToVoteOn_);
         }
         catch (bytes memory _err){
+            // TODO: replace with _recordError()
             bytes32 err = keccak256(_err);
             require(
                 err == keccak256(abi.encodeWithSignature("InvalidVote()")) ||
@@ -220,7 +252,6 @@ contract StandardFundingHandler is FundingHandler {
                 err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()"))
             );
         }
-
     }
 
     function updateSlate(uint256 actorIndex_, uint256 proposalSeed) external useRandomActor(actorIndex_) {
@@ -238,12 +269,17 @@ contract StandardFundingHandler is FundingHandler {
 
         numberOfCalls['SFH.updateSlate.success']++;
 
-        uint256 proposalsToCheck = constrictToRange(proposalSeed, 0, standardFundingProposals.length);
+        uint256 potentialSlateLength = constrictToRange(proposalSeed, 0, standardFundingProposals.length);
+
+        uint24 distributionId = _grantFund.getDistributionId();
 
         // get top ten proposals
-        // uint256[] memory topTen = _grantFund.getTopTenProposals();
+        uint256[] memory topTen = _grantFund.getTopTenProposals(distributionId);
 
         // get random slate of proposals
+        for (uint i = 0; i < potentialSlateLength; ++i) {
+
+        }
 
     }
 
@@ -368,6 +404,25 @@ contract StandardFundingHandler is FundingHandler {
         proposalIds_ = _createProposals(numProposals);
     }
 
+    function _findProposalIndexOfVotesCast(
+        uint256 proposalId_,
+        IStandardFunding.FundingVoteParams[] memory voteParams_
+    ) internal pure returns (int256 index_) {
+        index_ = -1; // default value indicating proposalId not in the array
+
+        // since we are converting from uint256 to int256, we can safely assume that the value will not overflow
+        int256 numVotesCast = int256(voteParams_.length);
+        for (int256 i = 0; i < numVotesCast; ) {
+            //slither-disable-next-line incorrect-equality
+            if (voteParams_[uint256(i)].proposalId == proposalId_) {
+                index_ = i;
+                break;
+            }
+
+            unchecked { ++i; }
+        }
+    }
+
     function screeningVoteProposals() external {
         for (uint256 i = 0; i < actors.length; ++i) {
             // get an actor who hasn't already voted
@@ -418,6 +473,42 @@ contract StandardFundingHandler is FundingHandler {
         }
     }
 
+    // TODO: add support for handling input strings and number of calls
+    function _recordError(bytes memory err_) internal {
+        bytes32 err = keccak256(err_);
+        if (err == keccak256(abi.encodeWithSignature("InvalidVote()"))) {
+            numberOfCalls['SFH.fv.e.InvalidVote']++;
+        }
+        else if (err == keccak256(abi.encodeWithSignature("InsufficientVotingPower()"))) {
+            numberOfCalls['SFH.fv.e.InsufficientVotingPower']++;
+        }
+        else if (err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()"))) {
+            numberOfCalls['SFH.fv.e.FVWD']++;
+        }
+        else {
+            numberOfCalls['SFH.fv.e.unknown']++;
+            revert("unknown error");
+        }
+    }
+
+    function hasDuplicates(
+        uint256[] calldata proposalIds_
+    ) public pure returns (bool) {
+        uint256 numProposals = proposalIds_.length;
+
+        for (uint i = 0; i < numProposals; ) {
+            for (uint j = i + 1; j < numProposals; ) {
+                if (proposalIds_[i] == proposalIds_[j]) return true;
+
+                unchecked { ++j; }
+            }
+
+            unchecked { ++i; }
+
+        }
+        return false;
+    }
+
     function sumSquareOfVotesCast(
         IStandardFunding.FundingVoteParams[] memory votesCast_
     ) public pure returns (uint256 votesCastSumSquared_) {
@@ -456,11 +547,19 @@ contract StandardFundingHandler is FundingHandler {
         }
     }
 
-    function sumVoterFundingVotes(address actor_) public view returns (int256 sum_) {
-        for (uint256 i = 0; i < votingActors[actor_].fundingVotes.length; ++i) {
-            sum_ += votingActors[actor_].fundingVotes[i].votesUsed;
+    function sumVoterFundingVotes(address actor_, IStandardFunding.FundingVoteParams[] memory fundingVotes_) public pure returns (int256 sum_) {
+        for (uint256 i = 0; i < fundingVotes_.length; ++i) {
+            // sum_ += fundingVotes_[i].votesUsed;
+            sum_ += Maths.abs(fundingVotes_[i].votesUsed);
         }
-        console.log(uint256(sum_));
+    }
+
+    function countNegativeFundingVotes(address actor_, IStandardFunding.FundingVoteParams[] memory fundingVotes_) public pure returns (uint256 count_) {
+        for (uint256 i = 0; i < fundingVotes_.length; ++i) {
+            if (fundingVotes_[i].votesUsed < 0) {
+                count_++;
+            }
+        }
     }
 
 }

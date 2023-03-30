@@ -29,8 +29,6 @@ contract StandardFundingScreeningInvariant is StandardFundingTestBase {
     }
 
     function invariant_SS1_SS3_SS4_SS5() public {
-        uint256 actorCount = _standardFundingHandler.getActorsCount();
-
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
 
         // invariant: 10 or less proposals should make it through the screening stage
@@ -121,13 +119,14 @@ contract StandardFundingScreeningInvariant is StandardFundingTestBase {
         // sum proposal votes of each actor
         for (uint256 i = 0; i < _standardFundingHandler.getActorsCount(); ++i) {
             address actor = _standardFundingHandler.actors(i);
+            console.log("Actor: ", actor);
+
             // get actor info
             (
-                IStandardFunding.FundingVoteParams[] memory fundingVoteParams,
+                ,
                 IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams
             ) = _standardFundingHandler.getVotingActorsInfo(actor);
 
-            console.log("Actor: ", actor);
             console.log("Delegate: ", _token.delegates(actor));
             console.log("Screening Voting Power: ", _grantFund.getVotesScreening(distributionId, actor));
             console.log("Screening Votes Cast:   ", _standardFundingHandler.sumVoterScreeningVotes(actor));

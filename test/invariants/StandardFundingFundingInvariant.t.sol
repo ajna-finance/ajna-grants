@@ -3,6 +3,7 @@
 pragma solidity 0.8.16;
 
 import { console } from "@std/console.sol";
+import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
 import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
 
@@ -11,6 +12,7 @@ import { StandardFundingHandler } from "./handlers/StandardFundingHandler.sol";
 
 contract StandardFundingFundingInvariant is StandardFundingTestBase {
 
+    // TODO: override the number of voting actors
     // override setup to start tests in the funding stage with already screened proposals
     function setUp() public override {
         super.setUp();
@@ -59,22 +61,34 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
     }
 
     function invariant_FS3() external {
-
         for (uint256 i = 0; i < _standardFundingHandler.getActorsCount(); ++i) {
             address actor = _standardFundingHandler.actors(i);
 
-            // get the funding stage voting power of the actor
-            uint256 votingPower = _grantFund.getVotesFunding(_grantFund.getDistributionId(), actor);
+            uint24 distributionId = _grantFund.getDistributionId();
+
+            // get the initial funding stage voting power of the actor
+            (uint128 votingPower, uint128 remainingVotingPower, uint256 numberOfProposalsVotedOn) = _grantFund.getVoterInfo(distributionId, actor);
 
             // get the voting info of the actor
             (IStandardFunding.FundingVoteParams[] memory fundingVoteParams, ) = _standardFundingHandler.getVotingActorsInfo(actor);
 
-            uint256 sumOfSquares = _standardFundingHandler.sumSquareOfVotesCast(fundingVoteParams);
+            uint128 sumOfSquares = SafeCast.toUint128(_standardFundingHandler.sumSquareOfVotesCast(fundingVoteParams));
+
+            // check voter votes cast are less than or equal to the sqrt of the voting power of the actor
+            IStandardFunding.FundingVoteParams[] memory fundingVotesCast = _grantFund.getFundingVotesCast(distributionId, actor);
 
             // invariant FS3: sum of square of votes cast <= voting power of actor
-            assertLt(sumOfSquares, votingPower);
+            // assertLt(sumOfSquares, votingPower);
+            console.log("sumOfSquares: ", sumOfSquares);
+            console.log("votingPower:  ", votingPower);
+            assertTrue(sumOfSquares <= votingPower);
 
-            // TODO: check each proposal that was voted on's funding votes received
+            if (votingPower != 0 && remainingVotingPower == 0) {
+                assertTrue(numberOfProposalsVotedOn == fundingVotesCast.length);
+                assertTrue(numberOfProposalsVotedOn > 0);
+            }
+
+            // TODO: check getFundingPowerVotes to see if remaining voting power matches expectations
 
         }
 
@@ -108,28 +122,24 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
         for (uint256 i = 0; i < _standardFundingHandler.getActorsCount(); ++i) {
             address actor = _standardFundingHandler.actors(i);
             console.log("Actor: ", actor);
+            console.log("Delegate: ", _token.delegates(actor));
 
             // get actor info
             (
                 IStandardFunding.FundingVoteParams[] memory fundingVoteParams,
-                IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams
             ) = _standardFundingHandler.getVotingActorsInfo(actor);
-
-            console.log("Delegate: ", _token.delegates(actor));
-            console.log("Screening Voting Power: ", _grantFund.getVotesScreening(distributionId, actor));
-            console.log("Screening Votes Cast:   ", _standardFundingHandler.sumVoterScreeningVotes(actor));
-            console.log("Screening proposals voted for:   ", screeningVoteParams.length);
 
             console.log("Funding proposals voted for:     ", fundingVoteParams.length);
             console.log("Sum of squares of fvc:           ", _standardFundingHandler.sumSquareOfVotesCast(fundingVoteParams));
-            console.log("Funding Votes Cast:              ", uint256(_standardFundingHandler.sumVoterFundingVotes(actor)));
+            console.log("Funding Votes Cast:              ", uint256(_standardFundingHandler.sumVoterFundingVotes(actor, fundingVoteParams)));
+            console.log("Negative Funding Votes Cast:     ", _standardFundingHandler.countNegativeFundingVotes(actor, fundingVoteParams));
             console.log("------------------");
         }
         console.log("------------------");
         console.log("Number of Actors", _standardFundingHandler.getActorsCount());
         console.log("number of funding stage starts       ", _standardFundingHandler.numberOfCalls("SFH.FundingStage"));
         console.log("number of funding stage success votes", _standardFundingHandler.numberOfCalls("SFH.fundingVote.success"));
-        console.log("distributionId", _grantFund.getDistributionId());
+        console.log("distributionId", distributionId);
         console.log("SFH.updateSlate.success", _standardFundingHandler.numberOfCalls("SFH.updateSlate.success"));
     }
 
