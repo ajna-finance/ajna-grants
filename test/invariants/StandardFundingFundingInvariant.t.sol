@@ -41,7 +41,7 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
         }));
     }
 
-    function invariant_FS1_FS2() external {
+    function invariant_FS1_FS2_FS3() external {
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
 
         // invariant: 10 or less proposals should make it through the screening stage
@@ -52,6 +52,8 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
         for (uint256 j = 0; j < _standardFundingHandler.standardFundingProposalCount(); ++j) {
             uint256 proposalId = _standardFundingHandler.standardFundingProposals(j);
             (, uint24 distributionId, , , int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(proposalId);
+
+            // invariant FS5: proposals not in the top ten should not be able to recieve funding votes
             if (_findProposalIndex(proposalId, topTenProposals) == -1) {
                 assertEq(fundingVotesReceived, 0);
             }
@@ -60,7 +62,7 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
         }
     }
 
-    function invariant_FS3() external {
+    function invariant_FS4() external {
         for (uint256 i = 0; i < _standardFundingHandler.getActorsCount(); ++i) {
             address actor = _standardFundingHandler.actors(i);
 
@@ -78,9 +80,6 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
             IStandardFunding.FundingVoteParams[] memory fundingVotesCast = _grantFund.getFundingVotesCast(distributionId, actor);
 
             // invariant FS3: sum of square of votes cast <= voting power of actor
-            // assertLt(sumOfSquares, votingPower);
-            console.log("sumOfSquares: ", sumOfSquares);
-            console.log("votingPower:  ", votingPower);
             assertTrue(sumOfSquares <= votingPower);
 
             if (votingPower != 0 && remainingVotingPower == 0) {
@@ -89,7 +88,7 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
             }
 
             // TODO: check getFundingPowerVotes to see if remaining voting power matches expectations
-
+            // assertEq(_grantFund.getFundingPowerVotes(uint256(votingPower - remainingVotingPower)), uint256(_standardFundingHandler.sumVoterFundingVotes(actor, fundingVoteParams)));
         }
 
     }

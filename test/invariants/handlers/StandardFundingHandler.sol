@@ -30,13 +30,19 @@ contract StandardFundingHandler is FundingHandler {
     // time counter
     uint256 private systemTime = 0;
 
-    // record the votes of actors over time
-    mapping(address => VotingActor) votingActors;
-
     struct VotingActor {
         IStandardFunding.FundingVoteParams[] fundingVotes;
         IStandardFunding.ScreeningVoteParams[] screeningVotes;
     }
+
+    struct DistributionState {
+        uint24 distributionId;
+        bytes32 currentTopSlate;
+    }
+
+    mapping(uint24 => DistributionState) public distributionStates;
+    mapping(bytes32 => uint256[]) public proposalsInTopSlate;
+    mapping(address => VotingActor) internal votingActors; // record the votes of actors over time
 
     constructor(
         address payable grantFund_,
@@ -267,20 +273,42 @@ contract StandardFundingHandler is FundingHandler {
             return;
         }
 
-        numberOfCalls['SFH.updateSlate.success']++;
-
-        uint256 potentialSlateLength = constrictToRange(proposalSeed, 0, standardFundingProposals.length);
-
+        uint256 potentialSlateLength = constrictToRange(proposalSeed, 0, 10);
         uint24 distributionId = _grantFund.getDistributionId();
 
         // get top ten proposals
         uint256[] memory topTen = _grantFund.getTopTenProposals(distributionId);
+        // construct potential slate of proposals
+        uint256[] memory potentialSlate = new uint256[](potentialSlateLength);
 
-        // get random slate of proposals
+        // get random potentialSlate of proposals
         for (uint i = 0; i < potentialSlateLength; ++i) {
-
+            potentialSlate[i] = topTen[randomSeed() % 10];
         }
 
+        try _grantFund.updateSlate(potentialSlate, distributionId) returns (bool newTopSlate) {
+            numberOfCalls['SFH.updateSlate.called']++;
+            if (newTopSlate) {
+                numberOfCalls['SFH.updateSlate.success']++;
+
+                // update distribution state
+                DistributionState storage distribution = distributionStates[distributionId];
+                distribution.distributionId = distributionId;
+                distribution.currentTopSlate = keccak256(abi.encode(potentialSlate));
+
+                // update list of proposals in top slate
+                for (uint i = 0; i < potentialSlateLength; ++i) {
+                    proposalsInTopSlate[distribution.currentTopSlate].push(potentialSlate[i]);
+                }
+            }
+        }
+        catch (bytes memory _err){
+            // TODO: replace with _recordError()
+            bytes32 err = keccak256(_err);
+            require(
+                err == keccak256(abi.encodeWithSignature("InvalidProposalSlate()"))
+            );
+        }
     }
 
     function executeStandard(uint256 actorIndex_) external useRandomActor(actorIndex_) {
@@ -549,7 +577,6 @@ contract StandardFundingHandler is FundingHandler {
 
     function sumVoterFundingVotes(address actor_, IStandardFunding.FundingVoteParams[] memory fundingVotes_) public pure returns (int256 sum_) {
         for (uint256 i = 0; i < fundingVotes_.length; ++i) {
-            // sum_ += fundingVotes_[i].votesUsed;
             sum_ += Maths.abs(fundingVotes_[i].votesUsed);
         }
     }

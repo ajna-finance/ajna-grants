@@ -5,6 +5,7 @@
 - #### Distribution Period:
     - **DP1**: Only one distribution period should be active at a time
     - **DP2**: Each winning proposal successfully claims no more that what was finalized in the challenge stage
+    - **DP3**: A distribution's fundsAvailable should be equal to 2% of the treasurie's balance at the block startNewDistributionPeriod is called.
 
 - #### Screening Stage:
     - **SS1**: Only 10 proposals can advance to the funding stage
@@ -16,16 +17,18 @@
 
 - #### Funding Stage:
     - **FS1**: Only 10 proposals can be voted on in the funding stage
-    - **FS2**: Votes can only be cast on a proposal in it's distribution period's funding stage.
-    - **FS3**: Sum of square of votes cast by a given actor are less than or equal to the actor's Ajna delegated balance, squared.
-    - **FS4**: All voter funding votes on a proposal should be cast in the same direction.
-    - **FS5**: Proposals not in the top ten proposals should have fundingVotesReceived = 0.
+    - **FS2**: Proposals not in the top ten proposals should have fundingVotesReceived = 0.
+    - **FS3**: Votes can only be cast on a proposal in it's distribution period's funding stage.
+    - **FS4**: Sum of square of votes cast by a given actor are less than or equal to the actor's Ajna delegated balance, squared.
+    - **FS5**: Sum of voter's votesCast should be equal to the square root of the voting power expended (FS4 restated, but added to test intermediate state as well as final).
+    - **FS6**: All voter funding votes on a proposal should be cast in the same direction.
 
 - #### Challenge Stage:
     - **CS1**: Funded proposal slate's cumulative tokens requested should be less than or equal to 90% of the GBC.
-    - **CS2**: Funded proposal slate should be never contain a proposal with negative votes. (Q: is this actually enforced in the code??)
+    - **CS2**: Funded proposal slate should be never contain a proposal with negative funding votes.
     - **CS3**: Funded proposal slate should contain less than or equal to 10 proposals.
-    - **CS3'**: Funded proposals are all a subset of the ones voted on in funding stage
+    - **CS4**: Funded proposals are all a subset of the ones voted on in funding stage.
+    - **CS5**: Funded proposal slate's can only be updated during a distribution period's challenge stage.
 
 - #### Execute Standard:
     - **ES1**: A proposal can only be executed once.
@@ -58,3 +61,4 @@
 ## Grant Fund Invariants:
    - **GF1**: Unused proposal states should always be 0.
    - **GF2**: Treasury should always be less than or equal to the contract's token blance.
+   - TODO: add invariants around treasury balance post updates and with partial slate executions
