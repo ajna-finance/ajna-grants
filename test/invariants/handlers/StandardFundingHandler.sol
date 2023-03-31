@@ -472,6 +472,8 @@ contract StandardFundingHandler is FundingHandler {
 
                 bool votedPrior = false;
 
+                // FIXME: check prior votes as well as pending votes.
+                    // this may not be possible as we don't yet know what the pending votes will be...
                 // check for any previous votes on this proposal
                 IStandardFunding.FundingVoteParams[] memory priorVotes = votingActors[actor_].fundingVotes;
                 for (uint256 j = 0; j < priorVotes.length; ++j) {
@@ -483,6 +485,8 @@ contract StandardFundingHandler is FundingHandler {
                         break;
                     }
                 }
+
+                console.log("voted prior: ", votedPrior);
 
                 if (!votedPrior) {
                     votingPowerUsed += Maths.wpow(uint256(Maths.abs(votesToCast)), 2);
@@ -646,6 +650,35 @@ contract StandardFundingHandler is FundingHandler {
             votingActors[actor_].screeningVotes
         );
     }
+
+    function logCallSummary() external view {
+        console.log("\nCall Summary\n");
+        console.log("--SFM----------");
+        console.log("SFH.startNewDistributionPeriod ",  numberOfCalls["SFH.startNewDistributionPeriod"]);
+        console.log("SFH.proposeStandard            ",  numberOfCalls["SFH.proposeStandard"]);
+        console.log("SFH.screeningVote              ",  numberOfCalls["SFH.screeningVote"]);
+        console.log("SFH.fundingVote                ",  numberOfCalls["SFH.fundingVote"]);
+        console.log("SFH.updateSlate                ",  numberOfCalls["SFH.updateSlate"]);
+        console.log("SFH.executeStandard            ",  numberOfCalls["SFH.executeStandard"]);
+        console.log("------------------");
+        console.log(
+            "Total Calls:",
+            numberOfCalls["SFH.startNewDistributionPeriod"] +
+            numberOfCalls["SFH.proposeStandard"] +
+            numberOfCalls["SFH.screeningVote"] +
+            numberOfCalls["SFH.fundingVote"] +
+            numberOfCalls["SFH.updateSlate"] +
+            numberOfCalls["SFH.executeStandard"]
+        );
+    }
+
+    function logProposalSummary() external view {
+        console.log("--Proposal Summary--");
+        console.log("Number of Proposals", standardFundingProposalCount);
+        console.log("------------------");
+    }
+
+    // TODO: implement logActorySummary()
 
     /*****************************/
     /*** SFM Getter Functions ****/

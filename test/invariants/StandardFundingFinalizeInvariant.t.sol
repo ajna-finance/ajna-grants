@@ -28,8 +28,22 @@ contract StandardFundingFinalizeInvariant is StandardFundingTestBase {
         uint256 fundingStageStartBlock = endBlock - 72000;
         vm.roll(fundingStageStartBlock + 100);
 
-        // TODO: voter's cast funding votes randomly
-        _standardFundingHandler.fundingVoteProposals();
+        uint256 revertNum;
+        try _standardFundingHandler.fundingVoteProposals() {
+
+        }
+        catch (bytes memory _err){
+            revertNum++;
+            // TODO: replace with _recordError()
+            bytes32 err = keccak256(_err);
+            require(
+                err == keccak256(abi.encodeWithSignature("InvalidVote()")) ||
+                err == keccak256(abi.encodeWithSignature("InsufficientVotingPower()")) ||
+                err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()"))
+            );
+        }
+
+        console.log("number of reverts on fundingVote: %s", revertNum);
 
         // skip time into the challenge stage
         vm.roll(endBlock + 100);
@@ -80,6 +94,16 @@ contract StandardFundingFinalizeInvariant is StandardFundingTestBase {
 
         // invariant CS5: proposal slate should never contain duplicate proposals
         assertFalse(_standardFundingHandler.hasDuplicates(topSlateProposalIds));
+    }
+
+    function invariant_call_summary() external view {
+        _standardFundingHandler.logCallSummary();
+        _standardFundingHandler.logProposalSummary();
+        _logFinalizeSummary();
+    }
+
+    function _logFinalizeSummary() internal view {
+
     }
 
 }

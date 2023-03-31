@@ -96,26 +96,8 @@ contract StandardFundingScreeningInvariant is StandardFundingTestBase {
     }
 
     function invariant_call_summary() external view {
-        console.log("\nCall Summary\n");
-        console.log("--SFM----------");
-        console.log("SFH.startNewDistributionPeriod ",  _standardFundingHandler.numberOfCalls("SFH.startNewDistributionPeriod"));
-        console.log("SFH.proposeStandard            ",  _standardFundingHandler.numberOfCalls("SFH.proposeStandard"));
-        console.log("SFH.screeningVote              ",  _standardFundingHandler.numberOfCalls("SFH.screeningVote"));
-        console.log("SFH.fundingVote                ",  _standardFundingHandler.numberOfCalls("SFH.fundingVote"));
-        console.log("SFH.updateSlate                ",  _standardFundingHandler.numberOfCalls("SFH.updateSlate"));
-        console.log("------------------");
-        console.log(
-            "Total Calls:",
-            _standardFundingHandler.numberOfCalls("SFH.startNewDistributionPeriod") +
-            _standardFundingHandler.numberOfCalls("SFH.proposeStandard") +
-            _standardFundingHandler.numberOfCalls("SFH.screeningVote") +
-            _standardFundingHandler.numberOfCalls("SFH.fundingVote") +
-            _standardFundingHandler.numberOfCalls("SFH.updateSlate")
-        );
-        console.log(" ");
-        console.log("--Proposal Stats--");
-        console.log("Number of Proposals", _standardFundingHandler.standardFundingProposalCount());
-        console.log("------------------");
+        _standardFundingHandler.logCallSummary();
+        _standardFundingHandler.logProposalSummary();
 
         uint24 distributionId = _grantFund.getDistributionId();
 
