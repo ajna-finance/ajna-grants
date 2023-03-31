@@ -62,7 +62,7 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
         }
     }
 
-    function invariant_FS4() external {
+    function invariant_FS4_FS8() external {
         for (uint256 i = 0; i < _standardFundingHandler.getActorsCount(); ++i) {
             address actor = _standardFundingHandler.actors(i);
 
@@ -79,13 +79,16 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
             // check voter votes cast are less than or equal to the sqrt of the voting power of the actor
             IStandardFunding.FundingVoteParams[] memory fundingVotesCast = _grantFund.getFundingVotesCast(distributionId, actor);
 
-            // invariant FS3: sum of square of votes cast <= voting power of actor
+            // invariant FS4: sum of square of votes cast <= voting power of actor
             assertTrue(sumOfSquares <= votingPower);
 
             if (votingPower != 0 && remainingVotingPower == 0) {
                 assertTrue(numberOfProposalsVotedOn == fundingVotesCast.length);
                 assertTrue(numberOfProposalsVotedOn > 0);
             }
+
+            // invariant FS8: a voter should never be able to cast more votes than the Ajna token supply of 1 billion.
+            assertTrue(uint256(_standardFundingHandler.sumVoterFundingVotes(actor, fundingVoteParams)) <= 1_000_000_000 * 1e18);
 
             // TODO: check getFundingPowerVotes to see if remaining voting power matches expectations
             // assertEq(_grantFund.getFundingPowerVotes(uint256(votingPower - remainingVotingPower)), uint256(_standardFundingHandler.sumVoterFundingVotes(actor, fundingVoteParams)));

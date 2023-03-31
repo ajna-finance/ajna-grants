@@ -25,7 +25,9 @@ contract StandardFundingHandler is FundingHandler {
     // list of submitted standard funding proposals
     uint256[] public standardFundingProposals;
 
+    // number of proposals that recieved a vote in the given stage
     uint256 public screeningVotesCast;
+    uint256 public fundingVotesCast;
 
     // time counter
     uint256 private systemTime = 0;
@@ -187,40 +189,10 @@ contract StandardFundingHandler is FundingHandler {
         //     }
         }
 
-        // get actor voting power
-        uint256 votingPower = _grantFund.getVotesFunding(_grantFund.getDistributionId(), _actor);
-
-        // Take the square root of the voting power to determine how many votes are actually available for casting
-        uint256 availableVotes = _grantFund.getFundingPowerVotes(votingPower);
-
-        // construct vote params
-        IStandardFunding.FundingVoteParams[] memory fundingVoteParams = new IStandardFunding.FundingVoteParams[](proposalsToVoteOn_);
-        for (uint256 i = 0; i < proposalsToVoteOn_; ) {
-            // TODO: replace proposalId with retrieval from top ten list?
-            uint256 proposalId = randomProposal();
-
-            // TODO: account for past votes cast in determining votes to use
-            int256 votesToCast = int256(constrictToRange(randomSeed(), 0, availableVotes));
-
-            // flip a coin to see if should instead use a negative vote
-            if (randomSeed() % 2 == 0) {
-                numberOfCalls['SFH.negativeFundingVote']++;
-                // generate negative vote
-                fundingVoteParams[i] = IStandardFunding.FundingVoteParams({
-                    proposalId: proposalId,
-                    votesUsed: -1 * votesToCast
-                });
-                ++i;
-                continue;
-            }
-
-            fundingVoteParams[i] = IStandardFunding.FundingVoteParams({
-                proposalId: proposalId,
-                votesUsed: votesToCast
-            });
-
-            ++i;
-        }
+        // TODO: make happy / chaotic path decision random / dynamic?
+        // get the fundingVoteParams for the votes the actor is about to cast
+        // take the chaotic path, and cast votes that will likely exceed the actor's voting power
+        IStandardFunding.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(_actor, proposalsToVoteOn_, false);
 
         try _grantFund.fundingVote(fundingVoteParams) returns (uint256 votesCast) {
             numberOfCalls['SFH.fundingVote.success']++;
@@ -246,8 +218,11 @@ contract StandardFundingHandler is FundingHandler {
                     actor.fundingVotes.push(fundingVoteParams[i]);
                 }
 
+                fundingVotesCast++;
+
                 ++i;
             }
+
         }
         catch (bytes memory _err){
             // TODO: replace with _recordError()
@@ -315,6 +290,17 @@ contract StandardFundingHandler is FundingHandler {
         numberOfCalls['SFH.executeStandard']++;
         systemTime++;
 
+        // FIXME: need access to proposal targets and calldatas
+        // try _grantFund.executeStandard(potentialSlate, distributionId) returns (bool newTopSlate) {
+
+        // }
+        // catch (bytes memory _err){
+        //     // TODO: replace with _recordError()
+        //     bytes32 err = keccak256(_err);
+        //     require(
+        //         err == keccak256(abi.encodeWithSignature("InvalidProposalSlate()"))
+        //     );
+        // }
     }
 
     /*****************************/
@@ -451,6 +437,112 @@ contract StandardFundingHandler is FundingHandler {
         }
     }
 
+    // TODO: need to add support for different types of param generation -> turn this into a factory
+    function _fundingVoteParams(address actor_, uint256 numProposalsToVoteOn_, bool happyPath_) internal returns (IStandardFunding.FundingVoteParams[] memory fundingVoteParams_) {
+        uint24 distributionId = _grantFund.getDistributionId();
+        uint256 votingPower = _grantFund.getVotesFunding(distributionId, actor_);
+
+        // Take the square root of the voting power to determine how many votes are actually available for casting
+        uint256 availableVotes = _grantFund.getFundingPowerVotes(votingPower);
+
+        fundingVoteParams_ = new IStandardFunding.FundingVoteParams[](numProposalsToVoteOn_);
+
+        uint256 votingPowerUsed;
+
+        // generate the array of fundingVoteParams structs
+        for (uint256 i = 0; i < numProposalsToVoteOn_; ) {
+            // get a random proposal
+            uint256 proposalId = randomProposal();
+
+            // get the random number of votes to cast
+            int256 votesToCast = int256(constrictToRange(randomSeed(), 0, availableVotes));
+
+            // FIXME: need to handle voting power cost of updating a vote on a previously voted proposal
+            // if we should account for previous votes, then we need to make sure that the votes used are less than the available votes
+            // flag is useful for generating vote params for a happy path required for test setup, as well as the chaotic path.
+            if (happyPath_) {
+                votesToCast = int256(constrictToRange(randomSeed(), 0, _grantFund.getFundingPowerVotes(votingPower - votingPowerUsed)));
+
+                uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
+
+                // if taking the happy path, set proposalId to a random proposal in the top ten
+                if (_findProposalIndexOfVotesCast(proposalId, fundingVoteParams_) == -1) {
+                    proposalId = topTenProposals[constrictToRange(randomSeed(), 0, topTenProposals.length - 1)];
+                }
+
+                bool votedPrior = false;
+
+                // check for any previous votes on this proposal
+                IStandardFunding.FundingVoteParams[] memory priorVotes = votingActors[actor_].fundingVotes;
+                for (uint256 j = 0; j < priorVotes.length; ++j) {
+                    // if we have already voted on this proposal, then we need to update the votes used
+                    if (priorVotes[j].proposalId == proposalId) {
+                        // votesToCast = int256(constrictToRange(randomSeed(), 0, _grantFund.getFundingPowerVotes(votingPower - votingPowerUsed)));
+                        votingPowerUsed += Maths.wpow(uint256(Maths.abs(priorVotes[j].votesUsed + votesToCast)), 2);
+                        votedPrior = true;
+                        break;
+                    }
+                }
+
+                if (!votedPrior) {
+                    votingPowerUsed += Maths.wpow(uint256(Maths.abs(votesToCast)), 2);
+                }
+
+            }
+
+            // TODO: happy path expects non negative? -> reverts with InvalidVote if used
+                // Need to account for a proposal prior vote direction in test setup
+            // // flip a coin to see if should instead use a negative vote
+            // if (randomSeed() % 2 == 0) {
+            //     numberOfCalls['SFH.negativeFundingVote']++;
+            //     // generate negative vote
+            //     fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
+            //         proposalId: proposalId,
+            //         votesUsed: -1 * votesToCast
+            //     });
+            //     ++i;
+            //     continue;
+            // }
+
+            // generate funding vote params
+            fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
+                proposalId: proposalId,
+                votesUsed: votesToCast
+            });
+
+            ++i;
+        }
+    }
+
+    function fundingVoteProposals() external {
+        for (uint256 i = 0; i < actors.length; ++i) {
+            // get an actor who hasn't already voted
+            address actor = actors[i];
+
+            // actor votes on random number of proposals
+            _fundingVoteProposal(actor, constrictToRange(randomSeed(), 1, 10));
+        }
+    }
+
+    function _fundingVoteProposal(address actor_, uint256 numProposalsToVoteOn_) internal {
+        // get the fundingVoteParams for the votes the actor is about to cast
+        // take the happy path, and cast votes that wont exceed the actor's voting power
+        IStandardFunding.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(actor_, numProposalsToVoteOn_, true);
+
+        // cast votes
+        changePrank(actor_);
+        _grantFund.fundingVote(fundingVoteParams);
+
+        // record cast votes
+        VotingActor storage actor = votingActors[actor_];
+        for (uint256 i = 0; i < numProposalsToVoteOn_; ) {
+            actor.fundingVotes.push(fundingVoteParams[i]);
+            fundingVotesCast++;
+
+            ++i;
+        }
+    }
+
     function screeningVoteProposals() external {
         for (uint256 i = 0; i < actors.length; ++i) {
             // get an actor who hasn't already voted
@@ -494,7 +586,6 @@ contract StandardFundingHandler is FundingHandler {
         VotingActor storage actor = votingActors[actor_];
         for (uint256 i = 0; i < numProposalsToVoteOn; ) {
             actor.screeningVotes.push(screeningVoteParams[i]);
-            // actor.screeningProposalIds.push(proposalsVotedOn[i]);
             screeningVotesCast++;
 
             ++i;

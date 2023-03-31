@@ -28,7 +28,7 @@ contract StandardFundingScreeningInvariant is StandardFundingTestBase {
 
     }
 
-    function invariant_SS1_SS3_SS4_SS5() public {
+    function invariant_SS1_SS3_SS4_SS5_SS7() public {
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
 
         // invariant: 10 or less proposals should make it through the screening stage
@@ -62,6 +62,9 @@ contract StandardFundingScreeningInvariant is StandardFundingTestBase {
             (, , uint256 votesReceived, , , ) = _grantFund.getProposalInfo(_standardFundingHandler.standardFundingProposals(j));
             // invariant SS4: votes recieved for a proposal can only be positive
             assertTrue(votesReceived >= 0);
+
+            // invariant SS7: a proposal should never receive more votes than the token supply.
+            assertTrue(votesReceived <= 1_000_000_000 * 1e18);
         }
 
         // not all proposals submitted by actors will make it through the screening stage
