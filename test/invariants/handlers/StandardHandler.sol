@@ -202,7 +202,7 @@ contract StandardHandler is Handler {
 
             // TODO: account for possibly being negative
             // check votesCast is equal to the sum of votes cast
-            assertEq(votesCast, SafeCast.toUint256(sumVoterFundingVotes(_actor, fundingVoteParams)));
+            assertEq(votesCast, SafeCast.toUint256(sumFundingVotes(fundingVoteParams)));
 
             // update actor funding votes counts
             // TODO: find and replace previous vote record for that proposlId, in that distributonId
@@ -312,12 +312,12 @@ contract StandardHandler is Handler {
             // numberOfCalls['SFH.FundingStage']++;
         }
 
-        if (block.number <= endBlock + 50400) {
-            return;
-        }
+        if (block.number <= endBlock + 50400) return;
 
         // get a proposal from the current top ten slate
         uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
+
+        if (topSlateProposalIds.length == 0) return;
 
         uint256 proposalIndex = constrictToRange(proposalToExecute_, 1, topSlateProposalIds.length) -1;
 
@@ -532,8 +532,6 @@ contract StandardHandler is Handler {
                         break;
                     }
                 }
-
-                console.log("voted prior: ", votedPrior);
 
                 if (!votedPrior) {
                     votingPowerUsed += Maths.wpow(uint256(Maths.abs(votesToCast)), 2);
@@ -750,7 +748,7 @@ contract StandardHandler is Handler {
         }
     }
 
-    function sumVoterFundingVotes(address actor_, IStandardFunding.FundingVoteParams[] memory fundingVotes_) public pure returns (int256 sum_) {
+    function sumFundingVotes(IStandardFunding.FundingVoteParams[] memory fundingVotes_) public pure returns (int256 sum_) {
         for (uint256 i = 0; i < fundingVotes_.length; ++i) {
             sum_ += Maths.abs(fundingVotes_[i].votesUsed);
         }

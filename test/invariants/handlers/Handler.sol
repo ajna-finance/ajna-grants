@@ -76,6 +76,7 @@ contract Handler is Test, GrantFundTestHelper {
             _token.transfer(actor, incrementalTokensDistributed);
             tokensDistributed += incrementalTokensDistributed;
 
+            // FIXME: this isn't currently delegating to other actors properly
             // actor delegates tokens randomly
             if (randomSeed() % 2 == 0) {
                 // actor self delegates

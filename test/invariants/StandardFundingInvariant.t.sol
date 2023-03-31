@@ -88,10 +88,10 @@ contract StandardFundingInvariant is StandardTestBase {
             }
 
             // invariant FS8: a voter should never be able to cast more votes than the Ajna token supply of 1 billion.
-            assertTrue(uint256(_standardHandler.sumVoterFundingVotes(actor, fundingVoteParams)) <= 1_000_000_000 * 1e18);
+            assertTrue(uint256(_standardHandler.sumFundingVotes(fundingVoteParams)) <= 1_000_000_000 * 1e18);
 
             // TODO: check getFundingPowerVotes to see if remaining voting power matches expectations
-            // assertEq(_grantFund.getFundingPowerVotes(uint256(votingPower - remainingVotingPower)), uint256(_standardHandler.sumVoterFundingVotes(actor, fundingVoteParams)));
+            // assertEq(_grantFund.getFundingPowerVotes(uint256(votingPower - remainingVotingPower)), uint256(_standardHandler.sumFundingVotes(actor, fundingVoteParams)));
         }
 
     }
@@ -115,7 +115,7 @@ contract StandardFundingInvariant is StandardTestBase {
 
             console.log("Funding proposals voted for:     ", fundingVoteParams.length);
             console.log("Sum of squares of fvc:           ", _standardHandler.sumSquareOfVotesCast(fundingVoteParams));
-            console.log("Funding Votes Cast:              ", uint256(_standardHandler.sumVoterFundingVotes(actor, fundingVoteParams)));
+            console.log("Funding Votes Cast:              ", uint256(_standardHandler.sumFundingVotes(fundingVoteParams)));
             console.log("Negative Funding Votes Cast:     ", _standardHandler.countNegativeFundingVotes(actor, fundingVoteParams));
             console.log("------------------");
         }
