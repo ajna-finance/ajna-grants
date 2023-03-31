@@ -77,7 +77,7 @@ contract Handler is Test, GrantFundTestHelper {
             tokensDistributed += incrementalTokensDistributed;
 
             // actor delegates tokens randomly
-            if (shouldSelfDelegate()) {
+            if (randomSeed() % 2 == 0) {
                 // actor self delegates
                 changePrank(actor);
                 _token.delegate(actor);
@@ -124,14 +124,6 @@ contract Handler is Test, GrantFundTestHelper {
 
     function randomActor() internal returns (address) {
         return actors[constrictToRange(randomSeed(), 0, actors.length - 1)];
-    }
-
-    function shouldSelfDelegate() internal returns (bool) {
-        // calculate random number between 0 and 9
-        uint256 number = uint256(keccak256(abi.encodePacked(block.number, block.difficulty))) % 10;
-        vm.roll(block.number + 1);
-
-        return number >= 5 ? true : false;
     }
 
     function randomSeed() internal returns (uint256) {

@@ -34,7 +34,6 @@ contract StandardFinalizeInvariant is StandardTestBase {
         }
         catch (bytes memory _err){
             revertNum++;
-            // TODO: replace with _recordError()
             bytes32 err = keccak256(_err);
             require(
                 err == keccak256(abi.encodeWithSignature("InvalidVote()")) ||
