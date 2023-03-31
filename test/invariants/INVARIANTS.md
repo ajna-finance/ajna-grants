@@ -3,7 +3,9 @@
 ## Grant Fund Invariants:
    - **GF1**: Unused proposal states should always be 0.
    - **GF2**: Treasury should always be less than or equal to the contract's token blance.
+<!-- 
    - TODO: add invariants around treasury balance post updates and with partial slate executions
+ -->
 
 ## Standard Funding Mechanism Invariants
 
@@ -40,8 +42,9 @@
     - **CS6**: Funded proposal slate's can only be updated during a distribution period's challenge stage.
 
 - #### Execute Standard:
-    - **ES1**: A proposal can only be executed once.
+    - **ES1**: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round.
     - **ES2**: A proposal can only be executed after the challenge stage is complete.
+    - **ES3**: A proposal can only be executed once.
 
 - #### Delegation Rewards:
     - **DR1**: Cumulative delegation rewards should be 10% of a dsitribution periods GBC.

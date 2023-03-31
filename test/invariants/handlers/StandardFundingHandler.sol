@@ -25,6 +25,8 @@ contract StandardFundingHandler is FundingHandler {
     // list of submitted standard funding proposals
     uint256[] public standardFundingProposals;
 
+    uint256[] public proposalsExecuted;
+
     // number of proposals that recieved a vote in the given stage
     uint256 public screeningVotesCast;
     uint256 public fundingVotesCast;
@@ -45,6 +47,7 @@ contract StandardFundingHandler is FundingHandler {
     mapping(uint24 => DistributionState) public distributionStates;
     mapping(bytes32 => uint256[]) public proposalsInTopSlate;
     mapping(address => VotingActor) internal votingActors; // record the votes of actors over time
+    mapping(uint256 => TestProposal) public testProposals;
 
     constructor(
         address payable grantFund_,
@@ -141,12 +144,10 @@ contract StandardFundingHandler is FundingHandler {
         }
 
         try _grantFund.screeningVote(screeningVoteParams) {
-            // update actor screeningVotes count if vote was successful
+            // update actor screeningVotes if vote was successful
             VotingActor storage actor = votingActors[_actor];
 
             for (uint256 i = 0; i < proposalsToVoteOn_; ) {
-                IStandardFunding.ScreeningVoteParams[] storage existingScreeningVoteParams = actor.screeningVotes;
-                // existingScreeningVoteParams.push(screeningVoteParams);
                 actor.screeningVotes.push(screeningVoteParams[i]);
                 screeningVotesCast++;
 
@@ -235,6 +236,7 @@ contract StandardFundingHandler is FundingHandler {
         }
     }
 
+    // FIXME: can a proposal slate have no proposals?
     function updateSlate(uint256 actorIndex_, uint256 proposalSeed) external useRandomActor(actorIndex_) {
         numberOfCalls['SFH.updateSlate']++;
         systemTime++;
@@ -256,9 +258,19 @@ contract StandardFundingHandler is FundingHandler {
         // construct potential slate of proposals
         uint256[] memory potentialSlate = new uint256[](potentialSlateLength);
 
-        // get random potentialSlate of proposals
-        for (uint i = 0; i < potentialSlateLength; ++i) {
-            potentialSlate[i] = topTen[randomSeed() % 10];
+        bool happyPath = true;
+
+        if (happyPath) {
+            // get subset of top ten in order
+            for (uint i = 0; i < potentialSlateLength; ++i) {
+                potentialSlate[i] = topTen[i];
+            }
+        }
+        else {
+            // get random potentialSlate of proposals, may contain duplicates
+            for (uint i = 0; i < potentialSlateLength; ++i) {
+                potentialSlate[i] = topTen[randomSeed() % 10];
+            }
         }
 
         try _grantFund.updateSlate(potentialSlate, distributionId) returns (bool newTopSlate) {
@@ -286,21 +298,46 @@ contract StandardFundingHandler is FundingHandler {
         }
     }
 
-    function executeStandard(uint256 actorIndex_) external useRandomActor(actorIndex_) {
+    function executeStandard(uint256 actorIndex_, uint256 proposalToExecute_) external useRandomActor(actorIndex_) {
         numberOfCalls['SFH.executeStandard']++;
         systemTime++;
 
-        // FIXME: need access to proposal targets and calldatas
-        // try _grantFund.executeStandard(potentialSlate, distributionId) returns (bool newTopSlate) {
+        uint24 distributionId = _grantFund.getDistributionId();
 
-        // }
-        // catch (bytes memory _err){
-        //     // TODO: replace with _recordError()
-        //     bytes32 err = keccak256(_err);
-        //     require(
-        //         err == keccak256(abi.encodeWithSignature("InvalidProposalSlate()"))
-        //     );
-        // }
+        (, , uint256 endBlock, , , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+
+        if (systemTime >= 70) {
+            // skip time to the end of the challenge stage
+            vm.roll(endBlock + 50401);
+            // numberOfCalls['SFH.FundingStage']++;
+        }
+
+        if (block.number <= endBlock + 50400) {
+            return;
+        }
+
+        // get a proposal from the current top ten slate
+        uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
+
+        console.log("working here");
+        uint256 proposalIndex = constrictToRange(proposalToExecute_, 1, topSlateProposalIds.length) -1;
+        // uint256 proposalIndex = constrictToRange(proposalToExecute_, 0, topSlateProposalIds.length -1);
+
+        console.log("proposal index", proposalIndex);
+        TestProposal memory proposal = testProposals[topSlateProposalIds[proposalIndex]];
+
+        try _grantFund.executeStandard(proposal.targets, proposal.values, proposal.calldatas, keccak256(bytes(proposal.description))) returns (uint256 proposalId_) {
+            assertEq(proposalId_, proposal.proposalId);
+            numberOfCalls['SFH.executeStandard.success']++;
+            proposalsExecuted.push(proposalId_);
+        }
+        catch (bytes memory _err){
+            bytes32 err = keccak256(_err);
+            require(
+                err == keccak256(abi.encodeWithSignature("ExecuteProposalInvalid()")) ||
+                err == keccak256(abi.encodeWithSignature("ProposalNotSuccessful()"))
+            );
+        }
     }
 
     /*****************************/
@@ -412,6 +449,18 @@ contract StandardFundingHandler is FundingHandler {
         // record new proposal
         standardFundingProposals.push(proposalId_);
         standardFundingProposalCount++;
+
+        // FIXME: set recipient and tokensRequested
+        // record proposal information
+        testProposals[proposalId_] = TestProposal(
+            proposalId_,
+            targets,
+            values,
+            calldatas,
+            description,
+            address(0),
+            0
+        );
     }
 
     function createProposals(uint256 numProposals) external returns (uint256[] memory proposalIds_) {
@@ -686,6 +735,10 @@ contract StandardFundingHandler is FundingHandler {
 
     function getStandardFundingProposals() external view returns (uint256[] memory) {
         return standardFundingProposals;
+    }
+
+    function getProposalsExecuted() external view returns (uint256[] memory) {
+        return proposalsExecuted;
     }
 
     // TODO: will need to handle this per distribution period
