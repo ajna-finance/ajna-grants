@@ -7,10 +7,10 @@ import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
 import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
 
-import { StandardFundingTestBase } from "./base/StandardFundingTestBase.sol";
-import { StandardFundingHandler } from "./handlers/StandardFundingHandler.sol";
+import { StandardTestBase } from "./base/StandardTestBase.sol";
+import { StandardHandler } from "./handlers/StandardHandler.sol";
 
-contract StandardFundingFundingInvariant is StandardFundingTestBase {
+contract StandardFundingInvariant is StandardTestBase {
 
     // TODO: override the number of voting actors
     // override setup to start tests in the funding stage with already screened proposals
@@ -18,10 +18,10 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
         super.setUp();
 
         // create 15 proposals
-        _standardFundingHandler.createProposals(15);
+        _standardHandler.createProposals(15);
 
         // vote on proposals
-        _standardFundingHandler.screeningVoteProposals();
+        _standardHandler.screeningVoteProposals();
 
         // skip time into the funding stage
         uint24 distributionId = _grantFund.getDistributionId();
@@ -31,12 +31,12 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
 
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](2);
-        selectors[0] = _standardFundingHandler.fundingVote.selector;
-        selectors[1] = _standardFundingHandler.updateSlate.selector;
+        selectors[0] = _standardHandler.fundingVote.selector;
+        selectors[1] = _standardHandler.updateSlate.selector;
 
         // ensure utility functions are excluded from the invariant runs
         targetSelector(FuzzSelector({
-            addr: address(_standardFundingHandler),
+            addr: address(_standardHandler),
             selectors: selectors
         }));
     }
@@ -49,8 +49,8 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
         assertTrue(topTenProposals.length > 0); // check if something went wrong in setup
 
         // invariant FS1: only proposals in the top ten list should be able to recieve funding votes
-        for (uint256 j = 0; j < _standardFundingHandler.standardFundingProposalCount(); ++j) {
-            uint256 proposalId = _standardFundingHandler.standardFundingProposals(j);
+        for (uint256 j = 0; j < _standardHandler.standardFundingProposalCount(); ++j) {
+            uint256 proposalId = _standardHandler.standardFundingProposals(j);
             (, uint24 distributionId, , , int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(proposalId);
 
             // invariant FS5: proposals not in the top ten should not be able to recieve funding votes
@@ -63,8 +63,8 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
     }
 
     function invariant_FS4_FS8() external {
-        for (uint256 i = 0; i < _standardFundingHandler.getActorsCount(); ++i) {
-            address actor = _standardFundingHandler.actors(i);
+        for (uint256 i = 0; i < _standardHandler.getActorsCount(); ++i) {
+            address actor = _standardHandler.actors(i);
 
             uint24 distributionId = _grantFund.getDistributionId();
 
@@ -72,9 +72,9 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
             (uint128 votingPower, uint128 remainingVotingPower, uint256 numberOfProposalsVotedOn) = _grantFund.getVoterInfo(distributionId, actor);
 
             // get the voting info of the actor
-            (IStandardFunding.FundingVoteParams[] memory fundingVoteParams, ) = _standardFundingHandler.getVotingActorsInfo(actor);
+            (IStandardFunding.FundingVoteParams[] memory fundingVoteParams, ) = _standardHandler.getVotingActorsInfo(actor);
 
-            uint128 sumOfSquares = SafeCast.toUint128(_standardFundingHandler.sumSquareOfVotesCast(fundingVoteParams));
+            uint128 sumOfSquares = SafeCast.toUint128(_standardHandler.sumSquareOfVotesCast(fundingVoteParams));
 
             // check voter votes cast are less than or equal to the sqrt of the voting power of the actor
             IStandardFunding.FundingVoteParams[] memory fundingVotesCast = _grantFund.getFundingVotesCast(distributionId, actor);
@@ -88,43 +88,43 @@ contract StandardFundingFundingInvariant is StandardFundingTestBase {
             }
 
             // invariant FS8: a voter should never be able to cast more votes than the Ajna token supply of 1 billion.
-            assertTrue(uint256(_standardFundingHandler.sumVoterFundingVotes(actor, fundingVoteParams)) <= 1_000_000_000 * 1e18);
+            assertTrue(uint256(_standardHandler.sumVoterFundingVotes(actor, fundingVoteParams)) <= 1_000_000_000 * 1e18);
 
             // TODO: check getFundingPowerVotes to see if remaining voting power matches expectations
-            // assertEq(_grantFund.getFundingPowerVotes(uint256(votingPower - remainingVotingPower)), uint256(_standardFundingHandler.sumVoterFundingVotes(actor, fundingVoteParams)));
+            // assertEq(_grantFund.getFundingPowerVotes(uint256(votingPower - remainingVotingPower)), uint256(_standardHandler.sumVoterFundingVotes(actor, fundingVoteParams)));
         }
 
     }
 
     function invariant_call_summary() external view {
-        _standardFundingHandler.logCallSummary();
-        _standardFundingHandler.logProposalSummary();
+        _standardHandler.logCallSummary();
+        _standardHandler.logProposalSummary();
 
         uint24 distributionId = _grantFund.getDistributionId();
 
         // sum proposal votes of each actor
-        for (uint256 i = 0; i < _standardFundingHandler.getActorsCount(); ++i) {
-            address actor = _standardFundingHandler.actors(i);
+        for (uint256 i = 0; i < _standardHandler.getActorsCount(); ++i) {
+            address actor = _standardHandler.actors(i);
             console.log("Actor: ", actor);
             console.log("Delegate: ", _token.delegates(actor));
 
             // get actor info
             (
                 IStandardFunding.FundingVoteParams[] memory fundingVoteParams,
-            ) = _standardFundingHandler.getVotingActorsInfo(actor);
+            ) = _standardHandler.getVotingActorsInfo(actor);
 
             console.log("Funding proposals voted for:     ", fundingVoteParams.length);
-            console.log("Sum of squares of fvc:           ", _standardFundingHandler.sumSquareOfVotesCast(fundingVoteParams));
-            console.log("Funding Votes Cast:              ", uint256(_standardFundingHandler.sumVoterFundingVotes(actor, fundingVoteParams)));
-            console.log("Negative Funding Votes Cast:     ", _standardFundingHandler.countNegativeFundingVotes(actor, fundingVoteParams));
+            console.log("Sum of squares of fvc:           ", _standardHandler.sumSquareOfVotesCast(fundingVoteParams));
+            console.log("Funding Votes Cast:              ", uint256(_standardHandler.sumVoterFundingVotes(actor, fundingVoteParams)));
+            console.log("Negative Funding Votes Cast:     ", _standardHandler.countNegativeFundingVotes(actor, fundingVoteParams));
             console.log("------------------");
         }
         console.log("------------------");
-        console.log("Number of Actors", _standardFundingHandler.getActorsCount());
-        console.log("number of funding stage starts       ", _standardFundingHandler.numberOfCalls("SFH.FundingStage"));
-        console.log("number of funding stage success votes", _standardFundingHandler.numberOfCalls("SFH.fundingVote.success"));
+        console.log("Number of Actors", _standardHandler.getActorsCount());
+        console.log("number of funding stage starts       ", _standardHandler.numberOfCalls("SFH.FundingStage"));
+        console.log("number of funding stage success votes", _standardHandler.numberOfCalls("SFH.fundingVote.success"));
         console.log("distributionId", distributionId);
-        console.log("SFH.updateSlate.success", _standardFundingHandler.numberOfCalls("SFH.updateSlate.success"));
+        console.log("SFH.updateSlate.success", _standardHandler.numberOfCalls("SFH.updateSlate.success"));
     }
 
 

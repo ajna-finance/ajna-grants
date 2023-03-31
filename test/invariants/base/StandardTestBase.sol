@@ -5,13 +5,13 @@ pragma solidity 0.8.16;
 import { console } from "@std/console.sol";
 
 import { TestBase } from "./TestBase.sol";
-import { StandardFundingHandler } from "../handlers/StandardFundingHandler.sol";
+import { StandardHandler } from "../handlers/StandardHandler.sol";
 
-contract StandardFundingTestBase is TestBase {
+contract StandardTestBase is TestBase {
 
     uint256 internal constant NUM_ACTORS = 20;
 
-    StandardFundingHandler internal _standardFundingHandler;
+    StandardHandler internal _standardHandler;
 
     function setUp() public virtual override {
         super.setUp();
@@ -20,7 +20,7 @@ contract StandardFundingTestBase is TestBase {
         // calculate the number of tokens not in the treasury, to be distributed to actors
         uint256 tokensNotInTreasury = _token.balanceOf(_tokenDeployer) - treasury;
 
-        _standardFundingHandler = new StandardFundingHandler(
+        _standardHandler = new StandardHandler(
             payable(address(_grantFund)),
             address(_token),
             _tokenDeployer,
@@ -29,7 +29,7 @@ contract StandardFundingTestBase is TestBase {
         );
 
         // explicitly target handler
-        targetContract(address(_standardFundingHandler));
+        targetContract(address(_standardHandler));
 
         // skip time for snapshots and start distribution period
         vm.roll(block.number + 100);

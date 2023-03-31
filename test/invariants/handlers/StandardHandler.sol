@@ -13,11 +13,11 @@ import { Maths }            from "../../../src/grants/libraries/Maths.sol";
 
 import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
-import { FundingHandler }      from "./FundingHandler.sol";
+import { Handler }      from "./Handler.sol";
 
 import { console } from "@std/console.sol";
 
-contract StandardFundingHandler is FundingHandler {
+contract StandardHandler is Handler {
 
     // record standard funding proposals over time
     // proposal count
@@ -55,7 +55,7 @@ contract StandardFundingHandler is FundingHandler {
         address tokenDeployer_,
         uint256 numOfActors_,
         uint256 tokensToDistribute_
-    ) FundingHandler(grantFund_, token_, tokenDeployer_, numOfActors_, tokensToDistribute_) {}
+    ) Handler(grantFund_, token_, tokenDeployer_, numOfActors_, tokensToDistribute_) {}
 
     /*********************/
     /*** SFM Functions ***/
@@ -319,9 +319,7 @@ contract StandardFundingHandler is FundingHandler {
         // get a proposal from the current top ten slate
         uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
 
-        console.log("working here");
         uint256 proposalIndex = constrictToRange(proposalToExecute_, 1, topSlateProposalIds.length) -1;
-        // uint256 proposalIndex = constrictToRange(proposalToExecute_, 0, topSlateProposalIds.length -1);
 
         console.log("proposal index", proposalIndex);
         TestProposal memory proposal = testProposals[topSlateProposalIds[proposalIndex]];

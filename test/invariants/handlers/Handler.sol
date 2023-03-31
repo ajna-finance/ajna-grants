@@ -12,7 +12,7 @@ import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
 import { GrantFund } from "../../../src/grants/GrantFund.sol";
 import { IStandardFunding } from "../../../src/grants/interfaces/IStandardFunding.sol";
 
-contract FundingHandler is Test, GrantFundTestHelper {
+contract Handler is Test, GrantFundTestHelper {
 
     // state variables
     IAjnaToken        internal  _token;

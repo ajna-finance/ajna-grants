@@ -7,20 +7,20 @@ import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
 import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
 
-import { StandardFundingTestBase } from "./base/StandardFundingTestBase.sol";
-import { StandardFundingHandler } from "./handlers/StandardFundingHandler.sol";
+import { StandardTestBase } from "./base/StandardTestBase.sol";
+import { StandardHandler } from "./handlers/StandardHandler.sol";
 
-contract StandardFundingFinalizeInvariant is StandardFundingTestBase {
+contract StandardFinalizeInvariant is StandardTestBase {
 
     // override setup to start tests in the funding stage with proposals that have already been screened and funded
     function setUp() public override {
         super.setUp();
 
         // create 15 proposals
-        _standardFundingHandler.createProposals(15);
+        _standardHandler.createProposals(15);
 
         // vote on proposals
-        _standardFundingHandler.screeningVoteProposals();
+        _standardHandler.screeningVoteProposals();
 
         // skip time into the funding stage
         uint24 distributionId = _grantFund.getDistributionId();
@@ -29,7 +29,7 @@ contract StandardFundingFinalizeInvariant is StandardFundingTestBase {
         vm.roll(fundingStageStartBlock + 100);
 
         uint256 revertNum;
-        try _standardFundingHandler.fundingVoteProposals() {
+        try _standardHandler.fundingVoteProposals() {
 
         }
         catch (bytes memory _err){
@@ -50,13 +50,13 @@ contract StandardFundingFinalizeInvariant is StandardFundingTestBase {
 
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](3);
-        selectors[0] = _standardFundingHandler.fundingVote.selector;
-        selectors[1] = _standardFundingHandler.updateSlate.selector;
-        selectors[2] = _standardFundingHandler.executeStandard.selector;
+        selectors[0] = _standardHandler.fundingVote.selector;
+        selectors[1] = _standardHandler.updateSlate.selector;
+        selectors[2] = _standardHandler.executeStandard.selector;
 
         // ensure utility functions are excluded from the invariant runs
         targetSelector(FuzzSelector({
-            addr: address(_standardFundingHandler),
+            addr: address(_standardHandler),
             selectors: selectors
         }));
     }
@@ -91,7 +91,7 @@ contract StandardFundingFinalizeInvariant is StandardFundingTestBase {
         assertTrue(totalTokensRequested <= uint256(fundsAvailable) * 9 / 10);
 
         // invariant CS5: proposal slate should never contain duplicate proposals
-        assertFalse(_standardFundingHandler.hasDuplicates(topSlateProposalIds));
+        assertFalse(_standardHandler.hasDuplicates(topSlateProposalIds));
     }
 
     function invariant_ES1_ES3() external {
@@ -108,10 +108,10 @@ contract StandardFundingFinalizeInvariant is StandardFundingTestBase {
             totalTokensRequested += tokensRequested;
         }
 
-        uint256[] memory standardFundingProposals = _standardFundingHandler.getStandardFundingProposals();
+        uint256[] memory standardFundingProposals = _standardHandler.getStandardFundingProposals();
 
         // invariant ES1: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round.
-        for (uint256 i = 0; i < _standardFundingHandler.standardFundingProposalCount(); ++i) {
+        for (uint256 i = 0; i < _standardHandler.standardFundingProposalCount(); ++i) {
             uint256 proposalId = standardFundingProposals[i];
             (, , , , , bool executed) = _grantFund.getProposalInfo(proposalId);
             int256 proposalIndex = _findProposalIndex(proposalId, topSlateProposalIds);
@@ -121,12 +121,12 @@ contract StandardFundingFinalizeInvariant is StandardFundingTestBase {
         }
 
         // invariant ES3: A proposal can only be executed once.
-        assertFalse(_standardFundingHandler.hasDuplicates(_standardFundingHandler.getProposalsExecuted()));
+        assertFalse(_standardHandler.hasDuplicates(_standardHandler.getProposalsExecuted()));
     }
 
     function invariant_call_summary() external view {
-        _standardFundingHandler.logCallSummary();
-        _standardFundingHandler.logProposalSummary();
+        _standardHandler.logCallSummary();
+        _standardHandler.logProposalSummary();
         _logFinalizeSummary();
     }
 
@@ -138,9 +138,9 @@ contract StandardFundingFinalizeInvariant is StandardFundingTestBase {
         uint256[] memory topTenScreenedProposalIds = _grantFund.getTopTenProposals(distributionId);
 
         console.log("--Finalize Summary--");
-        console.log("Proposal Execute Count:     ", _standardFundingHandler.numberOfCalls('SFH.executeStandard.success'));
-        console.log("Slate Update Called:        ", _standardFundingHandler.numberOfCalls('SFH.updateSlate.called'));
-        console.log("Slate Update Count:         ", _standardFundingHandler.numberOfCalls('SFH.updateSlate.success'));
+        console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.executeStandard.success'));
+        console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
+        console.log("Slate Update Count:         ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
         console.log("Top Slate Proposal Count:   ", topSlateProposalIds.length);
         console.log("Top Ten Proposal Count:     ", topTenScreenedProposalIds.length);
         console.log("------------------");
