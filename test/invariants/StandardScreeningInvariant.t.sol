@@ -71,7 +71,7 @@ contract StandardScreeningInvariant is StandardTestBase {
         assertTrue(standardFundingProposalsSubmitted >= topTenProposals.length);
     }
 
-    function invariant_SS2() public {
+    function invariant_SS2_SS4() public {
         uint256 actorCount = _standardHandler.getActorsCount();
 
         for (uint256 i = 0; i < actorCount; ++i) {
@@ -79,14 +79,13 @@ contract StandardScreeningInvariant is StandardTestBase {
 
             uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), actor);
 
-            // TODO: expand this assertion
             // invariant SS2: can only vote up to the amount of voting power at the snapshot blocks
             assertTrue(_standardHandler.sumVoterScreeningVotes(actor) <= votingPower);
 
             ( , IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams) = _standardHandler.getVotingActorsInfo(actor);
 
             for (uint256 j = 0; j < screeningVoteParams.length; ++j) {
-                // invariant: can only cast positive votes
+                // invariant SS4: can only cast positive votes
                 assertTrue(screeningVoteParams[j].votes > 0);
 
                 // check voter only votes upon proposals that they have submitted
@@ -96,28 +95,11 @@ contract StandardScreeningInvariant is StandardTestBase {
     }
 
     function invariant_call_summary() external view {
-        _standardHandler.logCallSummary();
-        _standardHandler.logProposalSummary();
-
         uint24 distributionId = _grantFund.getDistributionId();
 
-        // sum proposal votes of each actor
-        for (uint256 i = 0; i < _standardHandler.getActorsCount(); ++i) {
-            address actor = _standardHandler.actors(i);
-            console.log("Actor: ", actor);
-
-            // get actor info
-            (
-                ,
-                IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams
-            ) = _standardHandler.getVotingActorsInfo(actor);
-
-            console.log("Delegate: ", _token.delegates(actor));
-            console.log("Screening Voting Power: ", _grantFund.getVotesScreening(distributionId, actor));
-            console.log("Screening Votes Cast:   ", _standardHandler.sumVoterScreeningVotes(actor));
-            console.log("Screening proposals voted for:   ", screeningVoteParams.length);
-            console.log("------------------");
-        }
+        _standardHandler.logCallSummary();
+        _standardHandler.logProposalSummary();
+        _standardHandler.logActorSummary(distributionId, false, true);
     }
 
 }

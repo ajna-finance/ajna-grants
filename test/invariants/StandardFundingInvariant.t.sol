@@ -20,7 +20,7 @@ contract StandardFundingInvariant is StandardTestBase {
         // create 15 proposals
         _standardHandler.createProposals(15);
 
-        // vote on proposals
+        // cast screening votes on proposals
         _standardHandler.screeningVoteProposals();
 
         // skip time into the funding stage
@@ -93,39 +93,25 @@ contract StandardFundingInvariant is StandardTestBase {
             // TODO: check getFundingPowerVotes to see if remaining voting power matches expectations
             // assertEq(_grantFund.getFundingPowerVotes(uint256(votingPower - remainingVotingPower)), uint256(_standardHandler.sumFundingVotes(actor, fundingVoteParams)));
         }
-
     }
 
     function invariant_call_summary() external view {
-        _standardHandler.logCallSummary();
-        _standardHandler.logProposalSummary();
-
         uint24 distributionId = _grantFund.getDistributionId();
 
-        // sum proposal votes of each actor
-        for (uint256 i = 0; i < _standardHandler.getActorsCount(); ++i) {
-            address actor = _standardHandler.actors(i);
-            console.log("Actor: ", actor);
-            console.log("Delegate: ", _token.delegates(actor));
-
-            // get actor info
-            (
-                IStandardFunding.FundingVoteParams[] memory fundingVoteParams,
-            ) = _standardHandler.getVotingActorsInfo(actor);
-
-            console.log("Funding proposals voted for:     ", fundingVoteParams.length);
-            console.log("Sum of squares of fvc:           ", _standardHandler.sumSquareOfVotesCast(fundingVoteParams));
-            console.log("Funding Votes Cast:              ", uint256(_standardHandler.sumFundingVotes(fundingVoteParams)));
-            console.log("Negative Funding Votes Cast:     ", _standardHandler.countNegativeFundingVotes(actor, fundingVoteParams));
-            console.log("------------------");
-        }
-        console.log("------------------");
-        console.log("Number of Actors", _standardHandler.getActorsCount());
-        console.log("number of funding stage starts       ", _standardHandler.numberOfCalls("SFH.FundingStage"));
-        console.log("number of funding stage success votes", _standardHandler.numberOfCalls("SFH.fundingVote.success"));
-        console.log("distributionId", distributionId);
-        console.log("SFH.updateSlate.success", _standardHandler.numberOfCalls("SFH.updateSlate.success"));
+        _standardHandler.logCallSummary();
+        _standardHandler.logProposalSummary();
+        _standardHandler.logActorSummary(distributionId, true, false);
+        _logFundingSummary(distributionId);
     }
 
+    function _logFundingSummary(uint24 distributionId_) internal view {
+        console.log("\nFunding Summary\n");
+        console.log("------------------");
+        console.log("number of funding stage starts:        ", _standardHandler.numberOfCalls("SFH.FundingStage"));
+        console.log("number of funding stage success votes: ", _standardHandler.numberOfCalls("SFH.fundingVote.success"));
+        console.log("distributionId:                        ", distributionId_);
+        console.log("SFH.updateSlate.success:               ", _standardHandler.numberOfCalls("SFH.updateSlate.success"));
+        console.log("------------------");
+    }
 
 }

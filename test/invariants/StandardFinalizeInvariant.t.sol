@@ -12,14 +12,14 @@ import { StandardHandler } from "./handlers/StandardHandler.sol";
 
 contract StandardFinalizeInvariant is StandardTestBase {
 
-    // override setup to start tests in the funding stage with proposals that have already been screened and funded
+    // override setup to start tests in the challenge stage with proposals that have already been screened and funded
     function setUp() public override {
         super.setUp();
 
         // create 15 proposals
         _standardHandler.createProposals(15);
 
-        // vote on proposals
+        // cast screening votes on proposals
         _standardHandler.screeningVoteProposals();
 
         // skip time into the funding stage
@@ -28,12 +28,11 @@ contract StandardFinalizeInvariant is StandardTestBase {
         uint256 fundingStageStartBlock = endBlock - 72000;
         vm.roll(fundingStageStartBlock + 100);
 
-        uint256 revertNum;
+        // cast funding votes on proposals
         try _standardHandler.fundingVoteProposals() {
 
         }
         catch (bytes memory _err){
-            revertNum++;
             bytes32 err = keccak256(_err);
             require(
                 err == keccak256(abi.encodeWithSignature("InvalidVote()")) ||
@@ -41,8 +40,6 @@ contract StandardFinalizeInvariant is StandardTestBase {
                 err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()"))
             );
         }
-
-        console.log("number of reverts on fundingVote: %s", revertNum);
 
         // skip time into the challenge stage
         vm.roll(endBlock + 100);
@@ -124,19 +121,21 @@ contract StandardFinalizeInvariant is StandardTestBase {
     }
 
     function invariant_call_summary() external view {
+        uint24 distributionId = _grantFund.getDistributionId();
+
         _standardHandler.logCallSummary();
         _standardHandler.logProposalSummary();
-        _logFinalizeSummary();
+        _logFinalizeSummary(distributionId);
     }
 
-    function _logFinalizeSummary() internal view {
-        uint24 distributionId = _grantFund.getDistributionId();
-        (, , , uint128 fundsAvailable, , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+    function _logFinalizeSummary(uint24 distributionId_) internal view {
+        (, , , uint128 fundsAvailable, , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId_);
         uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
 
-        uint256[] memory topTenScreenedProposalIds = _grantFund.getTopTenProposals(distributionId);
+        uint256[] memory topTenScreenedProposalIds = _grantFund.getTopTenProposals(distributionId_);
 
-        console.log("--Finalize Summary--");
+        console.log("\nFinalize Summary\n");
+        console.log("------------------");
         console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.executeStandard.success'));
         console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
         console.log("Slate Update Count:         ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));

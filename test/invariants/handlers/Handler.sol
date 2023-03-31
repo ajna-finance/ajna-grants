@@ -132,7 +132,7 @@ contract Handler is Test, GrantFundTestHelper {
         return uint256(keccak256(abi.encodePacked(block.number, block.difficulty, counter)));
     }
 
-    function getActorsCount() external view returns(uint256) {
+    function getActorsCount() public view returns(uint256) {
         return actors.length;
     }
 

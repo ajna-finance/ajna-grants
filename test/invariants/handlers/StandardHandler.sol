@@ -504,7 +504,6 @@ contract StandardHandler is Handler {
             // get the random number of votes to cast
             int256 votesToCast = int256(constrictToRange(randomSeed(), 0, availableVotes));
 
-            // FIXME: need to handle voting power cost of updating a vote on a previously voted proposal
             // if we should account for previous votes, then we need to make sure that the votes used are less than the available votes
             // flag is useful for generating vote params for a happy path required for test setup, as well as the chaotic path.
             if (happyPath_) {
@@ -696,6 +695,47 @@ contract StandardHandler is Handler {
         );
     }
 
+    function logActorSummary(uint24 distributionId_, bool funding_, bool screening_) external view {
+        console.log("\nActor Summary\n");
+
+        console.log("------------------");
+        console.log("Number of Actors", getActorsCount());
+
+        // sum proposal votes of each actor
+        for (uint256 i = 0; i < getActorsCount(); ++i) {
+            address actor = actors[i];
+            console.log("Actor: ", actor);
+            console.log("Delegate: ", _token.delegates(actor));
+            console.log("\n");
+
+            // get actor info
+            (
+                IStandardFunding.FundingVoteParams[] memory fundingVoteParams,
+                IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams
+            ) = getVotingActorsInfo(actor);
+
+            // log funding info
+            if (funding_) {
+                console.log("--Funding----------");
+                console.log("Funding proposals voted for:     ", fundingVoteParams.length);
+                console.log("Sum of squares of fvc:           ", sumSquareOfVotesCast(fundingVoteParams));
+                console.log("Funding Votes Cast:              ", uint256(sumFundingVotes(fundingVoteParams)));
+                console.log("Negative Funding Votes Cast:     ", countNegativeFundingVotes(actor, fundingVoteParams));
+                console.log("------------------");
+                console.log("\n");
+            }
+
+            if (screening_) {
+                console.log("--Screening----------");
+                console.log("Screening Voting Power:          ", _grantFund.getVotesScreening(distributionId_, actor));
+                console.log("Screening Votes Cast:            ", sumVoterScreeningVotes(actor));
+                console.log("Screening proposals voted for:   ", screeningVoteParams.length);
+                console.log("------------------");
+                console.log("\n");
+            }
+        }
+    }
+
     function logCallSummary() external view {
         console.log("\nCall Summary\n");
         console.log("--SFM----------");
@@ -718,12 +758,11 @@ contract StandardHandler is Handler {
     }
 
     function logProposalSummary() external view {
-        console.log("--Proposal Summary--");
+        console.log("\nProposal Summary\n");
+        console.log("------------------");
         console.log("Number of Proposals", standardFundingProposalCount);
         console.log("------------------");
     }
-
-    // TODO: implement logActorySummary()
 
     /*****************************/
     /*** SFM Getter Functions ****/
@@ -738,7 +777,7 @@ contract StandardHandler is Handler {
     }
 
     // TODO: will need to handle this per distribution period
-    function getVotingActorsInfo(address actor_) external view returns (IStandardFunding.FundingVoteParams[] memory, IStandardFunding.ScreeningVoteParams[] memory) {
+    function getVotingActorsInfo(address actor_) public view returns (IStandardFunding.FundingVoteParams[] memory, IStandardFunding.ScreeningVoteParams[] memory) {
         return _votingActorsInfo(actor_);
     }
 
