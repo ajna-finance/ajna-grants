@@ -308,7 +308,7 @@ contract StandardHandler is Handler {
 
         (, , uint256 endBlock, , , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
 
-        if (systemTime >= 70) {
+        if (systemTime >= 500) {
             // skip time to the end of the challenge stage
             vm.roll(endBlock + 50401);
             // numberOfCalls['SFH.FundingStage']++;
@@ -346,7 +346,13 @@ contract StandardHandler is Handler {
 
         uint24 distributionId = _grantFund.getDistributionId();
 
-        (, , uint256 endBlock, , , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+
+        if (systemTime >= 900) {
+            // skip time to the end of the challenge stage
+            vm.roll(endBlock + 50401);
+            // numberOfCalls['SFH.FundingStage']++;
+        }
 
         try _grantFund.claimDelegateReward(distributionId) returns (uint256 rewardClaimed_) {
             numberOfCalls['SFH.claimDelegateReward.success']++;
@@ -569,17 +575,17 @@ contract StandardHandler is Handler {
 
             // TODO: happy path expects non negative? -> reverts with InvalidVote if used
                 // Need to account for a proposal prior vote direction in test setup
-            // // flip a coin to see if should instead use a negative vote
-            // if (randomSeed() % 2 == 0) {
-            //     numberOfCalls['SFH.negativeFundingVote']++;
-            //     // generate negative vote
-            //     fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
-            //         proposalId: proposalId,
-            //         votesUsed: -1 * votesToCast
-            //     });
-            //     ++i;
-            //     continue;
-            // }
+            // flip a coin to see if should instead use a negative vote
+            if (randomSeed() % 2 == 0) {
+                numberOfCalls['SFH.negativeFundingVote']++;
+                // generate negative vote
+                fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
+                    proposalId: proposalId,
+                    votesUsed: -1 * votesToCast
+                });
+                ++i;
+                continue;
+            }
 
             // generate funding vote params
             fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
@@ -738,9 +744,6 @@ contract StandardHandler is Handler {
         // sum proposal votes of each actor
         for (uint256 i = 0; i < getActorsCount(); ++i) {
             address actor = actors[i];
-            console.log("Actor: ", actor);
-            console.log("Delegate: ", _token.delegates(actor));
-            console.log("\n");
 
             // get actor info
             (
@@ -748,6 +751,11 @@ contract StandardHandler is Handler {
                 IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams,
                 uint256 delegationRewardsClaimed
             ) = getVotingActorsInfo(actor, distributionId_);
+
+            console.log("Actor:                    ", actor);
+            console.log("Delegate:                 ", _token.delegates(actor));
+            console.log("delegationRewardsClaimed: ", delegationRewardsClaimed);
+            console.log("\n");
 
             // log funding info
             if (funding_) {
@@ -794,9 +802,19 @@ contract StandardHandler is Handler {
 
     function logProposalSummary() external view {
         console.log("\nProposal Summary\n");
-        console.log("------------------");
         console.log("Number of Proposals", standardFundingProposalCount);
-        console.log("------------------");
+        for (uint256 i = 0; i < standardFundingProposalCount; ++i) {
+            console.log("------------------");
+            (uint256 proposalId, uint24 distributionId, uint128 votesReceived, uint128 tokensRequested, int128 fundingVotesReceived, bool executed) = _grantFund.getProposalInfo(standardFundingProposals[i]);
+            console.log("proposalId:           ",  proposalId);
+            console.log("distributionId:       ",  distributionId);
+            console.log("executed:             ",  executed);
+            console.log("votesReceived:        ",  votesReceived);
+            console.log("tokensRequested:      ",  tokensRequested);
+            // console.log("fundingVotesReceived: ",  fundingVotesReceived);
+            console.log("------------------");
+        }
+        console.log("\n");
     }
 
     /*****************************/
