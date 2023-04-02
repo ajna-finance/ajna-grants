@@ -73,16 +73,17 @@ contract StandardScreeningInvariant is StandardTestBase {
 
     function invariant_SS2_SS4() public {
         uint256 actorCount = _standardHandler.getActorsCount();
+        uint24 distributionId = _grantFund.getDistributionId();
 
         for (uint256 i = 0; i < actorCount; ++i) {
             address actor = _standardHandler.actors(i);
 
-            uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), actor);
+            uint256 votingPower = _grantFund.getVotesScreening(distributionId, actor);
 
             // invariant SS2: can only vote up to the amount of voting power at the snapshot blocks
-            assertTrue(_standardHandler.sumVoterScreeningVotes(actor) <= votingPower);
+            assertTrue(_standardHandler.sumVoterScreeningVotes(actor, distributionId) <= votingPower);
 
-            ( , IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams) = _standardHandler.getVotingActorsInfo(actor);
+            ( , IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams, ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
 
             for (uint256 j = 0; j < screeningVoteParams.length; ++j) {
                 // invariant SS4: can only cast positive votes

@@ -92,7 +92,6 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
     function invariant_ES1_ES3() external {
         uint24 distributionId = _grantFund.getDistributionId();
-
         (, , , uint128 fundsAvailable, , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
 
         uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
@@ -120,6 +119,40 @@ contract StandardFinalizeInvariant is StandardTestBase {
         assertFalse(_standardHandler.hasDuplicates(_standardHandler.getProposalsExecuted()));
     }
 
+    function invariant_DR1_DR2() external {
+        uint24 distributionId = _grantFund.getDistributionId();
+        (, , , uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+
+        uint256 totalRewardsClaimed;
+
+        for (uint256 i = 0; i < _standardHandler.getActorsCount(); ++i) {
+            address actor = _standardHandler.actors(i);
+
+            // get the initial funding stage voting power of the actor
+            (uint128 votingPower, uint128 remainingVotingPower, uint256 numberOfProposalsVotedOn) = _grantFund.getVoterInfo(distributionId, actor);
+
+            // get actor info from standard handler
+            (
+                IStandardFunding.FundingVoteParams[] memory fundingVoteParams,
+                IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams,
+                uint256 delegationRewardsClaimed
+            ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
+
+            totalRewardsClaimed += delegationRewardsClaimed;
+
+            if (delegationRewardsClaimed != 0) {
+                assertTrue(delegationRewardsClaimed >= 0);
+
+                // invariant DR2: Delegation rewards are 0 if voter didn't vote in both stages.
+                assertTrue(fundingVoteParams.length > 0 && screeningVoteParams.length > 0);
+            }
+        }
+
+        // invariant DR1: Cumulative delegation rewards should be 10% of a distribution periods GBC.
+        assertTrue(totalRewardsClaimed <= fundsAvailable * 1 / 10);
+        // assertTrue(totalRewardsClaimed <= fundsAvailable * 9 / 10);
+    }
+
     function invariant_call_summary() external view {
         uint24 distributionId = _grantFund.getDistributionId();
 
@@ -136,6 +169,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
         console.log("\nFinalize Summary\n");
         console.log("------------------");
+        console.log("Delegation Rewards Claimed: ", _standardHandler.numberOfCalls('SFH.claimDelegateReward.success'));
         console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.executeStandard.success'));
         console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
         console.log("Slate Update Count:         ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));

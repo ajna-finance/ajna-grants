@@ -63,16 +63,16 @@ contract StandardFundingInvariant is StandardTestBase {
     }
 
     function invariant_FS4_FS8() external {
+        uint24 distributionId = _grantFund.getDistributionId();
+
         for (uint256 i = 0; i < _standardHandler.getActorsCount(); ++i) {
             address actor = _standardHandler.actors(i);
-
-            uint24 distributionId = _grantFund.getDistributionId();
 
             // get the initial funding stage voting power of the actor
             (uint128 votingPower, uint128 remainingVotingPower, uint256 numberOfProposalsVotedOn) = _grantFund.getVoterInfo(distributionId, actor);
 
             // get the voting info of the actor
-            (IStandardFunding.FundingVoteParams[] memory fundingVoteParams, ) = _standardHandler.getVotingActorsInfo(actor);
+            (IStandardFunding.FundingVoteParams[] memory fundingVoteParams, , ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
 
             uint128 sumOfSquares = SafeCast.toUint128(_standardHandler.sumSquareOfVotesCast(fundingVoteParams));
 

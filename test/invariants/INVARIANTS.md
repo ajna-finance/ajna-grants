@@ -47,7 +47,7 @@
     - **ES3**: A proposal can only be executed once.
 
 - #### Delegation Rewards:
-    - **DR1**: Cumulative delegation rewards should be 10% of a dsitribution periods GBC.
+    - **DR1**: Cumulative delegation rewards should be 10% of a distribution periods GBC.
     - **DR2**: Delegation rewards are 0 if voter didn't vote in both stages.
     - **DR3**: Delegation rewards are proportional to voters funding power allocated in the funding stage.
 

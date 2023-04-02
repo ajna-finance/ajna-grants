@@ -47,6 +47,17 @@ contract Handler is Test, GrantFundTestHelper {
         actors = _buildActors(numOfActors_, tokensToDistribute_);
     }
 
+    // modifier useBlock() {
+    //     vm.warp(testContract.currentTimestamp());
+
+    //     _;
+
+    //     testContract.setCurrentTimestamp(block.timestamp);
+    // }
+
+    // function setCurrentBlock(uint256 blockNumber_) internal {
+    // }
+
     modifier useRandomActor(uint256 actorIndex) {
 
         vm.stopPrank();

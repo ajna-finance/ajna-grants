@@ -37,6 +37,7 @@ contract StandardHandler is Handler {
     struct VotingActor {
         IStandardFunding.FundingVoteParams[] fundingVotes;
         IStandardFunding.ScreeningVoteParams[] screeningVotes;
+        uint256 delegationRewardsClaimed;
     }
 
     struct DistributionState {
@@ -46,7 +47,7 @@ contract StandardHandler is Handler {
 
     mapping(uint24 => DistributionState) public distributionStates;
     mapping(bytes32 => uint256[]) public proposalsInTopSlate;
-    mapping(address => VotingActor) internal votingActors; // record the votes of actors over time
+    mapping(address => mapping(uint24 => VotingActor)) internal votingActors; // actor => distributionId => VotingActor
     mapping(uint256 => TestProposal) public testProposals;
 
     constructor(
@@ -118,8 +119,9 @@ contract StandardHandler is Handler {
 
     function screeningVote(uint256 actorIndex_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
         numberOfCalls['SFH.screeningVote']++;
-
         systemTime++;
+
+        uint24 distributionId = _grantFund.getDistributionId();
 
         // bind proposalsToVoteOn_ to the number of proposals
         proposalsToVoteOn_ = bound(proposalsToVoteOn_, 0, standardFundingProposals.length);
@@ -145,7 +147,7 @@ contract StandardHandler is Handler {
 
         try _grantFund.screeningVote(screeningVoteParams) {
             // update actor screeningVotes if vote was successful
-            VotingActor storage actor = votingActors[_actor];
+            VotingActor storage actor = votingActors[_actor][distributionId];
 
             for (uint256 i = 0; i < proposalsToVoteOn_; ) {
                 actor.screeningVotes.push(screeningVoteParams[i]);
@@ -206,7 +208,7 @@ contract StandardHandler is Handler {
 
             // update actor funding votes counts
             // TODO: find and replace previous vote record for that proposlId, in that distributonId
-            VotingActor storage actor = votingActors[_actor];
+            VotingActor storage actor = votingActors[_actor][distributionId];
             for (uint256 i = 0; i < proposalsToVoteOn_; ) {
 
                 // update existing proposal voting record as opposed to a new entry in the list
@@ -337,6 +339,33 @@ contract StandardHandler is Handler {
             );
         }
     }
+
+    function claimDelegateReward(uint256 actorIndex_, uint256 proposalToExecute_) external useRandomActor(actorIndex_) {
+        numberOfCalls['SFH.claimDelegateReward']++;
+        systemTime++;
+
+        uint24 distributionId = _grantFund.getDistributionId();
+
+        (, , uint256 endBlock, , , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+
+        try _grantFund.claimDelegateReward(distributionId) returns (uint256 rewardClaimed_) {
+            numberOfCalls['SFH.claimDelegateReward.success']++;
+
+            // should only be able to claim delegation rewards once
+            assertEq(votingActors[_actor][distributionId].delegationRewardsClaimed, 0);
+
+            votingActors[_actor][distributionId].delegationRewardsClaimed = rewardClaimed_;
+        }
+        catch (bytes memory _err){
+            bytes32 err = keccak256(_err);
+            require(
+                err == keccak256(abi.encodeWithSignature("DelegateRewardInvalid()"))   ||
+                err == keccak256(abi.encodeWithSignature("ChallengePeriodNotEnded()")) ||
+                err == keccak256(abi.encodeWithSignature("RewardAlreadyClaimed()"))
+            );
+        }
+    }
+
 
     /*****************************/
     /*** SFM Utility Functions ***/
@@ -521,7 +550,7 @@ contract StandardHandler is Handler {
                 // FIXME: check prior votes as well as pending votes.
                     // this may not be possible as we don't yet know what the pending votes will be...
                 // check for any previous votes on this proposal
-                IStandardFunding.FundingVoteParams[] memory priorVotes = votingActors[actor_].fundingVotes;
+                IStandardFunding.FundingVoteParams[] memory priorVotes = votingActors[actor_][distributionId].fundingVotes;
                 for (uint256 j = 0; j < priorVotes.length; ++j) {
                     // if we have already voted on this proposal, then we need to update the votes used
                     if (priorVotes[j].proposalId == proposalId) {
@@ -581,8 +610,10 @@ contract StandardHandler is Handler {
         changePrank(actor_);
         _grantFund.fundingVote(fundingVoteParams);
 
+        uint24 distributionId = _grantFund.getDistributionId();
+
         // record cast votes
-        VotingActor storage actor = votingActors[actor_];
+        VotingActor storage actor = votingActors[actor_][distributionId];
         for (uint256 i = 0; i < numProposalsToVoteOn_; ) {
             actor.fundingVotes.push(fundingVoteParams[i]);
             fundingVotesCast++;
@@ -602,6 +633,8 @@ contract StandardHandler is Handler {
     }
 
     function _screeningVoteProposal(address actor_) internal {
+        uint24 distributionId = _grantFund.getDistributionId();
+
         uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), actor_);
 
         // get random number of proposals to vote on
@@ -631,7 +664,7 @@ contract StandardHandler is Handler {
         _grantFund.screeningVote(screeningVoteParams);
 
         // record cast votes
-        VotingActor storage actor = votingActors[actor_];
+        VotingActor storage actor = votingActors[actor_][distributionId];
         for (uint256 i = 0; i < numProposalsToVoteOn; ) {
             actor.screeningVotes.push(screeningVoteParams[i]);
             screeningVotesCast++;
@@ -688,10 +721,11 @@ contract StandardHandler is Handler {
         }
     }
 
-    function _votingActorsInfo(address actor_) internal view returns (IStandardFunding.FundingVoteParams[] memory, IStandardFunding.ScreeningVoteParams[] memory) {
+    function _votingActorsInfo(address actor_, uint24 distributionId_) internal view returns (IStandardFunding.FundingVoteParams[] memory, IStandardFunding.ScreeningVoteParams[] memory, uint256) {
         return (
-            votingActors[actor_].fundingVotes,
-            votingActors[actor_].screeningVotes
+            votingActors[actor_][distributionId_].fundingVotes,
+            votingActors[actor_][distributionId_].screeningVotes,
+            votingActors[actor_][distributionId_].delegationRewardsClaimed
         );
     }
 
@@ -711,8 +745,9 @@ contract StandardHandler is Handler {
             // get actor info
             (
                 IStandardFunding.FundingVoteParams[] memory fundingVoteParams,
-                IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams
-            ) = getVotingActorsInfo(actor);
+                IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams,
+                uint256 delegationRewardsClaimed
+            ) = getVotingActorsInfo(actor, distributionId_);
 
             // log funding info
             if (funding_) {
@@ -728,7 +763,7 @@ contract StandardHandler is Handler {
             if (screening_) {
                 console.log("--Screening----------");
                 console.log("Screening Voting Power:          ", _grantFund.getVotesScreening(distributionId_, actor));
-                console.log("Screening Votes Cast:            ", sumVoterScreeningVotes(actor));
+                console.log("Screening Votes Cast:            ", sumVoterScreeningVotes(actor, distributionId_));
                 console.log("Screening proposals voted for:   ", screeningVoteParams.length);
                 console.log("------------------");
                 console.log("\n");
@@ -776,14 +811,14 @@ contract StandardHandler is Handler {
         return proposalsExecuted;
     }
 
-    // TODO: will need to handle this per distribution period
-    function getVotingActorsInfo(address actor_) public view returns (IStandardFunding.FundingVoteParams[] memory, IStandardFunding.ScreeningVoteParams[] memory) {
-        return _votingActorsInfo(actor_);
+    function getVotingActorsInfo(address actor_, uint24 distributionId_) public view returns (IStandardFunding.FundingVoteParams[] memory, IStandardFunding.ScreeningVoteParams[] memory, uint256) {
+        return _votingActorsInfo(actor_, distributionId_);
     }
 
-    function sumVoterScreeningVotes(address actor_) public view returns (uint256 sum_) {
-        for (uint256 i = 0; i < votingActors[actor_].screeningVotes.length; ++i) {
-            sum_ += votingActors[actor_].screeningVotes[i].votes;
+    function sumVoterScreeningVotes(address actor_, uint24 distributionId_) public view returns (uint256 sum_) {
+        VotingActor memory actor = votingActors[actor_][distributionId_];
+        for (uint256 i = 0; i < actor.screeningVotes.length; ++i) {
+            sum_ += actor.screeningVotes[i].votes;
         }
     }
 
