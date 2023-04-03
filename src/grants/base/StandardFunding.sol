@@ -717,13 +717,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             currentTopTenProposals.push(proposalId);
 
             // sort top ten proposals
-            _insertionSortProposalsByVotes(currentTopTenProposals);
+            _insertionSortProposalsByVotes(currentTopTenProposals, currentTopTenProposals.length - 1);
         }
         else {
             // proposal is already in the array
             if (indexInArray != -1) {
                 // re-sort top ten proposals to account for new vote totals
-                _insertionSortProposalsByVotes(currentTopTenProposals);
+                _insertionSortProposalsByVotes(currentTopTenProposals, uint256(indexInArray));
             }
             // proposal isn't already in the array
             else if(_standardFundingProposals[currentTopTenProposals[screenedProposalsLength - 1]].votesReceived < proposal_.votesReceived) {
@@ -732,7 +732,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 currentTopTenProposals.push(proposalId);
 
                 // sort top ten proposals
-                _insertionSortProposalsByVotes(currentTopTenProposals);
+                _insertionSortProposalsByVotes(currentTopTenProposals, 9);
             }
         }
 
@@ -807,27 +807,25 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev    Implements the descending insertion sort algorithm.
      * @dev    Counters incremented in an unchecked block due to being bounded by array length.
      * @dev    Since we are converting from int256 to uint256, we can safely assume that the values will not overflow.
-     * @param arr_ The array of proposals to sort by votes received.
+     * @param proposals_        The array of proposals to sort by votes received.
+     * @param targetProposalId_ The targeted proposal id to insert.
      */
     function _insertionSortProposalsByVotes(
-        uint256[] storage arr_
+        uint256[] storage proposals_,
+        uint256 targetProposalId_
     ) internal {
-        int256 arrayLength = int256(arr_.length);
+        while (
+            targetProposalId_ != 0
+            &&
+            _standardFundingProposals[proposals_[targetProposalId_]].votesReceived > _standardFundingProposals[proposals_[targetProposalId_ - 1]].votesReceived
+        ) {
+            // swap values if left item < right item
+            uint256 temp = proposals_[targetProposalId_ - 1];
 
-        for (int i = 1; i < arrayLength;) {
-            Proposal memory key = _standardFundingProposals[arr_[uint(i)]];
-            int j = i;
+            proposals_[targetProposalId_ - 1] = proposals_[targetProposalId_];
+            proposals_[targetProposalId_] = temp;
 
-            while (j > 0 && key.votesReceived > _standardFundingProposals[arr_[uint(j - 1)]].votesReceived) {
-                // swap values if left item < right item
-                uint256 temp = arr_[uint(j - 1)];
-                arr_[uint(j - 1)] = arr_[uint(j)];
-                arr_[uint(j)] = temp;
-
-                unchecked { --j; }
-            }
-
-            unchecked { ++i; }
+            unchecked { --targetProposalId_; }
         }
     }
 
