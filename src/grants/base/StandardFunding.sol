@@ -732,7 +732,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 currentTopTenProposals.push(proposalId);
 
                 // sort top ten proposals
-                _insertionSortProposalsByVotes(currentTopTenProposals, 9);
+                _insertionSortProposalsByVotes(currentTopTenProposals, currentTopTenProposals.length - 1);
             }
         }
 
