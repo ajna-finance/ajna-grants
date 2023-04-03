@@ -717,7 +717,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             currentTopTenProposals.push(proposalId);
 
             // sort top ten proposals
-            _insertionSortProposalsByVotes(currentTopTenProposals, currentTopTenProposals.length - 1);
+            _insertionSortProposalsByVotes(currentTopTenProposals, screenedProposalsLength);
         }
         else {
             // proposal is already in the array
@@ -732,7 +732,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 currentTopTenProposals.push(proposalId);
 
                 // sort top ten proposals
-                _insertionSortProposalsByVotes(currentTopTenProposals, currentTopTenProposals.length - 1);
+                _insertionSortProposalsByVotes(currentTopTenProposals, screenedProposalsLength - 1);
             }
         }
 
