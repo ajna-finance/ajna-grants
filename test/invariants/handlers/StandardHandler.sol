@@ -297,7 +297,6 @@ contract StandardHandler is Handler {
         if (systemTime >= 500) {
             // skip time to the end of the challenge stage
             vm.roll(endBlock + 50401);
-            // numberOfCalls['SFH.FundingStage']++;
         }
 
         if (block.number <= endBlock + 50400) return;
@@ -309,7 +308,6 @@ contract StandardHandler is Handler {
 
         uint256 proposalIndex = constrictToRange(proposalToExecute_, 1, topSlateProposalIds.length) -1;
 
-        console.log("proposal index", proposalIndex);
         TestProposal memory proposal = testProposals[topSlateProposalIds[proposalIndex]];
 
         try _grantFund.executeStandard(proposal.targets, proposal.values, proposal.calldatas, keccak256(bytes(proposal.description))) returns (uint256 proposalId_) {

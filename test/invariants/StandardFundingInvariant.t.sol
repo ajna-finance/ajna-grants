@@ -44,7 +44,7 @@ contract StandardFundingInvariant is StandardTestBase {
     function invariant_FS1_FS2_FS3() external {
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
 
-        // invariant: 10 or less proposals should make it through the screening stage
+        // invariant FS1: 10 or less proposals should make it through the screening stage
         assertTrue(topTenProposals.length <= 10);
         assertTrue(topTenProposals.length > 0); // check if something went wrong in setup
 
@@ -88,7 +88,7 @@ contract StandardFundingInvariant is StandardTestBase {
             }
 
             // invariant FS8: a voter should never be able to cast more votes than the Ajna token supply of 1 billion.
-            assertTrue(uint256(_standardHandler.sumFundingVotes(fundingVoteParams)) <= 1_000_000_000 * 1e18);
+            assertTrue(uint256(_standardHandler.sumFundingVotes(fundingVoteParams)) <= _token.totalSupply());
 
             // TODO: check getFundingPowerVotes to see if remaining voting power matches expectations
             // assertEq(_grantFund.getFundingPowerVotes(uint256(votingPower - remainingVotingPower)), uint256(_standardHandler.sumFundingVotes(actor, fundingVoteParams)));

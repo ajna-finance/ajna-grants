@@ -98,7 +98,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
     function invariant_ES1_ES3() external {
         uint24 distributionId = _grantFund.getDistributionId();
-        (, , , uint128 fundsAvailable, , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+        (, , , , , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
 
         uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
 
