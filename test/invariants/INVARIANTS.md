@@ -22,6 +22,7 @@
     - **SS5**: Votes can only be cast on a proposal in it's distribution period's screening stage.
     - **SS6**: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list (typically the 10th of course, but it may be shorter than ten proposals).
     - **SS7**: A proposal should never receive more vote than the Ajna token supply.
+    - **SS8**: A proposal can only receive screening votes if it was created via proposeStandard().
 
 - #### Funding Stage:
     - **FS1**: Only 10 proposals can be voted on in the funding stage

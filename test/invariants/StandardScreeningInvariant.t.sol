@@ -36,24 +36,26 @@ contract StandardScreeningInvariant is StandardTestBase {
         assertTrue(topTenProposals.length <= 10);
         assertTrue(standardFundingProposalsSubmitted >= topTenProposals.length);
 
-        if (_standardHandler.screeningVotesCast() > 0) {
-            assertTrue(topTenProposals.length > 0);
-        }
-
+        // check the state of the top ten proposals
         if (topTenProposals.length > 1) {
             for (uint256 i = 0; i < topTenProposals.length - 1; ++i) {
-                // invariant SS3: proposals should be sorted in descending order
+                // check the current proposals votes received against the next proposal in the top ten list
                 (, uint24 distributionIdCurr, uint256 votesReceivedCurr, , , ) = _grantFund.getProposalInfo(topTenProposals[i]);
                 (, uint24 distributionIdNext, uint256 votesReceivedNext, , , ) = _grantFund.getProposalInfo(topTenProposals[i + 1]);
-                assertTrue(votesReceivedCurr >= votesReceivedNext);
+                require(
+                    votesReceivedCurr >= votesReceivedNext,
+                    "invariant SS3: proposals should be sorted in descending order"
+                );
 
-                // invariant SS4: votes recieved for a proposal can only be positive
-                // only proposals that recieve votes will make it into the top ten list
-                assertTrue(votesReceivedCurr > 0);
-                assertTrue(votesReceivedNext > 0);
+                require(
+                    votesReceivedCurr > 0 && votesReceivedNext > 0,
+                    "invariant SS4: votes recieved for a proposal can only be positive"
+                );
 
-                // invariant SS5: distribution id for a proposal should be the same as the current distribution id
-                assertTrue(distributionIdCurr == distributionIdNext && distributionIdCurr == _grantFund.getDistributionId());
+                require(
+                    distributionIdCurr == distributionIdNext && distributionIdCurr == _grantFund.getDistributionId(),
+                    "invariant SS5: distribution id for a proposal should be the same as the current distribution id"
+                );
             }
         }
 
@@ -67,11 +69,15 @@ contract StandardScreeningInvariant is StandardTestBase {
         // check invariants against all submitted proposals
         for (uint256 j = 0; j < standardFundingProposalsSubmitted; ++j) {
             (, , uint256 votesReceived, , , ) = _grantFund.getProposalInfo(_standardHandler.standardFundingProposals(j));
-            // invariant SS4: votes recieved for a proposal can only be positive
-            assertTrue(votesReceived >= 0);
+            require(
+                votesReceived >= 0,
+                "invariant SS4: votes recieved for a proposal can only be positive"
+            );
 
-            // invariant SS7: a proposal should never receive more votes than the token supply.
-            assertTrue(votesReceived <= _token.totalSupply());
+            require(
+                votesReceived <= _token.totalSupply(),
+                "invariant SS7: a proposal should never receive more screening votes than the token supply"
+            );
 
             // invariant SS6: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list.
             // if the proposal is not in the top ten list, then it should have received less screening votes than the last in the top 10
@@ -82,29 +88,40 @@ contract StandardScreeningInvariant is StandardTestBase {
                 }
             }
         }
+
+        // invariant SS6: proposals should be incorporated into the top ten list if, and only if, they have as many or more votes as the last member of the top ten list.
+        if (_standardHandler.screeningVotesCast() > 0) {
+            assertTrue(topTenProposals.length > 0);
+        }
+
     }
 
-    function invariant_SS2_SS4() public {
+    function invariant_SS2_SS4_SS8() public {
         uint256 actorCount = _standardHandler.getActorsCount();
         uint24 distributionId = _grantFund.getDistributionId();
 
         // check invariants for all actors
         for (uint256 i = 0; i < actorCount; ++i) {
             address actor = _standardHandler.actors(i);
-
             uint256 votingPower = _grantFund.getVotesScreening(distributionId, actor);
 
-            // invariant SS2: can only vote up to the amount of voting power at the snapshot blocks
-            assertTrue(_standardHandler.sumVoterScreeningVotes(actor, distributionId) <= votingPower);
+            require(
+                _standardHandler.sumVoterScreeningVotes(actor, distributionId) <= votingPower,
+                "invariant SS2: can only vote up to the amount of voting power at the snapshot blocks"
+            );
 
+            // check the screening votes cast by the actor
             ( , IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams, ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
-
             for (uint256 j = 0; j < screeningVoteParams.length; ++j) {
-                // invariant SS4: can only cast positive votes
-                assertTrue(screeningVoteParams[j].votes > 0);
+                require(
+                    screeningVoteParams[j].votes > 0,
+                    "invariant SS4: can only cast positive votes"
+                );
 
-                // check voter only votes upon proposals that they have submitted
-                assertTrue(_findProposalIndex(screeningVoteParams[j].proposalId, _standardHandler.getStandardFundingProposals()) != -1);
+                require(
+                    _findProposalIndex(screeningVoteParams[j].proposalId, _standardHandler.getStandardFundingProposals()) != -1,
+                    "invariant SS8: a proposal can only receive screening votes if it was created via proposeStandard()"
+                );
             }
         }
     }

@@ -35,6 +35,9 @@ contract Handler is Test, GrantFundTestHelper {
     // randomness counter
     uint256 internal counter = 1;
 
+    // constant error string when an unexpected revert is thrown
+    string internal constant UNEXPECTED_REVERT = "UNEXPECTED_REVERT_ERROR";
+
     constructor(
         address payable grantFund_,
         address token_,
@@ -66,8 +69,6 @@ contract Handler is Test, GrantFundTestHelper {
         // vm.roll(testContract.currentBlock());
 
         _;
-
-        emit log_address(address(testContract));
 
         testContract.setCurrentBlock(block.number);
     }

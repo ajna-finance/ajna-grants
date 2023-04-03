@@ -75,7 +75,8 @@ contract StandardHandler is Handler {
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
             require(
-                err == keccak256(abi.encodeWithSignature("DistributionPeriodStillActive()"))
+                err == keccak256(abi.encodeWithSignature("DistributionPeriodStillActive()")),
+                UNEXPECTED_REVERT
             );
         }
     }
@@ -107,7 +108,8 @@ contract StandardHandler is Handler {
             require(
                 err == keccak256(abi.encodeWithSignature("ProposalAlreadyExists()")) ||
                 err == keccak256(abi.encodeWithSignature("ScreeningPeriodEnded()")) ||
-                err == keccak256(abi.encodeWithSignature("InvalidProposal()"))
+                err == keccak256(abi.encodeWithSignature("InvalidProposal()")),
+                UNEXPECTED_REVERT
             );
         }
 
@@ -156,7 +158,8 @@ contract StandardHandler is Handler {
             bytes32 err = keccak256(_err);
             require(
                 err == keccak256(abi.encodeWithSignature("InvalidVote()")) ||
-                err == keccak256(abi.encodeWithSignature("InsufficientVotingPower()"))
+                err == keccak256(abi.encodeWithSignature("InsufficientVotingPower()")),
+                UNEXPECTED_REVERT
             );
         }
     }
@@ -219,7 +222,8 @@ contract StandardHandler is Handler {
             require(
                 err == keccak256(abi.encodeWithSignature("InvalidVote()")) ||
                 err == keccak256(abi.encodeWithSignature("InsufficientVotingPower()")) ||
-                err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()"))
+                err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()")),
+                UNEXPECTED_REVERT
             );
         }
     }
@@ -281,7 +285,8 @@ contract StandardHandler is Handler {
             // TODO: replace with _recordError()
             bytes32 err = keccak256(_err);
             require(
-                err == keccak256(abi.encodeWithSignature("InvalidProposalSlate()"))
+                err == keccak256(abi.encodeWithSignature("InvalidProposalSlate()")),
+                UNEXPECTED_REVERT
             );
         }
     }
@@ -319,7 +324,8 @@ contract StandardHandler is Handler {
             bytes32 err = keccak256(_err);
             require(
                 err == keccak256(abi.encodeWithSignature("ExecuteProposalInvalid()")) ||
-                err == keccak256(abi.encodeWithSignature("ProposalNotSuccessful()"))
+                err == keccak256(abi.encodeWithSignature("ProposalNotSuccessful()")),
+                UNEXPECTED_REVERT
             );
         }
     }
@@ -354,7 +360,8 @@ contract StandardHandler is Handler {
             require(
                 err == keccak256(abi.encodeWithSignature("DelegateRewardInvalid()"))   ||
                 err == keccak256(abi.encodeWithSignature("ChallengePeriodNotEnded()")) ||
-                err == keccak256(abi.encodeWithSignature("RewardAlreadyClaimed()"))
+                err == keccak256(abi.encodeWithSignature("RewardAlreadyClaimed()")),
+                UNEXPECTED_REVERT
             );
         }
     }

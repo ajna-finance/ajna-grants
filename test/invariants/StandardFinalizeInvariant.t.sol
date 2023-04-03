@@ -72,8 +72,10 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
         uint256[] memory topTenScreenedProposalIds = _grantFund.getTopTenProposals(distributionId);
 
-        // invariant CS2: top slate should have 10 or less proposals
-        assertTrue(topSlateProposalIds.length <= 10);
+        require(
+            topSlateProposalIds.length <= 10,
+            "invariant CS2: top slate should have 10 or less proposals"
+        );
 
         // check proposal state of the constituents of the top slate
         uint256 totalTokensRequested = 0;
@@ -82,18 +84,26 @@ contract StandardFinalizeInvariant is StandardTestBase {
             (, , , uint128 tokensRequested, int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(proposalId);
             totalTokensRequested += tokensRequested;
 
-            // invariant CS3: Proposal slate should never contain a proposal with negative funding votes received
-            assertTrue(fundingVotesReceived >= 0);
+            require(
+                fundingVotesReceived >= 0,
+                "invariant CS3: Proposal slate should never contain a proposal with negative funding votes received"
+            );
 
-            // invariant CS4: Proposal slate should never contain a proposal that wasn't in the top ten in the funding stage.
-            assertTrue(_findProposalIndex(proposalId, topTenScreenedProposalIds) != -1);
+            require(
+                _findProposalIndex(proposalId, topTenScreenedProposalIds) != -1,
+                "invariant CS4: Proposal slate should never contain a proposal that wasn't in the top ten in the funding stage."
+            );
         }
 
-        // invariant CS1: total tokens requested should be <= 90% of fundsAvailable
-        assertTrue(totalTokensRequested <= uint256(fundsAvailable) * 9 / 10);
+        require(
+            totalTokensRequested <= uint256(fundsAvailable) * 9 / 10,
+            "invariant CS1: total tokens requested should be <= 90% of fundsAvailable"
+        );
 
-        // invariant CS5: proposal slate should never contain duplicate proposals
-        assertFalse(_standardHandler.hasDuplicates(topSlateProposalIds));
+        require(
+            !_standardHandler.hasDuplicates(topSlateProposalIds),
+            "invariant CS5: proposal slate should never contain duplicate proposals"
+        );
     }
 
     function invariant_ES1_ES3() external {
@@ -121,8 +131,10 @@ contract StandardFinalizeInvariant is StandardTestBase {
             }
         }
 
-        // invariant ES3: A proposal can only be executed once.
-        assertFalse(_standardHandler.hasDuplicates(_standardHandler.getProposalsExecuted()));
+        require(
+            !_standardHandler.hasDuplicates(_standardHandler.getProposalsExecuted()),
+            "invariant ES3: A proposal can only be executed once."
+        );
     }
 
     function invariant_DR1_DR2_DR3() external {
@@ -147,12 +159,15 @@ contract StandardFinalizeInvariant is StandardTestBase {
             totalRewardsClaimed += delegationRewardsClaimed;
 
             if (delegationRewardsClaimed != 0) {
+                // check that delegation rewards are greater tahn 0 if they did vote in both stages
                 assertTrue(delegationRewardsClaimed >= 0);
 
                 uint256 votingPowerAllocatedByDelegatee = votingPower - remainingVotingPower;
 
-                // invariant DR2: Delegation rewards are 0 if voter didn't vote in both stages.
-                assertTrue(fundingVoteParams.length > 0 && screeningVoteParams.length > 0);
+                require(
+                    fundingVoteParams.length > 0 && screeningVoteParams.length > 0,
+                    "invariant DR2: Delegation rewards are 0 if voter didn't vote in both stages."
+                );
 
                 uint256 rewards;
                 if (votingPowerAllocatedByDelegatee > 0) {
@@ -165,8 +180,10 @@ contract StandardFinalizeInvariant is StandardTestBase {
                     ) / 10;
                 }
 
-                // invariant DR3: Delegation rewards are proportional to voters funding power allocated in the funding stage.
-                assertTrue(delegationRewardsClaimed == rewards);
+                require(
+                    delegationRewardsClaimed == rewards,
+                    "invariant DR3: Delegation rewards are proportional to voters funding power allocated in the funding stage."
+                );
             }
         }
 
