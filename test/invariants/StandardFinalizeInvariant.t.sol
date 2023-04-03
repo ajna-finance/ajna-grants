@@ -135,7 +135,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
             address actor = _standardHandler.actors(i);
 
             // get the initial funding stage voting power of the actor
-            (uint128 votingPower, uint128 remainingVotingPower, uint256 numberOfProposalsVotedOn) = _grantFund.getVoterInfo(distributionId, actor);
+            (uint128 votingPower, uint128 remainingVotingPower, ) = _grantFund.getVoterInfo(distributionId, actor);
 
             // get actor info from standard handler
             (
@@ -172,7 +172,9 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
         // invariant DR1: Cumulative delegation rewards should be 10% of a distribution periods GBC.
         assertTrue(totalRewardsClaimed <= fundsAvailable * 1 / 10);
-        // assertTrue(totalRewardsClaimed <= fundsAvailable * 9 / 10);
+        if (_standardHandler.numberOfCalls('SFH.claimDelegateReward.success') == _standardHandler.getActorsCount()) {
+            assertEq(totalRewardsClaimed, fundsAvailable * 1 / 10);
+        }
     }
 
     function invariant_call_summary() external view {
@@ -197,6 +199,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
         console.log("Slate Update Count:         ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
         console.log("Top Slate Proposal Count:   ", topSlateProposalIds.length);
         console.log("Top Ten Proposal Count:     ", topTenScreenedProposalIds.length);
+        console.log("Funds Available:            ", fundsAvailable);
         console.log("------------------");
     }
 

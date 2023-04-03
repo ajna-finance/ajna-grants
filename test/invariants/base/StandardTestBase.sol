@@ -34,7 +34,6 @@ contract StandardTestBase is TestBase {
 
         // skip time for snapshots and start distribution period
         vm.roll(block.number + 100);
-        // vm.rollFork(block.number + 100);
         _grantFund.startNewDistributionPeriod();
     }
 

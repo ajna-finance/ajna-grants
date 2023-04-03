@@ -67,12 +67,8 @@ contract StandardHandler is Handler {
         numberOfCalls['SFH.startNewDistributionPeriod']++;
         systemTime++;
 
-        // vm.roll(block.number + 100);
-        // vm.rollFork(block.number + 100);
-
         try _grantFund.startNewDistributionPeriod() returns (uint24 newDistributionId) {
             newDistributionId_ = newDistributionId;
-            // FIXME: remove this
             vm.roll(block.number + 100);
             vm.rollFork(block.number + 100);
         }
@@ -102,7 +98,6 @@ contract StandardHandler is Handler {
             string memory description
         ) = generateProposalParams(testProposalParams);
 
-        console.log("description", description);
         try _grantFund.proposeStandard(targets, values, calldatas, description) returns (uint256 proposalId) {
             standardFundingProposals.push(proposalId);
             standardFundingProposalCount++;
@@ -331,7 +326,7 @@ contract StandardHandler is Handler {
         }
     }
 
-    function claimDelegateReward(uint256 actorIndex_, uint256 proposalToExecute_) external useCurrentBlock useRandomActor(actorIndex_) {
+    function claimDelegateReward(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.claimDelegateReward']++;
         systemTime++;
 
@@ -755,7 +750,7 @@ contract StandardHandler is Handler {
                 console.log("Funding proposals voted for:     ", fundingVoteParams.length);
                 console.log("Sum of squares of fvc:           ", sumSquareOfVotesCast(fundingVoteParams));
                 console.log("Funding Votes Cast:              ", uint256(sumFundingVotes(fundingVoteParams)));
-                console.log("Negative Funding Votes Cast:     ", countNegativeFundingVotes(actor, fundingVoteParams));
+                console.log("Negative Funding Votes Cast:     ", countNegativeFundingVotes(fundingVoteParams));
                 console.log("------------------");
                 console.log("\n");
             }
@@ -807,7 +802,13 @@ contract StandardHandler is Handler {
             console.log("executed:             ",  executed);
             console.log("votesReceived:        ",  votesReceived);
             console.log("tokensRequested:      ",  tokensRequested);
-            // console.log("fundingVotesReceived: ",  fundingVotesReceived);
+            if (fundingVotesReceived < 0) {
+                console.log("Negative fundingVotesReceived: ",  uint256(Maths.abs(fundingVotesReceived)));
+            }
+            else {
+                console.log("Positive fundingVotesReceived: ",  uint256(int256(fundingVotesReceived)));
+            }
+
             console.log("------------------");
         }
         console.log("\n");
@@ -842,7 +843,7 @@ contract StandardHandler is Handler {
         }
     }
 
-    function countNegativeFundingVotes(address actor_, IStandardFunding.FundingVoteParams[] memory fundingVotes_) public pure returns (uint256 count_) {
+    function countNegativeFundingVotes(IStandardFunding.FundingVoteParams[] memory fundingVotes_) public pure returns (uint256 count_) {
         for (uint256 i = 0; i < fundingVotes_.length; ++i) {
             if (fundingVotes_[i].votesUsed < 0) {
                 count_++;
