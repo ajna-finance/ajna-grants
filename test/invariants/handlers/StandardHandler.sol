@@ -22,8 +22,7 @@ contract StandardHandler is Handler {
     // record standard funding proposals over time
     // proposal count
     uint256 public standardFundingProposalCount;
-    // list of submitted standard funding proposals
-    uint256[] public standardFundingProposals;
+    // uint256[] public standardFundingProposals;
 
     uint256[] public proposalsExecuted;
 
@@ -44,6 +43,10 @@ contract StandardHandler is Handler {
         uint24 distributionId;
         bytes32 currentTopSlate;
     }
+
+    // list of submitted standard funding proposals by distribution period
+    // distributionId => proposalId[]
+    mapping(uint24 => uint256[]) public standardFundingProposals;
 
     mapping(uint24 => DistributionState) public distributionStates;
     mapping(bytes32 => uint256[]) public proposalsInTopSlate;
@@ -100,7 +103,7 @@ contract StandardHandler is Handler {
         ) = generateProposalParams(testProposalParams);
 
         try _grantFund.proposeStandard(targets, values, calldatas, description) returns (uint256 proposalId) {
-            standardFundingProposals.push(proposalId);
+            standardFundingProposals[_grantFund.getDistributionId()].push(proposalId);
             standardFundingProposalCount++;
         }
         catch (bytes memory _err){
@@ -121,8 +124,8 @@ contract StandardHandler is Handler {
 
         uint24 distributionId = _grantFund.getDistributionId();
 
-        // bind proposalsToVoteOn_ to the number of proposals
-        proposalsToVoteOn_ = bound(proposalsToVoteOn_, 0, standardFundingProposals.length);
+        // get a random number less than the number of submitted proposals
+        proposalsToVoteOn_ = constrictToRange(proposalsToVoteOn_, 0, standardFundingProposals[distributionId].length);
 
         vm.roll(block.number + 100);
         // vm.rollFork(block.number + 100);
@@ -168,18 +171,15 @@ contract StandardHandler is Handler {
         numberOfCalls['SFH.fundingVote']++;
         systemTime++;
 
-        // bind proposalsToVoteOn_ to the number of proposals
-        proposalsToVoteOn_ = bound(proposalsToVoteOn_, 0, standardFundingProposals.length);
-
-        // vm.roll(block.number + 100);
-
-        // TODO: implement time counter incremeneted monotonically per call depth
         // check where block is in the distribution period
         uint24 distributionId = _grantFund.getDistributionId();
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
         if (block.number < endBlock - 72000) {
                 return;
         }
+
+        // bind proposalsToVoteOn_ to the number of proposals
+        proposalsToVoteOn_ = bound(proposalsToVoteOn_, 0, standardFundingProposals[distributionId].length);
 
         // TODO: make happy / chaotic path decision random / dynamic?
         // get the fundingVoteParams for the votes the actor is about to cast
@@ -189,14 +189,14 @@ contract StandardHandler is Handler {
         try _grantFund.fundingVote(fundingVoteParams) returns (uint256 votesCast) {
             numberOfCalls['SFH.fundingVote.success']++;
 
+            // TODO: can a proposal have 0 votes cast?
             // assertGt(votesCast, 0);
 
-            // TODO: account for possibly being negative
             // check votesCast is equal to the sum of votes cast
             assertEq(votesCast, SafeCast.toUint256(sumFundingVotes(fundingVoteParams)));
 
             // update actor funding votes counts
-            // TODO: find and replace previous vote record for that proposlId, in that distributonId
+            // find and replace previous vote record for that proposlId, in that distributonId
             VotingActor storage actor = votingActors[_actor][distributionId];
             for (uint256 i = 0; i < proposalsToVoteOn_; ) {
 
@@ -401,7 +401,7 @@ contract StandardHandler is Handler {
             descriptionPartTwo = string.concat(descriptionPartTwo, Strings.toHexString(uint160(testProposalParams_[i].recipient), 20));
             descriptionPartTwo = string.concat(descriptionPartTwo, ", ");
 
-            descriptionPartTwo = string.concat(descriptionPartTwo, Strings.toString(standardFundingProposals.length));
+            descriptionPartTwo = string.concat(descriptionPartTwo, Strings.toString(standardFundingProposals[_grantFund.getDistributionId()].length));
         }
         description_ = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo));
     }
@@ -427,7 +427,8 @@ contract StandardHandler is Handler {
     }
 
     function randomProposal() internal returns (uint256) {
-        return standardFundingProposals[constrictToRange(randomSeed(), 0, standardFundingProposals.length - 1)];
+        uint24 distributionId = _grantFund.getDistributionId();
+        return standardFundingProposals[distributionId][constrictToRange(randomSeed(), 0, standardFundingProposals[distributionId].length - 1)];
     }
 
     function getStage() internal view returns (bytes memory stage_) {
@@ -452,11 +453,10 @@ contract StandardHandler is Handler {
     }
 
     function _createProposal() internal returns (uint256 proposalId_) {
+        // TODO: increase randomness of number of params, including potentially randomizing each separate param?
         // get a random number between 1 and 5
         uint256 numProposalParams = constrictToRange(randomSeed(), 1, 5);
-        // uint256 numProposalParams = 3;
 
-        // TODO: increase randomness of number of params
         // generate list of recipients and tokens requested
         TestProposalParams[] memory testProposalParams = generateTestProposalParams(numProposalParams);
 
@@ -472,7 +472,7 @@ contract StandardHandler is Handler {
         proposalId_ = _grantFund.proposeStandard(targets, values, calldatas, description);
 
         // record new proposal
-        standardFundingProposals.push(proposalId_);
+        standardFundingProposals[_grantFund.getDistributionId()].push(proposalId_);
         standardFundingProposalCount++;
 
         // FIXME: set recipient and tokensRequested
@@ -800,8 +800,9 @@ contract StandardHandler is Handler {
         console.log("\nProposal Summary\n");
         console.log("Number of Proposals", standardFundingProposalCount);
         for (uint256 i = 0; i < standardFundingProposalCount; ++i) {
+            uint24 distributionId = _grantFund.getDistributionId();
             console.log("------------------");
-            (uint256 proposalId, uint24 distributionId, uint128 votesReceived, uint128 tokensRequested, int128 fundingVotesReceived, bool executed) = _grantFund.getProposalInfo(standardFundingProposals[i]);
+            (uint256 proposalId, , uint128 votesReceived, uint128 tokensRequested, int128 fundingVotesReceived, bool executed) = _grantFund.getProposalInfo(standardFundingProposals[distributionId][i]);
             console.log("proposalId:           ",  proposalId);
             console.log("distributionId:       ",  distributionId);
             console.log("executed:             ",  executed);
@@ -823,8 +824,8 @@ contract StandardHandler is Handler {
     /*** SFM Getter Functions ****/
     /*****************************/
 
-    function getStandardFundingProposals() external view returns (uint256[] memory) {
-        return standardFundingProposals;
+    function getStandardFundingProposals(uint24 distributionId_) external view returns (uint256[] memory) {
+        return standardFundingProposals[distributionId_];
     }
 
     function getProposalsExecuted() external view returns (uint256[] memory) {

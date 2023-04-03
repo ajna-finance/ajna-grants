@@ -32,6 +32,8 @@ contract StandardScreeningInvariant is StandardTestBase {
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
         uint256 standardFundingProposalsSubmitted = _standardHandler.standardFundingProposalCount();
 
+        uint24 distributionId = _grantFund.getDistributionId();
+
         // invariant SS1: 10 or less proposals should make it through the screening stage
         assertTrue(topTenProposals.length <= 10);
         assertTrue(standardFundingProposalsSubmitted >= topTenProposals.length);
@@ -53,7 +55,7 @@ contract StandardScreeningInvariant is StandardTestBase {
                 );
 
                 require(
-                    distributionIdCurr == distributionIdNext && distributionIdCurr == _grantFund.getDistributionId(),
+                    distributionIdCurr == distributionIdNext && distributionIdCurr == distributionId,
                     "invariant SS5: distribution id for a proposal should be the same as the current distribution id"
                 );
             }
@@ -68,7 +70,7 @@ contract StandardScreeningInvariant is StandardTestBase {
 
         // check invariants against all submitted proposals
         for (uint256 j = 0; j < standardFundingProposalsSubmitted; ++j) {
-            (, , uint256 votesReceived, , , ) = _grantFund.getProposalInfo(_standardHandler.standardFundingProposals(j));
+            (, , uint256 votesReceived, , , ) = _grantFund.getProposalInfo(_standardHandler.standardFundingProposals(distributionId, j));
             require(
                 votesReceived >= 0,
                 "invariant SS4: votes recieved for a proposal can only be positive"
@@ -81,7 +83,7 @@ contract StandardScreeningInvariant is StandardTestBase {
 
             // invariant SS6: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list.
             // if the proposal is not in the top ten list, then it should have received less screening votes than the last in the top 10
-            if (_findProposalIndex(_standardHandler.standardFundingProposals(j), topTenProposals) == -1) {
+            if (_findProposalIndex(_standardHandler.standardFundingProposals(distributionId, j), topTenProposals) == -1) {
                 if (votesReceivedLast != 0) {
                     // assertTrue(votesReceived < votesReceivedLast);
                     assertGt(votesReceivedLast, votesReceived);
@@ -119,7 +121,7 @@ contract StandardScreeningInvariant is StandardTestBase {
                 );
 
                 require(
-                    _findProposalIndex(screeningVoteParams[j].proposalId, _standardHandler.getStandardFundingProposals()) != -1,
+                    _findProposalIndex(screeningVoteParams[j].proposalId, _standardHandler.getStandardFundingProposals(distributionId)) != -1,
                     "invariant SS8: a proposal can only receive screening votes if it was created via proposeStandard()"
                 );
             }

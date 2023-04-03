@@ -48,10 +48,12 @@ contract StandardFundingInvariant is StandardTestBase {
         assertTrue(topTenProposals.length <= 10);
         assertTrue(topTenProposals.length > 0); // check if something went wrong in setup
 
+        uint24 distributionId = _grantFund.getDistributionId();
+
         // check invariants against every proposal
         for (uint256 j = 0; j < _standardHandler.standardFundingProposalCount(); ++j) {
-            uint256 proposalId = _standardHandler.standardFundingProposals(j);
-            (, uint24 distributionId, , , int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(proposalId);
+            uint256 proposalId = _standardHandler.standardFundingProposals(distributionId, j);
+            (, , , , int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(proposalId);
 
             // invariant FS2: proposals not in the top ten should not be able to recieve funding votes
             if (_findProposalIndex(proposalId, topTenProposals) == -1) {

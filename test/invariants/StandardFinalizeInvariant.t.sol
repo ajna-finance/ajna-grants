@@ -112,6 +112,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
         uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
 
+        // calculate the total tokens requested by the proposals in the top slate
         uint256 totalTokensRequested = 0;
         for (uint256 i = 0; i < topSlateProposalIds.length; ++i) {
             uint256 proposalId = topSlateProposalIds[i];
@@ -119,13 +120,14 @@ contract StandardFinalizeInvariant is StandardTestBase {
             totalTokensRequested += tokensRequested;
         }
 
-        uint256[] memory standardFundingProposals = _standardHandler.getStandardFundingProposals();
+        uint256[] memory standardFundingProposals = _standardHandler.getStandardFundingProposals(distributionId);
 
-        // invariant ES1: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round.
+        // check the state of every proposal submitted in this distribution period
         for (uint256 i = 0; i < _standardHandler.standardFundingProposalCount(); ++i) {
             uint256 proposalId = standardFundingProposals[i];
             (, , , , , bool executed) = _grantFund.getProposalInfo(proposalId);
             int256 proposalIndex = _findProposalIndex(proposalId, topSlateProposalIds);
+            // invariant ES1: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round.
             if (proposalIndex == -1) {
                 assertFalse(executed);
             }
