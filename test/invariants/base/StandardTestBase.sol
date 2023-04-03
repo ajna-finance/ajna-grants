@@ -25,7 +25,8 @@ contract StandardTestBase is TestBase {
             address(_token),
             _tokenDeployer,
             NUM_ACTORS,
-            tokensNotInTreasury
+            tokensNotInTreasury,
+            address(this)
         );
 
         // explicitly target handler

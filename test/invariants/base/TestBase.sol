@@ -22,6 +22,8 @@ contract TestBase is Test, GrantFundTestHelper {
     // initial treasury value
     uint256 treasury = 500_000_000 * 1e18;
 
+    uint256 public currentBlock;
+
     function setUp() public virtual {
         vm.createSelectFork(vm.envString("ETH_RPC_URL"), _startBlock);
 
@@ -48,5 +50,12 @@ contract TestBase is Test, GrantFundTestHelper {
         excludeContract(address(_votingToken));
 
         vm.makePersistent(address(_grantFund));
+
+        currentBlock = block.number;
     }
+
+    function setCurrentBlock(uint256 currentBlock_) external {
+        currentBlock = currentBlock_;
+    }
+
 }

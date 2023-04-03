@@ -55,14 +55,15 @@ contract StandardHandler is Handler {
         address token_,
         address tokenDeployer_,
         uint256 numOfActors_,
-        uint256 tokensToDistribute_
-    ) Handler(grantFund_, token_, tokenDeployer_, numOfActors_, tokensToDistribute_) {}
+        uint256 tokensToDistribute_,
+        address testContract_
+    ) Handler(grantFund_, token_, tokenDeployer_, numOfActors_, tokensToDistribute_, testContract_) {}
 
     /*********************/
     /*** SFM Functions ***/
     /*********************/
 
-    function startNewDistributionPeriod(uint256 actorIndex_) external useRandomActor(actorIndex_) returns (uint24 newDistributionId_) {
+    function startNewDistributionPeriod(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) returns (uint24 newDistributionId_) {
         numberOfCalls['SFH.startNewDistributionPeriod']++;
         systemTime++;
 
@@ -83,7 +84,7 @@ contract StandardHandler is Handler {
         }
     }
 
-    function proposeStandard(uint256 actorIndex_) external useRandomActor(actorIndex_) {
+    function proposeStandard(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.proposeStandard']++;
         systemTime++;
 
@@ -117,7 +118,7 @@ contract StandardHandler is Handler {
 
     }
 
-    function screeningVote(uint256 actorIndex_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
+    function screeningVote(uint256 actorIndex_, uint256 proposalsToVoteOn_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.screeningVote']++;
         systemTime++;
 
@@ -165,31 +166,21 @@ contract StandardHandler is Handler {
         }
     }
 
-    function fundingVote(uint256 actorIndex_, uint256 proposalsToVoteOn_) external useRandomActor(actorIndex_) {
+    function fundingVote(uint256 actorIndex_, uint256 proposalsToVoteOn_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.fundingVote']++;
         systemTime++;
 
         // bind proposalsToVoteOn_ to the number of proposals
         proposalsToVoteOn_ = bound(proposalsToVoteOn_, 0, standardFundingProposals.length);
 
-        vm.roll(block.number + 100);
+        // vm.roll(block.number + 100);
 
         // TODO: implement time counter incremeneted monotonically per call depth
         // check where block is in the distribution period
         uint24 distributionId = _grantFund.getDistributionId();
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
         if (block.number < endBlock - 72000) {
-
-        //     // check if we should activate the funding stage
-        //     if (systemTime >= 1500) {
-        //         // skip time into the funding stage
-        //         uint256 fundingStageStartBlock = endBlock - 72000;
-        //         vm.roll(fundingStageStartBlock + 100);
-        //         numberOfCalls['SFH.FundingStage']++;
-        //     }
-        //     else {
                 return;
-        //     }
         }
 
         // TODO: make happy / chaotic path decision random / dynamic?
@@ -239,7 +230,7 @@ contract StandardHandler is Handler {
     }
 
     // FIXME: can a proposal slate have no proposals?
-    function updateSlate(uint256 actorIndex_, uint256 proposalSeed) external useRandomActor(actorIndex_) {
+    function updateSlate(uint256 actorIndex_, uint256 proposalSeed) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.updateSlate']++;
         systemTime++;
 
@@ -248,9 +239,9 @@ contract StandardHandler is Handler {
             return;
         }
 
-        if (systemTime > 2800) {
-            return;
-        }
+        // if (systemTime > 2800) {
+        //     return;
+        // }
 
         uint256 potentialSlateLength = constrictToRange(proposalSeed, 0, 10);
         uint24 distributionId = _grantFund.getDistributionId();
@@ -300,7 +291,7 @@ contract StandardHandler is Handler {
         }
     }
 
-    function executeStandard(uint256 actorIndex_, uint256 proposalToExecute_) external useRandomActor(actorIndex_) {
+    function executeStandard(uint256 actorIndex_, uint256 proposalToExecute_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.executeStandard']++;
         systemTime++;
 
@@ -340,7 +331,7 @@ contract StandardHandler is Handler {
         }
     }
 
-    function claimDelegateReward(uint256 actorIndex_, uint256 proposalToExecute_) external useRandomActor(actorIndex_) {
+    function claimDelegateReward(uint256 actorIndex_, uint256 proposalToExecute_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.claimDelegateReward']++;
         systemTime++;
 
@@ -351,7 +342,6 @@ contract StandardHandler is Handler {
         if (systemTime >= 900) {
             // skip time to the end of the challenge stage
             vm.roll(endBlock + 50401);
-            // numberOfCalls['SFH.FundingStage']++;
         }
 
         try _grantFund.claimDelegateReward(distributionId) returns (uint256 rewardClaimed_) {
@@ -360,6 +350,10 @@ contract StandardHandler is Handler {
             // should only be able to claim delegation rewards once
             assertEq(votingActors[_actor][distributionId].delegationRewardsClaimed, 0);
 
+            // rewards should be non zero
+            assertTrue(rewardClaimed_ > 0);
+
+            // record the newly claimed rewards
             votingActors[_actor][distributionId].delegationRewardsClaimed = rewardClaimed_;
         }
         catch (bytes memory _err){
@@ -407,7 +401,6 @@ contract StandardHandler is Handler {
             descriptionPartTwo = string.concat(descriptionPartTwo, Strings.toHexString(uint160(testProposalParams_[i].recipient), 20));
             descriptionPartTwo = string.concat(descriptionPartTwo, ", ");
 
-            // FIXME: random actor and amount in generateTestProposalParams are returning same value due to not being able to advance time
             descriptionPartTwo = string.concat(descriptionPartTwo, Strings.toString(standardFundingProposals.length));
         }
         description_ = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo));
@@ -416,7 +409,6 @@ contract StandardHandler is Handler {
     function generateTestProposalParams(uint256 numParams_) internal returns (TestProposalParams[] memory testProposalParams_) {
         testProposalParams_ = new TestProposalParams[](numParams_);
 
-        // FIXME: these values aren't random
         uint256 totalTokensRequested = 0;
         for (uint256 i = 0; i < numParams_; ++i) {
             // get distribution info
@@ -788,6 +780,8 @@ contract StandardHandler is Handler {
         console.log("SFH.fundingVote                ",  numberOfCalls["SFH.fundingVote"]);
         console.log("SFH.updateSlate                ",  numberOfCalls["SFH.updateSlate"]);
         console.log("SFH.executeStandard            ",  numberOfCalls["SFH.executeStandard"]);
+        console.log("SFH.claimDelegateReward        ",  numberOfCalls["SFH.claimDelegateReward"]);
+        console.log("roll                           ",  numberOfCalls["roll"]);
         console.log("------------------");
         console.log(
             "Total Calls:",
@@ -796,7 +790,9 @@ contract StandardHandler is Handler {
             numberOfCalls["SFH.screeningVote"] +
             numberOfCalls["SFH.fundingVote"] +
             numberOfCalls["SFH.updateSlate"] +
-            numberOfCalls["SFH.executeStandard"]
+            numberOfCalls["SFH.executeStandard"] +
+            numberOfCalls["SFH.claimDelegateReward"] +
+            numberOfCalls["roll"]
         );
     }
 

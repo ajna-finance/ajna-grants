@@ -6,6 +6,7 @@ import { console } from "@std/console.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
 import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
+import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
 import { StandardTestBase } from "./base/StandardTestBase.sol";
 import { StandardHandler } from "./handlers/StandardHandler.sol";
@@ -28,6 +29,9 @@ contract StandardFinalizeInvariant is StandardTestBase {
         uint256 fundingStageStartBlock = endBlock - 72000;
         vm.roll(fundingStageStartBlock + 100);
 
+        // TODO: need to setCurrentBlock?
+        currentBlock = fundingStageStartBlock + 100;
+
         // cast funding votes on proposals
         try _standardHandler.fundingVoteProposals() {
 
@@ -45,10 +49,12 @@ contract StandardFinalizeInvariant is StandardTestBase {
         vm.roll(endBlock + 100);
 
         // set the list of function selectors to run
-        bytes4[] memory selectors = new bytes4[](3);
+        bytes4[] memory selectors = new bytes4[](5);
         selectors[0] = _standardHandler.fundingVote.selector;
         selectors[1] = _standardHandler.updateSlate.selector;
         selectors[2] = _standardHandler.executeStandard.selector;
+        selectors[3] = _standardHandler.claimDelegateReward.selector;
+        selectors[4] = _standardHandler.roll.selector;
 
         // ensure utility functions are excluded from the invariant runs
         targetSelector(FuzzSelector({
@@ -119,9 +125,9 @@ contract StandardFinalizeInvariant is StandardTestBase {
         assertFalse(_standardHandler.hasDuplicates(_standardHandler.getProposalsExecuted()));
     }
 
-    function invariant_DR1_DR2() external {
+    function invariant_DR1_DR2_DR3() external {
         uint24 distributionId = _grantFund.getDistributionId();
-        (, , , uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        (, , , uint128 fundsAvailable, uint256 fundingVotePowerCast, ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
         uint256 totalRewardsClaimed;
 
@@ -143,8 +149,24 @@ contract StandardFinalizeInvariant is StandardTestBase {
             if (delegationRewardsClaimed != 0) {
                 assertTrue(delegationRewardsClaimed >= 0);
 
+                uint256 votingPowerAllocatedByDelegatee = votingPower - remainingVotingPower;
+
                 // invariant DR2: Delegation rewards are 0 if voter didn't vote in both stages.
                 assertTrue(fundingVoteParams.length > 0 && screeningVoteParams.length > 0);
+
+                uint256 rewards;
+                if (votingPowerAllocatedByDelegatee > 0) {
+                    rewards = Maths.wdiv(
+                        Maths.wmul(
+                            fundsAvailable,
+                            votingPowerAllocatedByDelegatee
+                        ),
+                        fundingVotePowerCast
+                    ) / 10;
+                }
+
+                // invariant DR3: Delegation rewards are proportional to voters funding power allocated in the funding stage.
+                assertTrue(delegationRewardsClaimed == rewards);
             }
         }
 

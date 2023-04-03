@@ -2,15 +2,17 @@
 
 pragma solidity 0.8.16;
 
-import { Test }     from "forge-std/Test.sol";
-import { IVotes }   from "@oz/governance/utils/IVotes.sol";
-import { Strings }  from "@oz/utils/Strings.sol";
+import { Test }    from "forge-std/Test.sol";
+import { IVotes }  from "@oz/governance/utils/IVotes.sol";
+import { Strings } from "@oz/utils/Strings.sol";
 
 import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
 
-import { GrantFund } from "../../../src/grants/GrantFund.sol";
+import { GrantFund }        from "../../../src/grants/GrantFund.sol";
 import { IStandardFunding } from "../../../src/grants/interfaces/IStandardFunding.sol";
+
+import { ITestBase } from "../base/ITestBase.sol";
 
 contract Handler is Test, GrantFundTestHelper {
 
@@ -18,6 +20,9 @@ contract Handler is Test, GrantFundTestHelper {
     IAjnaToken        internal  _token;
     IVotes            internal  _votingToken;
     GrantFund         internal  _grantFund;
+
+    // Test invariant contract
+    ITestBase internal testContract;
 
     // test params
     address internal _actor; // currently active actor, used in useRandomActor modifier
@@ -30,7 +35,14 @@ contract Handler is Test, GrantFundTestHelper {
     // randomness counter
     uint256 internal counter = 1;
 
-    constructor(address payable grantFund_, address token_, address tokenDeployer_, uint256 numOfActors_, uint256 tokensToDistribute_) {
+    constructor(
+        address payable grantFund_,
+        address token_,
+        address tokenDeployer_,
+        uint256 numOfActors_,
+        uint256 tokensToDistribute_,
+        address testContract_
+    ) {
         // Ajna Token contract address on mainnet
         _token = IAjnaToken(token_);
 
@@ -45,21 +57,22 @@ contract Handler is Test, GrantFundTestHelper {
 
         // instantiate actors
         actors = _buildActors(numOfActors_, tokensToDistribute_);
+
+        // Test invariant contract
+        testContract = ITestBase(testContract_);
     }
 
-    // modifier useBlock() {
-    //     vm.warp(testContract.currentTimestamp());
+    modifier useCurrentBlock() {
+        // vm.roll(testContract.currentBlock());
 
-    //     _;
+        _;
 
-    //     testContract.setCurrentTimestamp(block.timestamp);
-    // }
+        emit log_address(address(testContract));
 
-    // function setCurrentBlock(uint256 blockNumber_) internal {
-    // }
+        testContract.setCurrentBlock(block.number);
+    }
 
     modifier useRandomActor(uint256 actorIndex) {
-
         vm.stopPrank();
 
         address actor = actors[constrictToRange(actorIndex, 0, actors.length - 1)];
@@ -67,6 +80,19 @@ contract Handler is Test, GrantFundTestHelper {
         vm.startPrank(actor);
         _;
         vm.stopPrank();
+    }
+
+    function roll(uint256 rollAmount_) external useCurrentBlock {
+        numberOfCalls['roll']++;
+
+        // determine a random number of blocks to roll, less than 100
+        rollAmount_ = constrictToRange(rollAmount_, 0, 300);
+
+        uint256 blockHeight = block.number + rollAmount_;
+
+        // roll forward to the selected block
+        vm.roll(blockHeight);
+        testContract.setCurrentBlock(blockHeight);
     }
 
     function _buildActors(uint256 numOfActors_, uint256 tokensToDistribute_) internal returns (address[] memory actors_) {
