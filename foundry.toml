@@ -2,6 +2,7 @@
 src = 'src'
 out = 'out'
 libs = ['lib']
+optimizer_runs = 0
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
 fs_permissions = [{ access = "read", path = "./"}]
