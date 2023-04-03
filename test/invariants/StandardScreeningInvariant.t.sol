@@ -30,6 +30,7 @@ contract StandardScreeningInvariant is StandardTestBase {
 
     function invariant_SS1_SS3_SS4_SS5_SS6_SS7() public {
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
+        uint256 standardFundingProposalsSubmitted = _standardHandler.standardFundingProposalCount();
 
         // invariant SS1: 10 or less proposals should make it through the screening stage
         assertTrue(topTenProposals.length <= 10);
@@ -55,8 +56,6 @@ contract StandardScreeningInvariant is StandardTestBase {
                 assertTrue(distributionIdCurr == distributionIdNext && distributionIdCurr == _grantFund.getDistributionId());
             }
         }
-
-        uint256 standardFundingProposalsSubmitted = _standardHandler.standardFundingProposalCount();
 
         // find the number of screening votes received by the last proposal in the top ten list
         uint256 votesReceivedLast;

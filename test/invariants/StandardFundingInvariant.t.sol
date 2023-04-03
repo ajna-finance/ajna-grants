@@ -48,23 +48,27 @@ contract StandardFundingInvariant is StandardTestBase {
         assertTrue(topTenProposals.length <= 10);
         assertTrue(topTenProposals.length > 0); // check if something went wrong in setup
 
-        // invariant FS1: only proposals in the top ten list should be able to recieve funding votes
+        // check invariants against every proposal
         for (uint256 j = 0; j < _standardHandler.standardFundingProposalCount(); ++j) {
             uint256 proposalId = _standardHandler.standardFundingProposals(j);
             (, uint24 distributionId, , , int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(proposalId);
 
-            // invariant FS5: proposals not in the top ten should not be able to recieve funding votes
+            // invariant FS2: proposals not in the top ten should not be able to recieve funding votes
             if (_findProposalIndex(proposalId, topTenProposals) == -1) {
                 assertEq(fundingVotesReceived, 0);
             }
-            // invariant FS2: distribution id for a proposal should be the same as the current distribution id
-            assertEq(distributionId, _grantFund.getDistributionId());
+
+            require(
+                distributionId == _grantFund.getDistributionId(),
+                "invariant FS3: distribution id for a proposal should be the same as the current distribution id"
+            );
         }
     }
 
-    function invariant_FS4_FS8() external {
+    function invariant_FS4_FS5_FS6_FS8() external {
         uint24 distributionId = _grantFund.getDistributionId();
 
+        // check invariants against every actor
         for (uint256 i = 0; i < _standardHandler.getActorsCount(); ++i) {
             address actor = _standardHandler.actors(i);
 
@@ -79,19 +83,34 @@ contract StandardFundingInvariant is StandardTestBase {
             // check voter votes cast are less than or equal to the sqrt of the voting power of the actor
             IStandardFunding.FundingVoteParams[] memory fundingVotesCast = _grantFund.getFundingVotesCast(distributionId, actor);
 
-            // invariant FS4: sum of square of votes cast <= voting power of actor
-            assertTrue(sumOfSquares <= votingPower);
+            require(
+                sumOfSquares <= votingPower,
+                "invariant FS4: sum of square of votes cast <= voting power of actor"
+            );
+            // invariant FS5: Sum of voter's votesCast should be equal to the square root of the voting power expended (FS4 restated, but added to test intermediate state as well as final).
+            assertEq(sumOfSquares, votingPower - remainingVotingPower);
 
+            // check that the test functioned as expected
             if (votingPower != 0 && remainingVotingPower == 0) {
                 assertTrue(numberOfProposalsVotedOn == fundingVotesCast.length);
                 assertTrue(numberOfProposalsVotedOn > 0);
             }
 
-            // invariant FS8: a voter should never be able to cast more votes than the Ajna token supply of 1 billion.
-            assertTrue(uint256(_standardHandler.sumFundingVotes(fundingVoteParams)) <= _token.totalSupply());
+            require(
+                uint256(_standardHandler.sumFundingVotes(fundingVoteParams)) <= _token.totalSupply(),
+                "invariant FS8: a voter should never be able to cast more votes than the Ajna token supply"
+            );
 
-            // TODO: check getFundingPowerVotes to see if remaining voting power matches expectations
-            // assertEq(_grantFund.getFundingPowerVotes(uint256(votingPower - remainingVotingPower)), uint256(_standardHandler.sumFundingVotes(actor, fundingVoteParams)));
+            // check that there weren't any duplicate proposal entries, as votes for same proposal should be combined
+            uint256[] memory proposalIdsVotedOn = new uint256[](fundingVotesCast.length);
+            for (uint j = 0; j < fundingVotesCast.length; ) {
+                proposalIdsVotedOn[j] = fundingVotesCast[j].proposalId;
+                ++j;
+            }
+            require(
+                _standardHandler.hasDuplicates(proposalIdsVotedOn) == false,
+                "invariant FS6: All voter funding votes on a proposal should be cast in the same direction. Multiple votes on the same proposal should see the voting power increase according to the combined cost of votes."
+            );
         }
     }
 

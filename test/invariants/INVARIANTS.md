@@ -21,7 +21,7 @@
     - **SS4**: Vote's cast can only be positive.
     - **SS5**: Votes can only be cast on a proposal in it's distribution period's screening stage.
     - **SS6**: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list (typically the 10th of course, but it may be shorter than ten proposals).
-    - **SS7**: A proposal should never receive more vote than the Ajna token supply of 1 billion.
+    - **SS7**: A proposal should never receive more vote than the Ajna token supply.
 
 - #### Funding Stage:
     - **FS1**: Only 10 proposals can be voted on in the funding stage
@@ -29,9 +29,9 @@
     - **FS3**: Votes can only be cast on a proposal in it's distribution period's funding stage.
     - **FS4**: Sum of square of votes cast by a given actor are less than or equal to the actor's Ajna delegated balance, squared.
     - **FS5**: Sum of voter's votesCast should be equal to the square root of the voting power expended (FS4 restated, but added to test intermediate state as well as final).
-    - **FS6**: All voter funding votes on a proposal should be cast in the same direction.
+    - **FS6**: All voter funding votes on a proposal should be cast in the same direction. Multiple votes on the same proposal should see the voting power increase according to the combined cost of votes.
     - **FS7** List of top ten proposals should never change once the funding stage has started.
-    - **FS8**: a voter should never be able to cast more votes than the Ajna token supply of 1 billion.
+    - **FS8**: a voter should never be able to cast more votes than the Ajna token supply.
 
 - #### Challenge Stage:
     - **CS1**: Funded proposal slate's cumulative tokens requested should be less than or equal to 90% of the GBC.
