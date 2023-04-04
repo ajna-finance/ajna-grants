@@ -124,44 +124,29 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
     /// @inheritdoc IExtraordinaryFunding
     function voteExtraordinary(
-        address account_,
         uint256 proposalId_
     ) external override returns (uint256 votesCast_) {
-        votesCast_ = _extraordinaryFundingVote(account_, proposalId_);
-    }
-
-    /**
-     * @notice Vote on a proposal for extraordinary funding.
-     * @dev    Votes can only be cast affirmatively, or not cast at all.
-     * @dev    A proposal can only be voted upon once, with the entirety of a voter's voting power.
-     * @param  account_    The voting account.
-     * @param  proposalId_ The ID of the proposal being voted upon.
-     * @return votes_      The amount of votes cast.
-     */
-    function _extraordinaryFundingVote(
-        address account_,
-        uint256 proposalId_
-    ) internal returns (uint256 votes_) {
-        if (hasVotedExtraordinary[proposalId_][account_]) revert AlreadyVoted();
+        // revert if msg.sender already voted on proposal
+        if (hasVotedExtraordinary[proposalId_][msg.sender]) revert AlreadyVoted();
 
         ExtraordinaryFundingProposal storage proposal = _extraordinaryFundingProposals[proposalId_];
-
+        // revert if proposal is inactive
         if (proposal.startBlock > block.number || proposal.endBlock < block.number || proposal.executed) {
             revert ExtraordinaryFundingProposalInactive();
         }
 
-        // check voting power at snapshot block
-        votes_ = _getVotesExtraordinary(account_, proposalId_);
-        proposal.votesReceived += SafeCast.toUint120(votes_);
+        // check voting power at snapshot block and update proposal votes
+        votesCast_ = _getVotesExtraordinary(msg.sender, proposalId_);
+        proposal.votesReceived += SafeCast.toUint120(votesCast_);
 
-        // record that voter has voted on this extraorindary funding proposal
-        hasVotedExtraordinary[proposalId_][account_] = true;
+        // record that voter has voted on this extraordinary funding proposal
+        hasVotedExtraordinary[proposalId_][msg.sender] = true;
 
         emit VoteCast(
-            account_,
+            msg.sender,
             proposalId_,
             1,
-            votes_,
+            votesCast_,
             ""
         );
     }

@@ -6,8 +6,9 @@ import { IVotes }    from "@oz/governance/utils/IVotes.sol";
 import { GrantFund }             from "../../src/grants/GrantFund.sol";
 import { IExtraordinaryFunding } from "../../src/grants/interfaces/IExtraordinaryFunding.sol";
 import { IFunding }              from "../../src/grants/interfaces/IFunding.sol";
-import { GrantFundTestHelper } from "../utils/GrantFundTestHelper.sol";
-import { IAjnaToken }          from "../utils/IAjnaToken.sol";
+import { GrantFundTestHelper }   from "../utils/GrantFundTestHelper.sol";
+import { IAjnaToken }            from "../utils/IAjnaToken.sol";
+import { DrainGrantFund }        from "../interactions/DrainGrantFund.sol";
 
 contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
@@ -410,7 +411,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // should revert if user tries to vote again
         vm.expectRevert(IFunding.AlreadyVoted.selector);
-        _grantFund.voteExtraordinary(_tokenHolder1, testProposal.proposalId);
+        _grantFund.voteExtraordinary(testProposal.proposalId);
 
         // available votes should be 0 after voting
         uint256 availableVotes = _grantFund.getVotesExtraordinary(_tokenHolder1, testProposal.proposalId);
@@ -477,7 +478,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // Should revert if user tries to vote after proposal's end block
         vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInactive.selector);
-        _grantFund.voteExtraordinary(_tokenHolder24, proposalId);
+        _grantFund.voteExtraordinary(proposalId);
 
         // check state is succeeded as expected
         proposalState = _grantFund.state(testProposal.proposalId);
@@ -650,6 +651,33 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             }
         }
         
+    }
+
+    function testDrainTreasuryThroughExtraordinaryProposal() external {
+        // 24 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _votersArr);
+        vm.roll(_startBlock + 33);
+
+        // the attacker's account
+        address attacker = makeAddr("attacker");
+        // add some ETH to attacker's account
+        vm.deal(attacker, 1e18);
+
+        changePrank(attacker);
+
+        // attacker Ajna balance is 0
+        assertEq(_token.balanceOf(attacker), 0);
+
+        // attacker should be able to vote only once on proposal
+        vm.expectRevert(IFunding.AlreadyVoted.selector);
+        new DrainGrantFund(
+            address(_token),
+            _grantFund,
+            _votersArr
+        );
+
+        // attacker Ajna balance should remain 0
+        assertEq(_token.balanceOf(attacker), 0);
     }
 
 }

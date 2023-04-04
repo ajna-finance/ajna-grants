@@ -1,6 +1,6 @@
-// // SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 
-// pragma solidity 0.8.16;
+pragma solidity 0.8.16;
 
 // import { Test }    from "forge-std/Test.sol";
 // import { IVotes }  from "@oz/governance/utils/IVotes.sol";
@@ -12,7 +12,7 @@
 // import { GrantFund }        from "../../../src/grants/GrantFund.sol";
 // import { IStandardFunding } from "../../../src/grants/interfaces/IStandardFunding.sol";
 
-// abstract contract Log {
+abstract contract Log {
 
 //     function _logActorSummary(uint24 distributionId_, bool funding_, bool screening_) internal view {
 //         console.log("\nActor Summary\n");
@@ -107,4 +107,4 @@
 //     }
 
 
-// }
+}
