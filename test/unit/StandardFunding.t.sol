@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import { IVotes }    from "@oz/governance/utils/IVotes.sol";
 import { SafeCast }  from "@oz/utils/math/SafeCast.sol";
 
 import { GrantFund }        from "../../src/grants/GrantFund.sol";
@@ -18,7 +17,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     using SafeCast for uint256;
 
     IAjnaToken        internal  _token;
-    IVotes            internal  _votingToken;
     GrantFund         internal  _grantFund;
 
     // Ajna token Holder at the Ajna contract creation on mainnet
@@ -75,9 +73,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // Ajna Token contract address on mainnet
         _token = IAjnaToken(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
-
-        // deploy voting token wrapper
-        _votingToken = IVotes(address(_token));
 
         // deploy growth fund contract
         _grantFund = new GrantFund();
