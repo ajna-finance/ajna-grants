@@ -7,7 +7,7 @@ import { console } from "@std/console.sol";
 import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
 
 import { StandardTestBase } from "./base/StandardTestBase.sol";
-import { StandardHandler } from "./handlers/StandardHandler.sol";
+import { StandardHandler }  from "./handlers/StandardHandler.sol";
 
 contract StandardScreeningInvariant is StandardTestBase {
 
@@ -97,7 +97,7 @@ contract StandardScreeningInvariant is StandardTestBase {
 
     }
 
-    function invariant_SS2_SS4_SS8() public {
+    function invariant_SS2_SS4_SS8() external view {
         uint256 actorCount = _standardHandler.getActorsCount();
         uint24 distributionId = _grantFund.getDistributionId();
 

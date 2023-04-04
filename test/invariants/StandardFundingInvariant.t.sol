@@ -2,13 +2,13 @@
 
 pragma solidity 0.8.16;
 
-import { console } from "@std/console.sol";
+import { console }  from "@std/console.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
 import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
 
 import { StandardTestBase } from "./base/StandardTestBase.sol";
-import { StandardHandler } from "./handlers/StandardHandler.sol";
+import { StandardHandler }  from "./handlers/StandardHandler.sol";
 
 contract StandardFundingInvariant is StandardTestBase {
 

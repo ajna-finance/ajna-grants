@@ -2,14 +2,14 @@
 
 pragma solidity 0.8.16;
 
-import { console } from "@std/console.sol";
+import { console }  from "@std/console.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
 import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
 import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
 import { StandardTestBase } from "./base/StandardTestBase.sol";
-import { StandardHandler } from "./handlers/StandardHandler.sol";
+import { StandardHandler }  from "./handlers/StandardHandler.sol";
 
 contract StandardFinalizeInvariant is StandardTestBase {
 
@@ -63,7 +63,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
         }));
     }
 
-    function invariant_CS1_CS2_CS3_CS4_CS5() external {
+    function invariant_CS1_CS2_CS3_CS4_CS5_CS6() external {
         uint24 distributionId = _grantFund.getDistributionId();
 
         (, , , uint128 fundsAvailable, , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
@@ -104,6 +104,11 @@ contract StandardFinalizeInvariant is StandardTestBase {
             !_standardHandler.hasDuplicates(topSlateProposalIds),
             "invariant CS5: proposal slate should never contain duplicate proposals"
         );
+
+        // check that the update occured during the challenge stage -> need to record time of update
+
+        // - **CS6**: Funded proposal slate's can only be updated during a distribution period's challenge stage.
+
     }
 
     function invariant_ES1_ES2_ES3() external {
