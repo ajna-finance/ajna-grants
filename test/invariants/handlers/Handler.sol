@@ -38,6 +38,14 @@ contract Handler is Test, GrantFundTestHelper {
     // constant error string when an unexpected revert is thrown
     string internal constant UNEXPECTED_REVERT = "UNEXPECTED_REVERT_ERROR";
 
+    // default to slow scenario types
+    uint8 internal _currentScenarioType = 1;
+
+    enum ScenarioType {
+        Fast,
+        Slow
+    }
+
     constructor(
         address payable grantFund_,
         address token_,
@@ -86,8 +94,14 @@ contract Handler is Test, GrantFundTestHelper {
     function roll(uint256 rollAmount_) external useCurrentBlock {
         numberOfCalls['roll']++;
 
+        uint256 rollLimit = 300;
+
+        if (_currentScenarioType == uint8(ScenarioType.Fast)) {
+            rollLimit = 7000;
+        }
+
         // determine a random number of blocks to roll, less than 100
-        rollAmount_ = constrictToRange(rollAmount_, 0, 300);
+        rollAmount_ = constrictToRange(rollAmount_, 0, rollLimit);
 
         uint256 blockHeight = block.number + rollAmount_;
 
@@ -172,6 +186,10 @@ contract Handler is Test, GrantFundTestHelper {
 
     function getActorsCount() public view returns(uint256) {
         return actors.length;
+    }
+
+    function setCurrentScenarioType(ScenarioType scenarioType) public {
+        _currentScenarioType = uint8(scenarioType);
     }
 
 }

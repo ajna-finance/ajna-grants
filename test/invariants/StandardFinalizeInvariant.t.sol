@@ -66,7 +66,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
     function invariant_CS1_CS2_CS3_CS4_CS5_CS6() external {
         uint24 distributionId = _grantFund.getDistributionId();
 
-        (, , , uint128 fundsAvailable, , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+        (, , uint256 endBlock, uint128 fundsAvailable, , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
 
         uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
 
@@ -105,9 +105,16 @@ contract StandardFinalizeInvariant is StandardTestBase {
             "invariant CS5: proposal slate should never contain duplicate proposals"
         );
 
-        // check that the update occured during the challenge stage -> need to record time of update
+        // check DistributionState for top slate updates
+        StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(distributionId);
+        for (uint i = 0; i < state.topSlates.length; ++i) {
+            StandardHandler.Slate memory slate = state.topSlates[i];
 
-        // - **CS6**: Funded proposal slate's can only be updated during a distribution period's challenge stage.
+            require(
+                slate.updateBlock >= endBlock && slate.updateBlock <= endBlock + 50400,
+                "invariant CS6: Funded proposal slate's can only be updated during a distribution period's challenge stage"
+            );
+        }
 
     }
 

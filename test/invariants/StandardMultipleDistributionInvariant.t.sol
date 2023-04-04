@@ -10,6 +10,7 @@ import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
 import { StandardTestBase } from "./base/StandardTestBase.sol";
 import { StandardHandler }  from "./handlers/StandardHandler.sol";
+import { Handler }          from "./handlers/Handler.sol";
 
 contract StandardMultipleDistributionInvariant is StandardTestBase {
 
@@ -33,14 +34,17 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
             addr: address(_standardHandler),
             selectors: selectors
         }));
+
+        // update scenarioType to fast to have larger rolls
+        _standardHandler.setCurrentScenarioType(Handler.ScenarioType.Fast);
     }
 
     function invariant_call_summary() external view {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _standardHandler.logCallSummary();
-        _standardHandler.logProposalSummary();
-        // _standardHandler.logActorSummary(distributionId, true, true);
+        // _standardHandler.logProposalSummary();
+        _standardHandler.logActorSummary(distributionId, true, true);
 
         // TODO: need to be able to log all the different type of summaries
         // _logFinalizeSummary(distributionId);

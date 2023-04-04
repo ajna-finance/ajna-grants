@@ -35,8 +35,14 @@ contract StandardHandler is Handler {
     }
 
     struct DistributionState {
-        uint24 distributionId;
         bytes32 currentTopSlate;
+        Slate[] topSlates; // assume that the last element in the list is the top slate
+    }
+
+    struct Slate {
+        uint24 distributionId;
+        uint256 updateBlock;
+        bytes32 slateHash;
     }
 
     // list of submitted standard funding proposals by distribution period
@@ -264,10 +270,17 @@ contract StandardHandler is Handler {
             if (newTopSlate) {
                 numberOfCalls['SFH.updateSlate.success']++;
 
+                bytes32 potentialSlateHash = keccak256(abi.encode(potentialSlate));
+
+                Slate memory slate;
+                slate.distributionId = distributionId;
+                slate.slateHash = potentialSlateHash;
+                slate.updateBlock = block.number;
+
                 // update distribution state
                 DistributionState storage distribution = distributionStates[distributionId];
-                distribution.distributionId = distributionId;
-                distribution.currentTopSlate = keccak256(abi.encode(potentialSlate));
+                distribution.currentTopSlate = potentialSlateHash;
+                distribution.topSlates.push(slate);
 
                 // update list of proposals in top slate
                 for (uint i = 0; i < potentialSlateLength; ++i) {
@@ -720,6 +733,10 @@ contract StandardHandler is Handler {
         );
     }
 
+    /**************************/
+    /*** Logging Functions ****/
+    /**************************/
+
     function logActorSummary(uint24 distributionId_, bool funding_, bool screening_) external view {
         console.log("\nActor Summary\n");
 
@@ -818,6 +835,10 @@ contract StandardHandler is Handler {
     /*****************************/
     /*** SFM Getter Functions ****/
     /*****************************/
+
+    function getDistributionState(uint24 distributionId_) external view returns (DistributionState memory) {
+        return distributionStates[distributionId_];
+    }
 
     function getStandardFundingProposals(uint24 distributionId_) external view returns (uint256[] memory) {
         return standardFundingProposals[distributionId_];
