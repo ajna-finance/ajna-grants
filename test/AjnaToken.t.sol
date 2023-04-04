@@ -133,7 +133,7 @@ contract AjnaTokenTest is Test {
         digest = _sigUtils.getTypedDataHash(permit);
         (v, r, s) = vm.sign(ownerPrivateKey, digest);
 
-        _token.transferFromWithPermit(owner, newOwner, amount_, permit.deadline, v, r, s);
+        _token.transferFromWithPermit(owner, newOwner, spender, amount_, permit.deadline, v, r, s);
         // check owner and spender balances after 2nd transfer with permit
         assertEq(_token.balanceOf(owner),    0);
         assertEq(_token.balanceOf(spender),  0);
@@ -153,7 +153,7 @@ contract AjnaTokenTest is Test {
         (v, r, s) = vm.sign(ownerPrivateKey, digest);
 
         vm.expectRevert("ERC20: transfer amount exceeds balance");
-        _token.transferFromWithPermit(owner, newOwner, 1, permit.deadline, v, r, s);
+        _token.transferFromWithPermit(owner, newOwner, spender, 1, permit.deadline, v, r, s);
     }
 
     /*********************/
