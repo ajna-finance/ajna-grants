@@ -19,11 +19,6 @@ import { console } from "@std/console.sol";
 
 contract StandardHandler is Handler {
 
-    // record standard funding proposals over time
-    // proposal count
-    uint256 public standardFundingProposalCount;
-    // uint256[] public standardFundingProposals;
-
     uint256[] public proposalsExecuted;
 
     // number of proposals that recieved a vote in the given stage
@@ -104,7 +99,6 @@ contract StandardHandler is Handler {
 
         try _grantFund.proposeStandard(targets, values, calldatas, description) returns (uint256 proposalId) {
             standardFundingProposals[_grantFund.getDistributionId()].push(proposalId);
-            standardFundingProposalCount++;
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -473,7 +467,6 @@ contract StandardHandler is Handler {
 
         // record new proposal
         standardFundingProposals[_grantFund.getDistributionId()].push(proposalId_);
-        standardFundingProposalCount++;
 
         // FIXME: set recipient and tokensRequested
         // record proposal information
@@ -797,12 +790,14 @@ contract StandardHandler is Handler {
     }
 
     function logProposalSummary() external view {
+        uint24 distributionId = _grantFund.getDistributionId();
+        uint256[] memory proposals = standardFundingProposals[distributionId];
+
         console.log("\nProposal Summary\n");
-        console.log("Number of Proposals", standardFundingProposalCount);
-        for (uint256 i = 0; i < standardFundingProposalCount; ++i) {
-            uint24 distributionId = _grantFund.getDistributionId();
+        console.log("Number of Proposals", proposals.length);
+        for (uint256 i = 0; i < proposals.length; ++i) {
             console.log("------------------");
-            (uint256 proposalId, , uint128 votesReceived, uint128 tokensRequested, int128 fundingVotesReceived, bool executed) = _grantFund.getProposalInfo(standardFundingProposals[distributionId][i]);
+            (uint256 proposalId, , uint128 votesReceived, uint128 tokensRequested, int128 fundingVotesReceived, bool executed) = _grantFund.getProposalInfo(proposals[i]);
             console.log("proposalId:           ",  proposalId);
             console.log("distributionId:       ",  distributionId);
             console.log("executed:             ",  executed);

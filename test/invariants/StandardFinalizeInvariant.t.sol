@@ -123,7 +123,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
         uint256[] memory standardFundingProposals = _standardHandler.getStandardFundingProposals(distributionId);
 
         // check the state of every proposal submitted in this distribution period
-        for (uint256 i = 0; i < _standardHandler.standardFundingProposalCount(); ++i) {
+        for (uint256 i = 0; i < standardFundingProposals.length; ++i) {
             uint256 proposalId = standardFundingProposals[i];
             (, , , , , bool executed) = _grantFund.getProposalInfo(proposalId);
             int256 proposalIndex = _findProposalIndex(proposalId, topSlateProposalIds);

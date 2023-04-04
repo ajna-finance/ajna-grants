@@ -49,11 +49,12 @@ contract StandardFundingInvariant is StandardTestBase {
         assertTrue(topTenProposals.length > 0); // check if something went wrong in setup
 
         uint24 distributionId = _grantFund.getDistributionId();
+        uint256[] memory standardFundingProposals = _standardHandler.getStandardFundingProposals(distributionId);
 
         // check invariants against every proposal
-        for (uint256 j = 0; j < _standardHandler.standardFundingProposalCount(); ++j) {
+        for (uint256 j = 0; j < standardFundingProposals.length; ++j) {
             uint256 proposalId = _standardHandler.standardFundingProposals(distributionId, j);
-            (, , , , int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(proposalId);
+            (, uint24 proposalDistributionId, , , int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(proposalId);
 
             // invariant FS2: proposals not in the top ten should not be able to recieve funding votes
             if (_findProposalIndex(proposalId, topTenProposals) == -1) {
@@ -61,7 +62,7 @@ contract StandardFundingInvariant is StandardTestBase {
             }
 
             require(
-                distributionId == _grantFund.getDistributionId(),
+                distributionId == proposalDistributionId,
                 "invariant FS3: distribution id for a proposal should be the same as the current distribution id"
             );
         }
