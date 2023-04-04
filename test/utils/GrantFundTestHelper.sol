@@ -368,7 +368,7 @@ abstract contract GrantFundTestHelper is Test {
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit VoteCast(voter_, proposalId_, support_, votingWeight, "");
-        grantFund_.voteExtraordinary(voter_, proposalId_);
+        grantFund_.voteExtraordinary(proposalId_);
     }
 
     function _findProposalIndex(

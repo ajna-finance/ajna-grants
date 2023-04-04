@@ -63,7 +63,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
         }));
     }
 
-    function invariant_CS1_CS2_CS3_CS4_CS5_CS6() external {
+    function invariant_CS1_CS2_CS3_CS4_CS5_CS6() view external {
         uint24 distributionId = _grantFund.getDistributionId();
 
         (, , uint256 endBlock, uint128 fundsAvailable, , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
