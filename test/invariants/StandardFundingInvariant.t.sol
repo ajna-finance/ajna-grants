@@ -100,7 +100,7 @@ contract StandardFundingInvariant is StandardTestBase {
             }
 
             require(
-                uint256(_standardHandler.sumFundingVotes(fundingVoteParams)) <= _token.totalSupply(),
+                uint256(_standardHandler.sumFundingVotes(fundingVoteParams)) <= _ajna.totalSupply(),
                 "invariant FS8: a voter should never be able to cast more votes than the Ajna token supply"
             );
 

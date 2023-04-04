@@ -2,7 +2,7 @@
 
 ## Grant Fund Invariants:
    - **GF1**: Unused proposal states should always be 0.
-   - **GF2**: Treasury should always be less than or equal to the contract's token blance.
+   - **GF2**: The Grant Fund's `treasury` should always be less than or equal to the contract's token blance.
 <!-- 
    - TODO: add invariants around treasury balance post updates and with partial slate executions
  -->
@@ -12,7 +12,7 @@
 - #### Distribution Period:
     - **DP1**: Only one distribution period should be active at a time
     - **DP2**: Each winning proposal successfully claims no more that what was finalized in the challenge stage
-    - **DP3**: A distribution's fundsAvailable should be equal to 2% of the treasurie's balance at the block startNewDistributionPeriod is called.
+    - **DP3**: A distribution's fundsAvailable should be equal to 2% of the treasurie's balance at the block `startNewDistributionPeriod()` is called.
 
 - #### Screening Stage:
     - **SS1**: Only 10 proposals can advance to the funding stage
@@ -22,7 +22,7 @@
     - **SS5**: Votes can only be cast on a proposal in it's distribution period's screening stage.
     - **SS6**: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list (typically the 10th of course, but it may be shorter than ten proposals).
     - **SS7**: A proposal should never receive more vote than the Ajna token supply.
-    - **SS8**: A proposal can only receive screening votes if it was created via proposeStandard().
+    - **SS8**: A proposal can only receive screening votes if it was created via `proposeStandard()`.
 
 - #### Funding Stage:
     - **FS1**: Only 10 proposals can be voted on in the funding stage
@@ -53,8 +53,11 @@
     - **DR3**: Delegation rewards are proportional to voters funding power allocated in the funding stage.
 
 ## Extraordinary Funding Mechanism Invariants
-    - **EF1**: minimumThresholdPercentage increases by 5% for each successive winning proposal.
-    - **EF2**: if a proposal succeeded, the votes for it exceeded the minimumThresholdPercentage times treasury size
+
+- #### Extraordinary Global Invariants:
+
+    - **EG1**: The `minimumThresholdPercentage` variable increases by 5% for each successive winning proposal.
+    - **EG2**: if a proposal succeeded, the votes for it exceeded the `minimumThresholdPercentage` times treasury size
 
 - #### Execute Extraordinary:
     - **EE1**: A proposal can only be executed once.
@@ -63,9 +66,9 @@
 
 - #### Propose Extraordinary:
     - **PE1**: A proposal's proposalId must be unique.
-    - **PE2**: A proposal's endBlock must be less than the MAX_EFM_PROPOSAL_LENGTH of 216_000 blocks.
-    - **PE3**: A proposal's tokens requested must be less than treasuryBalance * (1 - minimumThresholdPercentage).
+    - **PE2**: A proposal's endBlock must be less than the `MAX_EFM_PROPOSAL_LENGTH` of 216_000 blocks.
+    - **PE3**: A proposal's tokens requested must be less than treasuryBalance * (1 - `minimumThresholdPercentage`).
 
 - #### Vote Extraordinary:
     - **VE1**: A proposal can only be voted on once.
-    - **VE2**: A proposal can only be voted on if the block number is less than or equal to the proposals end block and the MAX_EFM_PROPOSAL_LENGTH of 216_000 blocks.
+    - **VE2**: A proposal can only be voted on if the block number is less than or equal to the proposals end block and the `MAX_EFM_PROPOSAL_LENGTH` of 216_000 blocks.

@@ -2,17 +2,15 @@
 
 pragma solidity 0.8.16;
 
-import { IVotes } from "@oz/governance/utils/IVotes.sol";
 import { Test }   from "@std/Test.sol";
-
-import { IAjnaToken }   from "../../utils/IAjnaToken.sol";
-import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
 
 import { GrantFund }        from "../../../src/grants/GrantFund.sol";
 
+import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
+import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
+
 contract TestBase is Test, GrantFundTestHelper {
-    IAjnaToken        internal  _token;
-    IVotes            internal  _votingToken;
+    IAjnaToken        internal  _ajna;
     GrantFund         internal  _grantFund;
 
     // token deployment variables
@@ -31,10 +29,7 @@ contract TestBase is Test, GrantFundTestHelper {
         vm.allowCheatcodes(0x4447E7a83995B5cCDCc9A6cd8Bc470305C940DA3);
 
         // Ajna Token contract address on mainnet
-        _token = IAjnaToken(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
-
-        // deploy voting token wrapper
-        _votingToken = IVotes(address(_token));
+        _ajna = IAjnaToken(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
 
         // deploy growth fund contract
         _grantFund = new GrantFund();
@@ -42,12 +37,11 @@ contract TestBase is Test, GrantFundTestHelper {
         vm.startPrank(_tokenDeployer);
 
         // initial minter distributes treasury to grantFund
-        _token.approve(address(_grantFund), treasury);
+        _ajna.approve(address(_grantFund), treasury);
         _grantFund.fundTreasury(treasury);
 
         // exclude unrelated contracts
-        excludeContract(address(_token));
-        excludeContract(address(_votingToken));
+        excludeContract(address(_ajna));
 
         vm.makePersistent(address(_grantFund));
 

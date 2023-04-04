@@ -76,7 +76,7 @@ contract StandardScreeningInvariant is StandardTestBase {
             );
 
             require(
-                votesReceived <= _token.totalSupply(),
+                votesReceived <= _ajna.totalSupply(),
                 "invariant SS7: a proposal should never receive more screening votes than the token supply"
             );
 

@@ -3,7 +3,6 @@
 pragma solidity 0.8.16;
 
 import { Test }    from "forge-std/Test.sol";
-import { IVotes }  from "@oz/governance/utils/IVotes.sol";
 import { Strings } from "@oz/utils/Strings.sol";
 
 import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
@@ -17,8 +16,7 @@ import { ITestBase } from "../base/ITestBase.sol";
 contract Handler is Test, GrantFundTestHelper {
 
     // state variables
-    IAjnaToken        internal  _token;
-    IVotes            internal  _votingToken;
+    IAjnaToken        internal  _ajna;
     GrantFund         internal  _grantFund;
 
     // Test invariant contract
@@ -55,10 +53,7 @@ contract Handler is Test, GrantFundTestHelper {
         address testContract_
     ) {
         // Ajna Token contract address on mainnet
-        _token = IAjnaToken(token_);
-
-        // deploy voting token wrapper
-        _votingToken = IVotes(address(_token));
+        _ajna = IAjnaToken(token_);
 
         // deploy growth fund contract
         _grantFund = GrantFund(grantFund_);
@@ -125,7 +120,7 @@ contract Handler is Test, GrantFundTestHelper {
             }
             uint256 incrementalTokensDistributed = randomAmount(tokensToDistribute_ - tokensDistributed);
             changePrank(_tokenDeployer);
-            _token.transfer(actor, incrementalTokensDistributed);
+            _ajna.transfer(actor, incrementalTokensDistributed);
             tokensDistributed += incrementalTokensDistributed;
 
             // FIXME: this isn't currently delegating to other actors properly
@@ -133,16 +128,16 @@ contract Handler is Test, GrantFundTestHelper {
             if (randomSeed() % 2 == 0) {
                 // actor self delegates
                 changePrank(actor);
-                _token.delegate(actor);
+                _ajna.delegate(actor);
             } else {
                 // actor delegates to a random actor
                 changePrank(actor);
                 if (actors.length > 0) {
-                    _token.delegate(randomActor());
+                    _ajna.delegate(randomActor());
                 }
                 else {
                     // if no other actors are available (such as on the first iteration) self delegate
-                    _token.delegate(actor);
+                    _ajna.delegate(actor);
                 }
             }
         }

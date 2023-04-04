@@ -115,7 +115,6 @@ contract StandardFinalizeInvariant is StandardTestBase {
                 "invariant CS6: Funded proposal slate's can only be updated during a distribution period's challenge stage"
             );
         }
-
     }
 
     function invariant_ES1_ES2_ES3() external {

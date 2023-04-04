@@ -4,7 +4,6 @@ pragma solidity 0.8.16;
 
 import { console } from "@std/console.sol";
 import { Test }     from "forge-std/Test.sol";
-import { IVotes }   from "@oz/governance/utils/IVotes.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings }  from "@oz/utils/Strings.sol";
 
@@ -392,7 +391,7 @@ contract StandardHandler is Handler {
         string memory descriptionPartTwo;
 
         for (uint256 i = 0; i < numParams; ++i) {
-            targets_[i] = address(_token);
+            targets_[i] = address(_ajna);
             values_[i] = 0;
             calldatas_[i] = abi.encodeWithSignature(
                 "transfer(address,uint256)",
@@ -714,7 +713,7 @@ contract StandardHandler is Handler {
             ) = getVotingActorsInfo(actor, distributionId_);
 
             console.log("Actor:                    ", actor);
-            console.log("Delegate:                 ", _token.delegates(actor));
+            console.log("Delegate:                 ", _ajna.delegates(actor));
             console.log("delegationRewardsClaimed: ", delegationRewardsClaimed);
             console.log("\n");
 

@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 
 import { console } from "@std/console.sol";
 
-import { TestBase } from "./TestBase.sol";
+import { TestBase }        from "./TestBase.sol";
 import { StandardHandler } from "../handlers/StandardHandler.sol";
 
 contract StandardTestBase is TestBase {
@@ -18,11 +18,11 @@ contract StandardTestBase is TestBase {
 
         // TODO: modify this setup to enable use of random tokens not in treasury
         // calculate the number of tokens not in the treasury, to be distributed to actors
-        uint256 tokensNotInTreasury = _token.balanceOf(_tokenDeployer) - treasury;
+        uint256 tokensNotInTreasury = _ajna.balanceOf(_tokenDeployer) - treasury;
 
         _standardHandler = new StandardHandler(
             payable(address(_grantFund)),
-            address(_token),
+            address(_ajna),
             _tokenDeployer,
             NUM_ACTORS,
             tokensNotInTreasury,
