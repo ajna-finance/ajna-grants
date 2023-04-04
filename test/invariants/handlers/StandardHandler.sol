@@ -2,6 +2,7 @@
 
 pragma solidity 0.8.16;
 
+import { console } from "@std/console.sol";
 import { Test }     from "forge-std/Test.sol";
 import { IVotes }   from "@oz/governance/utils/IVotes.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
@@ -14,8 +15,6 @@ import { Maths }            from "../../../src/grants/libraries/Maths.sol";
 import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
 import { Handler }      from "./Handler.sol";
-
-import { console } from "@std/console.sol";
 
 contract StandardHandler is Handler {
 
@@ -217,7 +216,6 @@ contract StandardHandler is Handler {
 
         }
         catch (bytes memory _err){
-            // TODO: replace with _recordError()
             bytes32 err = keccak256(_err);
             require(
                 err == keccak256(abi.encodeWithSignature("InvalidVote()")) ||
@@ -289,7 +287,6 @@ contract StandardHandler is Handler {
             }
         }
         catch (bytes memory _err){
-            // TODO: replace with _recordError()
             bytes32 err = keccak256(_err);
             require(
                 err == keccak256(abi.encodeWithSignature("InvalidProposalSlate()")),
@@ -372,7 +369,6 @@ contract StandardHandler is Handler {
             );
         }
     }
-
 
     /*****************************/
     /*** SFM Utility Functions ***/
@@ -496,25 +492,6 @@ contract StandardHandler is Handler {
 
     function createProposals(uint256 numProposals) external returns (uint256[] memory proposalIds_) {
         proposalIds_ = _createProposals(numProposals);
-    }
-
-    function _findProposalIndexOfVotesCast(
-        uint256 proposalId_,
-        IStandardFunding.FundingVoteParams[] memory voteParams_
-    ) internal pure returns (int256 index_) {
-        index_ = -1; // default value indicating proposalId not in the array
-
-        // since we are converting from uint256 to int256, we can safely assume that the value will not overflow
-        int256 numVotesCast = int256(voteParams_.length);
-        for (int256 i = 0; i < numVotesCast; ) {
-            //slither-disable-next-line incorrect-equality
-            if (voteParams_[uint256(i)].proposalId == proposalId_) {
-                index_ = i;
-                break;
-            }
-
-            unchecked { ++i; }
-        }
     }
 
     // TODO: need to add support for different types of param generation -> turn this into a factory
@@ -674,24 +651,6 @@ contract StandardHandler is Handler {
             screeningVotesCast++;
 
             ++i;
-        }
-    }
-
-    // TODO: add support for handling input strings and number of calls
-    function _recordError(bytes memory err_) internal {
-        bytes32 err = keccak256(err_);
-        if (err == keccak256(abi.encodeWithSignature("InvalidVote()"))) {
-            numberOfCalls['SFH.fv.e.InvalidVote']++;
-        }
-        else if (err == keccak256(abi.encodeWithSignature("InsufficientVotingPower()"))) {
-            numberOfCalls['SFH.fv.e.InsufficientVotingPower']++;
-        }
-        else if (err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()"))) {
-            numberOfCalls['SFH.fv.e.FVWD']++;
-        }
-        else {
-            numberOfCalls['SFH.fv.e.unknown']++;
-            revert("unknown error");
         }
     }
 

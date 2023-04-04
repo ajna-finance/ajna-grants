@@ -1552,8 +1552,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             uint256 proposalId = topTenProposalIds[i % topTenProposalIds.length];
 
             // check if proposalId is already there in potential proposal slate
-            if (!_checkElementExist(proposalId, potentialProposalsSlate)) {
-                // add proposalId in potential proposal slate for check slate
+            if (_findProposalIndex(proposalId, potentialProposalsSlate) == -1) {
+                // add proposalId in potential proposal slate for check slate if it isn't already present
                 potentialProposalsSlate.push(proposalId);
             }
 
