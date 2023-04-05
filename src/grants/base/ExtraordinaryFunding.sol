@@ -20,7 +20,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /**
      * @notice The maximum length of a proposal's voting period, in blocks.
      */
-    uint256 internal constant MAX_EFM_PROPOSAL_LENGTH                  = 216_000; // number of blocks in one month
+    uint256 internal constant MAX_EFM_PROPOSAL_LENGTH = 216_000; // number of blocks in one month
 
     /**
      * @notice Keccak hash of a prefix string for extraordinary funding mechanism
