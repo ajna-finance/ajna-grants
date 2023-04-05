@@ -13,6 +13,7 @@
     - **DP1**: Only one distribution period should be active at a time
     - **DP2**: Each winning proposal successfully claims no more that what was finalized in the challenge stage
     - **DP3**: A distribution's fundsAvailable should be equal to 2% of the treasurie's balance at the block `startNewDistributionPeriod()` is called.
+    - **DP4**: An active distribution's end block should be greater than the current block number.
 
 - #### Screening Stage:
     - **SS1**: Only 10 proposals can advance to the funding stage
@@ -55,7 +56,6 @@
 ## Extraordinary Funding Mechanism Invariants
 
 - #### Extraordinary Global Invariants:
-
     - **EG1**: The `minimumThresholdPercentage` variable increases by 5% for each successive winning proposal.
     - **EG2**: if a proposal succeeded, the votes for it exceeded the `minimumThresholdPercentage` times treasury size
 

@@ -1,7 +1,7 @@
 pragma solidity 0.8.16;
 
 import { IExtraordinaryFunding } from "src/grants/interfaces/IExtraordinaryFunding.sol";
-import { IAjnaToken }            from "../utils/IAjnaToken.sol";
+import { IAjnaToken }            from "../../utils/IAjnaToken.sol";
 
 contract DrainGrantFund {
     constructor(

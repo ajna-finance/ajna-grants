@@ -6,7 +6,7 @@ import { IExtraordinaryFunding } from "../../src/grants/interfaces/IExtraordinar
 import { IFunding }              from "../../src/grants/interfaces/IFunding.sol";
 import { GrantFundTestHelper }   from "../utils/GrantFundTestHelper.sol";
 import { IAjnaToken }            from "../utils/IAjnaToken.sol";
-import { DrainGrantFund }        from "../interactions/DrainGrantFund.sol";
+import { DrainGrantFund }        from "./interactions/DrainGrantFund.sol";
 
 contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 

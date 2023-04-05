@@ -33,6 +33,7 @@ contract StandardHandler is Handler {
     }
 
     struct DistributionState {
+        uint256 treasuryAtStartBlock; // GrantFund treasury at the time startNewDistributionPeriod was called.
         bytes32 currentTopSlate;
         Slate[] topSlates; // assume that the last element in the list is the top slate
     }
@@ -71,6 +72,8 @@ contract StandardHandler is Handler {
 
         try _grantFund.startNewDistributionPeriod() returns (uint24 newDistributionId) {
             newDistributionId_ = newDistributionId;
+            distributionStates[newDistributionId].treasuryAtStartBlock = _grantFund.treasury();
+
             vm.roll(block.number + 100);
             vm.rollFork(block.number + 100);
         }

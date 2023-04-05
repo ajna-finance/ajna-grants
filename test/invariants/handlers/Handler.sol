@@ -86,6 +86,9 @@ contract Handler is Test, GrantFundTestHelper {
         vm.stopPrank();
     }
 
+    // TODO:
+        // Override this in the handler, StandardHandker.
+        // Add support for modifying roll size based upon system stage.
     function roll(uint256 rollAmount_) external useCurrentBlock {
         numberOfCalls['roll']++;
 
