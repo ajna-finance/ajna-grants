@@ -3,9 +3,9 @@ pragma solidity 0.8.7;
 
 import { Test } from "@std/Test.sol";
 
-import { AjnaToken } from "../src/token/AjnaToken.sol";
+import { AjnaToken } from "../../src/token/AjnaToken.sol";
 
-import { SigUtils } from "./utils/SigUtils.sol";
+import { SigUtils } from "../utils/SigUtils.sol";
 
 contract AjnaTokenTest is Test {
 
