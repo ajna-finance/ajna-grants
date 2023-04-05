@@ -106,15 +106,13 @@ abstract contract Funding is IFunding, ReentrancyGuard {
         bytes[] memory calldatas_
     ) internal view returns (uint128 tokensRequested_) {
 
-        if (targets_.length == 0) revert InvalidProposal();
+        // check params have matching lengths
+        if (targets_.length == 0 || targets_.length != values_.length || targets_.length != calldatas_.length) revert InvalidProposal();
 
         for (uint256 i = 0; i < targets_.length;) {
 
             // check targets and values params are valid
             if (targets_[i] != ajnaTokenAddress || values_[i] != 0) revert InvalidProposal();
-
-            // check params have matching lengths
-            if (targets_.length != values_.length || targets_.length != calldatas_.length) revert InvalidProposal();
 
             // check calldata function selector is transfer()
             bytes memory selDataWithSig = calldatas_[i];
