@@ -343,7 +343,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         bytes[] memory calldatas_,
         bytes32 descriptionHash_
     ) external nonReentrant override returns (uint256 proposalId_) {
-        proposalId_ = _hashProposal(targets_, values_, calldatas_, descriptionHash_);
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(keccak256(bytes("Standard Funding: ")), descriptionHash_)));
         Proposal storage proposal = _standardFundingProposals[proposalId_];
 
         uint24 distributionId = proposal.distributionId;
@@ -366,7 +366,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         bytes[] memory calldatas_,
         string memory description_
     ) external override returns (uint256 proposalId_) {
-        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(keccak256(bytes("Standard Funding: ")), keccak256(bytes(description_)))));
 
         Proposal storage newProposal = _standardFundingProposals[proposalId_];
 

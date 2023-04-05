@@ -110,7 +110,7 @@ abstract contract GrantFundTestHelper is Test {
         string memory description
     ) internal returns (TestProposalExtraordinary memory) {
         // generate expected proposal state
-        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
+        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(abi.encode(keccak256(bytes("Extraordinary Funding: ")), keccak256(bytes(description)))));
         uint256 startBlock = block.number;
 
         // submit proposal
@@ -141,7 +141,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _createProposalStandard(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (TestProposal memory) {
         // generate expected proposal state
-        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(bytes(description)));
+        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, proposalCalldatas_, keccak256(abi.encode(keccak256(bytes("Standard Funding: ")), keccak256(bytes(description)))));
         uint256 startBlock = block.number.toUint64();
 
         (, , uint48 endBlock, , , ) = grantFund_.getDistributionPeriodInfo(grantFund_.getDistributionId());

@@ -54,7 +54,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         bytes[] memory calldatas_,
         bytes32 descriptionHash_
     ) external nonReentrant override returns (uint256 proposalId_) {
-        proposalId_ = _hashProposal(targets_, values_, calldatas_, descriptionHash_);
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(keccak256(bytes("Extraordinary Funding: ")), descriptionHash_)));
 
         ExtraordinaryFundingProposal storage proposal = _extraordinaryFundingProposals[proposalId_];
 
@@ -84,7 +84,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         bytes[] memory calldatas_,
         string memory description_) external override returns (uint256 proposalId_) {
 
-        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(bytes(description_)));
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(keccak256(bytes("Extraordinary Funding: ")), keccak256(bytes(description_)))));
 
         ExtraordinaryFundingProposal storage newProposal = _extraordinaryFundingProposals[proposalId_];
 
