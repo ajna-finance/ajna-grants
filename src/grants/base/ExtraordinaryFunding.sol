@@ -20,7 +20,12 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     /**
      * @notice The maximum length of a proposal's voting period, in blocks.
      */
-    uint256 internal constant MAX_EFM_PROPOSAL_LENGTH = 216_000; // number of blocks in one month
+    uint256 internal constant MAX_EFM_PROPOSAL_LENGTH                  = 216_000; // number of blocks in one month
+
+    /**
+     * @notice Keccak hash of a prefix string for extraordinary funding mechanism
+     */
+    bytes32 internal constant DESCRIPTION_PREFIX_HASH_EXTRAORDINARY = keccak256(bytes("Extraordinary Funding: "));
 
     /***********************/
     /*** State Variables ***/
@@ -54,7 +59,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         bytes[] memory calldatas_,
         bytes32 descriptionHash_
     ) external nonReentrant override returns (uint256 proposalId_) {
-        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(keccak256(bytes("Extraordinary Funding: ")), descriptionHash_)));
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_EXTRAORDINARY, descriptionHash_)));
 
         ExtraordinaryFundingProposal storage proposal = _extraordinaryFundingProposals[proposalId_];
 
@@ -84,7 +89,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         bytes[] memory calldatas_,
         string memory description_) external override returns (uint256 proposalId_) {
 
-        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(keccak256(bytes("Extraordinary Funding: ")), keccak256(bytes(description_)))));
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_EXTRAORDINARY, keccak256(bytes(description_)))));
 
         ExtraordinaryFundingProposal storage newProposal = _extraordinaryFundingProposals[proposalId_];
 
