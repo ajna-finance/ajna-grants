@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import { Test } from "@std/Test.sol";
 
-import { Maths } from '../src/grants/libraries/Maths.sol';
+import { Maths } from '../../src/grants/libraries/Maths.sol';
 
 contract MathsTest is Test {
 
