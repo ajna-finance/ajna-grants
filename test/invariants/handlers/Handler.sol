@@ -2,6 +2,7 @@
 
 pragma solidity 0.8.16;
 
+import { console } from "@std/console.sol";
 import { Test }    from "forge-std/Test.sol";
 import { Strings } from "@oz/utils/Strings.sol";
 
@@ -15,14 +16,18 @@ import { ITestBase } from "../base/ITestBase.sol";
 
 contract Handler is Test, GrantFundTestHelper {
 
-    // state variables
+    /***********************/
+    /*** State Variables ***/
+    /***********************/
+
+    // global grant fund variables
     IAjnaToken        internal  _ajna;
     GrantFund         internal  _grantFund;
 
     // Test invariant contract
     ITestBase internal testContract;
 
-    // test params
+    // test variables
     address internal _actor; // currently active actor, used in useRandomActor modifier
     address[] public actors;
     address _tokenDeployer;
@@ -30,19 +35,24 @@ contract Handler is Test, GrantFundTestHelper {
     // logging
     mapping(bytes32 => uint256) public numberOfCalls;
 
-    // randomness counter
+    // randomness counter used in randomSeed()
     uint256 internal counter = 1;
 
     // constant error string when an unexpected revert is thrown
     string internal constant UNEXPECTED_REVERT = "UNEXPECTED_REVERT_ERROR";
 
-    // default to slow scenario types
+    // used in roll() to determine if we are in a fast or slow scenario
+    // defaults to slow scenario types
     uint8 internal _currentScenarioType = 1;
 
     enum ScenarioType {
         Fast,
         Slow
     }
+
+    /*******************/
+    /*** Constructor ***/
+    /*******************/
 
     constructor(
         address payable grantFund_,
@@ -68,8 +78,12 @@ contract Handler is Test, GrantFundTestHelper {
         testContract = ITestBase(testContract_);
     }
 
+    /*****************/
+    /*** Modifiers ***/
+    /*****************/
+
     modifier useCurrentBlock() {
-        // vm.roll(testContract.currentBlock());
+        vm.roll(testContract.currentBlock());
 
         _;
 
@@ -86,6 +100,10 @@ contract Handler is Test, GrantFundTestHelper {
         vm.stopPrank();
     }
 
+    /**************************/
+    /*** External Functions ***/
+    /**************************/
+
     // TODO:
         // Override this in the handler, StandardHandker.
         // Add support for modifying roll size based upon system stage.
@@ -95,18 +113,31 @@ contract Handler is Test, GrantFundTestHelper {
         uint256 rollLimit = 300;
 
         if (_currentScenarioType == uint8(ScenarioType.Fast)) {
-            rollLimit = 7000;
+            console.log("High roller");
+            rollLimit = 100000;
         }
 
         // determine a random number of blocks to roll, less than 100
         rollAmount_ = constrictToRange(rollAmount_, 0, rollLimit);
 
-        uint256 blockHeight = block.number + rollAmount_;
+        uint256 blockHeight = testContract.currentBlock() + rollAmount_;
 
         // roll forward to the selected block
         vm.roll(blockHeight);
         testContract.setCurrentBlock(blockHeight);
     }
+
+    function getActorsCount() public view returns(uint256) {
+        return actors.length;
+    }
+
+    function setCurrentScenarioType(ScenarioType scenarioType) public {
+        _currentScenarioType = uint8(scenarioType);
+    }
+
+    /**************************/
+    /*** Internal Functions ***/
+    /**************************/
 
     function _buildActors(uint256 numOfActors_, uint256 tokensToDistribute_) internal returns (address[] memory actors_) {
         actors_ = new address[](numOfActors_);
@@ -181,13 +212,4 @@ contract Handler is Test, GrantFundTestHelper {
         counter++;
         return uint256(keccak256(abi.encodePacked(block.number, block.difficulty, counter)));
     }
-
-    function getActorsCount() public view returns(uint256) {
-        return actors.length;
-    }
-
-    function setCurrentScenarioType(ScenarioType scenarioType) public {
-        _currentScenarioType = uint8(scenarioType);
-    }
-
 }

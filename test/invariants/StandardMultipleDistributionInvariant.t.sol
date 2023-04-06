@@ -37,6 +37,8 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
 
         // update scenarioType to fast to have larger rolls
         _standardHandler.setCurrentScenarioType(Handler.ScenarioType.Fast);
+
+        console.log("starting block number: %s", block.number);
     }
 
     // TODO: add common asserts for these invariants across test files?
@@ -123,8 +125,11 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
 
         _standardHandler.logCallSummary();
         // _standardHandler.logProposalSummary();
-        _standardHandler.logActorSummary(distributionId, true, true);
+        // _standardHandler.logActorSummary(distributionId, true, true);
 
+        console.log("current distributionId: %s", distributionId);
+        console.log("current block number:   %s", block.number);
+        console.log("test current block:     %s", currentBlock);
         // TODO: need to be able to log all the different type of summaries
         // _logFinalizeSummary(distributionId);
     }

@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.16;
 
-import { console } from "@std/console.sol";
+import { console }  from "@std/console.sol";
 import { Test }     from "forge-std/Test.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings }  from "@oz/utils/Strings.sol";
@@ -13,9 +13,13 @@ import { Maths }            from "../../../src/grants/libraries/Maths.sol";
 
 import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
-import { Handler }      from "./Handler.sol";
+import { Handler }             from "./Handler.sol";
 
 contract StandardHandler is Handler {
+
+    /***********************/
+    /*** State Variables ***/
+    /***********************/
 
     uint256[] public proposalsExecuted;
 
@@ -52,6 +56,10 @@ contract StandardHandler is Handler {
     mapping(bytes32 => uint256[]) public proposalsInTopSlate;
     mapping(address => mapping(uint24 => VotingActor)) internal votingActors; // actor => distributionId => VotingActor
     mapping(uint256 => TestProposal) public testProposals;
+
+    /*******************/
+    /*** Constructor ***/
+    /*******************/
 
     constructor(
         address payable grantFund_,
