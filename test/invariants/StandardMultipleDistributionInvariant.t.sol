@@ -88,6 +88,23 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
                     }
                 }
 
+
+                // TODO: check top proposal slate
+                totalTokensRequestedByExecutedProposals = 0;
+                uint256[] memory proposalSlate = _grantFund.getFundedProposalSlate(state.currentTopSlate);
+                for (uint j = 0; j < proposalSlate.length; ++j) {
+                    (, uint24 proposalDistributionId, , uint128 tokensRequested, , bool executed) = _grantFund.getProposalInfo(proposalSlate[j]);
+                    assertEq(proposalDistributionId, i);
+
+                    if (executed) {
+                        // invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage
+                        assertLt(tokensRequested, fundsAvailable);
+                        assertTrue(totalTokensRequestedByExecutedProposals <= fundsAvailable);
+
+                        totalTokensRequestedByExecutedProposals += tokensRequested;
+                    }
+                }
+
                 --i;
             }
         }
