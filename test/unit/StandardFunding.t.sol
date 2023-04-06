@@ -890,7 +890,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash, 0x53dc2b0b8c3787b3384472e1d449bb35e20089a01306e21d59ec6d080cdcd1a8);
+        assertEq(slateHash, 0x55e999c21a3faf0bdde6c3dbdeb20311552e5ac9eb607c60f379172c78240156);
         // check funded proposal slate matches expected state
         GrantFund.Proposal[] memory fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(slateHash));
         assertEq(fundedProposalSlate.length, 1);
@@ -906,7 +906,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertTrue(proposalSlateUpdated);
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash, 0x1baa18a2d105ff81cc846882b7cc083ac252a82d2082db41156a83ae5d6a2436);
+        assertEq(slateHash, 0xb72e359fc43715be27ea92fd3c6675ddc7ebca9c2f6ac8b8f1a8195c0b579067);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(slateHash));
         assertEq(fundedProposalSlate.length, 2);
@@ -930,7 +930,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertTrue(proposalSlateUpdated);
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash, 0x6d2192bdd3e08d75d683185db5947cd199403513241eddfa5cf8a36256f27c40);
+        assertEq(slateHash, 0x59445eae0a1138f27e258b071c6210dbd8fec6d1d7da077f3586a8aaa89806ce);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(slateHash));
         assertEq(fundedProposalSlate.length, 2);
@@ -946,7 +946,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check funded proposal slate wasn't updated
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash, 0x6d2192bdd3e08d75d683185db5947cd199403513241eddfa5cf8a36256f27c40);
+        assertEq(slateHash, 0x59445eae0a1138f27e258b071c6210dbd8fec6d1d7da077f3586a8aaa89806ce);
         fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(slateHash));
         assertEq(fundedProposalSlate.length, 2);
         assertEq(fundedProposalSlate[0].proposalId, screenedProposals[0].proposalId);
