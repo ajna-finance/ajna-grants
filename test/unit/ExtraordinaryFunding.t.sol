@@ -1,19 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import { IVotes }    from "@oz/governance/utils/IVotes.sol";
-
-import { GrantFund }             from "../src/grants/GrantFund.sol";
-import { IExtraordinaryFunding } from "../src/grants/interfaces/IExtraordinaryFunding.sol";
-import { IFunding }              from "../src/grants/interfaces/IFunding.sol";
-import { GrantFundTestHelper }   from "./utils/GrantFundTestHelper.sol";
-import { IAjnaToken }            from "./utils/IAjnaToken.sol";
-import { DrainGrantFund }        from "./interactions/DrainGrantFund.sol";
+import { GrantFund }             from "../../src/grants/GrantFund.sol";
+import { IExtraordinaryFunding } from "../../src/grants/interfaces/IExtraordinaryFunding.sol";
+import { IFunding }              from "../../src/grants/interfaces/IFunding.sol";
+import { GrantFundTestHelper }   from "../utils/GrantFundTestHelper.sol";
+import { IAjnaToken }            from "../utils/IAjnaToken.sol";
+import { DrainGrantFund }        from "../interactions/DrainGrantFund.sol";
 
 contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
     IAjnaToken        internal  _token;
-    IVotes            internal  _votingToken;
     GrantFund         internal  _grantFund;
 
     // Ajna token Holder at the Ajna contract creation on mainnet
@@ -80,9 +77,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // Ajna Token contract address on mainnet
         _token = IAjnaToken(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
-
-        // deploy voting token wrapper
-        _votingToken = IVotes(address(_token));
 
         // deploy growth fund contract
         _grantFund = new GrantFund();

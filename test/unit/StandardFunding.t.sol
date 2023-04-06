@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import { IVotes }    from "@oz/governance/utils/IVotes.sol";
 import { SafeCast }  from "@oz/utils/math/SafeCast.sol";
 
-import { GrantFund }        from "../src/grants/GrantFund.sol";
-import { IFunding }              from "../src/grants/interfaces/IFunding.sol";
-import { IStandardFunding } from "../src/grants/interfaces/IStandardFunding.sol";
-import { Maths }            from "../src/grants/libraries/Maths.sol";
+import { GrantFund }        from "../../src/grants/GrantFund.sol";
+import { IFunding }         from "../../src/grants/interfaces/IFunding.sol";
+import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
+import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
-import { GrantFundTestHelper } from "./utils/GrantFundTestHelper.sol";
-import { IAjnaToken }          from "./utils/IAjnaToken.sol";
+import { GrantFundTestHelper } from "../utils/GrantFundTestHelper.sol";
+import { IAjnaToken }          from "../utils/IAjnaToken.sol";
 
 contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
@@ -18,7 +17,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     using SafeCast for uint256;
 
     IAjnaToken        internal  _token;
-    IVotes            internal  _votingToken;
     GrantFund         internal  _grantFund;
 
     // Ajna token Holder at the Ajna contract creation on mainnet
@@ -75,9 +73,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // Ajna Token contract address on mainnet
         _token = IAjnaToken(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
-
-        // deploy voting token wrapper
-        _votingToken = IVotes(address(_token));
 
         // deploy growth fund contract
         _grantFund = new GrantFund();
@@ -1552,8 +1547,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             uint256 proposalId = topTenProposalIds[i % topTenProposalIds.length];
 
             // check if proposalId is already there in potential proposal slate
-            if (!_checkElementExist(proposalId, potentialProposalsSlate)) {
-                // add proposalId in potential proposal slate for check slate
+            if (_findProposalIndex(proposalId, potentialProposalsSlate) == -1) {
+                // add proposalId in potential proposal slate for check slate if it isn't already present
                 potentialProposalsSlate.push(proposalId);
             }
 

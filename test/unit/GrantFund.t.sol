@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import { GrantFund }           from "../src/grants/GrantFund.sol";
-import { GrantFundTestHelper } from "./utils/GrantFundTestHelper.sol";
-import { IAjnaToken }          from "./utils/IAjnaToken.sol";
-import { IFunding }            from "../src/grants/interfaces/IFunding.sol";
-import { IStandardFunding }    from "../src/grants/interfaces/IStandardFunding.sol";
-import { Maths }               from "../src/grants/libraries/Maths.sol";
+import { GrantFund }           from "../../src/grants/GrantFund.sol";
+import { IFunding }            from "../../src/grants/interfaces/IFunding.sol";
+import { IStandardFunding }    from "../../src/grants/interfaces/IStandardFunding.sol";
+
+import { GrantFundTestHelper } from "../utils/GrantFundTestHelper.sol";
+import { IAjnaToken }          from "../utils/IAjnaToken.sol";
+import { Maths }               from "../../src/grants/libraries/Maths.sol";
 
 contract GrantFundTest is GrantFundTestHelper {
 
@@ -147,9 +148,6 @@ contract GrantFundTest is GrantFundTestHelper {
         // should revert when standard funding proposal created for an amount greater than that in the treasury
         vm.expectRevert(IFunding.InvalidProposal.selector);
         _grantFund.proposeStandard(targets, values, calldatas, description);
-
-        // screening vote should revert invalid vote if proposal was rejected
-        // vm.expectRevert(IStandardFunding.InvalidVote.selector);
     }
 
 }
