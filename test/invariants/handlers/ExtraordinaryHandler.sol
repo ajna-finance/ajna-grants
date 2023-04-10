@@ -85,7 +85,11 @@ contract ExtraordinaryHandler is Handler {
         }
 
         try _grantFund.proposeExtraordinary(endBlock, targets, values, calldatas, description) returns (uint256 proposalId) {
+            // record successfully submitted proposal
             extraordinaryProposals.push(proposalId);
+
+            // TODO: need to update this struct to list all recipients and tokens requested
+            // TestProposalExtraordinary(proposalId, targets, values, calldatas, description, endBlock, block.number, _actor)
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -99,6 +103,26 @@ contract ExtraordinaryHandler is Handler {
 
     function voteExtraordinary(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['EH.voteExtraordinary']++;
+
+        // get a random proposal to vote on
+        uint256 proposalId = extraordinaryProposals[constrictToRange(randomSeed(), 0, extraordinaryProposals.length - 1)];
+
+        // get actor voting power
+        uint256 votingPower = _grantFund.getVotesExtraordinary(_actor, proposalId);
+
+        try _grantFund.voteExtraordinary(proposalId) {
+            // update VotingActor struct if vote was successful
+            VotingActor storage actor = votingActors[_actor];
+            actor.votes.push(ExtraordinaryVoteParams(proposalId, votingPower));
+        }
+        catch (bytes memory _err){
+            bytes32 err = keccak256(_err);
+            require(
+                err == keccak256(abi.encodeWithSignature("AlreadyVoted()")) ||
+                err == keccak256(abi.encodeWithSignature("ExtraordinaryFundingProposalInactive()")),
+                UNEXPECTED_REVERT
+            );
+        }
     }
 
     function executeExtraordinary(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
