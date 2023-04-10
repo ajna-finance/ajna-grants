@@ -39,6 +39,7 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         _standardHandler.setCurrentScenarioType(Handler.ScenarioType.Fast);
 
         console.log("starting block number: %s", block.number);
+        // assertTrue(false);
     }
 
     // TODO: add common asserts for these invariants across test files?

@@ -136,7 +136,9 @@ contract StandardHandler is Handler {
         // get a random number less than the number of submitted proposals
         proposalsToVoteOn_ = constrictToRange(proposalsToVoteOn_, 0, standardFundingProposals[distributionId].length);
 
+        console.log("block number before: ", block.number);
         vm.roll(block.number + 100);
+        console.log("block number after:  ", block.number);
         // vm.rollFork(block.number + 100);
 
         // get actor voting power
