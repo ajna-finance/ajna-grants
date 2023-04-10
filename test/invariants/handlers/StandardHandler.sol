@@ -13,10 +13,11 @@ import { Maths }            from "../../../src/grants/libraries/Maths.sol";
 
 import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
-import { Handler }      from "./Handler.sol";
+import { Handler }             from "./Handler.sol";
 
 contract StandardHandler is Handler {
 
+    // proposalId of proposals executed
     uint256[] public proposalsExecuted;
 
     // number of proposals that recieved a vote in the given stage
