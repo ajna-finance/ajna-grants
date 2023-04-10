@@ -55,7 +55,6 @@
 ## Extraordinary Funding Mechanism Invariants
 
 - #### Extraordinary Global Invariants:
-
     - **EG1**: The `minimumThresholdPercentage` variable increases by 5% for each successive winning proposal.
     - **EG2**: if a proposal succeeded, the votes for it exceeded the `minimumThresholdPercentage` times treasury size
 

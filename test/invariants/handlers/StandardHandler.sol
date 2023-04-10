@@ -619,24 +619,6 @@ contract StandardHandler is Handler {
         }
     }
 
-    function hasDuplicates(
-        uint256[] calldata proposalIds_
-    ) public pure returns (bool) {
-        uint256 numProposals = proposalIds_.length;
-
-        for (uint i = 0; i < numProposals; ) {
-            for (uint j = i + 1; j < numProposals; ) {
-                if (proposalIds_[i] == proposalIds_[j]) return true;
-
-                unchecked { ++j; }
-            }
-
-            unchecked { ++i; }
-
-        }
-        return false;
-    }
-
     function sumSquareOfVotesCast(
         IStandardFunding.FundingVoteParams[] memory votesCast_
     ) public pure returns (uint256 votesCastSumSquared_) {

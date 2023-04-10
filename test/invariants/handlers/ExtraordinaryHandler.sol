@@ -97,8 +97,10 @@ contract ExtraordinaryHandler is Handler {
             TestProposalExtraordinary storage testProposal = testProposals[proposalId];
             testProposal.proposalId = proposalId;
             testProposal.description = description;
+            testProposal.startBlock = block.number;
             testProposal.endBlock = endBlock;
             testProposal.totalTokensRequested = totalTokensRequested;
+            testProposal.treasuryBalanceAtSubmission = _grantFund.treasury();
             for (uint i = 0; i < params.length; ++i) {
                 testProposal.params.push(params[i]);
             }
@@ -155,6 +157,7 @@ contract ExtraordinaryHandler is Handler {
             bytes[] memory calldatas,
         ) = _getParamsFromGeneratedTestProposalParams(_ajna, testProposal.params);
 
+        // TODO: record treasury balance at time of execution
         // execute proposal
         try _grantFund.executeExtraordinary(targets, values, calldatas, keccak256(bytes(testProposal.description))) returns (uint256 proposalId_) {
             // add executed proposalId to proposalsExecuted list
@@ -252,6 +255,29 @@ contract ExtraordinaryHandler is Handler {
         ExtraordinaryVoteParams[] memory
     ) {
         return votingActors[actor_].votes;
+    }
+
+    function getVotingActorsProposals(address actor_) public view returns (
+        uint256[] memory proposals_
+    ) {
+        ExtraordinaryVoteParams[] memory votes = votingActors[actor_].votes;
+        proposals_ = new uint256[](votes.length);
+
+        for (uint256 i = 0; i < votes.length; ++i) {
+            proposals_[i] = votes[i].proposalId;
+        }
+    }
+
+    function getExtraordinaryProposals() public view returns (uint256[] memory) {
+        return extraordinaryProposals;
+    }
+
+    function getExecutedExtraordinaryProposals() public view returns (uint256[] memory) {
+        return proposalsExecuted;
+    }
+
+    function getTestProposal(uint256 proposalId_) public view returns (TestProposalExtraordinary memory) {
+        return testProposals[proposalId_];
     }
 
 }
