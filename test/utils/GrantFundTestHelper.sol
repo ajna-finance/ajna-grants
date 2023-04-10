@@ -358,6 +358,43 @@ abstract contract GrantFundTestHelper is Test {
         return proposals_;
     }
 
+    function generateProposalParams(GrantFund grantFund_, address ajna_, TestProposalParams[] memory testProposalParams_) internal view
+        returns(
+            address[] memory targets_,
+            uint256[] memory values_,
+            bytes[] memory calldatas_,
+            string memory description_
+        ) {
+
+        uint256 numParams = testProposalParams_.length;
+        targets_ = new address[](numParams);
+        values_ = new uint256[](numParams);
+        calldatas_ = new bytes[](numParams);
+
+        // generate description string
+        string memory descriptionPartOne = "Proposal to transfer ";
+        string memory descriptionPartTwo;
+
+        for (uint256 i = 0; i < numParams; ++i) {
+            targets_[i] = ajna_;
+            values_[i] = 0;
+            calldatas_[i] = abi.encodeWithSignature(
+                "transfer(address,uint256)",
+                testProposalParams_[i].recipient,
+                testProposalParams_[i].tokensRequested
+            );
+            descriptionPartTwo = string.concat(descriptionPartTwo, Strings.toString(testProposalParams_[i].tokensRequested));
+            descriptionPartTwo = string.concat(descriptionPartTwo, " tokens to recipient: ");
+            descriptionPartTwo = string.concat(descriptionPartTwo, Strings.toHexString(uint160(testProposalParams_[i].recipient), 20));
+            descriptionPartTwo = string.concat(descriptionPartTwo, ", ");
+
+            // generate a random nonce to add to the description string to avoid collisions
+            uint256 randomNonce = uint256(keccak256(abi.encodePacked(block.number, block.difficulty))) % 100;
+            descriptionPartTwo = string.concat(descriptionPartTwo, Strings.toString(randomNonce));
+        }
+        description_ = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo));
+    }
+
     /************************/
     /*** Voting Functions ***/
     /************************/

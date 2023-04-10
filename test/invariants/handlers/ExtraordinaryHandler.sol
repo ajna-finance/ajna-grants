@@ -25,12 +25,13 @@ contract ExtraordinaryHandler is Handler {
     uint256[] public proposalsExecuted;
 
     // proposalId of extraordinary proposals submitted
-    uint256[] public proposals;
+    uint256[] public extraordinaryProposals;
 
     struct VotingActor {
         ExtraordinaryVoteParams[] votes;
     }
 
+    // TODO: record treasury info at time of vote?
     struct ExtraordinaryVoteParams {
         uint256 proposalId;
         uint256 votesCast;
@@ -58,6 +59,42 @@ contract ExtraordinaryHandler is Handler {
 
     function proposeExtraordinary(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['EH.proposeExtraordinary']++;
+
+        // get a random number between 1 and 5
+        uint256 numProposalParams = constrictToRange(randomSeed(), 1, 5);
+
+        // generate list of recipients and tokens requested
+        TestProposalParams[] memory testProposalParams = generateTestProposalParams(numProposalParams);
+
+        // generate proposal params
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory description
+        ) = generateProposalParams(_grantFund, address(_ajna), testProposalParams);
+
+        // get random end block time -> happy / chaotic path
+        uint256 endBlock = 0;
+        if (randomSeed() % 2 == 0) {
+            // happy path
+            endBlock = constrictToRange(randomSeed(), block.number + 10_000, block.number + 216_000);
+        } else {
+            // chaotic path set the limit to be much higher than the maximum proposal length
+            endBlock = constrictToRange(randomSeed(), block.number, block.number + 10_000_000);
+        }
+
+        try _grantFund.proposeExtraordinary(endBlock, targets, values, calldatas, description) returns (uint256 proposalId) {
+            extraordinaryProposals.push(proposalId);
+        }
+        catch (bytes memory _err){
+            bytes32 err = keccak256(_err);
+            require(
+                err == keccak256(abi.encodeWithSignature("ProposalAlreadyExists()")) ||
+                err == keccak256(abi.encodeWithSignature("InvalidProposal()")),
+                UNEXPECTED_REVERT
+            );
+        }
     }
 
     function voteExtraordinary(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
@@ -87,6 +124,25 @@ contract ExtraordinaryHandler is Handler {
     /**************************/
     /*** Utility Functions ****/
     /**************************/
+
+    function generateTestProposalParams(uint256 numParams_) internal returns (TestProposalParams[] memory testProposalParams_) {
+        testProposalParams_ = new TestProposalParams[](numParams_);
+        uint256 treasury = _grantFund.treasury(); // get treasury info
+
+        uint256 totalTokensRequested = 0;
+        for (uint256 i = 0; i < numParams_; ++i) {
+
+            // TODO: use happy / chaotic path to determine amount to request
+            // account for amount that was previously requested
+            uint256 additionalTokensRequested = randomAmount((treasury * 9 /10) - totalTokensRequested);
+            totalTokensRequested += additionalTokensRequested;
+
+            testProposalParams_[i] = TestProposalParams({
+                recipient: randomActor(),
+                tokensRequested: additionalTokensRequested
+            });
+        }
+    }
 
     /**************************/
     /*** Logging Functions ****/

@@ -100,7 +100,7 @@ contract StandardHandler is Handler {
             uint256[] memory values,
             bytes[] memory calldatas,
             string memory description
-        ) = generateProposalParams(testProposalParams);
+        ) = generateProposalParams(_grantFund, address(_ajna), testProposalParams);
 
         try _grantFund.proposeStandard(targets, values, calldatas, description) returns (uint256 proposalId) {
             standardFundingProposals[_grantFund.getDistributionId()].push(proposalId);
@@ -374,41 +374,6 @@ contract StandardHandler is Handler {
     /*** SFM Utility Functions ***/
     /*****************************/
 
-    function generateProposalParams(TestProposalParams[] memory testProposalParams_) internal view
-        returns(
-            address[] memory targets_,
-            uint256[] memory values_,
-            bytes[] memory calldatas_,
-            string memory description_
-        ) {
-
-        uint256 numParams = testProposalParams_.length;
-        targets_ = new address[](numParams);
-        values_ = new uint256[](numParams);
-        calldatas_ = new bytes[](numParams);
-
-        // generate description string
-        string memory descriptionPartOne = "Proposal to transfer ";
-        string memory descriptionPartTwo;
-
-        for (uint256 i = 0; i < numParams; ++i) {
-            targets_[i] = address(_ajna);
-            values_[i] = 0;
-            calldatas_[i] = abi.encodeWithSignature(
-                "transfer(address,uint256)",
-                testProposalParams_[i].recipient,
-                testProposalParams_[i].tokensRequested
-            );
-            descriptionPartTwo = string.concat(descriptionPartTwo, Strings.toString(testProposalParams_[i].tokensRequested));
-            descriptionPartTwo = string.concat(descriptionPartTwo, " tokens to recipient: ");
-            descriptionPartTwo = string.concat(descriptionPartTwo, Strings.toHexString(uint160(testProposalParams_[i].recipient), 20));
-            descriptionPartTwo = string.concat(descriptionPartTwo, ", ");
-
-            descriptionPartTwo = string.concat(descriptionPartTwo, Strings.toString(standardFundingProposals[_grantFund.getDistributionId()].length));
-        }
-        description_ = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo));
-    }
-
     function generateTestProposalParams(uint256 numParams_) internal returns (TestProposalParams[] memory testProposalParams_) {
         testProposalParams_ = new TestProposalParams[](numParams_);
 
@@ -469,7 +434,7 @@ contract StandardHandler is Handler {
             uint256[] memory values,
             bytes[] memory calldatas,
             string memory description
-        ) = generateProposalParams(testProposalParams);
+        ) = generateProposalParams(_grantFund, address(_ajna), testProposalParams);
 
         // create proposal
         proposalId_ = _grantFund.proposeStandard(targets, values, calldatas, description);
@@ -684,14 +649,6 @@ contract StandardHandler is Handler {
         }
     }
 
-    function _votingActorsInfo(address actor_, uint24 distributionId_) internal view returns (IStandardFunding.FundingVoteParams[] memory, IStandardFunding.ScreeningVoteParams[] memory, uint256) {
-        return (
-            votingActors[actor_][distributionId_].fundingVotes,
-            votingActors[actor_][distributionId_].screeningVotes,
-            votingActors[actor_][distributionId_].delegationRewardsClaimed
-        );
-    }
-
     /**************************/
     /*** Logging Functions ****/
     /**************************/
@@ -808,7 +765,11 @@ contract StandardHandler is Handler {
     }
 
     function getVotingActorsInfo(address actor_, uint24 distributionId_) public view returns (IStandardFunding.FundingVoteParams[] memory, IStandardFunding.ScreeningVoteParams[] memory, uint256) {
-        return _votingActorsInfo(actor_, distributionId_);
+        return (
+            votingActors[actor_][distributionId_].fundingVotes,
+            votingActors[actor_][distributionId_].screeningVotes,
+            votingActors[actor_][distributionId_].delegationRewardsClaimed
+        );
     }
 
     function sumVoterScreeningVotes(address actor_, uint24 distributionId_) public view returns (uint256 sum_) {
