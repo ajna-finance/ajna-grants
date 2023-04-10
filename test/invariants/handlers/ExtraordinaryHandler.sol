@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.16;
 
-import { console } from "@std/console.sol";
+import { console }  from "@std/console.sol";
 import { Test }     from "forge-std/Test.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings }  from "@oz/utils/Strings.sol";
@@ -72,7 +72,7 @@ contract ExtraordinaryHandler is Handler {
             uint256[] memory values,
             bytes[] memory calldatas,
             string memory description
-        ) = generateProposalParams(_grantFund, address(_ajna), testProposalParams);
+        ) = generateProposalParams(address(_ajna), testProposalParams);
 
         // get random end block time -> happy / chaotic path
         uint256 endBlock = 0;
@@ -88,8 +88,20 @@ contract ExtraordinaryHandler is Handler {
             // record successfully submitted proposal
             extraordinaryProposals.push(proposalId);
 
-            // TODO: need to update this struct to list all recipients and tokens requested
-            // TestProposalExtraordinary(proposalId, targets, values, calldatas, description, endBlock, block.number, _actor)
+            (
+                GeneratedTestProposalParams[] memory params,
+                uint256 totalTokensRequested
+            ) = _getGeneratedTestProposalParamsFromParams(targets, values, calldatas);
+
+            // record proposal params
+            TestProposalExtraordinary storage testProposal = testProposals[proposalId];
+            testProposal.proposalId = proposalId;
+            testProposal.description = description;
+            testProposal.endBlock = endBlock;
+            testProposal.totalTokensRequested = totalTokensRequested;
+            for (uint i = 0; i < params.length; ++i) {
+                testProposal.params.push(params[i]);
+            }
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -103,6 +115,8 @@ contract ExtraordinaryHandler is Handler {
 
     function voteExtraordinary(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['EH.voteExtraordinary']++;
+
+        if (extraordinaryProposals.length == 0) return; // no proposals to vote on
 
         // get a random proposal to vote on
         uint256 proposalId = extraordinaryProposals[constrictToRange(randomSeed(), 0, extraordinaryProposals.length - 1)];
@@ -128,21 +142,31 @@ contract ExtraordinaryHandler is Handler {
     function executeExtraordinary(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['EH.executeExtraordinary']++;
 
-        // TODO: get a random proposalId
-        uint256 proposalId;
+        if (extraordinaryProposals.length == 0) return; // no proposals to execute
+
+        // get a random proposal to execute
+        uint256 proposalId = extraordinaryProposals[constrictToRange(randomSeed(), 0, extraordinaryProposals.length - 1)];
+
+        // retrieve the proposal params
+        TestProposalExtraordinary memory testProposal = testProposals[proposalId];
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+        ) = _getParamsFromGeneratedTestProposalParams(_ajna, testProposal.params);
 
         // execute proposal
-        // try _grantFund.executeExtraordinary(proposalId) returns (uint256 proposalId_) {
-        //     // add executed proposalId to proposalsExecuted
-        //     proposalsExecuted.push(proposalId_);
-        // }
-        // catch (bytes memory _err){
-        //     bytes32 err = keccak256(_err);
-        //     require(
-        //         err == keccak256(abi.encodeWithSignature("ExecuteExtraordinaryProposalInvalid()")),
-        //         UNEXPECTED_REVERT
-        //     );
-        // }
+        try _grantFund.executeExtraordinary(targets, values, calldatas, keccak256(bytes(testProposal.description))) returns (uint256 proposalId_) {
+            // add executed proposalId to proposalsExecuted list
+            proposalsExecuted.push(proposalId_);
+        }
+        catch (bytes memory _err){
+            bytes32 err = keccak256(_err);
+            require(
+                err == keccak256(abi.encodeWithSignature("ExecuteExtraordinaryProposalInvalid()")),
+                UNEXPECTED_REVERT
+            );
+        }
     }
 
     /**************************/
@@ -185,6 +209,7 @@ contract ExtraordinaryHandler is Handler {
             console.log("------------");
             console.log("Actor:                    ", actor);
             console.log("Delegate:                 ", _ajna.delegates(actor));
+            console.log("------------");
 
             // log actor vote info if requested
             if (voteInfo_) {

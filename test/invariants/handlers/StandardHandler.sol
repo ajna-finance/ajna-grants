@@ -100,7 +100,7 @@ contract StandardHandler is Handler {
             uint256[] memory values,
             bytes[] memory calldatas,
             string memory description
-        ) = generateProposalParams(_grantFund, address(_ajna), testProposalParams);
+        ) = generateProposalParams(address(_ajna), testProposalParams);
 
         try _grantFund.proposeStandard(targets, values, calldatas, description) returns (uint256 proposalId) {
             standardFundingProposals[_grantFund.getDistributionId()].push(proposalId);
@@ -434,7 +434,7 @@ contract StandardHandler is Handler {
             uint256[] memory values,
             bytes[] memory calldatas,
             string memory description
-        ) = generateProposalParams(_grantFund, address(_ajna), testProposalParams);
+        ) = generateProposalParams(address(_ajna), testProposalParams);
 
         // create proposal
         proposalId_ = _grantFund.proposeStandard(targets, values, calldatas, description);

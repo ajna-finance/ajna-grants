@@ -31,6 +31,9 @@ contract ExtraordinaryTestBase is TestBase {
 
         // explicitly target handler
         targetContract(address(_extraordinaryHandler));
+
+        // roll 100 blocks to allow for actor distribution
+        vm.roll(block.number + 100);
     }
 
 }
