@@ -354,7 +354,7 @@ abstract contract GrantFundTestHelper is Test {
         for (uint256 i = 0; i < numberOfParams; ++i) {
             // https://github.com/ethereum/solidity/issues/6012
             (, address recipient, uint256 tokensRequested) = abi.decode(
-                abi.encodePacked(bytes28(0), calldatas_[0]),
+                abi.encodePacked(bytes28(0), calldatas_[i]),
                 (bytes32,address,uint256)
             );
 
