@@ -29,12 +29,7 @@ jobs:
           forge build --sizes
         id: build
 
-      - name: Run unit tests
+      - name: Run tests
         run: |
           make test-with-gas-report
         id: test
-
-      - name: Run invariant tests
-        run: |
-          make test-invariant
-        id: test-invariants

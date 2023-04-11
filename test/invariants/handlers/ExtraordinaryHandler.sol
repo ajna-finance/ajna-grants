@@ -159,14 +159,18 @@ contract ExtraordinaryHandler is Handler {
             bytes[] memory calldatas,
         ) = _getParamsFromGeneratedTestProposalParams(_ajna, testProposal.params);
 
+        uint256 treasuryBalanceAtExecution = _grantFund.treasury();
+        uint256 ajnaTotalSupplyAtExecution = _ajna.totalSupply();
+        uint256 minimumThresholdPercentageAtExecution = _grantFund.getMinimumThresholdPercentage();
+
         // execute proposal
         try _grantFund.executeExtraordinary(targets, values, calldatas, keccak256(bytes(testProposal.description))) returns (uint256 proposalId_) {
             // add executed proposalId to proposalsExecuted list
             proposalsExecuted.push(proposalId_);
             // record treasury balance at time of execution
-            testProposals[proposalId_].treasuryBalanceAtExecution = _grantFund.treasury();
-            testProposals[proposalId_].ajnaTotalSupplyAtExecution = _ajna.totalSupply();
-            testProposals[proposalId_].minimumThresholdPercentageAtExecution = _grantFund.getMinimumThresholdPercentage();
+            testProposals[proposalId_].treasuryBalanceAtExecution = treasuryBalanceAtExecution;
+            testProposals[proposalId_].ajnaTotalSupplyAtExecution = ajnaTotalSupplyAtExecution;
+            testProposals[proposalId_].minimumThresholdPercentageAtExecution = minimumThresholdPercentageAtExecution;
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);

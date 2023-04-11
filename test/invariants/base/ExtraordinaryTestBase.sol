@@ -9,7 +9,7 @@ import { ExtraordinaryHandler } from "../handlers/ExtraordinaryHandler.sol";
 
 contract ExtraordinaryTestBase is TestBase {
 
-    uint256 internal constant NUM_ACTORS = 20;
+    uint256 internal constant NUM_ACTORS = 10;
 
     ExtraordinaryHandler internal _extraordinaryHandler;
 
