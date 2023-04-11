@@ -79,7 +79,7 @@ contract ExtraordinaryInvariant is ExtraordinaryTestBase {
             );
 
             // check executed proposals's exceeded required vote thresholds
-            if (executed) {
+            if (executed) {                
                 require(
                     votesReceived >= tokensRequested + Maths.wmul((proposal.ajnaTotalSupplyAtExecution - proposal.treasuryBalanceAtExecution), proposal.minimumThresholdPercentageAtExecution),
                     "invariant EE2: A proposal can only be executed if its votesReceived exceeds its tokensRequested + the minimumThresholdPercentage times the non-treasury token supply at the time of execution"
@@ -97,7 +97,7 @@ contract ExtraordinaryInvariant is ExtraordinaryTestBase {
         );
     }
 
-    function invariant_VE1_VE2() external view {
+    function invariant_VE1_VE2_VE3_VE4() external view {
         for (uint256 i = 0; i < _extraordinaryHandler.getActorsCount(); ++i) {
             address actor = _extraordinaryHandler.actors(i);
 
@@ -117,8 +117,17 @@ contract ExtraordinaryInvariant is ExtraordinaryTestBase {
                     param.voteBlock >= proposal.startBlock && param.voteBlock <= proposal.endBlock,
                     "invariant VE2: A proposal can only be voted on if the block number is less than or equal to the proposals end block and the `MAX_EFM_PROPOSAL_LENGTH` of 216_000 blocks."
                 );
+
+                require(
+                    param.votesCast >= 0,
+                    "invariant VE3: Votes cast must always be positive"
+                );
             }
 
+            require(
+                _extraordinaryHandler.getSumVotesCast(actor) <= _ajna.totalSupply(),
+                "invariant VE4: A voter should never be able to cast more votes than the Ajna token supply"
+            );
         }
     }
 

@@ -62,9 +62,9 @@ contract StandardHandler is Handler {
         address testContract_
     ) Handler(grantFund_, token_, tokenDeployer_, numOfActors_, tokensToDistribute_, testContract_) {}
 
-    /*********************/
-    /*** SFM Functions ***/
-    /*********************/
+    /*************************/
+    /*** Wrapped Functions ***/
+    /*************************/
 
     function startNewDistributionPeriod(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) returns (uint24 newDistributionId_) {
         numberOfCalls['SFH.startNewDistributionPeriod']++;
@@ -370,9 +370,52 @@ contract StandardHandler is Handler {
         }
     }
 
-    /*****************************/
-    /*** SFM Utility Functions ***/
-    /*****************************/
+    /**********************************/
+    /*** External Utility Functions ***/
+    /**********************************/
+
+    // create a given number of proposals
+    function createProposals(uint256 numProposals) external returns (uint256[] memory proposalIds_) {
+        proposalIds_ = _createProposals(numProposals);
+    }
+
+    // make each actor cast funding stage votes on a random number of proposals
+    function fundingVoteProposals() external {
+        for (uint256 i = 0; i < actors.length; ++i) {
+            // get an actor who hasn't already voted
+            address actor = actors[i];
+
+            // actor votes on random number of proposals
+            _fundingVoteProposal(actor, constrictToRange(randomSeed(), 1, 10));
+        }
+    }
+
+    // make each actor cast screening stage votes on a random number of proposals
+    function screeningVoteProposals() external {
+        for (uint256 i = 0; i < actors.length; ++i) {
+            // get an actor who hasn't already voted
+            address actor = actors[i];
+
+            // actor votes on random number of proposals
+            _screeningVoteProposal(actor);
+        }
+    }
+
+    function sumSquareOfVotesCast(
+        IStandardFunding.FundingVoteParams[] memory votesCast_
+    ) public pure returns (uint256 votesCastSumSquared_) {
+        uint256 numVotesCast = votesCast_.length;
+
+        for (uint256 i = 0; i < numVotesCast; ) {
+            votesCastSumSquared_ += Maths.wpow(SafeCast.toUint256(Maths.abs(votesCast_[i].votesUsed)), 2);
+
+            unchecked { ++i; }
+        }
+    }
+
+    /**********************************/
+    /*** Internal Utility Functions ***/
+    /**********************************/
 
     function generateTestProposalParams(uint256 numParams_) internal returns (TestProposalParams[] memory testProposalParams_) {
         testProposalParams_ = new TestProposalParams[](numParams_);
@@ -420,7 +463,7 @@ contract StandardHandler is Handler {
         }
     }
 
-    function _createProposal() internal returns (uint256 proposalId_) {
+    function _createProposal() internal useRandomActor(randomSeed()) returns (uint256 proposalId_) {
         // TODO: increase randomness of number of params, including potentially randomizing each separate param?
         // get a random number between 1 and 5
         uint256 numProposalParams = constrictToRange(randomSeed(), 1, 5);
@@ -453,10 +496,6 @@ contract StandardHandler is Handler {
             address(0),
             0
         );
-    }
-
-    function createProposals(uint256 numProposals) external returns (uint256[] memory proposalIds_) {
-        proposalIds_ = _createProposals(numProposals);
     }
 
     // TODO: need to add support for different types of param generation -> turn this into a factory
@@ -537,16 +576,6 @@ contract StandardHandler is Handler {
         }
     }
 
-    function fundingVoteProposals() external {
-        for (uint256 i = 0; i < actors.length; ++i) {
-            // get an actor who hasn't already voted
-            address actor = actors[i];
-
-            // actor votes on random number of proposals
-            _fundingVoteProposal(actor, constrictToRange(randomSeed(), 1, 10));
-        }
-    }
-
     function _fundingVoteProposal(address actor_, uint256 numProposalsToVoteOn_) internal {
         // get the fundingVoteParams for the votes the actor is about to cast
         // take the happy path, and cast votes that wont exceed the actor's voting power
@@ -565,16 +594,6 @@ contract StandardHandler is Handler {
             fundingVotesCast++;
 
             ++i;
-        }
-    }
-
-    function screeningVoteProposals() external {
-        for (uint256 i = 0; i < actors.length; ++i) {
-            // get an actor who hasn't already voted
-            address actor = actors[i];
-
-            // actor votes on random number of proposals
-            _screeningVoteProposal(actor);
         }
     }
 
@@ -616,18 +635,6 @@ contract StandardHandler is Handler {
             screeningVotesCast++;
 
             ++i;
-        }
-    }
-
-    function sumSquareOfVotesCast(
-        IStandardFunding.FundingVoteParams[] memory votesCast_
-    ) public pure returns (uint256 votesCastSumSquared_) {
-        uint256 numVotesCast = votesCast_.length;
-
-        for (uint256 i = 0; i < numVotesCast; ) {
-            votesCastSumSquared_ += Maths.wpow(SafeCast.toUint256(Maths.abs(votesCast_[i].votesUsed)), 2);
-
-            unchecked { ++i; }
         }
     }
 
@@ -730,9 +737,9 @@ contract StandardHandler is Handler {
         console.log("\n");
     }
 
-    /*****************************/
-    /*** SFM Getter Functions ****/
-    /*****************************/
+    /***********************/
+    /*** View Functions ****/
+    /***********************/
 
     function getDistributionState(uint24 distributionId_) external view returns (DistributionState memory) {
         return distributionStates[distributionId_];

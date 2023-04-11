@@ -287,4 +287,12 @@ contract ExtraordinaryHandler is Handler {
         return testProposals[proposalId_];
     }
 
+    function getSumVotesCast(address actor_) public view returns (uint256 sum_) {
+        ExtraordinaryVoteParams[] memory votes = votingActors[actor_].votes;
+
+        for (uint256 i = 0; i < votes.length; ++i) {
+            sum_ += votes[i].votesCast;
+        }
+    }
+
 }
