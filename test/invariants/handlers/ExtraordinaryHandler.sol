@@ -35,6 +35,7 @@ contract ExtraordinaryHandler is Handler {
     struct ExtraordinaryVoteParams {
         uint256 proposalId;
         uint256 votesCast;
+        uint256 voteBlock;
     }
 
     mapping(address => VotingActor) internal votingActors; // actor => VotingActor
@@ -131,7 +132,7 @@ contract ExtraordinaryHandler is Handler {
         try _grantFund.voteExtraordinary(proposalId) {
             // update VotingActor struct if vote was successful
             VotingActor storage actor = votingActors[_actor];
-            actor.votes.push(ExtraordinaryVoteParams(proposalId, votingPower));
+            actor.votes.push(ExtraordinaryVoteParams(proposalId, votingPower, block.number));
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -228,6 +229,7 @@ contract ExtraordinaryHandler is Handler {
                     console.log("--Vote----------");
                     console.log("proposalId: ", voteParams.proposalId);
                     console.log("votesCast:  ", voteParams.votesCast);
+                    console.log("votesBlock: ", voteParams.voteBlock);
                     console.log("----------------");
                 }
             }

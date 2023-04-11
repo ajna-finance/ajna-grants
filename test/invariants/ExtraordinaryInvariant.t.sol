@@ -33,8 +33,18 @@ contract ExtraordinaryInvariant is ExtraordinaryTestBase {
         }));
     }
 
-    function invariant_PE2_PE3_EE2_EE3_EE4() external view {
+    function invariant_PE1_PE2_PE3_EE1_EE2_EE3_EE4() external {
         uint256[] memory proposals = _extraordinaryHandler.getExtraordinaryProposals();
+
+        require(
+            !hasDuplicates(_extraordinaryHandler.getExtraordinaryProposals()),
+            "invariant PE1: A proposal's proposalId must be unique"
+        );
+
+        require(
+            !hasDuplicates(_extraordinaryHandler.getExecutedExtraordinaryProposals()),
+            "invariant EE1: A proposal can only be executed once"
+        );
 
         for (uint256 i = 0; i < proposals.length; ++i) {
             TestProposalExtraordinary memory proposal = _extraordinaryHandler.getTestProposal(proposals[i]);
@@ -48,9 +58,9 @@ contract ExtraordinaryInvariant is ExtraordinaryTestBase {
                 bool executed
             ) = _grantFund.getExtraordinaryProposalInfo(proposal.proposalId);
 
-            // // FIXME: check test setup
-            // assertEq(uint256(tokensRequested), proposal.totalTokensRequested);
-            // assertEq(proposalId, proposal.proposalId);
+            // check test setup
+            assertEq(uint256(tokensRequested), proposal.totalTokensRequested);
+            assertEq(proposalId, proposal.proposalId);
 
             // check proposal end block
             require(
@@ -63,15 +73,12 @@ contract ExtraordinaryInvariant is ExtraordinaryTestBase {
             console.log("proposal.treasuryBalanceAtSubmission:            %s", proposal.treasuryBalanceAtSubmission);
             console.log("proposal.minimumThresholdPercentageAtSubmission: %s", proposal.minimumThresholdPercentageAtSubmission);
 
-            // FIXME: check tokens requested -> proposal.totalTokensRequested seems to be messed up
-            // need to get the minimum threshold percentage at time of submission
             require(
                 proposal.totalTokensRequested <= Maths.wmul(proposal.treasuryBalanceAtSubmission, Maths.WAD - proposal.minimumThresholdPercentageAtSubmission),
                 "invariant PE3: A proposal's tokens requested must be less than treasuryBalance * (1 - minimumThresholdPercentage)"
             );
 
-            // TODO: get the minimum threshold percentage at time of execution
-            // check executed proposals's exceeded required vote threshold
+            // check executed proposals's exceeded required vote thresholds
             if (executed) {
                 require(
                     votesReceived >= tokensRequested + Maths.wmul((proposal.ajnaTotalSupplyAtExecution - proposal.treasuryBalanceAtExecution), proposal.minimumThresholdPercentageAtExecution),
@@ -90,17 +97,28 @@ contract ExtraordinaryInvariant is ExtraordinaryTestBase {
         );
     }
 
-    function invariant_VE1() external view {
+    function invariant_VE1_VE2() external view {
         for (uint256 i = 0; i < _extraordinaryHandler.getActorsCount(); ++i) {
             address actor = _extraordinaryHandler.actors(i);
-
-            ExtraordinaryHandler.ExtraordinaryVoteParams[] memory voteParams = _extraordinaryHandler.getVotingActorsInfo(actor);
 
             // check has no duplicates
             require(
                 !hasDuplicates(_extraordinaryHandler.getVotingActorsProposals(actor)),
                 "invariant VE1: A proposal can only be voted on once"
             );
+
+            ExtraordinaryHandler.ExtraordinaryVoteParams[] memory voteParams = _extraordinaryHandler.getVotingActorsInfo(actor);
+            for (uint256 j = 0; j < voteParams.length; ++j) {
+                ExtraordinaryHandler.ExtraordinaryVoteParams memory param = voteParams[j];
+                TestProposalExtraordinary memory proposal = _extraordinaryHandler.getTestProposal(param.proposalId);
+
+                // check vote is within the expected range of blocks
+                require(
+                    param.voteBlock >= proposal.startBlock && param.voteBlock <= proposal.endBlock,
+                    "invariant VE2: A proposal can only be voted on if the block number is less than or equal to the proposals end block and the `MAX_EFM_PROPOSAL_LENGTH` of 216_000 blocks."
+                );
+            }
+
         }
     }
 

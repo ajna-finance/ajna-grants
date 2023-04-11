@@ -71,3 +71,4 @@
 - #### Vote Extraordinary:
     - **VE1**: A proposal can only be voted on once.
     - **VE2**: A proposal can only be voted on if the block number is less than or equal to the proposals end block and the `MAX_EFM_PROPOSAL_LENGTH` of 216_000 blocks.
+    - **VE3**: Votes cast must always be positive.
