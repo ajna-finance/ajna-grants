@@ -72,8 +72,14 @@ abstract contract GrantFundTestHelper is Test {
     struct TestProposalExtraordinary {
         uint256 proposalId;
         string description;
+        uint256 startBlock;
         uint256 endBlock;
         uint256 totalTokensRequested;
+        uint256 treasuryBalanceAtSubmission;
+        uint256 minimumThresholdPercentageAtSubmission;
+        uint256 treasuryBalanceAtExecution;
+        uint256 ajnaTotalSupplyAtExecution;
+        uint256 minimumThresholdPercentageAtExecution;
         GeneratedTestProposalParams[] params;
     }
 
@@ -171,7 +177,7 @@ abstract contract GrantFundTestHelper is Test {
             uint256 totalTokensRequested
         ) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
 
-        return TestProposalExtraordinary(proposalId, description, endBlock, totalTokensRequested, params);
+        return TestProposalExtraordinary(proposalId, description, block.number, endBlock, totalTokensRequested, grantFund_.treasury(), grantFund_.getMinimumThresholdPercentage(), 0, 0, 0, params);
     }
 
     function _createProposalStandard(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory proposalCalldatas_, string memory description) internal returns (TestProposal memory) {
@@ -474,6 +480,25 @@ abstract contract GrantFundTestHelper is Test {
             descriptionPartTwo = string.concat(descriptionPartTwo, Strings.toString(randomNonce));
         }
         description_ = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo));
+    }
+
+    // check for duplicate proposalIds in the provided array
+    function hasDuplicates(
+        uint256[] memory proposalIds_
+    ) public pure returns (bool) {
+        uint256 numProposals = proposalIds_.length;
+
+        for (uint i = 0; i < numProposals; ) {
+            for (uint j = i + 1; j < numProposals; ) {
+                if (proposalIds_[i] == proposalIds_[j]) return true;
+
+                unchecked { ++j; }
+            }
+
+            unchecked { ++i; }
+
+        }
+        return false;
     }
 
     /************************/

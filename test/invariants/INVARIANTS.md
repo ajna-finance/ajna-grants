@@ -55,13 +55,13 @@
 ## Extraordinary Funding Mechanism Invariants
 
 - #### Extraordinary Global Invariants:
-    - **EG1**: The `minimumThresholdPercentage` variable increases by 5% for each successive winning proposal.
-    - **EG2**: if a proposal succeeded, the votes for it exceeded the `minimumThresholdPercentage` times treasury size
+    - **EG1**: The `minimumThresholdPercentage` variable increases by 5% for each successive executed proposal.
 
 - #### Execute Extraordinary:
     - **EE1**: A proposal can only be executed once.
-    - **EE2**: A proposal can only be executed after it surpasses the minimum vote threshold.
-    - **EE3**: Only 9 proposals can be executed.
+    - **EE2**: A proposal can only be executed if its `votesReceived` exceeds its `tokensRequested` + the `minimumThresholdPercentage` times the non-treasury token supply at the time of execution.
+    - **EE3**: A proposal can only be executed if it's `tokensRequested` is less than `treasury` * (1 - `minimumThresholdPercentage`).
+    - **EE4**: Only 9 proposals can be executed.
 
 - #### Propose Extraordinary:
     - **PE1**: A proposal's proposalId must be unique.

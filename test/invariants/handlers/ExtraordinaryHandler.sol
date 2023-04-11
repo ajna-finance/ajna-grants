@@ -88,6 +88,7 @@ contract ExtraordinaryHandler is Handler {
             // record successfully submitted proposal
             extraordinaryProposals.push(proposalId);
 
+            // FIXME: totalTokensRequested is not correct
             (
                 GeneratedTestProposalParams[] memory params,
                 uint256 totalTokensRequested
@@ -101,6 +102,7 @@ contract ExtraordinaryHandler is Handler {
             testProposal.endBlock = endBlock;
             testProposal.totalTokensRequested = totalTokensRequested;
             testProposal.treasuryBalanceAtSubmission = _grantFund.treasury();
+            testProposal.minimumThresholdPercentageAtSubmission = _grantFund.getMinimumThresholdPercentage();
             for (uint i = 0; i < params.length; ++i) {
                 testProposal.params.push(params[i]);
             }
@@ -157,11 +159,14 @@ contract ExtraordinaryHandler is Handler {
             bytes[] memory calldatas,
         ) = _getParamsFromGeneratedTestProposalParams(_ajna, testProposal.params);
 
-        // TODO: record treasury balance at time of execution
         // execute proposal
         try _grantFund.executeExtraordinary(targets, values, calldatas, keccak256(bytes(testProposal.description))) returns (uint256 proposalId_) {
             // add executed proposalId to proposalsExecuted list
             proposalsExecuted.push(proposalId_);
+            // record treasury balance at time of execution
+            testProposals[proposalId_].treasuryBalanceAtExecution = _grantFund.treasury();
+            testProposals[proposalId_].ajnaTotalSupplyAtExecution = _ajna.totalSupply();
+            testProposals[proposalId_].minimumThresholdPercentageAtExecution = _grantFund.getMinimumThresholdPercentage();
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -223,9 +228,9 @@ contract ExtraordinaryHandler is Handler {
                     console.log("--Vote----------");
                     console.log("proposalId: ", voteParams.proposalId);
                     console.log("votesCast:  ", voteParams.votesCast);
+                    console.log("----------------");
                 }
             }
-            console.log("------------");
             console.log("\n");
         }
     }
