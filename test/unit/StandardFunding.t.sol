@@ -681,7 +681,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         (, , , uint128 gbc, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
-        assertEq(gbc, 10_000_000 * 1e18);
+        assertEq(gbc, 15_000_000 * 1e18);
 
         TestProposalParams[] memory testProposalParams = new TestProposalParams[](7);
         testProposalParams[0] = TestProposalParams(_tokenHolder1, 8_500_000 * 1e18);
@@ -864,7 +864,11 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.updateSlate(potentialProposalSlate, distributionId);
 
         // Updating potential Proposal Slate to include proposal that is in topTenProposal (funding Stage)
+        potentialProposalSlate = new uint256[](4);
+        potentialProposalSlate[0] = screenedProposals[0].proposalId;
         potentialProposalSlate[1] = screenedProposals[1].proposalId;
+        potentialProposalSlate[2] = screenedProposals[3].proposalId;
+        potentialProposalSlate[3] = screenedProposals[4].proposalId;
 
         // ensure updateSlate won't allow exceeding the GBC
         vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
@@ -941,8 +945,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         potentialProposalSlate = new uint256[](2);
         potentialProposalSlate[0] = screenedProposals[2].proposalId;
         potentialProposalSlate[1] = screenedProposals[3].proposalId;
-        vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
-        _grantFund.updateSlate(potentialProposalSlate, distributionId);
+        assertInferiorSlateFalse(_grantFund, potentialProposalSlate, distributionId);
 
         // check funded proposal slate wasn't updated
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
@@ -990,7 +993,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // Claim delegate reward for all delegatees
         // delegates who didn't vote with their full power receive fewer rewards
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder1);
-        assertEq(delegateRewards, 211_327.134404057480980557 * 1e18);
+        assertEq(delegateRewards, 316_990.701606086221470836 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1000,7 +1003,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder2);
-        assertEq(delegateRewards, 211_327.134404057480980557 * 1e18);
+        assertEq(delegateRewards, 316_990.701606086221470836 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1010,7 +1013,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder3);
-        assertEq(delegateRewards, 194_843.617920540997464074 * 1e18);
+        assertEq(delegateRewards, 292_265.426880811496196111 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1020,7 +1023,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder4);
-        assertEq(delegateRewards, 211_327.134404057480980557 * 1e18);
+        assertEq(delegateRewards, 316_990.701606086221470836 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1030,7 +1033,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder5);
-        assertEq(delegateRewards, 171_174.978867286559594251 * 1e18);
+        assertEq(delegateRewards, 256_762.468300929839391377 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1080,7 +1083,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         (, , , uint128 gbc_distribution1, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
-        assertEq(gbc_distribution1, 10_000_000 * 1e18);
+        assertEq(gbc_distribution1, 15_000_000 * 1e18);
         
         TestProposalParams[] memory testProposalParams_distribution1 = new TestProposalParams[](1);
         testProposalParams_distribution1[0] = TestProposalParams(_tokenHolder1, 8_500_000 * 1e18);
@@ -1142,7 +1145,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         (, , , uint128 gbc_distribution2, , ) = _grantFund.getDistributionPeriodInfo(distributionId2);
 
-        assertEq(gbc_distribution2, 9_830_000 * 1e18);
+        assertEq(gbc_distribution2, 14_745_000 * 1e18);
         
         TestProposalParams[] memory testProposalParams_distribution2 = new TestProposalParams[](1);
         testProposalParams_distribution2[0] = TestProposalParams(_tokenHolder1, 8_200_000 * 1e18);
@@ -1220,7 +1223,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         (, , , uint128 gbc_distribution3, , ) = _grantFund.getDistributionPeriodInfo(distributionId3);
 
-        assertEq(gbc_distribution3, 9_633_400 * 1e18);
+        assertEq(gbc_distribution3, 14_302_650 * 1e18);
 
         // skip to the end of Challenge period
         vm.roll(_startBlock + 1_400_000);
@@ -1272,7 +1275,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         (, , , uint128 gbc_distribution4, , ) = _grantFund.getDistributionPeriodInfo(distributionId4);
 
-        assertEq(gbc_distribution4, 9_526_000 * 1e18);
+        assertEq(gbc_distribution4, 14_289_000 * 1e18);
     }
 
     // test that three people with fewer tokens should be able to out vote 1 person with more
@@ -1536,8 +1539,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // skip to funding stage
         vm.roll(block.number + 600_000);
 
-        // gbc = 2% of treasury
-        uint256 gbc = treasury / 50;
+        // gbc = 3% of treasury
+        uint256 gbc = Maths.wmul(treasury, 0.03 * 1e18);
 
         uint256 totalBudgetAllocated;
 
