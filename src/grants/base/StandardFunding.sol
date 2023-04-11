@@ -24,7 +24,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @notice Maximum percentage of tokens that can be distributed by the treasury in a quarter.
      * @dev Stored as a Wad percentage.
      */
-    uint256 internal constant GLOBAL_BUDGET_CONSTRAINT = 0.02 * 1e18;
+    uint256 internal constant GLOBAL_BUDGET_CONSTRAINT = 0.03 * 1e18;
 
     /**
      * @notice Length of the challengephase of the distribution period in blocks.

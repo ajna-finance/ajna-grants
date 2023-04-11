@@ -97,7 +97,7 @@ contract GrantFundTest is GrantFundTestHelper {
         uint24 distributionId = _startDistributionPeriod(_grantFund);
 
         // calculate expected funds available
-        uint256 expectedFundsAvailable = Maths.wmul(50_000_000 * 1e18, 0.02 * 1e18);
+        uint256 expectedFundsAvailable = Maths.wmul(50_000_000 * 1e18, 0.03 * 1e18);
 
         // get distribution period info and check funds available doesn't update for the distribution period
         (, , , uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);

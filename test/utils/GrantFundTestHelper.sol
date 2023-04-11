@@ -541,4 +541,8 @@ abstract contract GrantFundTestHelper is Test {
         _screeningVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 
+    function assertInferiorSlateFalse(GrantFund grantFund_, uint256[] memory potentialSlate_, uint24 distributionId_) internal {
+        assertFalse(grantFund_.updateSlate(potentialSlate_, distributionId_));
+    }
+
 }
