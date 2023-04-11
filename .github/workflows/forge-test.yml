@@ -36,5 +36,5 @@ jobs:
 
       - name: Run invariant tests
         run: |
-          make test-invariants
+          make test-invariant
         id: test-invariants
