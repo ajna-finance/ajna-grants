@@ -89,7 +89,6 @@ contract ExtraordinaryHandler is Handler {
             // record successfully submitted proposal
             extraordinaryProposals.push(proposalId);
 
-            // FIXME: totalTokensRequested is not correct
             (
                 GeneratedTestProposalParams[] memory params,
                 uint256 totalTokensRequested
@@ -254,9 +253,9 @@ contract ExtraordinaryHandler is Handler {
         );
     }
 
-    /****************************/
-    /*** EH Getter Functions ****/
-    /****************************/
+    /***********************/
+    /*** View Functions ****/
+    /***********************/
 
     function getVotingActorsInfo(address actor_) public view returns (
         ExtraordinaryVoteParams[] memory

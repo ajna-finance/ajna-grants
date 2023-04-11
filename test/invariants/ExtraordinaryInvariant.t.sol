@@ -79,7 +79,9 @@ contract ExtraordinaryInvariant is ExtraordinaryTestBase {
             );
 
             // check executed proposals's exceeded required vote thresholds
-            if (executed) {                
+            if (executed) {
+                console.log("votes received: %s", votesReceived);
+
                 require(
                     votesReceived >= tokensRequested + Maths.wmul((proposal.ajnaTotalSupplyAtExecution - proposal.treasuryBalanceAtExecution), proposal.minimumThresholdPercentageAtExecution),
                     "invariant EE2: A proposal can only be executed if its votesReceived exceeds its tokensRequested + the minimumThresholdPercentage times the non-treasury token supply at the time of execution"
