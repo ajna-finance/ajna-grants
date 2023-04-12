@@ -21,8 +21,8 @@ contract Handler is Test, GrantFundTestHelper {
     /***********************/
 
     // global grant fund variables
-    IAjnaToken        internal  _ajna;
-    GrantFund         internal  _grantFund;
+    IAjnaToken        public  _ajna;
+    GrantFund         public  _grantFund;
 
     // Test invariant contract
     ITestBase internal testContract;
@@ -55,26 +55,51 @@ contract Handler is Test, GrantFundTestHelper {
     /*******************/
 
     constructor(
-        address payable grantFund_,
-        address token_,
+        // address payable grantFund_,
+        // address token_,
         address tokenDeployer_,
         uint256 numOfActors_,
-        uint256 tokensToDistribute_,
+        uint256 treasury_,
         address testContract_
     ) {
+        // deploy Ajna Token contract
+        bytes memory args = abi.encode(tokenDeployer_);
+        bytes memory bytecode = abi.encodePacked(vm.getCode("TestAjnaToken.sol:TestAjnaToken"), args);
+        address deployAddress;
+        assembly {
+            deployAddress := create(0, add(bytecode, 0x20), mload(bytecode))
+        }
+
+        // etch deployed token contract bytecode onto the expected address
+        vm.etch(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079, deployAddress.code);
+        vm.makePersistent(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
+
         // Ajna Token contract address on mainnet
-        _ajna = IAjnaToken(token_);
+        _ajna = IAjnaToken(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
+        _ajna.mint(tokenDeployer_);
 
-        // deploy growth fund contract
-        _grantFund = GrantFund(grantFund_);
+        // deploy grant fund contract
+        _grantFund = new GrantFund();
 
-        // token deployer
+        // set token deployer global variable
         _tokenDeployer = tokenDeployer_;
 
-        // instantiate actors
-        actors = _buildActors(numOfActors_, tokensToDistribute_);
+        // calculate the number of tokens not to be added to the treasury, to be distributed to actors
+        uint256 tokensToDistribute = _ajna.balanceOf(_tokenDeployer) - treasury_;
 
-        // Test invariant contract
+        // initial minter distributes treasury to grantFund
+        vm.startPrank(tokenDeployer_);
+        _ajna.approve(address(_grantFund), treasury_);
+        _grantFund.fundTreasury(treasury_);
+
+        console.log("tokens to distribute: %s", tokensToDistribute);
+        console.log("treasury:             %s", treasury_);
+        console.log("deployer balance:     %s", _ajna.balanceOf(_tokenDeployer));
+
+        // instantiate actors
+        actors = _buildActors(numOfActors_, tokensToDistribute);
+
+        // set Test invariant contract
         testContract = ITestBase(testContract_);
     }
 

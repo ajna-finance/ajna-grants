@@ -30,54 +30,54 @@ contract TestBase is Test, GrantFundTestHelper {
         // provide cheatcode access to the standard funding handler
         vm.allowCheatcodes(0x4447E7a83995B5cCDCc9A6cd8Bc470305C940DA3);
 
-        TestAjnaToken token = new TestAjnaToken(_tokenDeployer);
+        // TestAjnaToken token = new TestAjnaToken(_tokenDeployer);
         // vm.etch(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079, address(token).code);
 
-        bytes memory args = abi.encode(_tokenDeployer);
-        bytes memory bytecode = abi.encodePacked(vm.getCode("TestAjnaToken.sol:TestAjnaToken"), args);
-        // // bytes memory bytecode = abi.encodePacked(type(TestAjnaToken).creationCode, args);
+        // bytes memory args = abi.encode(_tokenDeployer);
+        // bytes memory bytecode = abi.encodePacked(vm.getCode("TestAjnaToken.sol:TestAjnaToken"), args);
+        // // // bytes memory bytecode = abi.encodePacked(type(TestAjnaToken).creationCode, args);
 
-        // // address deployAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
-        // // assembly {
-        // //     deployAddress := create(0, add(bytecode, 0x20), mload(bytecode))
-        // // }
+        // // // address deployAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
+        // // // assembly {
+        // // //     deployAddress := create(0, add(bytecode, 0x20), mload(bytecode))
+        // // // }
 
-        // // address deployAddress;
-        // // assembly {
-        // //     deployAddress := create(0, add(bytecode, 0x20), mload(bytecode))
-        // // }
-        // // vm.etch(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079, deployAddress.code);
+        // // // address deployAddress;
+        // // // assembly {
+        // // //     deployAddress := create(0, add(bytecode, 0x20), mload(bytecode))
+        // // // }
+        // // // vm.etch(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079, deployAddress.code);
 
-        address deployAddress;
-        assembly {
-            deployAddress := create(0, add(bytecode, 0x20), mload(bytecode))
-        }
-        vm.etch(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079, deployAddress.code);
+        // address deployAddress;
+        // assembly {
+        //     deployAddress := create(0, add(bytecode, 0x20), mload(bytecode))
+        // }
+        // vm.etch(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079, deployAddress.code);
 
-        // // vm.etch(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079, type(TestAjnaToken).creationCode);
+        // // // vm.etch(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079, type(TestAjnaToken).creationCode);
 
-        // assertEq(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079.code, deployAddress.code);
+        // // assertEq(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079.code, deployAddress.code);
 
 
-        // Ajna Token contract address on mainnet
-        _ajna = IAjnaToken(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
+        // // Ajna Token contract address on mainnet
+        // _ajna = IAjnaToken(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
 
-        _ajna.mint(_tokenDeployer);
+        // _ajna.mint(_tokenDeployer);
 
-        // deploy growth fund contract
-        _grantFund = new GrantFund();
+        // // deploy growth fund contract
+        // _grantFund = new GrantFund();
 
-        vm.startPrank(_tokenDeployer);
+        // vm.startPrank(_tokenDeployer);
 
-        emit log_uint(_ajna.balanceOf(_tokenDeployer));
-        emit log_uint(_ajna.totalSupply());
-        emit log_uint(token.totalSupply());
-        emit log_address(address(_ajna));
-        emit log_address(address(token));
+        // emit log_uint(_ajna.balanceOf(_tokenDeployer));
+        // emit log_uint(_ajna.totalSupply());
+        // // emit log_uint(token.totalSupply());
+        // emit log_address(address(_ajna));
+        // // emit log_address(address(token));
 
-        // initial minter distributes treasury to grantFund
-        _ajna.approve(address(_grantFund), treasury);
-        _grantFund.fundTreasury(treasury);
+        // // initial minter distributes treasury to grantFund
+        // _ajna.approve(address(_grantFund), treasury);
+        // _grantFund.fundTreasury(treasury);
 
         // exclude unrelated contracts
         // excludeContract(address(_ajna));

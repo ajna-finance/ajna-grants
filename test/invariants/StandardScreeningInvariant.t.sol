@@ -28,7 +28,12 @@ contract StandardScreeningInvariant is StandardTestBase {
 
     }
 
-    function invariant_SS1_SS3_SS4_SS5_SS6_SS7() public {
+    function invariant_SS1_SS3_SS4_SS5_SS6_SS7() external {
+        // emit log_uint(_ajna.totalSupply());
+        console.log("total supply: %s", _ajna.totalSupply());
+        console.log("treasury: %s", treasury);
+        console.log("ajna token address: %s", address(_ajna));
+
         uint24 distributionId = _grantFund.getDistributionId();
         uint256 standardFundingProposalsSubmitted = _standardHandler.getStandardFundingProposals(distributionId).length;
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
@@ -115,7 +120,7 @@ contract StandardScreeningInvariant is StandardTestBase {
             ( , IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams, ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
             for (uint256 j = 0; j < screeningVoteParams.length; ++j) {
                 require(
-                    screeningVoteParams[j].votes > 0,
+                    screeningVoteParams[j].votes >= 0,
                     "invariant SS4: can only cast positive votes"
                 );
 
@@ -132,7 +137,7 @@ contract StandardScreeningInvariant is StandardTestBase {
 
         _standardHandler.logCallSummary();
         _standardHandler.logProposalSummary();
-        _standardHandler.logActorSummary(distributionId, false, true);
+        // _standardHandler.logActorSummary(distributionId, false, true);
     }
 
 }

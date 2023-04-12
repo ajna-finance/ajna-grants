@@ -62,13 +62,11 @@ contract StandardHandler is Handler {
     /*******************/
 
     constructor(
-        address payable grantFund_,
-        address token_,
         address tokenDeployer_,
         uint256 numOfActors_,
-        uint256 tokensToDistribute_,
+        uint256 treasury_,
         address testContract_
-    ) Handler(grantFund_, token_, tokenDeployer_, numOfActors_, tokensToDistribute_, testContract_) {}
+    ) Handler(tokenDeployer_, numOfActors_, treasury_, testContract_) {}
 
     /*********************/
     /*** SFM Functions ***/
@@ -83,7 +81,7 @@ contract StandardHandler is Handler {
             distributionStates[newDistributionId].treasuryAtStartBlock = _grantFund.treasury();
 
             vm.roll(block.number + 100);
-            vm.rollFork(block.number + 100);
+            // vm.rollFork(block.number + 100);
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -139,6 +137,7 @@ contract StandardHandler is Handler {
         console.log("block number before: ", block.number);
         vm.roll(block.number + 100);
         console.log("block number after:  ", block.number);
+        console.log("current block:       ", testContract.currentBlock());
         // vm.rollFork(block.number + 100);
 
         // get actor voting power

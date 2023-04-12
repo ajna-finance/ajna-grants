@@ -18,22 +18,27 @@ contract StandardTestBase is TestBase {
 
         // TODO: modify this setup to enable use of random tokens not in treasury
         // calculate the number of tokens not in the treasury, to be distributed to actors
-        uint256 tokensNotInTreasury = _ajna.balanceOf(_tokenDeployer) - treasury;
+        // uint256 tokensNotInTreasury = _ajna.balanceOf(_tokenDeployer) - treasury;
 
         _standardHandler = new StandardHandler(
-            payable(address(_grantFund)),
-            address(_ajna),
+            // payable(address(_grantFund)),
+            // address(_ajna),
             _tokenDeployer,
             NUM_ACTORS,
-            tokensNotInTreasury,
+            treasury,
             address(this)
         );
+
+        // set global grant fund variables
+        _ajna      = _standardHandler._ajna();
+        _grantFund = _standardHandler._grantFund();
 
         // explicitly target handler
         targetContract(address(_standardHandler));
 
         // skip time for snapshots and start distribution period
-        vm.roll(block.number + 100);
+        vm.roll(currentBlock + 100);
+        currentBlock = block.number;
         _grantFund.startNewDistributionPeriod();
     }
 
