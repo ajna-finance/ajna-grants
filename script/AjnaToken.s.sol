@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.7;
 
-import { Script } from "forge-std/Script.sol";
-import "forge-std/console.sol";
+import { Script }  from "forge-std/Script.sol";
+import { console } from "forge-std/console.sol";
 
 import { AjnaToken } from "../src/token/AjnaToken.sol";
 import { IERC20 }    from "@oz/token/ERC20/IERC20.sol";
