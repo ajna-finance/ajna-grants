@@ -14,7 +14,7 @@ contract DeployGrantFund is Script {
 
     function run() public {
         IERC20 ajna = IERC20(vm.envAddress("AJNA_TOKEN"));
-        console.log("Deploying GrantFund to chain with AJNA token address %s", address(ajna));
+        console.log("Deploying GrantFund to chain");
 
         vm.startBroadcast();
         uint256 treasury = Maths.wmul(ajna.totalSupply(), TREASURY_PCT_OF_AJNA_SUPPLY);

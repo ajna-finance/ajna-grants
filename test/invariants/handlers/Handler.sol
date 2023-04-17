@@ -98,13 +98,12 @@ contract Handler is Test, GrantFundTestHelper {
         vm.stopPrank();
     }
 
-    /**************************/
-    /*** External Functions ***/
-    /**************************/
+    /*************************/
+    /*** Wrapped Functions ***/
+    /*************************/
 
-    // TODO:
-        // Override this in the handler, StandardHandker.
-        // Add support for modifying roll size based upon system stage.
+    // roll forward to a random block height
+    // roll limit is configurable based on the scenario type
     function roll(uint256 rollAmount_) external useCurrentBlock {
         numberOfCalls['roll']++;
 
@@ -125,16 +124,8 @@ contract Handler is Test, GrantFundTestHelper {
         testContract.setCurrentBlock(blockHeight);
     }
 
-    function getActorsCount() public view returns(uint256) {
-        return actors.length;
-    }
-
-    function setCurrentScenarioType(ScenarioType scenarioType) public {
-        _currentScenarioType = uint8(scenarioType);
-    }
-
     /**************************/
-    /*** Internal Functions ***/
+    /*** Utility Functions ****/
     /**************************/
 
     function _buildActors(uint256 numOfActors_, uint256 tokensToDistribute_) internal returns (address[] memory actors_) {
@@ -209,5 +200,17 @@ contract Handler is Test, GrantFundTestHelper {
     function randomSeed() internal returns (uint256) {
         counter++;
         return uint256(keccak256(abi.encodePacked(block.number, block.difficulty, counter)));
+    }
+
+    function setCurrentScenarioType(ScenarioType scenarioType) public {
+        _currentScenarioType = uint8(scenarioType);
+    }
+
+    /***********************/
+    /*** View Functions ****/
+    /***********************/
+
+    function getActorsCount() public view returns(uint256) {
+        return actors.length;
     }
 }
