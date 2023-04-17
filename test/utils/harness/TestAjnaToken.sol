@@ -9,16 +9,14 @@ import { ERC20Permit }   from "@oz/token/ERC20/extensions/draft-ERC20Permit.sol"
 import { ERC20Votes }    from "@oz/token/ERC20/extensions/ERC20Votes.sol";
 
 contract TestAjnaToken is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
-    constructor(address tokenReceiver_) ERC20("AjnaToken", "AJNA") ERC20Permit("AjnaToken") {
-        _mint(tokenReceiver_, 1_000_000_000 * 10 ** decimals());
-    }
+    constructor() ERC20("AjnaToken", "AJNA") ERC20Permit("AjnaToken") {}
 
     /*****************/
     /*** Overrides ***/
     /*****************/
 
-    function mint(address to_) external {
-        _mint(to_, 1_000_000_000 * 10 ** decimals());
+    function mint(address to_, uint256 amount_) external {
+        _mint(to_, amount_);
     }
 
     function _afterTokenTransfer(address from_, address to_, uint256 amount_) internal override(ERC20, ERC20Votes) {

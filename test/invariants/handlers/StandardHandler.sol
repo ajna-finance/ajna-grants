@@ -62,11 +62,13 @@ contract StandardHandler is Handler {
     /*******************/
 
     constructor(
+        address payable grantFund_,
+        address token_,
         address tokenDeployer_,
         uint256 numOfActors_,
         uint256 treasury_,
         address testContract_
-    ) Handler(tokenDeployer_, numOfActors_, treasury_, testContract_) {}
+    ) Handler(grantFund_, token_, tokenDeployer_, numOfActors_, treasury_, testContract_) {}
 
     /*********************/
     /*** SFM Functions ***/

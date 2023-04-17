@@ -10,6 +10,7 @@ import { StandardHandler } from "../handlers/StandardHandler.sol";
 contract StandardTestBase is TestBase {
 
     uint256 internal constant NUM_ACTORS = 20;
+    uint256 public constant TOKENS_TO_DISTRIBUTE = 500_000_000 * 1e18;
 
     StandardHandler internal _standardHandler;
 
@@ -17,21 +18,14 @@ contract StandardTestBase is TestBase {
         super.setUp();
 
         // TODO: modify this setup to enable use of random tokens not in treasury
-        // calculate the number of tokens not in the treasury, to be distributed to actors
-        // uint256 tokensNotInTreasury = _ajna.balanceOf(_tokenDeployer) - treasury;
-
         _standardHandler = new StandardHandler(
-            // payable(address(_grantFund)),
-            // address(_ajna),
+            payable(address(_grantFund)),
+            address(_ajna),
             _tokenDeployer,
             NUM_ACTORS,
-            treasury,
+            TOKENS_TO_DISTRIBUTE,
             address(this)
         );
-
-        // set global grant fund variables
-        _ajna      = _standardHandler._ajna();
-        _grantFund = _standardHandler._grantFund();
 
         // explicitly target handler
         targetContract(address(_standardHandler));
@@ -41,5 +35,4 @@ contract StandardTestBase is TestBase {
         currentBlock = block.number;
         _grantFund.startNewDistributionPeriod();
     }
-
 }

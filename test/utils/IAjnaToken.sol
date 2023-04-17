@@ -7,6 +7,6 @@ import { IERC20 }      from "@oz/token/ERC20/IERC20.sol";
 
 interface IAjnaToken is IERC20, IVotes {
 
-    function mint(address to_) external;
+    function mint(address to_, uint256 amount_) external;
 
 }
