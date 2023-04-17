@@ -83,7 +83,6 @@ contract StandardHandler is Handler {
             distributionStates[newDistributionId].treasuryAtStartBlock = _grantFund.treasury();
 
             vm.roll(block.number + 100);
-            // vm.rollFork(block.number + 100);
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -140,7 +139,6 @@ contract StandardHandler is Handler {
         vm.roll(block.number + 100);
         console.log("block number after:  ", block.number);
         console.log("current block:       ", testContract.currentBlock());
-        // vm.rollFork(block.number + 100);
 
         // get actor voting power
         uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), _actor);

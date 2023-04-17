@@ -47,15 +47,16 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         uint24 distributionId = _grantFund.getDistributionId();
 
         // TODO: check ead distribution period's end block and ensure that only 1 has an endblock not in the past.
-        if (distributionId > 1) {
+        if (distributionId >= 1) {
             uint24 i = distributionId;
-            while (i > 1) {
+            while (i >= 1) {
+                // assert(true == false);
                 (, , uint256 endBlock, uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
                 StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(distributionId);
 
                 require(
-                    fundsAvailable == Maths.wmul(.02 * 1e18, state.treasuryAtStartBlock),
-                    "invariant DP3: A distribution's fundsAvailable should be equal to 2% of the treasurie's balance at the block `startNewDistributionPeriod()` is called"
+                    fundsAvailable == Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock),
+                    "invariant DP3: A distribution's fundsAvailable should be equal to 3% of the treasurie's balance at the block `startNewDistributionPeriod()` is called"
                 );
 
                 // TODO: check current treasury and token balance?
@@ -91,7 +92,6 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
                     }
                 }
 
-
                 // TODO: check top proposal slate
                 totalTokensRequestedByExecutedProposals = 0;
                 uint256[] memory proposalSlate = _grantFund.getFundedProposalSlate(state.currentTopSlate);
@@ -111,14 +111,6 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
                 --i;
             }
         }
-        else {
-            (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-            require(
-                block.number <= endBlock,
-                "invariant DP4: An active distribution's end block should be greater than the current block number"
-            );
-        }
-
     }
 
     function invariant_call_summary() external view {

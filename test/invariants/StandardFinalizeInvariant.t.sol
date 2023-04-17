@@ -17,6 +17,8 @@ contract StandardFinalizeInvariant is StandardTestBase {
     function setUp() public override {
         super.setUp();
 
+        startDistributionPeriod();
+
         // create 15 proposals
         _standardHandler.createProposals(15);
 
@@ -28,8 +30,6 @@ contract StandardFinalizeInvariant is StandardTestBase {
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
         uint256 fundingStageStartBlock = endBlock - 72000;
         vm.roll(fundingStageStartBlock + 100);
-
-        // TODO: need to setCurrentBlock?
         currentBlock = fundingStageStartBlock + 100;
 
         // cast funding votes on proposals
@@ -47,6 +47,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
         // skip time into the challenge stage
         vm.roll(endBlock + 100);
+        currentBlock = endBlock + 100;
 
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](5);
@@ -222,7 +223,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _standardHandler.logCallSummary();
-        _standardHandler.logProposalSummary();
+        // _standardHandler.logProposalSummary();
         _logFinalizeSummary(distributionId);
     }
 

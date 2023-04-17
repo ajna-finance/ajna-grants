@@ -29,7 +29,9 @@ contract StandardTestBase is TestBase {
 
         // explicitly target handler
         targetContract(address(_standardHandler));
+    }
 
+    function startDistributionPeriod() internal {
         // skip time for snapshots and start distribution period
         vm.roll(currentBlock + 100);
         currentBlock = block.number;

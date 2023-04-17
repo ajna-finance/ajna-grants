@@ -17,6 +17,8 @@ contract StandardFundingInvariant is StandardTestBase {
     function setUp() public override {
         super.setUp();
 
+        startDistributionPeriod();
+
         // create 15 proposals
         _standardHandler.createProposals(15);
 
@@ -28,6 +30,7 @@ contract StandardFundingInvariant is StandardTestBase {
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
         uint256 fundingStageStartBlock = endBlock - 72000;
         vm.roll(fundingStageStartBlock + 100);
+        currentBlock = block.number;
 
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](2);
@@ -121,8 +124,8 @@ contract StandardFundingInvariant is StandardTestBase {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _standardHandler.logCallSummary();
-        _standardHandler.logProposalSummary();
-        _standardHandler.logActorSummary(distributionId, true, false);
+        // _standardHandler.logProposalSummary();
+        // _standardHandler.logActorSummary(distributionId, true, false);
         _logFundingSummary(distributionId);
     }
 

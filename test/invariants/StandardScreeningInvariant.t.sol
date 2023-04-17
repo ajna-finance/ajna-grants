@@ -14,6 +14,8 @@ contract StandardScreeningInvariant is StandardTestBase {
     function setUp() public override {
         super.setUp();
 
+        startDistributionPeriod();
+
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](3);
         selectors[0] = _standardHandler.startNewDistributionPeriod.selector;
@@ -136,7 +138,7 @@ contract StandardScreeningInvariant is StandardTestBase {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _standardHandler.logCallSummary();
-        _standardHandler.logProposalSummary();
+        // _standardHandler.logProposalSummary();
         // _standardHandler.logActorSummary(distributionId, false, true);
     }
 
