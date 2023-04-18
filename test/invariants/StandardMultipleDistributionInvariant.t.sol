@@ -146,16 +146,20 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
                 }
             }
 
-            if (totalTokensRequestedByProposals < fundsAvailablePrev) {
+            // if (totalTokensRequestedByProposals < fundsAvailablePrev) {
+            {
                 if (i != distributionId) {
                     uint256 surplus = fundsAvailablePrev - totalTokensRequestedByProposals;
+                    console.log("surplus:               ", surplus);
+                    console.log("treasuryAtStartBlock:  ", state.treasuryAtStartBlock);
+                    console.log("fundsAvailableCurrent: ", fundsAvailablePrev);
+                    // assertTrue(false);
                     require(
                         fundsAvailableCurrent == Maths.wmul(.03 * 1e18, surplus + state.treasuryAtStartBlock),
                         "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
                     );
                     fundsAvailableCurrent = fundsAvailablePrev;
                 }
-
             }
 
             --i;
