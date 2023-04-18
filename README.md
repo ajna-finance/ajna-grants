@@ -81,11 +81,13 @@ make deploy-ajnatoken mintto=<MINT_TO_ADDRESS>
 Record the address of the token upon deployment.  See [AJNA_TOKEN.md](src/token/AJNA_TOKEN.md#deployment) for validation.
 
 #### Grant Fund
-Deployment of the Grant Coordination Fund requires an argument to specify the address of the AJNA token.  Per requirements, the deployment script calculates the treasury size based upon a fixed percentage of AJNA token supply.
+Deployment of the Grant Coordination Fund requires no constructor arguments.
 
 Since contract source has not yet been made public, the `--verify` switch has been omitted.  To deploy, run:
 ```
-make deploy-grantfund ajna=<AJNA_ADDRESS>
+make deploy-grantfund
 ```
+
+The Grant Fund is by default deployed without any Ajna tokens in it's treasury. To add tokens, someone must call `fundTreasury()` with the amount of Ajna tokens to transfer to the Grant Fund. **WARNING**: Ajna tokens transferred directly to the treasury won't be credited to the treasury balance if `fundTreasury()` is circumvented.
 
 See [GRANT_FUND.md](src/grants/GRANT_FUND.md#deployment) for next steps.

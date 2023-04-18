@@ -15,6 +15,10 @@ import { ITestBase } from "../base/ITestBase.sol";
 
 contract Handler is Test, GrantFundTestHelper {
 
+    /***********************/
+    /*** State Variables ***/
+    /***********************/
+
     // state variables
     IAjnaToken        internal  _ajna;
     GrantFund         internal  _grantFund;
@@ -44,6 +48,10 @@ contract Handler is Test, GrantFundTestHelper {
         Slow
     }
 
+    /*******************/
+    /*** Constructor ***/
+    /*******************/
+
     constructor(
         address payable grantFund_,
         address token_,
@@ -68,6 +76,10 @@ contract Handler is Test, GrantFundTestHelper {
         testContract = ITestBase(testContract_);
     }
 
+    /*****************/
+    /*** Modifiers ***/
+    /*****************/
+
     modifier useCurrentBlock() {
         // vm.roll(testContract.currentBlock());
 
@@ -86,6 +98,12 @@ contract Handler is Test, GrantFundTestHelper {
         vm.stopPrank();
     }
 
+    /*************************/
+    /*** Wrapped Functions ***/
+    /*************************/
+
+    // roll forward to a random block height
+    // roll limit is configurable based on the scenario type
     function roll(uint256 rollAmount_) external useCurrentBlock {
         numberOfCalls['roll']++;
 
@@ -104,6 +122,10 @@ contract Handler is Test, GrantFundTestHelper {
         vm.roll(blockHeight);
         testContract.setCurrentBlock(blockHeight);
     }
+
+    /**************************/
+    /*** Utility Functions ****/
+    /**************************/
 
     function _buildActors(uint256 numOfActors_, uint256 tokensToDistribute_) internal returns (address[] memory actors_) {
         actors_ = new address[](numOfActors_);
