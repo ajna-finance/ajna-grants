@@ -48,6 +48,7 @@ contract StandardHandler is Handler {
         uint24 distributionId;
         uint256 updateBlock;
         bytes32 slateHash;
+        uint256 totalTokensRequested; // total tokens requested by all proposals in the slate
     }
 
     // list of submitted standard funding proposals by distribution period
@@ -291,6 +292,7 @@ contract StandardHandler is Handler {
                 slate.distributionId = distributionId;
                 slate.slateHash = potentialSlateHash;
                 slate.updateBlock = block.number;
+                slate.totalTokensRequested = getTokensRequestedInFundedSlate(potentialSlateHash);
 
                 // update distribution state
                 DistributionState storage distribution = distributionStates[distributionId];
@@ -796,6 +798,16 @@ contract StandardHandler is Handler {
         for (uint256 i = 0; i < fundingVotes_.length; ++i) {
             if (fundingVotes_[i].votesUsed < 0) {
                 count_++;
+            }
+        }
+    }
+
+    function getTokensRequestedInFundedSlate(bytes32 slateHash_) public view returns (uint256 tokensRequested_) {
+        uint256[] memory fundedProposals = _grantFund.getFundedProposalSlate(slateHash_);
+        for (uint256 i = 0; i < fundedProposals.length; ++i) {
+            (, , , uint128 tokensRequested, int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(fundedProposals[i]);
+            if (fundingVotesReceived > 0) {
+                tokensRequested_ += tokensRequested;
             }
         }
     }

@@ -43,10 +43,11 @@ contract Handler is Test, GrantFundTestHelper {
 
     // used in roll() to determine if we are in a fast or slow scenario
     // defaults to slow scenario types
-    uint8 internal _currentScenarioType = 1;
+    uint8 internal _currentScenarioType = 2;
 
     enum ScenarioType {
         Fast,
+        Medium,
         Slow
     }
 
@@ -112,6 +113,14 @@ contract Handler is Test, GrantFundTestHelper {
         if (_currentScenarioType == uint8(ScenarioType.Fast)) {
             console.log("High roller");
             rollLimit = 30_000;
+        }
+        else if (_currentScenarioType == uint8(ScenarioType.Medium)) {
+            console.log("Medium roller");
+            rollLimit = 1000;
+        }
+        else if (_currentScenarioType == uint8(ScenarioType.Slow)) {
+            console.log("Low roller");
+            rollLimit = 300;
         }
 
         // determine a random number of blocks to roll, less than 100

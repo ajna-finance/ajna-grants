@@ -2,9 +2,6 @@
 
 ## Treasury Invariants:
    - **T1**: The Grant Fund's `treasury` should always be less than or equal to the contract's token balance.
-<!-- 
-   - TODO: add invariants around treasury balance post updates and with partial slate executions
- -->
 
 ## Standard Funding Mechanism Invariants
 

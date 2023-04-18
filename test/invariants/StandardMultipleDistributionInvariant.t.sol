@@ -42,6 +42,7 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         currentBlock = block.number;
     }
 
+    // TODO: rename to current and next
     // TODO: add common asserts for these invariants across test files?
     // TODO: check current treasury and token balance?
     function invariant_DP1_DP2_DP3_DP4_DP5_DP6() external {
@@ -63,20 +64,21 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
                 ,
                 uint256 startBlockPrev,
                 uint256 endBlockPrev,
-                uint128 fundsAvailable,
+                uint128 fundsAvailablePrev,
                 ,
+                bytes32 topSlateHash
             ) = _grantFund.getDistributionPeriodInfo(i);
             StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(i);
 
-            totalFundsAvailable += fundsAvailable;
+            totalFundsAvailable += fundsAvailablePrev;
             require(
                 totalFundsAvailable < currentTreasury,
                 "invariant DP5: The treasury balance should be greater than the sum of the funds available in all distribution periods"
             );
 
             require(
-                fundsAvailable == Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock + fundsAvailable),
-                "invariant DP3: A distribution's fundsAvailable should be equal to 3% of the treasurie's balance at the block `startNewDistributionPeriod()` is called"
+                fundsAvailablePrev == Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock + fundsAvailablePrev),
+                "invariant DP3: A distribution's fundsAvailablePrev should be equal to 3% of the treasurie's balance at the block `startNewDistributionPeriod()` is called"
             );
 
             require(
@@ -97,7 +99,7 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
             }
 
             uint256[] memory topTenProposals = _grantFund.getTopTenProposals(i);
-            uint256 totalTokensRequestedByExecutedProposals = 0;
+            uint256 totalTokensRequestedByProposals = 0;
 
             // check each distribution period's top ten slate of proposals for executions and compare with distribution funds available
             for (uint p = 0; p < topTenProposals.length; ++p) {
@@ -114,15 +116,15 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
 
                 if (executed) {
                     // invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage
-                    assertLt(tokensRequested, fundsAvailable);
-                    assertTrue(totalTokensRequestedByExecutedProposals <= fundsAvailable);
+                    assertLt(tokensRequested, fundsAvailablePrev);
+                    assertTrue(totalTokensRequestedByProposals <= fundsAvailablePrev);
 
-                    totalTokensRequestedByExecutedProposals += tokensRequested;
+                    totalTokensRequestedByProposals += tokensRequested;
                 }
             }
 
             // check the top funded proposal slate
-            totalTokensRequestedByExecutedProposals = 0;
+            totalTokensRequestedByProposals = 0;
             uint256[] memory proposalSlate = _grantFund.getFundedProposalSlate(state.currentTopSlate);
             for (uint j = 0; j < proposalSlate.length; ++j) {
                 (
@@ -137,11 +139,23 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
 
                 if (executed) {
                     // invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage
-                    assertLt(tokensRequested, fundsAvailable);
-                    assertTrue(totalTokensRequestedByExecutedProposals <= fundsAvailable);
+                    assertLt(tokensRequested, fundsAvailablePrev);
+                    assertTrue(totalTokensRequestedByProposals <= fundsAvailablePrev);
 
-                    totalTokensRequestedByExecutedProposals += tokensRequested;
+                    totalTokensRequestedByProposals += tokensRequested;
                 }
+            }
+
+            if (totalTokensRequestedByProposals < fundsAvailablePrev) {
+                if (i != distributionId) {
+                    uint256 surplus = fundsAvailablePrev - totalTokensRequestedByProposals;
+                    require(
+                        fundsAvailableCurrent == Maths.wmul(.03 * 1e18, surplus + state.treasuryAtStartBlock),
+                        "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
+                    );
+                    fundsAvailableCurrent = fundsAvailablePrev;
+                }
+
             }
 
             --i;
