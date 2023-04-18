@@ -40,20 +40,39 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
 
         vm.roll(block.number + 100);
         currentBlock = block.number;
-
-        console.log("starting block number: %s", block.number);
     }
 
     // TODO: add common asserts for these invariants across test files?
     // TODO: check current treasury and token balance?
-    function invariant_DP1_DP2_DP3_DP4() external {
+    function invariant_DP1_DP2_DP3_DP4_DP5_DP6() external {
         uint24 distributionId = _grantFund.getDistributionId();
-        (, uint256 startBlockCurrent, uint256 endBlockCurrent, uint128 fundsAvailableCurrent, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        (
+            ,
+            uint256 startBlockCurrent,
+            uint256 endBlockCurrent,
+            uint128 fundsAvailableCurrent,
+            ,
+        ) = _grantFund.getDistributionPeriodInfo(distributionId);
+
+        uint256 totalFundsAvailable = 0;
+        uint256 currentTreasury = _grantFund.treasury();
 
         uint24 i = distributionId;
         while (i > 0) {
-            (, uint256 startBlockPrev, uint256 endBlockPrev, uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(i);
+            (
+                ,
+                uint256 startBlockPrev,
+                uint256 endBlockPrev,
+                uint128 fundsAvailable,
+                ,
+            ) = _grantFund.getDistributionPeriodInfo(i);
             StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(i);
+
+            totalFundsAvailable += fundsAvailable;
+            require(
+                totalFundsAvailable < currentTreasury,
+                "invariant DP5: The treasury balance should be greater than the sum of the funds available in all distribution periods"
+            );
 
             require(
                 fundsAvailable == Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock + fundsAvailable),
@@ -83,7 +102,14 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
             // check each distribution period's top ten slate of proposals for executions and compare with distribution funds available
             for (uint p = 0; p < topTenProposals.length; ++p) {
                 // get proposal info
-                (, uint24 proposalDistributionId, , uint128 tokensRequested, , bool executed) = _grantFund.getProposalInfo(topTenProposals[p]);
+                (
+                    ,
+                    uint24 proposalDistributionId,
+                    ,
+                    uint128 tokensRequested,
+                    ,
+                    bool executed
+                ) = _grantFund.getProposalInfo(topTenProposals[p]);
                 assertEq(proposalDistributionId, i);
 
                 if (executed) {
@@ -99,7 +125,14 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
             totalTokensRequestedByExecutedProposals = 0;
             uint256[] memory proposalSlate = _grantFund.getFundedProposalSlate(state.currentTopSlate);
             for (uint j = 0; j < proposalSlate.length; ++j) {
-                (, uint24 proposalDistributionId, , uint128 tokensRequested, , bool executed) = _grantFund.getProposalInfo(proposalSlate[j]);
+                (
+                    ,
+                    uint24 proposalDistributionId,
+                    ,
+                    uint128 tokensRequested,
+                    ,
+                    bool executed
+                ) = _grantFund.getProposalInfo(proposalSlate[j]);
                 assertEq(proposalDistributionId, i);
 
                 if (executed) {
@@ -115,11 +148,9 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         }
     }
 
-    function invariant_GF2() external {
-        // invariant GF2: The Grant Fund's treasury should always be less than or equal to the contract's token blance.
+    function invariant_T1() external {
+        // invariant T1: The Grant Fund's treasury should always be less than or equal to the contract's token blance.
         assertTrue(_ajna.balanceOf(address(_grantFund)) >= _grantFund.treasury());
-
-        // TODO: invariant GF3: The treasury balance should be greater than the sum of the funds available in all distribution periods
     }
 
     function invariant_call_summary() external view {

@@ -111,7 +111,7 @@ contract Handler is Test, GrantFundTestHelper {
 
         if (_currentScenarioType == uint8(ScenarioType.Fast)) {
             console.log("High roller");
-            rollLimit = 100000;
+            rollLimit = 30_000;
         }
 
         // determine a random number of blocks to roll, less than 100
@@ -121,7 +121,6 @@ contract Handler is Test, GrantFundTestHelper {
 
         // roll forward to the selected block
         vm.roll(blockHeight);
-        // testContract.setCurrentBlock(blockHeight);
     }
 
     /**************************/

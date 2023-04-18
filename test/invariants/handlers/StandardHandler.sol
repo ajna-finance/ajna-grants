@@ -321,10 +321,10 @@ contract StandardHandler is Handler {
 
         (, , uint256 endBlock, , , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
 
-        if (systemTime >= 500) {
-            // skip time to the end of the challenge stage
-            vm.roll(endBlock + 50401);
-        }
+        // if (systemTime >= 500) {
+        //     // skip time to the end of the challenge stage
+        //     vm.roll(endBlock + 50401);
+        // }
 
         if (block.number <= endBlock + 50400) return;
 
@@ -361,10 +361,10 @@ contract StandardHandler is Handler {
 
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
-        if (systemTime >= 900) {
-            // skip time to the end of the challenge stage
-            vm.roll(endBlock + 50401);
-        }
+        // if (systemTime >= 900) {
+        //     // skip time to the end of the challenge stage
+        //     vm.roll(endBlock + 50401);
+        // }
 
         try _grantFund.claimDelegateReward(distributionId) returns (uint256 rewardClaimed_) {
             numberOfCalls['SFH.claimDelegateReward.success']++;

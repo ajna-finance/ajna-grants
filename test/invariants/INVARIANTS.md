@@ -1,9 +1,7 @@
 # GrantFund Invariants
 
-## Grant Fund Invariants:
-   - **GF1**: Unused proposal states should always be 0.
-   - **GF2**: The Grant Fund's `treasury` should always be less than or equal to the contract's token balance.
-   - **GF3**: The treasury balance should be greater than the sum of the funds available in all distribution periods.
+## Treasury Invariants:
+   - **T1**: The Grant Fund's `treasury` should always be less than or equal to the contract's token balance.
 <!-- 
    - TODO: add invariants around treasury balance post updates and with partial slate executions
  -->
@@ -15,6 +13,8 @@
     - **DP2**: Each winning proposal successfully claims no more that what was finalized in the challenge stage
     - **DP3**: A distribution's fundsAvailable should be equal to 2% of the treasurie's balance at the block `startNewDistributionPeriod()` is called.
     - **DP4**: A distribution's endBlock should be greater than its startBlock.
+    - **DP5**: The treasury balance should be greater than the sum of the funds available in all distribution periods.
+    - **DP6**: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury.
 
 - #### Screening Stage:
     - **SS1**: Only 10 proposals can advance to the funding stage
@@ -75,3 +75,7 @@
     - **VE2**: A proposal can only be voted on if the block number is less than or equal to the proposals end block and the `MAX_EFM_PROPOSAL_LENGTH` of 216_000 blocks.
     - **VE3**: Votes cast must always be positive.
     - **VE4**: A voter should never be able to cast more votes than the Ajna token supply.
+
+<!--
+   - TODO: Unused proposal states (canceled, queued, etc) should always be 0.
+ -->
