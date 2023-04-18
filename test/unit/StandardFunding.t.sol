@@ -1354,7 +1354,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVote(_grantFund, testAddress2, proposal2.proposalId, 3 * 1e18);
         _screeningVote(_grantFund, testAddress3, proposal3.proposalId, 3 * 1e18);
 
-
         // skip forward to the funding stage
         vm.roll(_startBlock + 600_000);
 

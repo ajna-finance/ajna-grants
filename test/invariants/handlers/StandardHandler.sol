@@ -41,6 +41,7 @@ contract StandardHandler is Handler {
         uint256 treasuryAtStartBlock; // GrantFund treasury at the time startNewDistributionPeriod was called.
         bytes32 currentTopSlate;
         Slate[] topSlates; // assume that the last element in the list is the top slate
+        uint256 testBlockAtStartBlock; // TODO: currentBlock number at test start?
     }
 
     struct Slate {
@@ -257,11 +258,11 @@ contract StandardHandler is Handler {
         //     return;
         // }
 
-        uint256 potentialSlateLength = constrictToRange(proposalSeed, 0, 10);
-
         // get top ten proposals
         uint256[] memory topTen = _grantFund.getTopTenProposals(distributionId);
+
         // construct potential slate of proposals
+        uint256 potentialSlateLength = constrictToRange(proposalSeed, 0, topTen.length);
         uint256[] memory potentialSlate = new uint256[](potentialSlateLength);
 
         bool happyPath = true;

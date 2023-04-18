@@ -2,7 +2,8 @@
 
 ## Grant Fund Invariants:
    - **GF1**: Unused proposal states should always be 0.
-   - **GF2**: The Grant Fund's `treasury` should always be less than or equal to the contract's token blance.
+   - **GF2**: The Grant Fund's `treasury` should always be less than or equal to the contract's token balance.
+   - **GF3**: The treasury balance should be greater than the sum of the funds available in all distribution periods.
 <!-- 
    - TODO: add invariants around treasury balance post updates and with partial slate executions
  -->
@@ -10,10 +11,10 @@
 ## Standard Funding Mechanism Invariants
 
 - #### Distribution Period:
-    - **DP1**: Only one distribution period should be active at a time
+    - **DP1**: Only one distribution period should be active at a time. Each successive distribution period's start block should be greater than the previous periods end block.
     - **DP2**: Each winning proposal successfully claims no more that what was finalized in the challenge stage
     - **DP3**: A distribution's fundsAvailable should be equal to 2% of the treasurie's balance at the block `startNewDistributionPeriod()` is called.
-    - **DP4**: An active distribution's end block should be greater than the current block number.
+    - **DP4**: A distribution's endBlock should be greater than its startBlock.
 
 - #### Screening Stage:
     - **SS1**: Only 10 proposals can advance to the funding stage

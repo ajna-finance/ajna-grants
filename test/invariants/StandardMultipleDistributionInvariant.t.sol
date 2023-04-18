@@ -50,46 +50,32 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         uint24 distributionId = _grantFund.getDistributionId();
         (, uint256 startBlockCurrent, uint256 endBlockCurrent, uint128 fundsAvailableCurrent, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
-        uint256 localCurrentBlock = currentBlock;
-
         uint24 i = distributionId;
         while (i > 0) {
-            (, , uint256 endBlock, uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-            StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(distributionId);
-
-            // console.log("funds available: %s", fundsAvailable);
-            // console.log("treasury at start block: %s", state.treasuryAtStartBlock);
-            // console.log("distribution", i, "current distribution", distributionId);
-            // console.log("block number:  %s", block.number);
-            // console.log("current block: %s", currentBlock);
-            // console.log("end block:     %s", endBlock);
+            (, uint256 startBlockPrev, uint256 endBlockPrev, uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(i);
+            StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(i);
 
             require(
                 fundsAvailable == Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock + fundsAvailable),
                 "invariant DP3: A distribution's fundsAvailable should be equal to 3% of the treasurie's balance at the block `startNewDistributionPeriod()` is called"
             );
-            // assertEq(fundsAvailable, Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock + fundsAvailable));
 
-            // FIXME: these requires take too long to run
-            // {
-                // check each distribution period's end block and ensure that only 1 has an endblock not in the past.
-                if (i != distributionId) {
-                    console.log("end block: %s", endBlock);
-                    console.log("start block current: %s", startBlockCurrent);
-                    // assertLt(endBlock, startBlockCurrent);
-                    require(
-                        endBlock < startBlockCurrent,
-                        "invariant DP1: Only one distribution period should be active at a time"
-                    );
-                }
-                else {
-                    require(
-                        currentBlock <= endBlockCurrent,
-                        "invariant DP4: An active distribution's end block should be greater than the current block number"
-                    );
-                    // assertTrue(currentBlock <= endBlockCurrent);
-                }
-            // }
+            require(
+                endBlockPrev > startBlockPrev,
+                "invariant DP4: A distribution's endBlock should be greater than its startBlock"
+            );
+
+            // check each distribution period's end block and ensure that only 1 has an endblock not in the past.
+            if (i != distributionId) {
+                require(
+                    endBlockPrev < startBlockCurrent && endBlockPrev < currentBlock,
+                    "invariant DP1: Only one distribution period should be active at a time"
+                );
+
+                // decrement blocks to ensure that the next distribution period's end block is less than the current block
+                startBlockCurrent = startBlockPrev;
+                endBlockCurrent = endBlockPrev;
+            }
 
             uint256[] memory topTenProposals = _grantFund.getTopTenProposals(i);
             uint256 totalTokensRequestedByExecutedProposals = 0;
@@ -127,6 +113,13 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
 
             --i;
         }
+    }
+
+    function invariant_GF2() external {
+        // invariant GF2: The Grant Fund's treasury should always be less than or equal to the contract's token blance.
+        assertTrue(_ajna.balanceOf(address(_grantFund)) >= _grantFund.treasury());
+
+        // TODO: invariant GF3: The treasury balance should be greater than the sum of the funds available in all distribution periods
     }
 
     function invariant_call_summary() external view {
