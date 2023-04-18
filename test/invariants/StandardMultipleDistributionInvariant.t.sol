@@ -38,78 +38,94 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         // update scenarioType to fast to have larger rolls
         _standardHandler.setCurrentScenarioType(Handler.ScenarioType.Fast);
 
+        vm.roll(block.number + 100);
+        currentBlock = block.number;
+
         console.log("starting block number: %s", block.number);
-        // assertTrue(false);
     }
 
     // TODO: add common asserts for these invariants across test files?
+    // TODO: check current treasury and token balance?
     function invariant_DP1_DP2_DP3_DP4() external {
         uint24 distributionId = _grantFund.getDistributionId();
+        (, uint256 startBlockCurrent, uint256 endBlockCurrent, uint128 fundsAvailableCurrent, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
-        // TODO: check ead distribution period's end block and ensure that only 1 has an endblock not in the past.
-        if (distributionId >= 1) {
-            uint24 i = distributionId;
-            while (i >= 1) {
-                // assert(true == false);
-                (, , uint256 endBlock, uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-                StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(distributionId);
+        uint256 localCurrentBlock = currentBlock;
 
-                require(
-                    fundsAvailable == Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock),
-                    "invariant DP3: A distribution's fundsAvailable should be equal to 3% of the treasurie's balance at the block `startNewDistributionPeriod()` is called"
-                );
+        uint24 i = distributionId;
+        while (i > 0) {
+            (, , uint256 endBlock, uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+            StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(distributionId);
 
-                // TODO: check current treasury and token balance?
+            // console.log("funds available: %s", fundsAvailable);
+            // console.log("treasury at start block: %s", state.treasuryAtStartBlock);
+            // console.log("distribution", i, "current distribution", distributionId);
+            // console.log("block number:  %s", block.number);
+            // console.log("current block: %s", currentBlock);
+            // console.log("end block:     %s", endBlock);
 
+            require(
+                fundsAvailable == Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock + fundsAvailable),
+                "invariant DP3: A distribution's fundsAvailable should be equal to 3% of the treasurie's balance at the block `startNewDistributionPeriod()` is called"
+            );
+            // assertEq(fundsAvailable, Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock + fundsAvailable));
+
+            // FIXME: these requires take too long to run
+            // {
+                // check each distribution period's end block and ensure that only 1 has an endblock not in the past.
                 if (i != distributionId) {
+                    console.log("end block: %s", endBlock);
+                    console.log("start block current: %s", startBlockCurrent);
+                    // assertLt(endBlock, startBlockCurrent);
                     require(
-                        block.number > endBlock,
+                        endBlock < startBlockCurrent,
                         "invariant DP1: Only one distribution period should be active at a time"
                     );
                 }
                 else {
                     require(
-                        block.number <= endBlock,
+                        currentBlock <= endBlockCurrent,
                         "invariant DP4: An active distribution's end block should be greater than the current block number"
                     );
+                    // assertTrue(currentBlock <= endBlockCurrent);
                 }
+            // }
 
-                uint256[] memory topTenProposals = _grantFund.getTopTenProposals(i);
-                uint256 totalTokensRequestedByExecutedProposals = 0;
+            uint256[] memory topTenProposals = _grantFund.getTopTenProposals(i);
+            uint256 totalTokensRequestedByExecutedProposals = 0;
 
-                // check each distribution period's top ten slate of proposals for executions and compare with distribution funds available
-                for (uint p = 0; p < topTenProposals.length; ++p) {
-                    // get proposal info
-                    (, uint24 proposalDistributionId, , uint128 tokensRequested, , bool executed) = _grantFund.getProposalInfo(topTenProposals[p]);
-                    assertEq(proposalDistributionId, i);
+            // check each distribution period's top ten slate of proposals for executions and compare with distribution funds available
+            for (uint p = 0; p < topTenProposals.length; ++p) {
+                // get proposal info
+                (, uint24 proposalDistributionId, , uint128 tokensRequested, , bool executed) = _grantFund.getProposalInfo(topTenProposals[p]);
+                assertEq(proposalDistributionId, i);
 
-                    if (executed) {
-                        // invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage
-                        assertLt(tokensRequested, fundsAvailable);
-                        assertTrue(totalTokensRequestedByExecutedProposals <= fundsAvailable);
+                if (executed) {
+                    // invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage
+                    assertLt(tokensRequested, fundsAvailable);
+                    assertTrue(totalTokensRequestedByExecutedProposals <= fundsAvailable);
 
-                        totalTokensRequestedByExecutedProposals += tokensRequested;
-                    }
+                    totalTokensRequestedByExecutedProposals += tokensRequested;
                 }
-
-                // TODO: check top proposal slate
-                totalTokensRequestedByExecutedProposals = 0;
-                uint256[] memory proposalSlate = _grantFund.getFundedProposalSlate(state.currentTopSlate);
-                for (uint j = 0; j < proposalSlate.length; ++j) {
-                    (, uint24 proposalDistributionId, , uint128 tokensRequested, , bool executed) = _grantFund.getProposalInfo(proposalSlate[j]);
-                    assertEq(proposalDistributionId, i);
-
-                    if (executed) {
-                        // invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage
-                        assertLt(tokensRequested, fundsAvailable);
-                        assertTrue(totalTokensRequestedByExecutedProposals <= fundsAvailable);
-
-                        totalTokensRequestedByExecutedProposals += tokensRequested;
-                    }
-                }
-
-                --i;
             }
+
+            // check the top funded proposal slate
+            totalTokensRequestedByExecutedProposals = 0;
+            uint256[] memory proposalSlate = _grantFund.getFundedProposalSlate(state.currentTopSlate);
+            for (uint j = 0; j < proposalSlate.length; ++j) {
+                (, uint24 proposalDistributionId, , uint128 tokensRequested, , bool executed) = _grantFund.getProposalInfo(proposalSlate[j]);
+                assertEq(proposalDistributionId, i);
+
+                if (executed) {
+                    // invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage
+                    assertLt(tokensRequested, fundsAvailable);
+                    assertTrue(totalTokensRequestedByExecutedProposals <= fundsAvailable);
+
+                    totalTokensRequestedByExecutedProposals += tokensRequested;
+                }
+            }
+
+            --i;
         }
     }
 
@@ -121,8 +137,8 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         // _standardHandler.logActorSummary(distributionId, true, true);
 
         console.log("current distributionId: %s", distributionId);
-        console.log("current block number:   %s", block.number);
-        console.log("test current block:     %s", currentBlock);
+        console.log("block number:           %s", block.number);
+        console.log("current block:          %s", currentBlock);
         // TODO: need to be able to log all the different type of summaries
         // _logFinalizeSummary(distributionId);
     }

@@ -98,6 +98,9 @@ contract StandardHandler is Handler {
         numberOfCalls['SFH.proposeStandard']++;
         systemTime++;
 
+        uint24 distributionId = _grantFund.getDistributionId();
+        if (distributionId == 0) return;
+
         // get a random number between 1 and 5
         uint256 numProposalParams = constrictToRange(randomSeed(), 1, 5);
 
@@ -113,7 +116,7 @@ contract StandardHandler is Handler {
         ) = generateProposalParams(address(_ajna), testProposalParams);
 
         try _grantFund.proposeStandard(targets, values, calldatas, description) returns (uint256 proposalId) {
-            standardFundingProposals[_grantFund.getDistributionId()].push(proposalId);
+            standardFundingProposals[distributionId].push(proposalId);
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -124,7 +127,6 @@ contract StandardHandler is Handler {
                 UNEXPECTED_REVERT
             );
         }
-
     }
 
     function screeningVote(uint256 actorIndex_, uint256 proposalsToVoteOn_) external useCurrentBlock useRandomActor(actorIndex_) {
@@ -132,14 +134,12 @@ contract StandardHandler is Handler {
         systemTime++;
 
         uint24 distributionId = _grantFund.getDistributionId();
+        if (distributionId == 0) return;
 
         // get a random number less than the number of submitted proposals
         proposalsToVoteOn_ = constrictToRange(proposalsToVoteOn_, 0, standardFundingProposals[distributionId].length);
 
-        console.log("block number before: ", block.number);
         vm.roll(block.number + 100);
-        console.log("block number after:  ", block.number);
-        console.log("current block:       ", testContract.currentBlock());
 
         // get actor voting power
         uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), _actor);
@@ -149,6 +149,7 @@ contract StandardHandler is Handler {
         for (uint256 i = 0; i < proposalsToVoteOn_; i++) {
             // get a random proposal
             uint256 proposalId = randomProposal();
+            console.log("in here?");
 
             // generate screening vote params
             screeningVoteParams[i] = IStandardFunding.ScreeningVoteParams({
@@ -184,13 +185,14 @@ contract StandardHandler is Handler {
 
         // check where block is in the distribution period
         uint24 distributionId = _grantFund.getDistributionId();
+        if (distributionId == 0) return;
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
         if (block.number < endBlock - 72000) {
-                return;
+            return;
         }
 
         // bind proposalsToVoteOn_ to the number of proposals
-        proposalsToVoteOn_ = bound(proposalsToVoteOn_, 0, standardFundingProposals[distributionId].length);
+        proposalsToVoteOn_ = constrictToRange(proposalsToVoteOn_, 0, standardFundingProposals[distributionId].length);
 
         // TODO: make happy / chaotic path decision random / dynamic?
         // get the fundingVoteParams for the votes the actor is about to cast
@@ -243,8 +245,11 @@ contract StandardHandler is Handler {
         numberOfCalls['SFH.updateSlate']++;
         systemTime++;
 
+        uint24 distributionId = _grantFund.getDistributionId();
+        if (distributionId == 0) return;
+
         // check that the distribution period ended
-        if (keccak256(getStage()) != keccak256(bytes("Challenge"))) {
+        if (keccak256(getStage(distributionId)) != keccak256(bytes("Challenge"))) {
             return;
         }
 
@@ -253,7 +258,6 @@ contract StandardHandler is Handler {
         // }
 
         uint256 potentialSlateLength = constrictToRange(proposalSeed, 0, 10);
-        uint24 distributionId = _grantFund.getDistributionId();
 
         // get top ten proposals
         uint256[] memory topTen = _grantFund.getTopTenProposals(distributionId);
@@ -312,6 +316,7 @@ contract StandardHandler is Handler {
         systemTime++;
 
         uint24 distributionId = _grantFund.getDistributionId();
+        if (distributionId == 0) return;
 
         (, , uint256 endBlock, , , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
 
@@ -351,6 +356,7 @@ contract StandardHandler is Handler {
         systemTime++;
 
         uint24 distributionId = _grantFund.getDistributionId();
+        if (distributionId == 0) return;
 
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
@@ -439,7 +445,7 @@ contract StandardHandler is Handler {
             (, , , uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
             // account for amount that was previously requested
-            uint256 additionalTokensRequested = randomAmount((fundsAvailable * 9 /10) - totalTokensRequested);
+            uint256 additionalTokensRequested = randomAmount(uint256(fundsAvailable * 9 /10) - totalTokensRequested);
             totalTokensRequested += additionalTokensRequested;
 
             testProposalParams_[i] = TestProposalParams({
@@ -454,9 +460,8 @@ contract StandardHandler is Handler {
         return standardFundingProposals[distributionId][constrictToRange(randomSeed(), 0, standardFundingProposals[distributionId].length - 1)];
     }
 
-    function getStage() internal view returns (bytes memory stage_) {
-        uint24 distributionId = _grantFund.getDistributionId();
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+    function getStage(uint24 distributionId_) internal view returns (bytes memory stage_) {
+        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId_);
         if (block.number < endBlock - 72000) {
             stage_ = bytes("Screening");
         }

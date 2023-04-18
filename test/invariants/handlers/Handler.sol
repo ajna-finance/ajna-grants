@@ -121,7 +121,7 @@ contract Handler is Test, GrantFundTestHelper {
 
         // roll forward to the selected block
         vm.roll(blockHeight);
-        testContract.setCurrentBlock(blockHeight);
+        // testContract.setCurrentBlock(blockHeight);
     }
 
     /**************************/
