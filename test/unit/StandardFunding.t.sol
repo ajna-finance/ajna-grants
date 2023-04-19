@@ -1114,10 +1114,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // skip to the Challenge period
         vm.roll(_startBlock + 650_000);
 
+        // updateSlate
         uint256[] memory potentialProposalSlate = new uint256[](1);
         potentialProposalSlate[0] = screenedProposals_distribution1[0].proposalId;
-
-        // updateSlate
         _grantFund.updateSlate(potentialProposalSlate, distributionId);
 
         // skip to the end of Challenge period
@@ -1194,10 +1193,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // skip to the Challenge period
         vm.roll(_startBlock + 1_350_000);
 
+        // updateSlate
         potentialProposalSlate = new uint256[](1);
         potentialProposalSlate[0] = screenedProposals_distribution2[0].proposalId;
-
-        // updateSlate
         _grantFund.updateSlate(potentialProposalSlate, distributionId);
 
         /*********************************/
@@ -1222,11 +1220,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // execute funded proposals
         _executeProposal(_grantFund, _token, testProposals_distribution2[0]);
-        
-        testProposalParams = new TestProposalParams[](1);
-        testProposalParams[0] = TestProposalParams(_tokenHolder1, 7_000_000 * 1e18);
 
         // create 1 proposal paying out tokens
+        testProposalParams = new TestProposalParams[](1);
+        testProposalParams[0] = TestProposalParams(_tokenHolder1, 7_000_000 * 1e18);
         TestProposal[] memory testProposals_distribution3 = _createNProposals(_grantFund, _token, testProposalParams);
         assertEq(testProposals_distribution3.length, 1);
 
@@ -1248,10 +1245,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // skip to the Challenge period
         vm.roll(_startBlock + 2_000_000);
 
+        // updateSlate
         potentialProposalSlate = new uint256[](1);
         potentialProposalSlate[0] = screenedProposals_distribution3[0].proposalId;
-
-        // updateSlate
         _grantFund.updateSlate(potentialProposalSlate, 3);
 
         // skip to the end of Challenge period

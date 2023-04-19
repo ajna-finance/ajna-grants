@@ -25,7 +25,7 @@ contract TestBase is Test, GrantFundTestHelper {
 
     function setUp() public virtual {
         // provide cheatcode access to the standard funding handler
-        vm.allowCheatcodes(0x4447E7a83995B5cCDCc9A6cd8Bc470305C940DA3);
+        // vm.allowCheatcodes(0x4447E7a83995B5cCDCc9A6cd8Bc470305C940DA3);
 
         // deploy ajna token
         TestAjnaToken token = new TestAjnaToken();

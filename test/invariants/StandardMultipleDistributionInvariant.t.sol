@@ -42,9 +42,7 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         currentBlock = block.number;
     }
 
-    // TODO: rename to current and next
     // TODO: add common asserts for these invariants across test files?
-    // TODO: check current treasury and token balance?
     function invariant_DP1_DP2_DP3_DP4_DP5_DP6() external {
         uint24 distributionId = _grantFund.getDistributionId();
         (
@@ -66,7 +64,6 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
                 uint256 endBlockPrev,
                 uint128 fundsAvailablePrev,
                 ,
-                bytes32 topSlateHash
             ) = _grantFund.getDistributionPeriodInfo(i);
             StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(i);
 
@@ -85,18 +82,6 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
                 endBlockPrev > startBlockPrev,
                 "invariant DP4: A distribution's endBlock should be greater than its startBlock"
             );
-
-            // check each distribution period's end block and ensure that only 1 has an endblock not in the past.
-            if (i != distributionId) {
-                require(
-                    endBlockPrev < startBlockCurrent && endBlockPrev < currentBlock,
-                    "invariant DP1: Only one distribution period should be active at a time"
-                );
-
-                // decrement blocks to ensure that the next distribution period's end block is less than the current block
-                startBlockCurrent = startBlockPrev;
-                endBlockCurrent = endBlockPrev;
-            }
 
             uint256[] memory topTenProposals = _grantFund.getTopTenProposals(i);
             uint256 totalTokensRequestedByProposals = 0;
@@ -146,32 +131,61 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
                 }
             }
 
-            {
-                if (i != distributionId) {
-                    // assertTrue(false);
-                    // FIXME: if new distribution started before end of distribution period then surplus won't be added automatically to the treasury...
-                    // only add the surplus if the proposal was executed?
-
-                    uint256 surplus = 0;
-                    if (startBlockCurrent > endBlockPrev + 50400) {
-                        // then the treasury should have updated
-                        surplus = fundsAvailablePrev - totalTokensRequestedByProposals;
-                    }
-
-                    console.log("surplus:               ", surplus);
-                    console.log("treasuryAtStartBlock:  ", state.treasuryAtStartBlock);
-                    console.log("fundsAvailableCurrent: ", fundsAvailableCurrent);
-                    console.log("fundsAvailablePrev:    ", fundsAvailablePrev);
-                    console.log(fundsAvailableCurrent == Maths.wmul(.03 * 1e18, surplus + state.treasuryAtStartBlock));
-
-                    // TODO: need to be able to look back multiple distribution periods to see if the treasury was updated
-
-                    require(
-                        fundsAvailableCurrent == Maths.wmul(.03 * 1e18, surplus + state.treasuryAtStartBlock),
-                        "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
-                    );
-                    fundsAvailableCurrent = fundsAvailablePrev;
+            // check invariants against each previous distribution periods
+            if (i != distributionId) {
+                // if new distribution started before end of distribution period then surplus won't be added automatically to the treasury.
+                // only add the surplus if the distribution period started before the end of the prior challenge period
+                uint256 surplus = 0;
+                console.log("startBlockCurrent: %s", startBlockCurrent);
+                console.log("endBlockPrev:      %s", endBlockPrev);
+                if (startBlockCurrent > endBlockPrev + 50400 && state.treasuryUpdated == false) {
+                    console.log("update prev");
+                    // then the surplus should have been added to the treasury
+                    surplus = fundsAvailablePrev - totalTokensRequestedByProposals;
+                    _standardHandler.setDistributionTreasuryUpdated(i);
                 }
+
+                // check if the prior distribution period hadn't had it's surplus returned to the treasury either
+                if (i > 1) {
+                    (
+                        ,
+                        ,
+                        uint256 endBlockBeforePrev,
+                        uint128 fundsAvailableBeforePrev,
+                        ,
+                        bytes32 topSlateHashBeforePrev
+                    ) = _grantFund.getDistributionPeriodInfo(i - 1);
+                    if (startBlockPrev < endBlockBeforePrev + 50400) {
+                        console.log("update beforePrev");
+                        // then the surplus should have been added to the treasury
+                        surplus += fundsAvailableBeforePrev - _standardHandler.getTokensRequestedInFundedSlateInvariant(topSlateHashBeforePrev);
+                        _standardHandler.setDistributionTreasuryUpdated(i - 1);
+                    }
+                }
+
+                console.log("distributionID:        ", i);
+                console.log("surplus:               ", surplus);
+                console.log("treasuryAtStartBlock:  ", state.treasuryAtStartBlock);
+                console.log("fundsAvailableCurrent: ", fundsAvailableCurrent);
+                console.log("fundsAvailablePrev:    ", fundsAvailablePrev);
+                console.log(fundsAvailableCurrent == Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock));
+                console.log(fundsAvailableCurrent == Maths.wmul(.03 * 1e18, surplus + state.treasuryAtStartBlock));
+
+                require(
+                    fundsAvailableCurrent == Maths.wmul(.03 * 1e18, surplus + state.treasuryAtStartBlock),
+                    "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
+                );
+                fundsAvailableCurrent = fundsAvailablePrev;
+
+                // check each distribution period's end block and ensure that only 1 has an endblock not in the past.
+                require(
+                    endBlockPrev < startBlockCurrent && endBlockPrev < currentBlock,
+                    "invariant DP1: Only one distribution period should be active at a time"
+                );
+
+                // decrement blocks to ensure that the next distribution period's end block is less than the current block
+                startBlockCurrent = startBlockPrev;
+                endBlockCurrent = endBlockPrev;
             }
 
             --i;

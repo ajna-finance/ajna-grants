@@ -39,9 +39,9 @@ contract StandardHandler is Handler {
 
     struct DistributionState {
         uint256 treasuryAtStartBlock; // GrantFund treasury at the time startNewDistributionPeriod was called.
-        bytes32 currentTopSlate;
+        bytes32 currentTopSlate; // slate hash of the current top proposal slate
         Slate[] topSlates; // assume that the last element in the list is the top slate
-        uint256 testBlockAtStartBlock; // TODO: currentBlock number at test start?
+        bool treasuryUpdated; // whether the distribution period's surplus tokens have been readded to the treasury
     }
 
     struct Slate {
@@ -292,7 +292,6 @@ contract StandardHandler is Handler {
                 slate.distributionId = distributionId;
                 slate.slateHash = potentialSlateHash;
                 slate.updateBlock = block.number;
-                slate.totalTokensRequested = getTokensRequestedInFundedSlate(potentialSlateHash);
 
                 // update distribution state
                 DistributionState storage distribution = distributionStates[distributionId];
@@ -432,6 +431,10 @@ contract StandardHandler is Handler {
 
             unchecked { ++i; }
         }
+    }
+
+    function setDistributionTreasuryUpdated(uint24 distributionId_) external {
+        distributionStates[distributionId_].treasuryUpdated = true;
     }
 
     /**********************************/
@@ -761,6 +764,10 @@ contract StandardHandler is Handler {
     /*** View Functions ****/
     /***********************/
 
+    function getDistributionFundsUpdated(uint24 distributionId_) external view returns (bool) {
+        return distributionStates[distributionId_].treasuryUpdated;
+    }
+
     function getDistributionState(uint24 distributionId_) external view returns (DistributionState memory) {
         return distributionStates[distributionId_];
     }
@@ -781,6 +788,16 @@ contract StandardHandler is Handler {
         );
     }
 
+    function getTokensRequestedInFundedSlateInvariant(bytes32 slateHash_) public view returns (uint256 tokensRequested_) {
+        uint256[] memory fundedProposals = _grantFund.getFundedProposalSlate(slateHash_);
+        for (uint256 i = 0; i < fundedProposals.length; ++i) {
+            (, , , uint128 tokensRequested, int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(fundedProposals[i]);
+            if (fundingVotesReceived > 0) {
+                tokensRequested_ += tokensRequested;
+            }
+        }
+    }
+
     function sumVoterScreeningVotes(address actor_, uint24 distributionId_) public view returns (uint256 sum_) {
         VotingActor memory actor = votingActors[actor_][distributionId_];
         for (uint256 i = 0; i < actor.screeningVotes.length; ++i) {
@@ -798,16 +815,6 @@ contract StandardHandler is Handler {
         for (uint256 i = 0; i < fundingVotes_.length; ++i) {
             if (fundingVotes_[i].votesUsed < 0) {
                 count_++;
-            }
-        }
-    }
-
-    function getTokensRequestedInFundedSlate(bytes32 slateHash_) public view returns (uint256 tokensRequested_) {
-        uint256[] memory fundedProposals = _grantFund.getFundedProposalSlate(slateHash_);
-        for (uint256 i = 0; i < fundedProposals.length; ++i) {
-            (, , , uint128 tokensRequested, int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(fundedProposals[i]);
-            if (fundingVotesReceived > 0) {
-                tokensRequested_ += tokensRequested;
             }
         }
     }

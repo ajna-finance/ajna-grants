@@ -145,6 +145,9 @@ contract Handler is Test, GrantFundTestHelper {
             address actor = makeAddr(string(abi.encodePacked("Actor", Strings.toString(i))));
             actors_[i] = actor;
 
+            // add actor to forge _targetedSenders list
+            // targetSender(actor);
+
             // transfer ajna tokens to the actor
             if (tokensToDistribute_ - tokensDistributed == 0) {
                 break;
