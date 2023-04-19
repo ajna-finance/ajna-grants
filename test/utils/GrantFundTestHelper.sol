@@ -138,6 +138,10 @@ abstract contract GrantFundTestHelper is Test {
         distributionId = grantFund_.startNewDistributionPeriod();
     }
 
+    function _getDistributionFundsAvailable(uint256 surplus, uint256 treasury) internal pure returns (uint256 fundsAvailable_) {
+        fundsAvailable_ = Maths.wmul(.03 * 1e18, treasury + surplus);
+    }
+
     /**************************/
     /*** Proposal Functions ***/
     /**************************/
@@ -499,6 +503,22 @@ abstract contract GrantFundTestHelper is Test {
 
         }
         return false;
+    }
+
+    function getTokensRequestedInFundedSlate(GrantFund grantFund_, bytes32 slateHash_) public view returns (uint256 tokensRequested_) {
+        uint256[] memory fundedProposals = grantFund_.getFundedProposalSlate(slateHash_);
+        for (uint256 i = 0; i < fundedProposals.length; ++i) {
+            (, , , uint128 tokensRequested, int128 fundingVotesReceived, ) = grantFund_.getProposalInfo(fundedProposals[i]);
+            if (fundingVotesReceived > 0) {
+                tokensRequested_ += tokensRequested;
+            }
+        }
+    }
+
+    function getSurplusTokensInDistribution(GrantFund grantFund_, uint24 distributionId_) public view returns (uint256 surplus_) {
+        (, , , uint128 fundsAvailable, , bytes32 topSlateHash) = grantFund_.getDistributionPeriodInfo(distributionId_);
+        uint256 tokensRequested = getTokensRequestedInFundedSlate(grantFund_, topSlateHash);
+        surplus_ = fundsAvailable - tokensRequested;
     }
 
     /************************/
