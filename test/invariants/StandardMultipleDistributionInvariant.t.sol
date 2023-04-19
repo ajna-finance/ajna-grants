@@ -146,14 +146,26 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
                 }
             }
 
-            // if (totalTokensRequestedByProposals < fundsAvailablePrev) {
             {
                 if (i != distributionId) {
-                    uint256 surplus = fundsAvailablePrev - totalTokensRequestedByProposals;
+                    // assertTrue(false);
+                    // FIXME: if new distribution started before end of distribution period then surplus won't be added automatically to the treasury...
+                    // only add the surplus if the proposal was executed?
+
+                    uint256 surplus = 0;
+                    if (startBlockCurrent > endBlockPrev + 50400) {
+                        // then the treasury should have updated
+                        surplus = fundsAvailablePrev - totalTokensRequestedByProposals;
+                    }
+
                     console.log("surplus:               ", surplus);
                     console.log("treasuryAtStartBlock:  ", state.treasuryAtStartBlock);
-                    console.log("fundsAvailableCurrent: ", fundsAvailablePrev);
-                    // assertTrue(false);
+                    console.log("fundsAvailableCurrent: ", fundsAvailableCurrent);
+                    console.log("fundsAvailablePrev:    ", fundsAvailablePrev);
+                    console.log(fundsAvailableCurrent == Maths.wmul(.03 * 1e18, surplus + state.treasuryAtStartBlock));
+
+                    // TODO: need to be able to look back multiple distribution periods to see if the treasury was updated
+
                     require(
                         fundsAvailableCurrent == Maths.wmul(.03 * 1e18, surplus + state.treasuryAtStartBlock),
                         "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
