@@ -336,7 +336,14 @@ contract StandardHandler is Handler {
 
         TestProposal memory proposal = testProposals[topSlateProposalIds[proposalIndex]];
 
-        try _grantFund.executeStandard(proposal.targets, proposal.values, proposal.calldatas, keccak256(bytes(proposal.description))) returns (uint256 proposalId_) {
+        // get parameters from test proposal required for execution
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+        ) = _getParamsFromGeneratedTestProposalParams(_ajna, proposal.params);
+
+        try _grantFund.executeStandard(targets, values, calldatas, keccak256(bytes(proposal.description))) returns (uint256 proposalId_) {
             assertEq(proposalId_, proposal.proposalId);
             numberOfCalls['SFH.executeStandard.success']++;
             proposalsExecuted.push(proposalId_);
@@ -491,20 +498,20 @@ contract StandardHandler is Handler {
         // create proposal
         proposalId_ = _grantFund.proposeStandard(targets, values, calldatas, description);
 
-        // record new proposal
+        // add new proposal to list of all standard proposals
         standardFundingProposals[_grantFund.getDistributionId()].push(proposalId_);
 
-        // FIXME: set recipient and tokensRequested
-        // record proposal information
-        testProposals[proposalId_] = TestProposal(
-            proposalId_,
-            targets,
-            values,
-            calldatas,
-            description,
-            address(0),
-            0
-        );
+        // record proposal information into TestProposal struct
+        (
+            GeneratedTestProposalParams[] memory params,
+            uint256 totalTokensRequested
+        ) = _getGeneratedTestProposalParamsFromParams(targets, values, calldatas);
+        TestProposal storage testProposal = testProposals[proposalId_];
+        testProposal.proposalId = proposalId_;
+        testProposal.description = description;
+        for (uint i = 0; i < params.length; ++i) {
+            testProposal.params.push(params[i]);
+        }
     }
 
     // TODO: need to add support for different types of param generation -> turn this into a factory

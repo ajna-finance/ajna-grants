@@ -957,7 +957,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check can't execute proposals prior to the end of the challenge period
         vm.expectRevert(IStandardFunding.ExecuteProposalInvalid.selector);
-        _grantFund.executeStandard(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
+        _executeProposalNoLog(_grantFund, _token, testProposals[0]);
 
         // should revert if user tries to claim reward in before challenge Period ends
         vm.expectRevert(IStandardFunding.ChallengePeriodNotEnded.selector);
@@ -980,11 +980,11 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check that shouldn't be able to execute unfunded proposals
         vm.expectRevert(IFunding.ProposalNotSuccessful.selector);
-        _grantFund.executeStandard(testProposals[1].targets, testProposals[1].values, testProposals[1].calldatas, keccak256(bytes(testProposals[1].description)));
+        _executeProposalNoLog(_grantFund, _token, testProposals[1]);
 
         // check that shouldn't be able to execute a proposal twice
         vm.expectRevert(IFunding.ProposalNotSuccessful.selector);
-        _grantFund.executeStandard(testProposals[0].targets, testProposals[0].values, testProposals[0].calldatas, keccak256(bytes(testProposals[0].description)));
+        _executeProposalNoLog(_grantFund, _token, testProposals[0]);
 
         /******************************/
         /*** Claim Delegate Rewards ***/

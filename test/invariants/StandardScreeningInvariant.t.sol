@@ -31,11 +31,6 @@ contract StandardScreeningInvariant is StandardTestBase {
     }
 
     function invariant_SS1_SS3_SS4_SS5_SS6_SS7() external {
-        // emit log_uint(_ajna.totalSupply());
-        console.log("total supply: %s", _ajna.totalSupply());
-        console.log("treasury: %s", treasury);
-        console.log("ajna token address: %s", address(_ajna));
-
         uint24 distributionId = _grantFund.getDistributionId();
         uint256 standardFundingProposalsSubmitted = _standardHandler.getStandardFundingProposals(distributionId).length;
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
