@@ -42,7 +42,6 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         currentBlock = block.number;
     }
 
-    // TODO: add common asserts for these invariants across test files?
     function invariant_DP1_DP2_DP3_DP4_DP5_DP6() external {
         uint24 distributionId = _grantFund.getDistributionId();
         (
@@ -136,10 +135,7 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
                 // if new distribution started before end of distribution period then surplus won't be added automatically to the treasury.
                 // only add the surplus if the distribution period started before the end of the prior challenge period
                 uint256 surplus = 0;
-                console.log("startBlockCurrent: %s", startBlockCurrent);
-                console.log("endBlockPrev:      %s", endBlockPrev);
                 if (startBlockCurrent > endBlockPrev + 50400 && state.treasuryUpdated == false) {
-                    console.log("update prev");
                     // then the surplus should have been added to the treasury
                     surplus = fundsAvailablePrev - totalTokensRequestedByProposals;
                     _standardHandler.setDistributionTreasuryUpdated(i);
@@ -156,20 +152,11 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
                         bytes32 topSlateHashBeforePrev
                     ) = _grantFund.getDistributionPeriodInfo(i - 1);
                     if (startBlockPrev < endBlockBeforePrev + 50400) {
-                        console.log("update beforePrev");
                         // then the surplus should have been added to the treasury
                         surplus += fundsAvailableBeforePrev - _standardHandler.getTokensRequestedInFundedSlateInvariant(topSlateHashBeforePrev);
                         _standardHandler.setDistributionTreasuryUpdated(i - 1);
                     }
                 }
-
-                console.log("distributionID:        ", i);
-                console.log("surplus:               ", surplus);
-                console.log("treasuryAtStartBlock:  ", state.treasuryAtStartBlock);
-                console.log("fundsAvailableCurrent: ", fundsAvailableCurrent);
-                console.log("fundsAvailablePrev:    ", fundsAvailablePrev);
-                console.log(fundsAvailableCurrent == Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock));
-                console.log(fundsAvailableCurrent == Maths.wmul(.03 * 1e18, surplus + state.treasuryAtStartBlock));
 
                 require(
                     fundsAvailableCurrent == Maths.wmul(.03 * 1e18, surplus + state.treasuryAtStartBlock),

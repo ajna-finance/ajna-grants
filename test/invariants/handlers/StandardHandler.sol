@@ -32,9 +32,9 @@ contract StandardHandler is Handler {
     uint256 private systemTime = 0;
 
     struct VotingActor {
-        IStandardFunding.FundingVoteParams[] fundingVotes;
-        IStandardFunding.ScreeningVoteParams[] screeningVotes;
-        uint256 delegationRewardsClaimed;
+        IStandardFunding.FundingVoteParams[] fundingVotes; // list of funding votes made by an actor
+        IStandardFunding.ScreeningVoteParams[] screeningVotes; // list of screening votes made by an actor
+        uint256 delegationRewardsClaimed; // the amount of delegation rewards claimed by the actor
     }
 
     struct DistributionState {
@@ -51,14 +51,11 @@ contract StandardHandler is Handler {
         uint256 totalTokensRequested; // total tokens requested by all proposals in the slate
     }
 
-    // list of submitted standard funding proposals by distribution period
-    // distributionId => proposalId[]
-    mapping(uint24 => uint256[]) public standardFundingProposals;
-
-    mapping(uint24 => DistributionState) public distributionStates;
-    mapping(bytes32 => uint256[]) public proposalsInTopSlate;
+    mapping(uint24 => uint256[]) public standardFundingProposals;             // distributionId => proposalId[]
+    mapping(uint24 => DistributionState) public distributionStates;           // distributionId => DistributionState
+    mapping(bytes32 => uint256[]) public proposalsInTopSlate;                 // slateHash => proposalId[]
     mapping(address => mapping(uint24 => VotingActor)) internal votingActors; // actor => distributionId => VotingActor
-    mapping(uint256 => TestProposal) public testProposals;
+    mapping(uint256 => TestProposal) public testProposals;                    // proposalId => TestProposal
 
     /*******************/
     /*** Constructor ***/
@@ -292,6 +289,7 @@ contract StandardHandler is Handler {
                 slate.distributionId = distributionId;
                 slate.slateHash = potentialSlateHash;
                 slate.updateBlock = block.number;
+                slate.totalTokensRequested = getTokensRequestedInFundedSlateInvariant(potentialSlateHash);
 
                 // update distribution state
                 DistributionState storage distribution = distributionStates[distributionId];
@@ -418,18 +416,6 @@ contract StandardHandler is Handler {
 
             // actor votes on random number of proposals
             _screeningVoteProposal(actor);
-        }
-    }
-
-    function sumSquareOfVotesCast(
-        IStandardFunding.FundingVoteParams[] memory votesCast_
-    ) public pure returns (uint256 votesCastSumSquared_) {
-        uint256 numVotesCast = votesCast_.length;
-
-        for (uint256 i = 0; i < numVotesCast; ) {
-            votesCastSumSquared_ += Maths.wpow(SafeCast.toUint256(Maths.abs(votesCast_[i].votesUsed)), 2);
-
-            unchecked { ++i; }
         }
     }
 
@@ -795,6 +781,18 @@ contract StandardHandler is Handler {
             if (fundingVotesReceived > 0) {
                 tokensRequested_ += tokensRequested;
             }
+        }
+    }
+
+    function sumSquareOfVotesCast(
+        IStandardFunding.FundingVoteParams[] memory votesCast_
+    ) public pure returns (uint256 votesCastSumSquared_) {
+        uint256 numVotesCast = votesCast_.length;
+
+        for (uint256 i = 0; i < numVotesCast; ) {
+            votesCastSumSquared_ += Maths.wpow(SafeCast.toUint256(Maths.abs(votesCast_[i].votesUsed)), 2);
+
+            unchecked { ++i; }
         }
     }
 
