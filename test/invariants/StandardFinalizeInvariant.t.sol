@@ -10,6 +10,7 @@ import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
 import { StandardTestBase } from "./base/StandardTestBase.sol";
 import { StandardHandler }  from "./handlers/StandardHandler.sol";
+import { Handler }          from "./handlers/Handler.sol";
 
 contract StandardFinalizeInvariant is StandardTestBase {
 
@@ -44,6 +45,8 @@ contract StandardFinalizeInvariant is StandardTestBase {
                 err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()"))
             );
         }
+
+        _standardHandler.setCurrentScenarioType(Handler.ScenarioType.Medium);
 
         // skip time into the challenge stage
         vm.roll(endBlock + 100);
@@ -228,14 +231,20 @@ contract StandardFinalizeInvariant is StandardTestBase {
     }
 
     function _logFinalizeSummary(uint24 distributionId_) internal view {
-        (, , , uint128 fundsAvailable, , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId_);
+        (, , uint256 endBlock, uint128 fundsAvailable, , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId_);
         uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
 
         uint256[] memory topTenScreenedProposalIds = _grantFund.getTopTenProposals(distributionId_);
 
+        console.log("end block:              %s", endBlock);
+        console.log("block number:           %s", block.number);
+        console.log("current block:          %s", currentBlock);
+
         console.log("\nFinalize Summary\n");
         console.log("------------------");
+        console.log("Distribution Id:            ", distributionId_);
         console.log("Delegation Rewards Claimed: ", _standardHandler.numberOfCalls('SFH.claimDelegateReward.success'));
+        console.log("Proposal Execute attempt:   ", _standardHandler.numberOfCalls('SFH.executeStandard.attempt'));
         console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.executeStandard.success'));
         console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
         console.log("Slate Update Count:         ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));

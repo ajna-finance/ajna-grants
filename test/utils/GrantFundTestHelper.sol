@@ -205,12 +205,6 @@ abstract contract GrantFundTestHelper is Test {
         uint256 proposalId = grantFund_.proposeStandard(targets_, values_, calldatas_, description);
         assertEq(proposalId, expectedProposalId);
 
-        // https://github.com/ethereum/solidity/issues/6012
-        (, address recipient, uint256 tokensRequested) = abi.decode(
-            abi.encodePacked(bytes28(0), calldatas_[0]),
-            (bytes32,address,uint256)
-        );
-
         (GeneratedTestProposalParams[] memory params, uint256 totalTokensRequested) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
         return TestProposal(proposalId, description, totalTokensRequested, block.number, params);
     }

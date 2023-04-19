@@ -116,7 +116,7 @@ contract Handler is Test, GrantFundTestHelper {
         }
         else if (_currentScenarioType == uint8(ScenarioType.Medium)) {
             console.log("Medium roller");
-            rollLimit = 1000;
+            rollLimit = 800;
         }
         else if (_currentScenarioType == uint8(ScenarioType.Slow)) {
             console.log("Low roller");

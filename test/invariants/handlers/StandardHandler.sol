@@ -148,7 +148,6 @@ contract StandardHandler is Handler {
         for (uint256 i = 0; i < proposalsToVoteOn_; i++) {
             // get a random proposal
             uint256 proposalId = randomProposal();
-            console.log("in here?");
 
             // generate screening vote params
             screeningVoteParams[i] = IStandardFunding.ScreeningVoteParams({
@@ -260,7 +259,7 @@ contract StandardHandler is Handler {
         uint256[] memory topTen = _grantFund.getTopTenProposals(distributionId);
 
         // construct potential slate of proposals
-        uint256 potentialSlateLength = constrictToRange(proposalSeed, 0, topTen.length);
+        uint256 potentialSlateLength = constrictToRange(proposalSeed, 1, topTen.length);
         uint256[] memory potentialSlate = new uint256[](potentialSlateLength);
 
         bool happyPath = true;
@@ -343,6 +342,8 @@ contract StandardHandler is Handler {
             bytes[] memory calldatas,
         ) = _getParamsFromGeneratedTestProposalParams(_ajna, proposal.params);
 
+        numberOfCalls['SFH.executeStandard.attempt']++;
+
         try _grantFund.executeStandard(targets, values, calldatas, keccak256(bytes(proposal.description))) returns (uint256 proposalId_) {
             assertEq(proposalId_, proposal.proposalId);
             numberOfCalls['SFH.executeStandard.success']++;
@@ -365,8 +366,7 @@ contract StandardHandler is Handler {
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
 
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-
+        // (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
         // if (systemTime >= 900) {
         //     // skip time to the end of the challenge stage
         //     vm.roll(endBlock + 50401);
@@ -509,6 +509,7 @@ contract StandardHandler is Handler {
         TestProposal storage testProposal = testProposals[proposalId_];
         testProposal.proposalId = proposalId_;
         testProposal.description = description;
+        testProposal.totalTokensRequested = totalTokensRequested;
         for (uint i = 0; i < params.length; ++i) {
             testProposal.params.push(params[i]);
         }

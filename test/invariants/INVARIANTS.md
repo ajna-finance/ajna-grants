@@ -2,6 +2,7 @@
 
 ## Treasury Invariants:
    - **T1**: The Grant Fund's `treasury` should always be less than or equal to the contract's token balance.
+   - **T2**: The Grant Fund's `treasury` should always be less than or equal to the Ajna token total supply.
 
 ## Standard Funding Mechanism Invariants
 
@@ -74,6 +75,5 @@
     - **VE3**: Votes cast must always be positive.
     - **VE4**: A voter should never be able to cast more votes than the Ajna token supply.
 
-<!--
-   - TODO: Unused proposal states (canceled, queued, etc) should always be 0.
- -->
+## Global Invariants:
+   - **G1**: A proposal should never enter an unused state (canceled, queued, expired).

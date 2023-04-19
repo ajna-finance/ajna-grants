@@ -42,6 +42,7 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         currentBlock = block.number;
     }
 
+    // TODO: add invariant specific to this test that the treasury never increases past the initial treasury value
     function invariant_DP1_DP2_DP3_DP4_DP5_DP6() external {
         uint24 distributionId = _grantFund.getDistributionId();
         (
@@ -179,21 +180,30 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         }
     }
 
-    function invariant_T1() external {
-        // invariant T1: The Grant Fund's treasury should always be less than or equal to the contract's token blance.
-        assertTrue(_ajna.balanceOf(address(_grantFund)) >= _grantFund.treasury());
+    function invariant_T1_T2() external view {
+        require(
+            _grantFund.treasury() <= _ajna.balanceOf(address(_grantFund)),
+            "invariant T1: The Grant Fund's treasury should always be less than or equal to the contract's token blance"
+        );
+
+        require(
+            _grantFund.treasury() <= _ajna.totalSupply(),
+            "invariant T2: The Grant Fund's treasury should always be less than or equal to the Ajna token total supply"
+        );
     }
 
     function invariant_call_summary() external view {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _standardHandler.logCallSummary();
+        console.log("Delegation Rewards Claimed: ", _standardHandler.numberOfCalls('SFH.claimDelegateReward.success'));
+        console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.executeStandard.success'));
+        console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
+        console.log("Slate Update Count:         ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
         // _standardHandler.logProposalSummary();
         // _standardHandler.logActorSummary(distributionId, true, true);
 
         console.log("current distributionId: %s", distributionId);
-        console.log("block number:           %s", block.number);
-        console.log("current block:          %s", currentBlock);
         // TODO: need to be able to log all the different type of summaries
         // _logFinalizeSummary(distributionId);
     }
