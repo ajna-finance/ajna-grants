@@ -126,13 +126,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // update Treasury with unused funds from last two distributions
         {
             // Check if any last distribution exists and its challenge stage is over
-            if ( currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistributionEndBlock))) {
+            if (currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistributionEndBlock))) {
                 // Add unused funds from last distribution to treasury
                 _updateTreasury(currentDistributionId);
             }
 
             // checks if any second last distribution exist and its unused funds are not added into treasury
-            if ( currentDistributionId > 1 && !_isSurplusFundsUpdated[currentDistributionId - 1]) {
+            if (currentDistributionId > 1 && !_isSurplusFundsUpdated[currentDistributionId - 1]) {
                 // Add unused funds from second last distribution to treasury
                 _updateTreasury(currentDistributionId - 1);
             }
@@ -300,7 +300,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function updateSlate(
         uint256[] calldata proposalIds_,
         uint24 distributionId_
-    ) external override returns (bool) {
+    ) external override returns (bool newTopSlate_) {
         QuarterlyDistribution storage currentDistribution = _distributions[distributionId_];
 
         // store number of proposals for reduced gas cost of iterations
@@ -313,12 +313,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         bytes32 currentSlateHash = currentDistribution.fundedSlateHash;
         bytes32 newSlateHash     = keccak256(abi.encode(proposalIds_));
 
-        // check if slate of proposals is new top slate
-        bool newTopSlate = currentSlateHash == 0 ||
+        // check if slate of proposals is better than the existing slate, and is thus the new top slate
+        newTopSlate_ = currentSlateHash == 0 ||
             (currentSlateHash!= 0 && sum > _sumProposalFundingVotes(_fundedProposalSlates[currentSlateHash]));
 
         // if slate of proposals is new top slate, update state
-        if (newTopSlate) {
+        if (newTopSlate_) {
             uint256[] storage existingSlate = _fundedProposalSlates[newSlateHash];
 
             for (uint i = 0; i < numProposalsInSlate; ) {
@@ -337,8 +337,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 newSlateHash
             );
         }
-
-        return newTopSlate;
     }
 
     /// @inheritdoc IStandardFunding
