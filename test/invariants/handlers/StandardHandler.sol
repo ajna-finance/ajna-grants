@@ -240,7 +240,7 @@ contract StandardHandler is Handler {
     }
 
     // FIXME: can a proposal slate have no proposals?
-    function updateSlate(uint256 actorIndex_, uint256 proposalSeed) external useCurrentBlock useRandomActor(actorIndex_) {
+    function updateSlate(uint256 actorIndex_, uint256 proposalSeed_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.updateSlate']++;
         systemTime++;
 
@@ -260,15 +260,16 @@ contract StandardHandler is Handler {
         uint256[] memory topTen = _grantFund.getTopTenProposals(distributionId);
 
         // construct potential slate of proposals
-        uint256 potentialSlateLength = constrictToRange(proposalSeed, 1, topTen.length);
+        uint256 potentialSlateLength = constrictToRange(proposalSeed_, 1, topTen.length);
         uint256[] memory potentialSlate = new uint256[](potentialSlateLength);
 
         bool happyPath = true;
 
         if (happyPath) {
+            if (potentialSlateLength > 4) potentialSlateLength = 4;
             // get subset of top ten in order
             for (uint i = 0; i < potentialSlateLength; ++i) {
-                potentialSlate[i] = topTen[i];
+                potentialSlate[i] = _findUnusedProposalId(potentialSlate, topTen);
             }
         }
         else {
@@ -666,6 +667,22 @@ contract StandardHandler is Handler {
 
             ++i;
         }
+    }
+
+    // find a proposalId in an array of potential proposalIds that isn't already present in another array
+    function _findUnusedProposalId(uint256[] memory usedProposals_, uint256[] memory potentialProposals_) internal returns (uint256) {
+        uint256 proposalId = potentialProposals_[constrictToRange(randomSeed(), 0, potentialProposals_.length - 1)];
+
+        // check if proposalId is already in the array
+        for (uint256 i = 0; i < usedProposals_.length; ++i) {
+            if (usedProposals_[i] != proposalId) {
+                // if it hasn't been used, then return out
+                return proposalId;
+            }
+        }
+
+        // if random proposal was already used, then try again
+        return _findUnusedProposalId(usedProposals_, potentialProposals_);
     }
 
     /**************************/
