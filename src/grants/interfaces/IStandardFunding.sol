@@ -191,7 +191,7 @@ interface IStandardFunding {
      * @param  values_          List of values to be sent with the proposal calldata. Should be 0 for all proposals.
      * @param  calldatas_       List of calldata to be executed. Should be the transfer() method.
      * @param  descriptionHash_ Hash of proposal's description string.
-     * @return proposalId of the executed proposal.
+     * @return proposalId_      The id of the executed proposal.
      */
      function executeStandard(
         address[] memory targets_,
@@ -207,7 +207,7 @@ interface IStandardFunding {
      * @param  values_      List of values to be sent with the proposal calldata. Should be 0 for all proposals.
      * @param  calldatas_   List of calldata to be executed. Should be the transfer() method.
      * @param  description_ Proposal's description string.
-     * @return proposalId The id of the newly created proposal.
+     * @return proposalId_  The id of the newly created proposal.
      */
     function proposeStandard(
         address[] memory targets_,
@@ -262,7 +262,7 @@ interface IStandardFunding {
      * @notice Retrieve the delegate reward accrued to a voter in a given distribution period.
      * @param  distributionId_ The  to calculate rewards for.
      * @param  voter_          The address of the voter to calculate rewards for.
-     * @return rewards        The rewards earned by the voter for voting in that distribution period.
+     * @return rewards_        The rewards earned by the voter for voting in that distribution period.
      */
     function getDelegateReward(
         uint24 distributionId_,
@@ -369,7 +369,7 @@ interface IStandardFunding {
      * @dev    This value will be the square of the voter's token balance at the snapshot blocks.
      * @param  distributionId_ The distributionId of the distribution period to check.
      * @param  account_        The address of the voter to check.
-     * @return votes          The voter's remaining quadratic voting power.
+     * @return votes_          The voter's remaining quadratic voting power.
      */
     function getVotesFunding(uint24 distributionId_, address account_) external view returns (uint256 votes_);
 
@@ -377,7 +377,7 @@ interface IStandardFunding {
      * @notice Get the voter's voting power in the screening stage of a distribution period.
      * @param  distributionId_ The distributionId of the distribution period to check.
      * @param  account_        The address of the voter to check.
-     * @return votes           The voter's voting power.
+     * @return votes_           The voter's voting power.
      */
     function getVotesScreening(uint24 distributionId_, address account_) external view returns (uint256 votes_);
 

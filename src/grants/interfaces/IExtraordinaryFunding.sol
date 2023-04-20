@@ -69,7 +69,7 @@ interface IExtraordinaryFunding {
     function proposeExtraordinary(
         uint256 endBlock_,
         address[] memory targets_,
-        uint256[] memory values,
+        uint256[] memory values_,
         bytes[] memory calldatas_,
         string memory description_
     ) external returns (uint256 proposalId_);
