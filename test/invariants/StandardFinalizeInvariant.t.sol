@@ -34,17 +34,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
         currentBlock = fundingStageStartBlock + 100;
 
         // cast funding votes on proposals
-        try _standardHandler.fundingVoteProposals() {
-
-        }
-        catch (bytes memory _err){
-            bytes32 err = keccak256(_err);
-            require(
-                err == keccak256(abi.encodeWithSignature("InvalidVote()")) ||
-                err == keccak256(abi.encodeWithSignature("InsufficientVotingPower()")) ||
-                err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()"))
-            );
-        }
+        _standardHandler.fundingVoteProposals();
 
         _standardHandler.setCurrentScenarioType(Handler.ScenarioType.Medium);
 
@@ -150,10 +140,9 @@ contract StandardFinalizeInvariant is StandardTestBase {
             // invariant ES2: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round.
             assertEq(distributionId, proposalDistributionId);
             if (executed) {
-                (, , uint48 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-                assertGt(block.number, endBlock + 50400);
+                (, , uint48 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(proposalDistributionId);
                 require(
-                    block.number > endBlock + 50400,
+                    currentBlock > endBlock + 50400,
                     "invariant ES2: A proposal can only be executed after the challenge stage is complete."
                 );
             }

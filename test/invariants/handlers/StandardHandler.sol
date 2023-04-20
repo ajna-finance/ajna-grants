@@ -4,6 +4,7 @@ pragma solidity 0.8.16;
 
 import { console }  from "@std/console.sol";
 import { Test }     from "forge-std/Test.sol";
+import { Math }     from "@oz/utils/math/Math.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings }  from "@oz/utils/Strings.sol";
 
@@ -409,6 +410,7 @@ contract StandardHandler is Handler {
         for (uint256 i = 0; i < actors.length; ++i) {
             // get an actor who hasn't already voted
             address actor = actors[i];
+            console.log("actor: ", actor);
 
             // actor votes on random number of proposals
             _fundingVoteProposal(actor, constrictToRange(randomSeed(), 1, 10));
@@ -515,39 +517,42 @@ contract StandardHandler is Handler {
         }
     }
 
+    // if taking the happy path, array length may not match numProposalsToVoteOn_
     function _fundingVoteParams(address actor_, uint256 numProposalsToVoteOn_, bool happyPath_) internal returns (IStandardFunding.FundingVoteParams[] memory fundingVoteParams_) {
         uint24 distributionId = _grantFund.getDistributionId();
         (uint256 votingPower, uint256 remainingVotingPower, ) = _grantFund.getVoterInfo(distributionId, actor_);
         uint256 votingPowerUsed = votingPower - remainingVotingPower;
+        if (votingPower == 0) {
+            votingPower = _grantFund.getVotesFunding(distributionId, actor_);
+            votingPowerUsed = 0;
+        }
 
         fundingVoteParams_ = new IStandardFunding.FundingVoteParams[](numProposalsToVoteOn_);
 
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
 
         // generate the array of fundingVoteParams structs
-        for (uint256 i = 0; i < numProposalsToVoteOn_; ) {
+        uint256 i = 0;
+        for (i; i < numProposalsToVoteOn_; ) {
             // get a random proposal
             uint256 proposalId = randomProposal();
 
             // get the random number of votes to cast
             // Take the square root of the voting power to determine how many votes are actually available for casting
-            int256 votesToCast = int256(constrictToRange(randomSeed(), 0, _grantFund.getFundingPowerVotes(votingPower)));
+            int256 votesToCast = int256(constrictToRange(randomSeed(), 0, Math.sqrt(votingPower)));
 
             // if we should account for previous votes, then we need to make sure that the votes used are less than the available votes
             // flag is useful for generating vote params for a happy path required for test setup, as well as the chaotic path.
             if (happyPath_) {
-                votesToCast = int256(constrictToRange(randomSeed(), 0, _grantFund.getFundingPowerVotes(votingPower - votingPowerUsed)));
+                votesToCast = int256(constrictToRange(randomSeed(), 0, Math.sqrt(votingPower - votingPowerUsed)));
 
                 // if taking the happy path, set proposalId to a random proposal in the top ten
                 if (_findProposalIndexOfVotesCast(proposalId, fundingVoteParams_) == -1) {
                     proposalId = topTenProposals[constrictToRange(randomSeed(), 0, topTenProposals.length - 1)];
                 }
 
-                int256 priorVoteIndex = -1;
-
-                // FIXME: check prior votes as well as future votes?
-                    // this may not be possible as we don't yet know what the pending votes will be...
                 // check for any previous votes on this proposal
+                int256 priorVoteIndex = -1;
                 IStandardFunding.FundingVoteParams[] memory priorVotes = votingActors[actor_][distributionId].fundingVotes;
                 for (uint256 j = 0; j < priorVotes.length; ++j) {
                     // if we have already voted on this proposal, then we need to update the votes used
@@ -568,6 +573,22 @@ contract StandardHandler is Handler {
                 else {
                     votingPowerUsed += Maths.wpow(uint256(Maths.abs(votesToCast)), 2);
                 }
+
+                // check if additional vote would break the happy path
+                if (Maths.wpow(SafeCast.toUint256(Maths.abs(votesToCast)), 2) > votingPower - votingPowerUsed) {
+                    // resize array before breaking out of the happy path
+                    assembly { mstore(fundingVoteParams_, i) }
+                    break;
+                }
+
+                // generate funding vote params
+                fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
+                    proposalId: proposalId,
+                    votesUsed: votesToCast
+                });
+
+                // start voting on the next proposal
+                ++i;
             }
             else {
                 // flip a coin to see if should instead use a negative vote
@@ -582,14 +603,6 @@ contract StandardHandler is Handler {
                     continue;
                 }
             }
-
-            // generate funding vote params
-            fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
-                proposalId: proposalId,
-                votesUsed: votesToCast
-            });
-
-            ++i;
         }
     }
 
@@ -606,7 +619,7 @@ contract StandardHandler is Handler {
 
         // record cast votes
         VotingActor storage actor = votingActors[actor_][distributionId];
-        for (uint256 i = 0; i < numProposalsToVoteOn_; ) {
+        for (uint256 i = 0; i < fundingVoteParams.length; ) {
             actor.fundingVotes.push(fundingVoteParams[i]);
             fundingVotesCast++;
 
