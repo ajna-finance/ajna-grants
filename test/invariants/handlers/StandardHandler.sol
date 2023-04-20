@@ -515,17 +515,14 @@ contract StandardHandler is Handler {
         }
     }
 
-    // TODO: need to add support for different types of param generation -> turn this into a factory
     function _fundingVoteParams(address actor_, uint256 numProposalsToVoteOn_, bool happyPath_) internal returns (IStandardFunding.FundingVoteParams[] memory fundingVoteParams_) {
         uint24 distributionId = _grantFund.getDistributionId();
-        uint256 votingPower = _grantFund.getVotesFunding(distributionId, actor_);
-
-        // Take the square root of the voting power to determine how many votes are actually available for casting
-        uint256 availableVotes = _grantFund.getFundingPowerVotes(votingPower);
+        (uint256 votingPower, uint256 remainingVotingPower, ) = _grantFund.getVoterInfo(distributionId, actor_);
+        uint256 votingPowerUsed = votingPower - remainingVotingPower;
 
         fundingVoteParams_ = new IStandardFunding.FundingVoteParams[](numProposalsToVoteOn_);
 
-        uint256 votingPowerUsed;
+        uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
 
         // generate the array of fundingVoteParams structs
         for (uint256 i = 0; i < numProposalsToVoteOn_; ) {
@@ -533,54 +530,57 @@ contract StandardHandler is Handler {
             uint256 proposalId = randomProposal();
 
             // get the random number of votes to cast
-            int256 votesToCast = int256(constrictToRange(randomSeed(), 0, availableVotes));
+            // Take the square root of the voting power to determine how many votes are actually available for casting
+            int256 votesToCast = int256(constrictToRange(randomSeed(), 0, _grantFund.getFundingPowerVotes(votingPower)));
 
             // if we should account for previous votes, then we need to make sure that the votes used are less than the available votes
             // flag is useful for generating vote params for a happy path required for test setup, as well as the chaotic path.
             if (happyPath_) {
                 votesToCast = int256(constrictToRange(randomSeed(), 0, _grantFund.getFundingPowerVotes(votingPower - votingPowerUsed)));
 
-                uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
-
                 // if taking the happy path, set proposalId to a random proposal in the top ten
                 if (_findProposalIndexOfVotesCast(proposalId, fundingVoteParams_) == -1) {
                     proposalId = topTenProposals[constrictToRange(randomSeed(), 0, topTenProposals.length - 1)];
                 }
 
-                bool votedPrior = false;
+                int256 priorVoteIndex = -1;
 
-                // FIXME: check prior votes as well as pending votes.
+                // FIXME: check prior votes as well as future votes?
                     // this may not be possible as we don't yet know what the pending votes will be...
                 // check for any previous votes on this proposal
                 IStandardFunding.FundingVoteParams[] memory priorVotes = votingActors[actor_][distributionId].fundingVotes;
                 for (uint256 j = 0; j < priorVotes.length; ++j) {
                     // if we have already voted on this proposal, then we need to update the votes used
                     if (priorVotes[j].proposalId == proposalId) {
-                        // votesToCast = int256(constrictToRange(randomSeed(), 0, _grantFund.getFundingPowerVotes(votingPower - votingPowerUsed)));
                         votingPowerUsed += Maths.wpow(uint256(Maths.abs(priorVotes[j].votesUsed + votesToCast)), 2);
-                        votedPrior = true;
+                        priorVoteIndex = int256(j);
                         break;
                     }
                 }
 
-                if (!votedPrior) {
+                // Need to account for a proposal prior vote direction in test setup
+                if (priorVoteIndex != -1) {
+                    // check if prior vote was negative
+                    if (priorVotes[uint256(priorVoteIndex)].votesUsed < 0) {
+                        votesToCast = votesToCast * -1;
+                    }
+                }
+                else {
                     votingPowerUsed += Maths.wpow(uint256(Maths.abs(votesToCast)), 2);
                 }
-
             }
-
-            // TODO: happy path expects non negative? -> reverts with InvalidVote if used
-                // Need to account for a proposal prior vote direction in test setup
-            // flip a coin to see if should instead use a negative vote
-            if (randomSeed() % 2 == 0) {
-                numberOfCalls['SFH.negativeFundingVote']++;
-                // generate negative vote
-                fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
-                    proposalId: proposalId,
-                    votesUsed: -1 * votesToCast
-                });
-                ++i;
-                continue;
+            else {
+                // flip a coin to see if should instead use a negative vote
+                if (randomSeed() % 2 == 0) {
+                    numberOfCalls['SFH.negativeFundingVote']++;
+                    // generate negative vote
+                    fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
+                        proposalId: proposalId,
+                        votesUsed: -1 * votesToCast
+                    });
+                    ++i;
+                    continue;
+                }
             }
 
             // generate funding vote params
