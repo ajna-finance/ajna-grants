@@ -27,8 +27,8 @@ snapshot :; forge clean && forge snapshot --optimize --optimize-runs 1000000
 deploy-ajnatoken:
 	eval MINT_TO_ADDRESS=${mintto}
 	forge script script/AjnaToken.s.sol:DeployAjnaToken \
-		--rpc-url ${ETH_RPC_URL} --sender ${DEPLOY_ADDRESS} --keystore ${DEPLOY_KEY} --broadcast -vvv
+		--rpc-url ${ETH_RPC_URL} --sender ${DEPLOY_ADDRESS} --keystore ${DEPLOY_KEY} --broadcast -vvv --verify
 deploy-grantfund:
 	eval AJNA_TOKEN=${ajna}
 	forge script script/GrantFund.s.sol:DeployGrantFund \
-		--rpc-url ${ETH_RPC_URL} --sender ${DEPLOY_ADDRESS} --keystore ${DEPLOY_KEY} --broadcast -vvv
+		--rpc-url ${ETH_RPC_URL} --sender ${DEPLOY_ADDRESS} --keystore ${DEPLOY_KEY} --broadcast -vvv --verify
