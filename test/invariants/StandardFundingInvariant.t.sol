@@ -12,6 +12,9 @@ import { StandardHandler }  from "./handlers/StandardHandler.sol";
 
 contract StandardFundingInvariant is StandardTestBase {
 
+    // hash the top ten proposals at the start of the funding stage to check composition
+    bytes32 initialTopTenHash;
+
     // override setup to start tests in the funding stage with already screened proposals
     function setUp() public override {
         super.setUp();
@@ -41,6 +44,9 @@ contract StandardFundingInvariant is StandardTestBase {
             addr: address(_standardHandler),
             selectors: selectors
         }));
+
+        uint256[] memory initialTopTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
+        initialTopTenHash = keccak256(abi.encode(initialTopTenProposals));
     }
 
     function invariant_FS1_FS2_FS3() external {
@@ -70,7 +76,7 @@ contract StandardFundingInvariant is StandardTestBase {
         }
     }
 
-    function invariant_FS4_FS5_FS6_FS8() external {
+    function invariant_FS4_FS5_FS6_FS7_FS8() external {
         uint24 distributionId = _grantFund.getDistributionId();
 
         // check invariants against every actor
@@ -117,6 +123,11 @@ contract StandardFundingInvariant is StandardTestBase {
                 "invariant FS6: All voter funding votes on a proposal should be cast in the same direction. Multiple votes on the same proposal should see the voting power increase according to the combined cost of votes."
             );
         }
+
+        require(
+            keccak256(abi.encode(_grantFund.getTopTenProposals(distributionId))) == initialTopTenHash,
+            "invariant FS7: List of top ten proposals should never change once the funding stage has started"
+        );
     }
 
     function invariant_call_summary() external view {

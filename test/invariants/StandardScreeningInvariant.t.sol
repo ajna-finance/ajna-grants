@@ -142,7 +142,7 @@ contract StandardScreeningInvariant is StandardTestBase {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _standardHandler.logCallSummary();
-        _standardHandler.logProposalSummary();
+        // _standardHandler.logProposalSummary();
         _standardHandler.logActorSummary(distributionId, false, true);
     }
 

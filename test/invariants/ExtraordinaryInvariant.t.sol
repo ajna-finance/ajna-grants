@@ -16,7 +16,6 @@ contract ExtraordinaryInvariant is ExtraordinaryTestBase {
     function setUp() public override {
         super.setUp();
 
-        // TODO: need to setCurrentBlock?
         currentBlock = block.number;
 
         // set the list of function selectors to run
