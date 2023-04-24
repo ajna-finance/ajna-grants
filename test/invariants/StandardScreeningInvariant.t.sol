@@ -30,10 +30,11 @@ contract StandardScreeningInvariant is StandardTestBase {
 
     }
 
-    function invariant_SS1_SS3_SS4_SS5_SS6_SS7() external {
+    function invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS9() external {
         uint24 distributionId = _grantFund.getDistributionId();
         uint256 standardFundingProposalsSubmitted = _standardHandler.getStandardFundingProposals(distributionId).length;
-        uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
+        uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
+        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
         require(
             topTenProposals.length <= 10 && standardFundingProposalsSubmitted >= topTenProposals.length,
@@ -53,7 +54,7 @@ contract StandardScreeningInvariant is StandardTestBase {
 
                 require(
                     votesReceivedCurr >= 0 && votesReceivedNext >= 0,
-                    "invariant SS4: votes recieved for a proposal can only be positive"
+                    "invariant SS4: Screening votes recieved for a proposal can only be positive"
                 );
 
                 require(
@@ -72,10 +73,10 @@ contract StandardScreeningInvariant is StandardTestBase {
 
         // check invariants against all submitted proposals
         for (uint256 j = 0; j < standardFundingProposalsSubmitted; ++j) {
-            (, , uint256 votesReceived, , , ) = _grantFund.getProposalInfo(_standardHandler.standardFundingProposals(distributionId, j));
+            (uint256 proposalId, , uint256 votesReceived, , , ) = _grantFund.getProposalInfo(_standardHandler.standardFundingProposals(distributionId, j));
             require(
                 votesReceived >= 0,
-                "invariant SS4: votes recieved for a proposal can only be positive"
+                "invariant SS4: Screening votes recieved for a proposal can only be positive"
             );
 
             require(
@@ -84,7 +85,7 @@ contract StandardScreeningInvariant is StandardTestBase {
             );
 
             // check each submitted proposals votes against the last proposal in the top ten list
-            if (_findProposalIndex(_standardHandler.standardFundingProposals(distributionId, j), topTenProposals) == -1) {
+            if (_findProposalIndex(proposalId, topTenProposals) == -1) {
                 if (votesReceivedLast != 0) {
                     require(
                         votesReceived <= votesReceivedLast,
@@ -92,6 +93,13 @@ contract StandardScreeningInvariant is StandardTestBase {
                     );
                 }
             }
+
+            // TODO: account for multiple distribution periods?
+            TestProposal memory testProposal = _standardHandler.getTestProposal(proposalId);
+            require(
+                testProposal.blockAtCreation <= endBlock - 72000,
+                "invariant SS9: A proposal can only be created during a distribution period's screening stage"
+            );
         }
 
         // invariant SS6: proposals should be incorporated into the top ten list if, and only if, they have as many or more votes as the last member of the top ten list.

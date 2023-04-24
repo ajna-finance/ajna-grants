@@ -12,7 +12,6 @@ import { StandardHandler }  from "./handlers/StandardHandler.sol";
 
 contract StandardFundingInvariant is StandardTestBase {
 
-    // TODO: override the number of voting actors
     // override setup to start tests in the funding stage with already screened proposals
     function setUp() public override {
         super.setUp();

@@ -18,8 +18,8 @@
     - **SS1**: Only 10 proposals can advance to the funding stage
     - **SS2**: Users can only vote up to the amount of their voting power at the snapshot blocks.
     - **SS3**: Top ten list of screened proposals should be sorted in descending order.
-    - **SS4**: Vote's cast can only be positive.
-    - **SS5**: Votes can only be cast on a proposal in it's distribution period's screening stage.
+    - **SS4**: Screening vote's cast can only be positive.
+    - **SS5**: Screening votes can only be cast on a proposal in it's distribution period's screening stage.
     - **SS6**: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list (typically the 10th of course, but it may be shorter than ten proposals).
     - **SS7**: A proposal should never receive more vote than the Ajna token supply.
     - **SS8**: A proposal can only receive screening votes if it was created via `proposeStandard()`.

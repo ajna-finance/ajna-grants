@@ -797,6 +797,10 @@ contract StandardHandler is Handler {
         return proposalsExecuted;
     }
 
+    function getTestProposal(uint256 proposalId_) external view returns (TestProposal memory) {
+        return testProposals[proposalId_];
+    }
+
     function getVotingActorsInfo(address actor_, uint24 distributionId_) public view returns (IStandardFunding.FundingVoteParams[] memory, IStandardFunding.ScreeningVoteParams[] memory, uint256) {
         return (
             votingActors[actor_][distributionId_].fundingVotes,
