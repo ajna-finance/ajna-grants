@@ -222,7 +222,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
     }
 
     function _logFinalizeSummary(uint24 distributionId_) internal view {
-        (, , uint256 endBlock, uint128 fundsAvailable, , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId_);
+        (, , , uint128 fundsAvailable, , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId_);
         uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
 
         uint256[] memory topTenScreenedProposalIds = _grantFund.getTopTenProposals(distributionId_);

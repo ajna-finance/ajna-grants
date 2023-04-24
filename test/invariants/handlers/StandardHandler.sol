@@ -228,7 +228,7 @@ contract StandardHandler is Handler {
         }
     }
 
-    function updateSlate(uint256 actorIndex_, uint256 proposalSeed_) external useCurrentBlock useRandomActor(actorIndex_) {
+    function updateSlate(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.updateSlate']++;
 
         uint24 distributionId = _grantFund.getDistributionId();
@@ -768,12 +768,12 @@ contract StandardHandler is Handler {
     function logTimeSummary() external view {
         uint24 distributionId = _grantFund.getDistributionId();
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        console.log("\Time Summary\n");
+        console.log("\nTime Summary\n");
         console.log("------------------");
         console.log("Distribution Id:        %s", distributionId);
         console.log("end block:              %s", endBlock);
         console.log("block number:           %s", block.number);
-        console.log("current block:          %s", currentBlock);
+        console.log("current block:          %s", testContract.currentBlock());
         console.log("------------------");
     }
 
