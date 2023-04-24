@@ -17,7 +17,6 @@ contract StandardTestBase is TestBase {
     function setUp() public virtual override {
         super.setUp();
 
-        // TODO: modify this setup to enable use of random tokens not in treasury
         _standardHandler = new StandardHandler(
             payable(address(_grantFund)),
             address(_ajna),

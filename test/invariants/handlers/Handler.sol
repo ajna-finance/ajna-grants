@@ -43,8 +43,7 @@ contract Handler is Test, GrantFundTestHelper {
     string internal constant UNEXPECTED_REVERT = "UNEXPECTED_REVERT_ERROR";
 
     // used in roll() to determine if we are in a fast or slow scenario
-    // defaults to slow scenario types
-    uint8 internal _currentScenarioType = 2;
+    ScenarioType internal _currentScenarioType = ScenarioType.Slow;
 
     enum ScenarioType {
         Fast,
@@ -111,15 +110,15 @@ contract Handler is Test, GrantFundTestHelper {
 
         uint256 rollLimit = 300;
 
-        if (_currentScenarioType == uint8(ScenarioType.Fast)) {
+        if (_currentScenarioType == ScenarioType.Fast) {
             console.log("High roller");
             rollLimit = 30_000;
         }
-        else if (_currentScenarioType == uint8(ScenarioType.Medium)) {
+        else if (_currentScenarioType == ScenarioType.Medium) {
             console.log("Medium roller");
             rollLimit = 800;
         }
-        else if (_currentScenarioType == uint8(ScenarioType.Slow)) {
+        else if (_currentScenarioType == ScenarioType.Slow) {
             console.log("Low roller");
             rollLimit = 300;
         }
@@ -211,7 +210,7 @@ contract Handler is Test, GrantFundTestHelper {
     }
 
     function setCurrentScenarioType(ScenarioType scenarioType) public {
-        _currentScenarioType = uint8(scenarioType);
+        _currentScenarioType = scenarioType;
     }
 
     /***********************/

@@ -192,7 +192,6 @@ contract ExtraordinaryHandler is Handler {
         uint256 totalTokensRequested = 0;
         for (uint256 i = 0; i < numParams_; ++i) {
 
-            // TODO: use happy / chaotic path to determine amount to request
             // account for amount that was previously requested
             uint256 additionalTokensRequested = randomAmount((treasury * 9 /10) - totalTokensRequested);
             totalTokensRequested += additionalTokensRequested;

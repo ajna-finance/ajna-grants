@@ -443,13 +443,13 @@ contract StandardHandler is Handler {
 
     function getStage(uint24 distributionId_) internal view returns (bytes memory stage_) {
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId_);
-        if (block.number < endBlock - 72000) {
+        if (block.number <= endBlock - 72000) {
             stage_ = bytes("Screening");
         }
-        else if (block.number > endBlock - 72000 && block.number < endBlock) {
+        else if (block.number > endBlock - 72000 && block.number <= endBlock) {
             stage_ = bytes("Funding");
         }
-        else if (block.number > endBlock) {
+        else if (block.number > endBlock && block.number <= endBlock + 50400) {
             stage_ = bytes("Challenge");
         }
     }
