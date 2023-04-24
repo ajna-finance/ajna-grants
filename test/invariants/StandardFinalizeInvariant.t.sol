@@ -215,7 +215,9 @@ contract StandardFinalizeInvariant is StandardTestBase {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _standardHandler.logCallSummary();
-        // _standardHandler.logProposalSummary();
+        _standardHandler.logActorSummary(distributionId, false, false);
+        _standardHandler.logProposalSummary();
+        _standardHandler.logTimeSummary();
         _logFinalizeSummary(distributionId);
     }
 
@@ -225,21 +227,20 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
         uint256[] memory topTenScreenedProposalIds = _grantFund.getTopTenProposals(distributionId_);
 
-        console.log("end block:              %s", endBlock);
-        console.log("block number:           %s", block.number);
-        console.log("current block:          %s", currentBlock);
-
         console.log("\nFinalize Summary\n");
         console.log("------------------");
         console.log("Distribution Id:            ", distributionId_);
         console.log("Delegation Rewards Claimed: ", _standardHandler.numberOfCalls('SFH.claimDelegateReward.success'));
         console.log("Proposal Execute attempt:   ", _standardHandler.numberOfCalls('SFH.executeStandard.attempt'));
         console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.executeStandard.success'));
+        console.log("Slate Created:              ", _standardHandler.numberOfCalls('SFH.updateSlate.prep'));
         console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
         console.log("Slate Update Count:         ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
+        console.log("Next Slate length:          ", _standardHandler.numberOfCalls('updateSlate.length'));
         console.log("Top Slate Proposal Count:   ", topSlateProposalIds.length);
         console.log("Top Ten Proposal Count:     ", topTenScreenedProposalIds.length);
         console.log("Funds Available:            ", fundsAvailable);
+        console.log("Top slate funds requested:  ", _standardHandler.getTokensRequestedInFundedSlateInvariant(topSlateHash));
         console.log("------------------");
     }
 

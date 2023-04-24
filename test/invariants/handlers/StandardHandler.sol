@@ -29,9 +29,6 @@ contract StandardHandler is Handler {
     uint256 public screeningVotesCast;
     uint256 public fundingVotesCast;
 
-    // time counter
-    uint256 private systemTime = 0;
-
     struct VotingActor {
         IStandardFunding.FundingVoteParams[] fundingVotes; // list of funding votes made by an actor
         IStandardFunding.ScreeningVoteParams[] screeningVotes; // list of screening votes made by an actor
@@ -77,7 +74,6 @@ contract StandardHandler is Handler {
 
     function startNewDistributionPeriod(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) returns (uint24 newDistributionId_) {
         numberOfCalls['SFH.startNewDistributionPeriod']++;
-        systemTime++;
 
         try _grantFund.startNewDistributionPeriod() returns (uint24 newDistributionId) {
             newDistributionId_ = newDistributionId;
@@ -96,7 +92,6 @@ contract StandardHandler is Handler {
 
     function proposeStandard(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.proposeStandard']++;
-        systemTime++;
 
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
@@ -131,7 +126,6 @@ contract StandardHandler is Handler {
 
     function screeningVote(uint256 actorIndex_, uint256 proposalsToVoteOn_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.screeningVote']++;
-        systemTime++;
 
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
@@ -180,7 +174,6 @@ contract StandardHandler is Handler {
 
     function fundingVote(uint256 actorIndex_, uint256 proposalsToVoteOn_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.fundingVote']++;
-        systemTime++;
 
         // check where block is in the distribution period
         uint24 distributionId = _grantFund.getDistributionId();
@@ -193,16 +186,12 @@ contract StandardHandler is Handler {
         // bind proposalsToVoteOn_ to the number of proposals
         proposalsToVoteOn_ = constrictToRange(proposalsToVoteOn_, 0, standardFundingProposals[distributionId].length);
 
-        // TODO: make happy / chaotic path decision random / dynamic?
         // get the fundingVoteParams for the votes the actor is about to cast
         // take the chaotic path, and cast votes that will likely exceed the actor's voting power
         IStandardFunding.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(_actor, proposalsToVoteOn_, false);
 
         try _grantFund.fundingVote(fundingVoteParams) returns (uint256 votesCast) {
             numberOfCalls['SFH.fundingVote.success']++;
-
-            // TODO: can a proposal have 0 votes cast?
-            // assertGt(votesCast, 0);
 
             // check votesCast is equal to the sum of votes cast
             assertEq(votesCast, SafeCast.toUint256(sumFundingVotes(fundingVoteParams)));
@@ -239,10 +228,8 @@ contract StandardHandler is Handler {
         }
     }
 
-    // FIXME: can a proposal slate have no proposals?
     function updateSlate(uint256 actorIndex_, uint256 proposalSeed_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.updateSlate']++;
-        systemTime++;
 
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
@@ -251,10 +238,6 @@ contract StandardHandler is Handler {
         if (keccak256(getStage(distributionId)) != keccak256(bytes("Challenge"))) {
             return;
         }
-
-        // if (systemTime > 2800) {
-        //     return;
-        // }
 
         // get top ten proposals
         uint256[] memory topTen = _grantFund.getTopTenProposals(distributionId);
@@ -282,12 +265,12 @@ contract StandardHandler is Handler {
                 potentialSlate[i] = _findUnusedProposalId(potentialSlate, topTen);
             }
         }
-        // else {
-        //     // get random potentialSlate of proposals, may contain duplicates
-        //     for (uint i = 0; i < potentialSlateLength; ++i) {
-        //         potentialSlate[i] = topTen[randomSeed() % 10];
-        //     }
-        // }
+        else {
+            // get random potentialSlate of proposals, may contain duplicates
+            for (uint i = 0; i < potentialSlateLength; ++i) {
+                potentialSlate[i] = topTen[randomSeed() % 10];
+            }
+        }
 
         try _grantFund.updateSlate(potentialSlate, distributionId) returns (bool newTopSlate) {
             numberOfCalls['SFH.updateSlate.called']++;
@@ -324,17 +307,11 @@ contract StandardHandler is Handler {
 
     function executeStandard(uint256 actorIndex_, uint256 proposalToExecute_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.executeStandard']++;
-        systemTime++;
 
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
 
         (, , uint256 endBlock, , , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-
-        // if (systemTime >= 500) {
-        //     // skip time to the end of the challenge stage
-        //     vm.roll(endBlock + 50401);
-        // }
 
         if (block.number <= endBlock + 50400) return;
 
@@ -373,16 +350,9 @@ contract StandardHandler is Handler {
 
     function claimDelegateReward(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.claimDelegateReward']++;
-        systemTime++;
 
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
-
-        // (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        // if (systemTime >= 900) {
-        //     // skip time to the end of the challenge stage
-        //     vm.roll(endBlock + 50401);
-        // }
 
         try _grantFund.claimDelegateReward(distributionId) returns (uint256 rewardClaimed_) {
             numberOfCalls['SFH.claimDelegateReward.success']++;
@@ -492,7 +462,6 @@ contract StandardHandler is Handler {
     }
 
     function _createProposal() internal useRandomActor(randomSeed()) returns (uint256 proposalId_) {
-        // TODO: increase randomness of number of params, including potentially randomizing each separate param?
         // get a random number between 1 and 5
         uint256 numProposalParams = constrictToRange(randomSeed(), 1, 5);
 
@@ -779,11 +748,11 @@ contract StandardHandler is Handler {
         for (uint256 i = 0; i < proposals.length; ++i) {
             console.log("------------------");
             (uint256 proposalId, , uint128 votesReceived, uint128 tokensRequested, int128 fundingVotesReceived, bool executed) = _grantFund.getProposalInfo(proposals[i]);
-            console.log("proposalId:           ",  proposalId);
-            console.log("distributionId:       ",  distributionId);
-            console.log("executed:             ",  executed);
-            console.log("votesReceived:        ",  votesReceived);
-            console.log("tokensRequested:      ",  tokensRequested);
+            console.log("proposalId:              ",  proposalId);
+            console.log("distributionId:          ",  distributionId);
+            console.log("executed:                ",  executed);
+            console.log("screening votesReceived: ",  votesReceived);
+            console.log("tokensRequested:         ",  tokensRequested);
             if (fundingVotesReceived < 0) {
                 console.log("Negative fundingVotesReceived: ",  uint256(Maths.abs(fundingVotesReceived)));
             }
@@ -794,6 +763,18 @@ contract StandardHandler is Handler {
             console.log("------------------");
         }
         console.log("\n");
+    }
+
+    function logTimeSummary() external view {
+        uint24 distributionId = _grantFund.getDistributionId();
+        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        console.log("\Time Summary\n");
+        console.log("------------------");
+        console.log("Distribution Id:        %s", distributionId);
+        console.log("end block:              %s", endBlock);
+        console.log("block number:           %s", block.number);
+        console.log("current block:          %s", currentBlock);
+        console.log("------------------");
     }
 
     /***********************/

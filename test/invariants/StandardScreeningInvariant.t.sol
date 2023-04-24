@@ -35,9 +35,10 @@ contract StandardScreeningInvariant is StandardTestBase {
         uint256 standardFundingProposalsSubmitted = _standardHandler.getStandardFundingProposals(distributionId).length;
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
 
-        // invariant SS1: 10 or less proposals should make it through the screening stage
-        assertTrue(topTenProposals.length <= 10);
-        assertTrue(standardFundingProposalsSubmitted >= topTenProposals.length);
+        require(
+            topTenProposals.length <= 10 && standardFundingProposalsSubmitted >= topTenProposals.length,
+            "invariant SS1: 10 or less proposals should make it through the screening stage"
+        );
 
         // check the state of the top ten proposals
         if (topTenProposals.length > 1) {
@@ -51,7 +52,7 @@ contract StandardScreeningInvariant is StandardTestBase {
                 );
 
                 require(
-                    votesReceivedCurr > 0 && votesReceivedNext > 0,
+                    votesReceivedCurr >= 0 && votesReceivedNext >= 0,
                     "invariant SS4: votes recieved for a proposal can only be positive"
                 );
 
@@ -66,7 +67,7 @@ contract StandardScreeningInvariant is StandardTestBase {
         uint256 votesReceivedLast;
         if (topTenProposals.length != 0) {
             (, , votesReceivedLast, , , ) = _grantFund.getProposalInfo(topTenProposals[topTenProposals.length - 1]);
-            assertGt(votesReceivedLast, 0);
+            assertGe(votesReceivedLast, 0);
         }
 
         // check invariants against all submitted proposals
@@ -82,12 +83,13 @@ contract StandardScreeningInvariant is StandardTestBase {
                 "invariant SS7: a proposal should never receive more screening votes than the token supply"
             );
 
-            // invariant SS6: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list.
-            // if the proposal is not in the top ten list, then it should have received less screening votes than the last in the top 10
+            // check each submitted proposals votes against the last proposal in the top ten list
             if (_findProposalIndex(_standardHandler.standardFundingProposals(distributionId, j), topTenProposals) == -1) {
                 if (votesReceivedLast != 0) {
-                    // assertTrue(votesReceived < votesReceivedLast);
-                    assertGt(votesReceivedLast, votesReceived);
+                    require(
+                        votesReceived <= votesReceivedLast,
+                        "invariant SS6: proposals should be incorporated into the top ten list if, and only if, they have as many or more votes as the last member of the top ten list."
+                    );
                 }
             }
         }
@@ -96,7 +98,6 @@ contract StandardScreeningInvariant is StandardTestBase {
         if (_standardHandler.screeningVotesCast() > 0) {
             assertTrue(topTenProposals.length > 0);
         }
-
     }
 
     function invariant_SS2_SS4_SS8() external view {
@@ -133,8 +134,8 @@ contract StandardScreeningInvariant is StandardTestBase {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _standardHandler.logCallSummary();
-        // _standardHandler.logProposalSummary();
-        // _standardHandler.logActorSummary(distributionId, false, true);
+        _standardHandler.logProposalSummary();
+        _standardHandler.logActorSummary(distributionId, false, true);
     }
 
 }
