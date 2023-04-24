@@ -260,24 +260,34 @@ contract StandardHandler is Handler {
         uint256[] memory topTen = _grantFund.getTopTenProposals(distributionId);
 
         // construct potential slate of proposals
-        uint256 potentialSlateLength = constrictToRange(proposalSeed_, 1, topTen.length);
+        uint256 potentialSlateLength = 1;
         uint256[] memory potentialSlate = new uint256[](potentialSlateLength);
 
         bool happyPath = true;
-
         if (happyPath) {
-            if (potentialSlateLength > 4) potentialSlateLength = 4;
+            (, , , , , bytes32 slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+            // check length of existing top slate
+            if (slateHash[0] != 0) {
+                uint256[] memory currentSlate = _grantFund.getFundedProposalSlate(slateHash);
+                if (currentSlate.length < 9) {
+                    numberOfCalls['SFH.updateSlate.prep']++;
+                    potentialSlateLength = currentSlate.length + 1;
+                }
+                numberOfCalls['updateSlate.length'] = potentialSlateLength;
+            }
+            potentialSlate = new uint256[](potentialSlateLength);
+
             // get subset of top ten in order
             for (uint i = 0; i < potentialSlateLength; ++i) {
                 potentialSlate[i] = _findUnusedProposalId(potentialSlate, topTen);
             }
         }
-        else {
-            // get random potentialSlate of proposals, may contain duplicates
-            for (uint i = 0; i < potentialSlateLength; ++i) {
-                potentialSlate[i] = topTen[randomSeed() % 10];
-            }
-        }
+        // else {
+        //     // get random potentialSlate of proposals, may contain duplicates
+        //     for (uint i = 0; i < potentialSlateLength; ++i) {
+        //         potentialSlate[i] = topTen[randomSeed() % 10];
+        //     }
+        // }
 
         try _grantFund.updateSlate(potentialSlate, distributionId) returns (bool newTopSlate) {
             numberOfCalls['SFH.updateSlate.called']++;
@@ -411,7 +421,6 @@ contract StandardHandler is Handler {
         for (uint256 i = 0; i < actors.length; ++i) {
             // get an actor who hasn't already voted
             address actor = actors[i];
-            console.log("actor: ", actor);
 
             // actor votes on random number of proposals
             _fundingVoteProposal(actor, constrictToRange(randomSeed(), 1, 10));
@@ -631,7 +640,7 @@ contract StandardHandler is Handler {
     function _screeningVoteProposal(address actor_) internal {
         uint24 distributionId = _grantFund.getDistributionId();
 
-        uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), actor_);
+        uint256 votingPower = _grantFund.getVotesScreening(distributionId, actor_);
 
         // get random number of proposals to vote on
         uint256 numProposalsToVoteOn = constrictToRange(randomSeed(), 1, 10);
@@ -645,7 +654,10 @@ contract StandardHandler is Handler {
             uint256 proposalId = randomProposal();
 
             // account for already used voting power
-            uint256 additionalVotesUsed = randomAmount(votingPower - totalVotesUsed);
+            uint256 additionalVotesUsed = 0;
+            if (votingPower != 0) {
+                additionalVotesUsed = randomAmount(votingPower - totalVotesUsed);
+            }
             totalVotesUsed += additionalVotesUsed;
 
             // generate screening vote params

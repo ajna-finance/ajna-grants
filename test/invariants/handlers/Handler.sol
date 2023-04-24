@@ -5,6 +5,7 @@ pragma solidity 0.8.16;
 import { console } from "@std/console.sol";
 import { Test }    from "forge-std/Test.sol";
 import { Strings } from "@oz/utils/Strings.sol";
+import { Math }    from "@oz/utils/math/Math.sol";
 
 import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
@@ -145,9 +146,6 @@ contract Handler is Test, GrantFundTestHelper {
             address actor = makeAddr(string(abi.encodePacked("Actor", Strings.toString(i))));
             actors_[i] = actor;
 
-            // add actor to forge _targetedSenders list
-            // targetSender(actor);
-
             // transfer ajna tokens to the actor
             if (tokensToDistribute_ - tokensDistributed == 0) {
                 break;
@@ -157,17 +155,16 @@ contract Handler is Test, GrantFundTestHelper {
             _ajna.transfer(actor, incrementalTokensDistributed);
             tokensDistributed += incrementalTokensDistributed;
 
-            // FIXME: this isn't currently delegating to other actors properly
             // actor delegates tokens randomly
+            changePrank(actor);
             if (randomSeed() % 2 == 0) {
                 // actor self delegates
-                changePrank(actor);
                 _ajna.delegate(actor);
             } else {
                 // actor delegates to a random actor
-                changePrank(actor);
-                if (actors.length > 0) {
-                    _ajna.delegate(randomActor());
+                if (i > 0) {
+                    address randomDelegate = actors_[constrictToRange(randomSeed(), 0, i)];
+                    _ajna.delegate(randomDelegate);
                 }
                 else {
                     // if no other actors are available (such as on the first iteration) self delegate
