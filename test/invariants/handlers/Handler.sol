@@ -220,4 +220,8 @@ contract Handler is Test, GrantFundTestHelper {
     function getActorsCount() public view returns(uint256) {
         return actors.length;
     }
+
+    function getCurrentScenarioType() public view returns(ScenarioType) {
+        return _currentScenarioType;
+    }
 }

@@ -36,6 +36,7 @@ contract StandardHandler is Handler {
     }
 
     struct DistributionState {
+        uint256 treasuryBeforeStart;
         uint256 treasuryAtStartBlock; // GrantFund treasury at the time startNewDistributionPeriod was called.
         bytes32 currentTopSlate; // slate hash of the current top proposal slate
         Slate[] topSlates; // assume that the last element in the list is the top slate
@@ -75,10 +76,12 @@ contract StandardHandler is Handler {
     function startNewDistributionPeriod(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) returns (uint24 newDistributionId_) {
         numberOfCalls['SFH.startNewDistributionPeriod']++;
 
-        try _grantFund.startNewDistributionPeriod() returns (uint24 newDistributionId) {
-            newDistributionId_ = newDistributionId;
+        uint24 newDistributionId = _grantFund.getDistributionId() + 1;
+        uint256 treasuryBeforeStart = _grantFund.treasury();
+        try _grantFund.startNewDistributionPeriod() returns (uint24 newDistributionId_) {
+            assertEq(newDistributionId, newDistributionId_);
             distributionStates[newDistributionId].treasuryAtStartBlock = _grantFund.treasury();
-
+            distributionStates[newDistributionId].treasuryBeforeStart = treasuryBeforeStart;
             vm.roll(block.number + 100);
         }
         catch (bytes memory _err){
@@ -308,6 +311,7 @@ contract StandardHandler is Handler {
     function executeStandard(uint256 actorIndex_, uint256 proposalToExecute_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.executeStandard']++;
 
+        // TODO: check for executable proposals in other distribution periods as well
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
 
@@ -408,8 +412,13 @@ contract StandardHandler is Handler {
         }
     }
 
-    function setDistributionTreasuryUpdated(uint24 distributionId_) external {
+    function setDistributionTreasuryUpdated(uint24 distributionId_) public {
         distributionStates[distributionId_].treasuryUpdated = true;
+    }
+
+    function updateTreasury(uint24 distributionId_, uint256 fundsAvailable_, bytes32 slateHash_) public returns (uint256 surplus_) {
+        surplus_ += fundsAvailable_ - getTokensRequestedInFundedSlateInvariant(slateHash_);
+        setDistributionTreasuryUpdated(distributionId_);
     }
 
     /**********************************/
@@ -767,9 +776,10 @@ contract StandardHandler is Handler {
 
     function logTimeSummary() external view {
         uint24 distributionId = _grantFund.getDistributionId();
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        (, uint256 startBlock, uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
         console.log("\nTime Summary\n");
         console.log("------------------");
+        console.log("start block:            %s", startBlock);
         console.log("Distribution Id:        %s", distributionId);
         console.log("end block:              %s", endBlock);
         console.log("block number:           %s", block.number);
@@ -787,6 +797,16 @@ contract StandardHandler is Handler {
 
     function getDistributionState(uint24 distributionId_) external view returns (DistributionState memory) {
         return distributionStates[distributionId_];
+    }
+
+    function getDistributionStartBlock(uint24 distributionId_) external view returns (uint256 startBlock_) {
+        (
+            ,
+            startBlock_,
+            ,
+            ,
+            ,
+        ) = _grantFund.getDistributionPeriodInfo(distributionId_);
     }
 
     function getStandardFundingProposals(uint24 distributionId_) external view returns (uint256[] memory) {
@@ -813,9 +833,9 @@ contract StandardHandler is Handler {
         uint256[] memory fundedProposals = _grantFund.getFundedProposalSlate(slateHash_);
         for (uint256 i = 0; i < fundedProposals.length; ++i) {
             (, , , uint128 tokensRequested, int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(fundedProposals[i]);
-            if (fundingVotesReceived > 0) {
+            // if (fundingVotesReceived > 0) {
                 tokensRequested_ += tokensRequested;
-            }
+            // }
         }
     }
 
