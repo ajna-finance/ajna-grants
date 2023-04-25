@@ -56,6 +56,8 @@ contract StandardHandler is Handler {
     mapping(address => mapping(uint24 => VotingActor)) internal votingActors; // actor => distributionId => VotingActor
     mapping(uint256 => TestProposal) public testProposals;                    // proposalId => TestProposal
 
+    mapping(uint24 => bool) public distributionIdSurplusAdded;
+
     /*******************/
     /*** Constructor ***/
     /*******************/
@@ -73,7 +75,7 @@ contract StandardHandler is Handler {
     /*** Wrapped Functions ***/
     /*************************/
 
-    function startNewDistributionPeriod(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) returns (uint24 newDistributionId_) {
+    function startNewDistributionPeriod(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.startNewDistributionPeriod']++;
 
         uint24 newDistributionId = _grantFund.getDistributionId() + 1;
@@ -414,6 +416,7 @@ contract StandardHandler is Handler {
 
     function setDistributionTreasuryUpdated(uint24 distributionId_) public {
         distributionStates[distributionId_].treasuryUpdated = true;
+        distributionIdSurplusAdded[distributionId_] = true;
     }
 
     function updateTreasury(uint24 distributionId_, uint256 fundsAvailable_, bytes32 slateHash_) public returns (uint256 surplus_) {
@@ -832,10 +835,8 @@ contract StandardHandler is Handler {
     function getTokensRequestedInFundedSlateInvariant(bytes32 slateHash_) public view returns (uint256 tokensRequested_) {
         uint256[] memory fundedProposals = _grantFund.getFundedProposalSlate(slateHash_);
         for (uint256 i = 0; i < fundedProposals.length; ++i) {
-            (, , , uint128 tokensRequested, int128 fundingVotesReceived, ) = _grantFund.getProposalInfo(fundedProposals[i]);
-            // if (fundingVotesReceived > 0) {
-                tokensRequested_ += tokensRequested;
-            // }
+            (, , , uint128 tokensRequested, , ) = _grantFund.getProposalInfo(fundedProposals[i]);
+            tokensRequested_ += tokensRequested;
         }
     }
 
