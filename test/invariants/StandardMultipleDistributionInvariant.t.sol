@@ -216,9 +216,21 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         console.log("scenario type", uint8(_standardHandler.getCurrentScenarioType()));
 
         console.log("Delegation Rewards Claimed: ", _standardHandler.numberOfCalls('SFH.claimDelegateReward.success'));
+        console.log("Proposal Execute attempt:   ", _standardHandler.numberOfCalls('SFH.executeStandard.attempt'));
         console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.executeStandard.success'));
+        console.log("Slate Update Prep:          ", _standardHandler.numberOfCalls('SFH.updateSlate.prep'));
+        console.log("Slate Update length:        ", _standardHandler.numberOfCalls('updateSlate.length'));
         console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
-        console.log("Slate Update Count:         ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
+        console.log("Slate Update Success:       ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
+        console.log("Slate Proposals:            ", _standardHandler.numberOfCalls('proposalsInSlates'));
+        console.log("unused proposal:            ", _standardHandler.numberOfCalls('unused.proposal'));
+        console.log("unexecuted proposal:        ", _standardHandler.numberOfCalls('unexecuted.proposal'));
+
+        if (_standardHandler.numberOfCalls('unexecuted.proposal') != 0) {
+            console.log("state of unexecuted:        ", uint8(_grantFund.state(_standardHandler.numberOfCalls('unexecuted.proposal'))));
+        }
+        // console.log("current distributionId: %s", distributionId);
+
         // _standardHandler.logProposalSummary();
         // _standardHandler.logActorSummary(distributionId, true, true);
 

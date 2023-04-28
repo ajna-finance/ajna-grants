@@ -60,6 +60,7 @@ abstract contract GrantFundTestHelper is Test {
 
     struct TestProposal {
         uint256 proposalId;
+        uint24 distributionId;
         string description;
         uint256 totalTokensRequested;
         uint256 blockAtCreation; // block number of test proposal creation
@@ -185,8 +186,9 @@ abstract contract GrantFundTestHelper is Test {
         // generate expected proposal state
         uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(keccak256(bytes("Standard Funding: ")), keccak256(bytes(description)))));
         uint256 startBlock = block.number.toUint64();
+        uint24 distributionId = grantFund_.getDistributionId();
 
-        (, , uint48 endBlock, , , ) = grantFund_.getDistributionPeriodInfo(grantFund_.getDistributionId());
+        (, , uint48 endBlock, , , ) = grantFund_.getDistributionPeriodInfo(distributionId);
 
         // submit proposal
         changePrank(proposer_);
@@ -206,7 +208,7 @@ abstract contract GrantFundTestHelper is Test {
         assertEq(proposalId, expectedProposalId);
 
         (GeneratedTestProposalParams[] memory params, uint256 totalTokensRequested) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
-        return TestProposal(proposalId, description, totalTokensRequested, block.number, params);
+        return TestProposal(proposalId, distributionId, description, totalTokensRequested, block.number, params);
     }
 
     function _createNProposals(GrantFund grantFund_, IAjnaToken token_, TestProposalParams[] memory testProposalParams_) internal returns (TestProposal[] memory) {

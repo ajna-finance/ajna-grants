@@ -13,6 +13,7 @@
     - **DP4**: A distribution's endBlock should be greater than its startBlock.
     - **DP5**: The treasury balance should be greater than the sum of the funds available in all distribution periods.
     - **DP6**: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury.
+    - **DP7**: A distribution period's surplus should only be readded to the treasury once.
 
 - #### Screening Stage:
     - **SS1**: Only 10 proposals can advance to the funding stage
