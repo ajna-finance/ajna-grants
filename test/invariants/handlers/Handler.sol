@@ -89,13 +89,15 @@ contract Handler is Test, GrantFundTestHelper {
     }
 
     modifier useRandomActor(uint256 actorIndex) {
-        vm.stopPrank();
-
         address actor = actors[constrictToRange(actorIndex, 0, actors.length - 1)];
         _actor = actor;
-        vm.startPrank(actor);
+
+        try vm.startPrank(_actor) {
+        } catch {
+            changePrank(_actor);
+        }
+
         _;
-        vm.stopPrank();
     }
 
     /*************************/
