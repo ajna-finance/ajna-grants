@@ -378,24 +378,25 @@ contract StandardHandler is Handler {
         }
     }
 
-    // TODO: claim delegte rewards across multiple distribution periods
     function claimDelegateReward(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.claimDelegateReward']++;
 
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
 
-        try _grantFund.claimDelegateReward(distributionId) returns (uint256 rewardClaimed_) {
+        uint24 distributionIdToClaim = _findUnclaimedReward(_actor, distributionId);
+
+        try _grantFund.claimDelegateReward(distributionIdToClaim) returns (uint256 rewardClaimed_) {
             numberOfCalls['SFH.claimDelegateReward.success']++;
 
             // should only be able to claim delegation rewards once
-            assertEq(votingActors[_actor][distributionId].delegationRewardsClaimed, 0);
+            assertEq(votingActors[_actor][distributionIdToClaim].delegationRewardsClaimed, 0);
 
             // rewards should be non zero
             assertTrue(rewardClaimed_ > 0);
 
             // record the newly claimed rewards
-            votingActors[_actor][distributionId].delegationRewardsClaimed = rewardClaimed_;
+            votingActors[_actor][distributionIdToClaim].delegationRewardsClaimed = rewardClaimed_;
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -718,6 +719,20 @@ contract StandardHandler is Handler {
                 if (state == IFunding.ProposalState.Succeeded) {
                     proposalId_ = topSlateProposalIds[j];
                 }
+            }
+            ++i;
+        }
+    }
+
+    function _findUnclaimedReward(address actor_, uint24 endingDistributionId_) internal returns (uint24 distributionIdToClaim_) {
+        for (uint24 i = 1; i <= endingDistributionId_; ) {
+            uint256 delegationReward = _grantFund.getDelegateReward(i, actor_);
+            numberOfCalls["delegationRewardSet"]++;
+            if (delegationReward > 0) {
+                // FIXME: delegation rewards never calculated as > 0?
+                numberOfCalls["delegationRewardSet"]++;
+                distributionIdToClaim_ = i;
+                break;
             }
             ++i;
         }
