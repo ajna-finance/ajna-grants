@@ -113,8 +113,6 @@ abstract contract GrantFundTestHelper is Test {
         token_.approve(address(grantFund_), treasury_);
         grantFund_.fundTreasury(treasury_);
 
-        // TODO: determine best way to distribute tokens to initial voters
-        // TODO: return the last voter funded
         if (initialVoters_.length != 0) {
             // initial minter distributes tokens to test addresses
             _transferAjnaTokens(token_, initialVoters_, initialVoterBalance_, tokenDeployer_);

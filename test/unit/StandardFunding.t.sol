@@ -617,20 +617,20 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // two of the non-current top 10 are moved up to the top two spots
         screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](2);
                 screeningVoteParams[0] = IStandardFunding.ScreeningVoteParams({
-            proposalId: testProposals[10].proposalId,
+            proposalId: testProposals[1].proposalId,
             votes: 15_000_000 * 1e18
         });
         screeningVoteParams[1] = IStandardFunding.ScreeningVoteParams({
-            proposalId: testProposals[11].proposalId,
+            proposalId: testProposals[6].proposalId,
             votes: 10_000_000 * 1e18
         });
         _screeningVote(_grantFund, screeningVoteParams, _tokenHolder2);
 
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         assertEq(screenedProposals.length, 10);
-        assertEq(screenedProposals[0].proposalId, testProposals[10].proposalId);
+        assertEq(screenedProposals[0].proposalId, testProposals[1].proposalId);
         assertEq(screenedProposals[0].votesReceived, 17_500_000 * 1e18);
-        assertEq(screenedProposals[1].proposalId, testProposals[11].proposalId);
+        assertEq(screenedProposals[1].proposalId, testProposals[6].proposalId);
         assertEq(screenedProposals[1].votesReceived, 12_500_000 * 1e18);
     }
 
