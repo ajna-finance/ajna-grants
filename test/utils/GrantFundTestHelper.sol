@@ -125,6 +125,15 @@ abstract contract GrantFundTestHelper is Test {
         changePrank(voter_);
         vm.expectEmit(true, true, false, true);
         emit DelegateRewardClaimed(voter_, distributionId_, claimedReward_);
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(address(grantFund_), voter_, claimedReward_);
+        grantFund_.claimDelegateReward(distributionId_);
+    }
+
+    function _claimZeroDelegateReward(GrantFund grantFund_, address voter_, uint24 distributionId_, uint256 claimedReward_) internal {
+        changePrank(voter_);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateRewardClaimed(voter_, distributionId_, claimedReward_);
         grantFund_.claimDelegateReward(distributionId_);
     }
 

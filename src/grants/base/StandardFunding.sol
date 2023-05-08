@@ -261,7 +261,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         );
 
         // transfer rewards to delegatee
-        IERC20(ajnaTokenAddress).safeTransfer(msg.sender, rewardClaimed_);
+        if (rewardClaimed_ != 0) IERC20(ajnaTokenAddress).safeTransfer(msg.sender, rewardClaimed_);
     }
 
     /**
@@ -279,17 +279,17 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 votingPowerAllocatedByDelegatee = voter_.votingPower - voter_.remainingVotingPower;
 
         // if none of the voter's voting power was allocated, they receive no rewards
-        if (votingPowerAllocatedByDelegatee == 0) return 0;
-
-        // calculate reward
-        // delegateeReward = 10 % of GBC distributed as per delegatee Voting power allocated
-        rewards_ = Maths.wdiv(
-            Maths.wmul(
-                currentDistribution_.fundsAvailable,
-                votingPowerAllocatedByDelegatee
-            ),
-            currentDistribution_.fundingVotePowerCast
-        ) / 10;
+        if (votingPowerAllocatedByDelegatee != 0) {
+            // calculate reward
+            // delegateeReward = 10 % of GBC distributed as per delegatee Voting power allocated
+            rewards_ = Maths.wdiv(
+                Maths.wmul(
+                    currentDistribution_.fundsAvailable,
+                    votingPowerAllocatedByDelegatee
+                ),
+                currentDistribution_.fundingVotePowerCast
+            ) / 10;
+        }
     }
 
     /***********************************/
