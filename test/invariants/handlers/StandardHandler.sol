@@ -271,12 +271,12 @@ contract StandardHandler is Handler {
                 numberOfCalls['unused.proposal'] = potentialSlate[i];
             }
         }
-        // else {
-        //     // get random potentialSlate of proposals, may contain duplicates
-        //     for (uint i = 0; i < potentialSlateLength; ++i) {
-        //         potentialSlate[i] = topTen[randomSeed() % 10];
-        //     }
-        // }
+        else {
+            // get random potentialSlate of proposals, may contain duplicates
+            for (uint i = 0; i < potentialSlateLength; ++i) {
+                potentialSlate[i] = topTen[randomSeed() % 10];
+            }
+        }
 
         try _grantFund.updateSlate(potentialSlate, distributionId) returns (bool newTopSlate) {
             numberOfCalls['SFH.updateSlate.called']++;
@@ -319,22 +319,7 @@ contract StandardHandler is Handler {
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
 
-        // bool happyPath = true;
-        // // TestProposal memory proposal = testProposals[randomProposal()];
-
-        // if (!happyPath) {
-        //     // // get a proposal from the current top funded slate
-        //     // (, , , , , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-        //     // uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
-        //     // if (topSlateProposalIds.length == 0) return;
-
-        //     // uint256 proposalIndex = constrictToRange(proposalToExecute_, 1, topSlateProposalIds.length) -1;
-        //     // proposal = testProposals[topSlateProposalIds[proposalIndex]];
-        // } else {
-        //     uint256 proposalId = _findUnexecutedProposalId(distributionId);
-        //     proposal = testProposals[proposalId];
-        // }
-
+        // TODO: implement unhappy path
         uint256 proposalId = _findUnexecutedProposalId(distributionId);
         TestProposal memory proposal = testProposals[proposalId];
         numberOfCalls['unexecuted.proposal'] = proposalId;
