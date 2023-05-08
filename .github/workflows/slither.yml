@@ -26,7 +26,7 @@ jobs:
 
       - name: Analyze GrantFund
         run: |
-          solc-select install 0.8.16 && solc-select use 0.8.16
+          solc-select install 0.8.18 && solc-select use 0.8.18
           slither src/grants/
         continue-on-error: true
         id: fund_analyzer

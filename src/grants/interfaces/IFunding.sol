@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 //slither-disable-next-line solc-version
-pragma solidity 0.8.16;
+pragma solidity 0.8.18;
 
 /**
  * @title Ajna Grant Coordination Fund Extraordinary Proposal flow.
