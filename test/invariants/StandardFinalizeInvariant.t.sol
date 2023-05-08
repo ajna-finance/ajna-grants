@@ -10,12 +10,15 @@ import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
 import { StandardTestBase } from "./base/StandardTestBase.sol";
 import { StandardHandler }  from "./handlers/StandardHandler.sol";
+import { Handler }          from "./handlers/Handler.sol";
 
 contract StandardFinalizeInvariant is StandardTestBase {
 
     // override setup to start tests in the challenge stage with proposals that have already been screened and funded
     function setUp() public override {
         super.setUp();
+
+        startDistributionPeriod();
 
         // create 15 proposals
         _standardHandler.createProposals(15);
@@ -28,25 +31,16 @@ contract StandardFinalizeInvariant is StandardTestBase {
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
         uint256 fundingStageStartBlock = endBlock - 72000;
         vm.roll(fundingStageStartBlock + 100);
-
-        // TODO: need to setCurrentBlock?
         currentBlock = fundingStageStartBlock + 100;
 
         // cast funding votes on proposals
-        try _standardHandler.fundingVoteProposals() {
+        _standardHandler.fundingVoteProposals();
 
-        }
-        catch (bytes memory _err){
-            bytes32 err = keccak256(_err);
-            require(
-                err == keccak256(abi.encodeWithSignature("InvalidVote()")) ||
-                err == keccak256(abi.encodeWithSignature("InsufficientVotingPower()")) ||
-                err == keccak256(abi.encodeWithSignature("FundingVoteWrongDirection()"))
-            );
-        }
+        _standardHandler.setCurrentScenarioType(Handler.ScenarioType.Medium);
 
         // skip time into the challenge stage
         vm.roll(endBlock + 100);
+        currentBlock = endBlock + 100;
 
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](5);
@@ -146,10 +140,9 @@ contract StandardFinalizeInvariant is StandardTestBase {
             // invariant ES2: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round.
             assertEq(distributionId, proposalDistributionId);
             if (executed) {
-                (, , uint48 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-                assertGt(block.number, endBlock + 50400);
+                (, , uint48 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(proposalDistributionId);
                 require(
-                    block.number > endBlock + 50400,
+                    currentBlock > endBlock + 50400,
                     "invariant ES2: A proposal can only be executed after the challenge stage is complete."
                 );
             }
@@ -222,7 +215,9 @@ contract StandardFinalizeInvariant is StandardTestBase {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _standardHandler.logCallSummary();
+        _standardHandler.logActorSummary(distributionId, false, false);
         _standardHandler.logProposalSummary();
+        _standardHandler.logTimeSummary();
         _logFinalizeSummary(distributionId);
     }
 
@@ -234,13 +229,18 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
         console.log("\nFinalize Summary\n");
         console.log("------------------");
+        console.log("Distribution Id:            ", distributionId_);
         console.log("Delegation Rewards Claimed: ", _standardHandler.numberOfCalls('SFH.claimDelegateReward.success'));
+        console.log("Proposal Execute attempt:   ", _standardHandler.numberOfCalls('SFH.executeStandard.attempt'));
         console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.executeStandard.success'));
+        console.log("Slate Created:              ", _standardHandler.numberOfCalls('SFH.updateSlate.prep'));
         console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
         console.log("Slate Update Count:         ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
+        console.log("Next Slate length:          ", _standardHandler.numberOfCalls('updateSlate.length'));
         console.log("Top Slate Proposal Count:   ", topSlateProposalIds.length);
         console.log("Top Ten Proposal Count:     ", topTenScreenedProposalIds.length);
         console.log("Funds Available:            ", fundsAvailable);
+        console.log("Top slate funds requested:  ", _standardHandler.getTokensRequestedInFundedSlateInvariant(topSlateHash));
         console.log("------------------");
     }
 

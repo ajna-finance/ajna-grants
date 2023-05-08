@@ -192,7 +192,6 @@ contract ExtraordinaryHandler is Handler {
         uint256 totalTokensRequested = 0;
         for (uint256 i = 0; i < numParams_; ++i) {
 
-            // TODO: use happy / chaotic path to determine amount to request
             // account for amount that was previously requested
             uint256 additionalTokensRequested = randomAmount((treasury * 9 /10) - totalTokensRequested);
             totalTokensRequested += additionalTokensRequested;
@@ -288,14 +287,6 @@ contract ExtraordinaryHandler is Handler {
 
     function getTestProposal(uint256 proposalId_) public view returns (TestProposalExtraordinary memory) {
         return testProposals[proposalId_];
-    }
-
-    function getSumVotesCast(address actor_) public view returns (uint256 sum_) {
-        ExtraordinaryVoteParams[] memory votes = votingActors[actor_].votes;
-
-        for (uint256 i = 0; i < votes.length; ++i) {
-            sum_ += votes[i].votesCast;
-        }
     }
 
 }

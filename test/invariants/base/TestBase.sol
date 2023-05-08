@@ -4,18 +4,19 @@ pragma solidity 0.8.18;
 
 import { Test }   from "@std/Test.sol";
 
-import { GrantFund }        from "../../../src/grants/GrantFund.sol";
+import { GrantFund } from "../../../src/grants/GrantFund.sol";
 
 import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
 import { TestAjnaToken }       from "../../utils/harness/TestAjnaToken.sol";
 
 contract TestBase is Test, GrantFundTestHelper {
+    // global variables
     IAjnaToken        internal  _ajna;
     GrantFund         internal  _grantFund;
 
     // token deployment variables
-    address internal _tokenDeployer = 0x666cf594fB18622e1ddB91468309a7E194ccb799;
+    address internal _tokenDeployer = makeAddr("tokenDeployer");
     uint256 public   _startBlock    = 16354861; // at this block on mainnet, all ajna tokens belongs to _tokenDeployer
 
     // initial treasury value

@@ -2,13 +2,16 @@
 
 pragma solidity 0.8.18;
 
+import { console } from "@std/console.sol";
 import { Test }    from "forge-std/Test.sol";
 import { Strings } from "@oz/utils/Strings.sol";
+import { Math }    from "@oz/utils/math/Math.sol";
+
+import { GrantFund } from "../../../src/grants/GrantFund.sol";
 
 import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
 
-import { GrantFund }        from "../../../src/grants/GrantFund.sol";
 import { IStandardFunding } from "../../../src/grants/interfaces/IStandardFunding.sol";
 
 import { ITestBase } from "../base/ITestBase.sol";
@@ -19,14 +22,14 @@ contract Handler is Test, GrantFundTestHelper {
     /*** State Variables ***/
     /***********************/
 
-    // state variables
-    IAjnaToken        internal  _ajna;
-    GrantFund         internal  _grantFund;
+    // global grant fund variables
+    IAjnaToken        public  _ajna;
+    GrantFund         public  _grantFund;
 
     // Test invariant contract
     ITestBase internal testContract;
 
-    // test params
+    // test variables
     address internal _actor; // currently active actor, used in useRandomActor modifier
     address[] public actors;
     address _tokenDeployer;
@@ -34,17 +37,18 @@ contract Handler is Test, GrantFundTestHelper {
     // logging
     mapping(bytes32 => uint256) public numberOfCalls;
 
-    // randomness counter
+    // randomness counter used in randomSeed()
     uint256 internal counter = 1;
 
     // constant error string when an unexpected revert is thrown
     string internal constant UNEXPECTED_REVERT = "UNEXPECTED_REVERT_ERROR";
 
-    // default to slow scenario types
-    uint8 internal _currentScenarioType = 1;
+    // used in roll() to determine if we are in a fast or slow scenario
+    ScenarioType internal _currentScenarioType = ScenarioType.Slow;
 
     enum ScenarioType {
         Fast,
+        Medium,
         Slow
     }
 
@@ -60,19 +64,17 @@ contract Handler is Test, GrantFundTestHelper {
         uint256 tokensToDistribute_,
         address testContract_
     ) {
-        // Ajna Token contract address on mainnet
+        // set global contract variables
         _ajna = IAjnaToken(token_);
-
-        // deploy growth fund contract
         _grantFund = GrantFund(grantFund_);
 
-        // token deployer
+        // set token deployer global variable
         _tokenDeployer = tokenDeployer_;
 
         // instantiate actors
         actors = _buildActors(numOfActors_, tokensToDistribute_);
 
-        // Test invariant contract
+        // set Test invariant contract
         testContract = ITestBase(testContract_);
     }
 
@@ -81,7 +83,7 @@ contract Handler is Test, GrantFundTestHelper {
     /*****************/
 
     modifier useCurrentBlock() {
-        // vm.roll(testContract.currentBlock());
+        vm.roll(testContract.currentBlock());
 
         _;
 
@@ -111,18 +113,26 @@ contract Handler is Test, GrantFundTestHelper {
 
         uint256 rollLimit = 300;
 
-        if (_currentScenarioType == uint8(ScenarioType.Fast)) {
-            rollLimit = 7000;
+        if (_currentScenarioType == ScenarioType.Fast) {
+            console.log("High roller");
+            rollLimit = 5_000;
+        }
+        else if (_currentScenarioType == ScenarioType.Medium) {
+            console.log("Medium roller");
+            rollLimit = 800;
+        }
+        else if (_currentScenarioType == ScenarioType.Slow) {
+            console.log("Low roller");
+            rollLimit = 300;
         }
 
         // determine a random number of blocks to roll, less than 100
         rollAmount_ = constrictToRange(rollAmount_, 0, rollLimit);
 
-        uint256 blockHeight = block.number + rollAmount_;
+        uint256 blockHeight = testContract.currentBlock() + rollAmount_;
 
         // roll forward to the selected block
         vm.roll(blockHeight);
-        testContract.setCurrentBlock(blockHeight);
     }
 
     /**************************/
@@ -147,17 +157,16 @@ contract Handler is Test, GrantFundTestHelper {
             _ajna.transfer(actor, incrementalTokensDistributed);
             tokensDistributed += incrementalTokensDistributed;
 
-            // FIXME: this isn't currently delegating to other actors properly
             // actor delegates tokens randomly
+            changePrank(actor);
             if (randomSeed() % 2 == 0) {
                 // actor self delegates
-                changePrank(actor);
                 _ajna.delegate(actor);
             } else {
                 // actor delegates to a random actor
-                changePrank(actor);
-                if (actors.length > 0) {
-                    _ajna.delegate(randomActor());
+                if (i > 0) {
+                    address randomDelegate = actors_[constrictToRange(randomSeed(), 0, i)];
+                    _ajna.delegate(randomDelegate);
                 }
                 else {
                     // if no other actors are available (such as on the first iteration) self delegate
@@ -203,12 +212,19 @@ contract Handler is Test, GrantFundTestHelper {
         return uint256(keccak256(abi.encodePacked(block.number, block.prevrandao, counter)));
     }
 
+    function setCurrentScenarioType(ScenarioType scenarioType) public {
+        _currentScenarioType = scenarioType;
+    }
+
+    /***********************/
+    /*** View Functions ****/
+    /***********************/
+
     function getActorsCount() public view returns(uint256) {
         return actors.length;
     }
 
-    function setCurrentScenarioType(ScenarioType scenarioType) public {
-        _currentScenarioType = uint8(scenarioType);
+    function getCurrentScenarioType() public view returns(ScenarioType) {
+        return _currentScenarioType;
     }
-
 }

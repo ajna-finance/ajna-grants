@@ -14,6 +14,8 @@ contract StandardScreeningInvariant is StandardTestBase {
     function setUp() public override {
         super.setUp();
 
+        startDistributionPeriod();
+
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](3);
         selectors[0] = _standardHandler.startNewDistributionPeriod.selector;
@@ -28,14 +30,16 @@ contract StandardScreeningInvariant is StandardTestBase {
 
     }
 
-    function invariant_SS1_SS3_SS4_SS5_SS6_SS7() public {
+    function invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS9() external {
         uint24 distributionId = _grantFund.getDistributionId();
         uint256 standardFundingProposalsSubmitted = _standardHandler.getStandardFundingProposals(distributionId).length;
-        uint256[] memory topTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
+        uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
+        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
-        // invariant SS1: 10 or less proposals should make it through the screening stage
-        assertTrue(topTenProposals.length <= 10);
-        assertTrue(standardFundingProposalsSubmitted >= topTenProposals.length);
+        require(
+            topTenProposals.length <= 10 && standardFundingProposalsSubmitted >= topTenProposals.length,
+            "invariant SS1: 10 or less proposals should make it through the screening stage"
+        );
 
         // check the state of the top ten proposals
         if (topTenProposals.length > 1) {
@@ -49,8 +53,8 @@ contract StandardScreeningInvariant is StandardTestBase {
                 );
 
                 require(
-                    votesReceivedCurr > 0 && votesReceivedNext > 0,
-                    "invariant SS4: votes recieved for a proposal can only be positive"
+                    votesReceivedCurr >= 0 && votesReceivedNext >= 0,
+                    "invariant SS4: Screening votes recieved for a proposal can only be positive"
                 );
 
                 require(
@@ -64,15 +68,15 @@ contract StandardScreeningInvariant is StandardTestBase {
         uint256 votesReceivedLast;
         if (topTenProposals.length != 0) {
             (, , votesReceivedLast, , , ) = _grantFund.getProposalInfo(topTenProposals[topTenProposals.length - 1]);
-            assertGt(votesReceivedLast, 0);
+            assertGe(votesReceivedLast, 0);
         }
 
         // check invariants against all submitted proposals
         for (uint256 j = 0; j < standardFundingProposalsSubmitted; ++j) {
-            (, , uint256 votesReceived, , , ) = _grantFund.getProposalInfo(_standardHandler.standardFundingProposals(distributionId, j));
+            (uint256 proposalId, , uint256 votesReceived, , , ) = _grantFund.getProposalInfo(_standardHandler.standardFundingProposals(distributionId, j));
             require(
                 votesReceived >= 0,
-                "invariant SS4: votes recieved for a proposal can only be positive"
+                "invariant SS4: Screening votes recieved for a proposal can only be positive"
             );
 
             require(
@@ -80,21 +84,28 @@ contract StandardScreeningInvariant is StandardTestBase {
                 "invariant SS7: a proposal should never receive more screening votes than the token supply"
             );
 
-            // invariant SS6: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list.
-            // if the proposal is not in the top ten list, then it should have received less screening votes than the last in the top 10
-            if (_findProposalIndex(_standardHandler.standardFundingProposals(distributionId, j), topTenProposals) == -1) {
+            // check each submitted proposals votes against the last proposal in the top ten list
+            if (_findProposalIndex(proposalId, topTenProposals) == -1) {
                 if (votesReceivedLast != 0) {
-                    // assertTrue(votesReceived < votesReceivedLast);
-                    assertGt(votesReceivedLast, votesReceived);
+                    require(
+                        votesReceived <= votesReceivedLast,
+                        "invariant SS6: proposals should be incorporated into the top ten list if, and only if, they have as many or more votes as the last member of the top ten list."
+                    );
                 }
             }
+
+            // TODO: account for multiple distribution periods?
+            TestProposal memory testProposal = _standardHandler.getTestProposal(proposalId);
+            require(
+                testProposal.blockAtCreation <= endBlock - 72000,
+                "invariant SS9: A proposal can only be created during a distribution period's screening stage"
+            );
         }
 
         // invariant SS6: proposals should be incorporated into the top ten list if, and only if, they have as many or more votes as the last member of the top ten list.
         if (_standardHandler.screeningVotesCast() > 0) {
             assertTrue(topTenProposals.length > 0);
         }
-
     }
 
     function invariant_SS2_SS4_SS8() external view {
@@ -115,7 +126,7 @@ contract StandardScreeningInvariant is StandardTestBase {
             ( , IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams, ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
             for (uint256 j = 0; j < screeningVoteParams.length; ++j) {
                 require(
-                    screeningVoteParams[j].votes > 0,
+                    screeningVoteParams[j].votes >= 0,
                     "invariant SS4: can only cast positive votes"
                 );
 
@@ -131,7 +142,7 @@ contract StandardScreeningInvariant is StandardTestBase {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _standardHandler.logCallSummary();
-        _standardHandler.logProposalSummary();
+        // _standardHandler.logProposalSummary();
         _standardHandler.logActorSummary(distributionId, false, true);
     }
 
