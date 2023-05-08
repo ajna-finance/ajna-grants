@@ -1,4 +1,4 @@
-pragma solidity 0.8.16;
+pragma solidity 0.8.18;
 
 import { IExtraordinaryFunding } from "src/grants/interfaces/IExtraordinaryFunding.sol";
 import { IAjnaToken }            from "../../utils/IAjnaToken.sol";

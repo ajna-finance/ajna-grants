@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.18;
 
 import { GrantFund }           from "../../src/grants/GrantFund.sol";
 import { IFunding }            from "../../src/grants/interfaces/IFunding.sol";

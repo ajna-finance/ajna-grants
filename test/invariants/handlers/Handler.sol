@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.16;
+pragma solidity 0.8.18;
 
 import { console } from "@std/console.sol";
 import { Test }    from "forge-std/Test.sol";
@@ -90,13 +90,15 @@ contract Handler is Test, GrantFundTestHelper {
     }
 
     modifier useRandomActor(uint256 actorIndex) {
-        vm.stopPrank();
-
         address actor = actors[constrictToRange(actorIndex, 0, actors.length - 1)];
         _actor = actor;
-        vm.startPrank(actor);
+
+        try vm.startPrank(_actor) {
+        } catch {
+            changePrank(_actor);
+        }
+
         _;
-        vm.stopPrank();
     }
 
     /*************************/
@@ -206,7 +208,7 @@ contract Handler is Test, GrantFundTestHelper {
 
     function randomSeed() internal returns (uint256) {
         counter++;
-        return uint256(keccak256(abi.encodePacked(block.number, block.difficulty, counter)));
+        return uint256(keccak256(abi.encodePacked(block.number, block.prevrandao, counter)));
     }
 
     function setCurrentScenarioType(ScenarioType scenarioType) public {
