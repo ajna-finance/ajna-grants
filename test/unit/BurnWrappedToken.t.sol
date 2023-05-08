@@ -10,6 +10,10 @@ import { BurnWrappedAjna } from "../../src/token/BurnWrapper.sol";
 
 contract BurnWrappedTokenTest is Test {
 
+    /*************/
+    /*** Setup ***/
+    /*************/
+
     AjnaToken       internal _token;
     BurnWrappedAjna internal _wrappedToken;
 
@@ -45,6 +49,10 @@ contract BurnWrappedTokenTest is Test {
 
         assertTrue(wrapSuccess);
     }
+
+    /*************/
+    /*** Tests ***/
+    /*************/
 
     function testBaseInvariantMetadata() external {
         assertEq(_token.name(),     "AjnaToken");

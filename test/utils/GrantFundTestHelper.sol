@@ -10,6 +10,7 @@ import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.s
 import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
 import { IAjnaToken }       from "./IAjnaToken.sol";
+import { TestAjnaToken }    from "./harness/TestAjnaToken.sol";
 
 abstract contract GrantFundTestHelper is Test {
 
@@ -91,22 +92,50 @@ abstract contract GrantFundTestHelper is Test {
     uint8 voteNo = 0;
     uint8 voteYes = 1;
 
+    /***********************/
+    /*** Setup Functions ***/
+    /***********************/
+
+    function _deployAndFundGrantFund(address tokenDeployer_, uint256 treasury_, address[] memory initialVoters_, uint256 initialVoterBalance_) internal returns (GrantFund grantFund_, IAjnaToken token_) {
+        vm.startPrank(tokenDeployer_);
+
+        // deploy ajna token
+        TestAjnaToken token = new TestAjnaToken();
+
+        token_ = IAjnaToken(address(token));
+        token_.mint(tokenDeployer_, 1_000_000_000 * 1e18);
+
+        // deploy grant fund contract
+        grantFund_ = new GrantFund(address(token));
+
+        // initial minter distributes treasury to grantFund
+        changePrank(tokenDeployer_);
+        token_.approve(address(grantFund_), treasury_);
+        grantFund_.fundTreasury(treasury_);
+
+        if (initialVoters_.length != 0) {
+            // initial minter distributes tokens to test addresses
+            _transferAjnaTokens(token_, initialVoters_, initialVoterBalance_, tokenDeployer_);
+        }
+    }
+
     /****************************/
     /*** Ajna Token Functions ***/
     /****************************/
 
-    function _delegateVotes(IAjnaToken token_, address delegator_, address delegatee_) internal {
+    function _delegateVotes(IAjnaToken token_, address delegator_, address delegatee_, uint256 tokensDelegated_) internal {
         changePrank(delegator_);
         vm.expectEmit(true, true, false, true);
         emit DelegateChanged(delegator_, address(0), delegatee_);
         vm.expectEmit(true, true, false, true);
-        emit DelegateVotesChanged(delegatee_, 0, 50_000_000 * 1e18);
+        emit DelegateVotesChanged(delegatee_, 0, tokensDelegated_);
         token_.delegate(delegatee_);
     }
 
     function _selfDelegateVoters(IAjnaToken token_, address[] memory voters_) internal {
         for (uint256 i = 0; i < voters_.length; ++i) {
-            _delegateVotes(token_, voters_[i], voters_[i]);
+            uint256 tokenBalance = token_.balanceOf(voters_[i]);
+            _delegateVotes(token_, voters_[i], voters_[i], tokenBalance);
         }
     }
 

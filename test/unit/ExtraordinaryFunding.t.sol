@@ -4,11 +4,17 @@ pragma solidity 0.8.18;
 import { GrantFund }             from "../../src/grants/GrantFund.sol";
 import { IExtraordinaryFunding } from "../../src/grants/interfaces/IExtraordinaryFunding.sol";
 import { IFunding }              from "../../src/grants/interfaces/IFunding.sol";
-import { GrantFundTestHelper }   from "../utils/GrantFundTestHelper.sol";
+
 import { IAjnaToken }            from "../utils/IAjnaToken.sol";
+import { GrantFundTestHelper }   from "../utils/GrantFundTestHelper.sol";
+import { TestAjnaToken }         from "../utils/harness/TestAjnaToken.sol";
 import { DrainGrantFund }        from "../interactions/DrainGrantFund.sol";
 
 contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
+
+    /*************/
+    /*** Setup ***/
+    /*************/
 
     IAjnaToken        internal  _token;
     GrantFund         internal  _grantFund;
@@ -71,24 +77,15 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
     uint256 internal _startBlock      = 16354861;
 
     function setUp() external {
-        vm.createSelectFork(vm.envString("ETH_RPC_URL"), _startBlock);
-
-        vm.startPrank(_tokenDeployer);
-
-        // Ajna Token contract address on mainnet
-        _token = IAjnaToken(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
-
-        // deploy growth fund contract
-        _grantFund = new GrantFund();
-
-        // initial minter distributes tokens to test addresses
-        _transferAjnaTokens(_token, _votersArr, 50_000_000 * 1e18, _tokenDeployer);
-
-        // initial minter distributes treasury to grantFund
-        changePrank(_tokenDeployer);
-        _token.approve(address(_grantFund), 500_000_000 * 1e18);
-        _grantFund.fundTreasury(500_000_000 * 1e18);
+        // deploy grant fund, fund treasury, and transfer tokens to initial set of voters
+        uint256 treasury = 500_000_000 * 1e18;
+        uint256 initialVoterBalance = 20_000_000 * 1e18;
+        (_grantFund, _token) = _deployAndFundGrantFund(_tokenDeployer, treasury, _votersArr, initialVoterBalance);
     }
+
+    /*************/
+    /*** Tests ***/
+    /*************/
 
     function testGetVotingPowerExtraordinary() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
@@ -125,7 +122,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // check voting power is greater than 0 for extant proposal
         uint256 votingPower = _grantFund.getVotesExtraordinary(_tokenHolder1, testProposal.proposalId);
-        assertEq(votingPower, 50_000_000 * 1e18);
+        assertEq(votingPower, 20_000_000 * 1e18);
 
         // check voting with proposalId = 0
         vm.expectRevert(IExtraordinaryFunding.ExtraordinaryFundingProposalInactive.selector);
@@ -134,8 +131,8 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
     function testGetVotingPowerDelegateTokens() external {
         // token holder 1 self delegates
-        _delegateVotes(_token, _tokenHolder1, _tokenHolder1);
-        _delegateVotes(_token, _tokenHolder2, _tokenHolder2);
+        _delegateVotes(_token, _tokenHolder1, _tokenHolder1, _token.balanceOf(_tokenHolder1));
+        _delegateVotes(_token, _tokenHolder2, _tokenHolder2, _token.balanceOf(_tokenHolder2));
 
         vm.roll(_startBlock + 17);
 
@@ -158,7 +155,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // voter transfers some of their tokens after the snapshot block
         vm.roll(_startBlock + 25);
         changePrank(_tokenHolder1);
-        _token.transfer(_tokenHolder2, 25_000_000 * 1e18);
+        _token.transfer(_tokenHolder2, 5_000_000 * 1e18);
 
         // create and submit proposal at block 50
         vm.roll(_startBlock + 50);
@@ -174,21 +171,21 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // check voting power at vote start
         uint256 votingPower = _grantFund.getVotesExtraordinary(_tokenHolder1, testProposal.proposalId);
-        assertEq(votingPower, 25_000_000 * 1e18);
+        assertEq(votingPower, 15_000_000 * 1e18);
 
         vm.roll(_startBlock + 100);
 
-        // token holder transfers their remaining delegated tokens to a different address after vote start
+        // tokenHolder1 transfers their remaining delegated tokens to a different address after vote start
         changePrank(_tokenHolder1);
-        _token.transfer(_tokenHolder2, 20_000_000 * 1e18);
+        _token.transfer(_tokenHolder2, 15_000_000 * 1e18);
 
         // check voting power of tokenHolder1 matches minimum of snapshot period
         votingPower = _grantFund.getVotesExtraordinary(_tokenHolder1, testProposal.proposalId);
-        assertEq(votingPower, 25_000_000 * 1e18);
+        assertEq(votingPower, 15_000_000 * 1e18);
 
         // check voting power of tokenHolder2 is 50_000_000, since received tokens during the snapshot period need to be redelegated
         votingPower = _grantFund.getVotesExtraordinary(_tokenHolder2, testProposal.proposalId);
-        assertEq(votingPower, 50_000_000 * 1e18);
+        assertEq(votingPower, 20_000_000 * 1e18);
 
         // check voting power of tokenHolder3 is 0, since they missed the snapshot
         votingPower = _grantFund.getVotesExtraordinary(_tokenHolder3, testProposal.proposalId);
@@ -207,11 +204,11 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
     function testGetSliceOfNonTreasury() external {
         uint256 percentageRequested = 0.100000000000000000 * 1e18;
         uint256 percentageOfTreasury = _grantFund.getSliceOfNonTreasury(percentageRequested);
-        assertEq(percentageOfTreasury, 150_000_000 * 1e18);
+        assertEq(percentageOfTreasury, 50_000_000 * 1e18);
 
         percentageRequested = 0.055000000000000000 * 1e18;
         percentageOfTreasury = _grantFund.getSliceOfNonTreasury(percentageRequested);
-        assertEq(percentageOfTreasury, 82_500_000 * 1e18);
+        assertEq(percentageOfTreasury, 27_500_000 * 1e18);
     }
 
     /**
@@ -454,7 +451,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
         assertEq(proposalId, testProposal.proposalId);
         assertEq(tokensRequested, tokensRequestedParam);
-        assertEq(votesReceived, 23 * 50_000_000 * 1e18);
+        assertEq(votesReceived, 23 * 20_000_000 * 1e18);
         assertFalse(executed);
         assertTrue(_grantFund.getExtraordinaryProposalSucceeded(testProposal.proposalId));
 
@@ -492,13 +489,13 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             votesReceived,
             executed
         ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
-        assertEq(votesReceived, 23 * 50_000_000 * 1e18);
+        assertEq(votesReceived, 23 * 20_000_000 * 1e18);
         // assertTrue(succeeded);
         assertTrue(executed);
         assertTrue(_grantFund.getExtraordinaryProposalSucceeded(testProposal.proposalId));
 
         // check tokens transferred to the recipient address
-        assertEq(_token.balanceOf(_tokenHolder1), 100_000_000 * 1e18);
+        assertEq(_token.balanceOf(_tokenHolder1), 70_000_000 * 1e18);
         assertEq(_token.balanceOf(address(_grantFund)), 450_000_000 * 1e18);
 
         // check can't execute proposal twice
@@ -577,17 +574,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         _selfDelegateVoters(_token, _votersArr);
         address[] memory voters = _getVoters(noOfVoters);
 
-        // transfer remaining amount of total ajna supply to voters 
-        uint256 amountToTransfer = 300_000_000 * 1e18 / noOfVoters;
-
-        _transferAjnaTokens(_token, voters, amountToTransfer, _tokenDeployer);
-
-        // self delegate votes
-        for(uint i = 0; i < noOfVoters; i++) {
-            changePrank(voters[i]);
-            _token.delegate(voters[i]);
-        }
-
         vm.roll(_startBlock + 100);
 
         // set token required to be 10% of treasury
@@ -614,11 +600,11 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // execute all proposals
         for(uint i = 0; i < noOfProposals; i++) {
-            /* first 5 proposals are executed successfully and from 6th proposal each one will fail
+            /* first 4 proposals are executed successfully and from 6th proposal each one will fail
              as non-treasury amount and minimum threshold increases with each proposal execution,
              and the tokens available in the treasury decrease.
             */
-            if (i >= 6) {
+            if (i >= 4) {
                 // check that proposals which have enough votes won't pass if they requested too many tokens from the treasury
                 (, , , uint128 tokensRequested, uint120 votesReceived, ) = _grantFund.getExtraordinaryProposalInfo(testProposals[i].proposalId);
 

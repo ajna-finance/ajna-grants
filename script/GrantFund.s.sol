@@ -18,7 +18,7 @@ contract DeployGrantFund is Script {
 
         vm.startBroadcast();
         uint256 treasury = Maths.wmul(ajna.totalSupply(), TREASURY_PCT_OF_AJNA_SUPPLY);
-        address grantFund = address(new GrantFund());
+        address grantFund = address(new GrantFund(address(ajna)));
         vm.stopBroadcast();
 
         console.log("GrantFund deployed to %s", grantFund);
