@@ -953,13 +953,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
-    function getFundingPowerVotes(
-        uint256 votingPower_
-    ) external pure override returns (uint256) {
-        return Maths.wsqrt(votingPower_);
-    }
-
-    /// @inheritdoc IStandardFunding
     function getFundingVotesCast(uint24 distributionId_, address account_) external view override returns (FundingVoteParams[] memory) {
         return _quadraticVoters[distributionId_][account_].votesCast;
     }
@@ -983,6 +976,28 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256[] calldata proposalIds_
     ) external pure override returns (bytes32) {
         return keccak256(abi.encode(proposalIds_));
+    }
+
+    /**
+        * @notice Retrieve the current stage of the current distribution period.
+        * @return stage_ The stage of the current distribution period.
+     */
+    function getStage() external view returns (string memory stage_) {
+        QuarterlyDistribution memory currentDistribution = _distributions[_currentDistributionId];
+        uint256 endBlock = currentDistribution.endBlock;
+        if (block.number <= endBlock - FUNDING_PERIOD_LENGTH) {
+            stage_ = "Screening";
+        }
+        else if (block.number > endBlock - FUNDING_PERIOD_LENGTH && block.number <= endBlock) {
+            stage_ = "Funding";
+        }
+        else if (block.number > endBlock && block.number <= endBlock + CHALLENGE_PERIOD_LENGTH) {
+            stage_ = "Challenge";
+        }
+        else {
+            // a new distribution period needs to be started
+            stage_ = "Pending";
+        }
     }
 
     /// @inheritdoc IStandardFunding

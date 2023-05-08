@@ -290,17 +290,6 @@ interface IStandardFunding {
     ) external view returns (uint256[] memory);
 
     /**
-     * @notice Get the number of discrete votes that can be cast on proposals given a specified voting power.
-     * @dev    This is calculated by taking the square root of the voting power, and adjusting for WAD decimals.
-     * @dev    This approach results in precision loss, and prospective users should be careful.
-     * @param  votingPower_ The provided voting power to calculate discrete votes for.
-     * @return The square root of the votingPower as a WAD.
-     */
-    function getFundingPowerVotes(
-        uint256 votingPower_
-    ) external pure returns (uint256);
-
-    /**
      * @notice Get the list of funding votes cast by an account in a given distribution period.
      * @param  distributionId_   The distributionId of the distribution period to check.
      * @param  account_          The address of the voter to check.
