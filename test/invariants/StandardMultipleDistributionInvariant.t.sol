@@ -230,13 +230,7 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         if (_standardHandler.numberOfCalls('unexecuted.proposal') != 0) {
             console.log("state of unexecuted:        ", uint8(_grantFund.state(_standardHandler.numberOfCalls('unexecuted.proposal'))));
         }
-        // console.log("current distributionId: %s", distributionId);
-
         // _standardHandler.logProposalSummary();
         // _standardHandler.logActorSummary(distributionId, true, true);
-
-        console.log("current distributionId: %s", distributionId);
-        // TODO: need to be able to log all the different type of summaries
-        // _logFinalizeSummary(distributionId);
     }
 }
