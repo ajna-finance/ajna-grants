@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.18;
 
 import { SafeCast }  from "@oz/utils/math/SafeCast.sol";
 import { Math }      from "@oz/utils/math/Math.sol";
@@ -1043,8 +1043,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.expectRevert(IStandardFunding.RewardAlreadyClaimed.selector);
         _grantFund.claimDelegateReward(distributionId);
 
-        // transfers 0 ajna Token as _tokenHolder6 has not participated in funding stage
-        _claimDelegateReward(
+        // no ajna tokens transfered as _tokenHolder6 has not participated in funding stage
+        // transfer event should not be emitted
+        _claimZeroDelegateReward(
             {
                 grantFund_:        _grantFund,
                 voter_:            _tokenHolder6,

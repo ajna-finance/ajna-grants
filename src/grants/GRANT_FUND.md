@@ -5,7 +5,7 @@ As a decentralized protocol with no external governance, Ajna requires a sustain
 | Deployment | Address |
 | ---------: | ------- |
 | Mainnet    | (net yet deployed) |
-| Goerli     | [0xc9216387C7920C8a7b6C2cE4A44dEd5776a3B5B4](https://goerli.etherscan.io/address/0xc9216387C7920C8a7b6C2cE4A44dEd5776a3B5B4) |
+| Goerli     | [0x54110a15011bcb145a8CD4f5adf108B2B6939A1e](https://goerli.etherscan.io/address/0xc9216387C7920C8a7b6C2cE4A44dEd5776a3B5B4) |
 
 ## Design
 
@@ -74,15 +74,18 @@ See [README.md](../../README.md) for instructions using the `Makefile` target.
 Output should confirm the AJNA token address, provid the GrantFund address, and the amount of AJNA which should be transferred to the GrantFund adress:
 ```
 == Logs ==
-  Deploying GrantFund to chain with AJNA token address 0xaadebCF61AA7Da0573b524DE57c67aDa797D46c5
+  Deploying GrantFund to chain
   GrantFund deployed to 0xc9216387C7920C8a7b6C2cE4A44dEd5776a3B5B4
-  Please transfer 600000000 AJNA (600000000000000000000000000 WAD) into the treasury
+  Please transfer 300000000 AJNA (300000000000000000000000000 WAD) into the treasury
 ```
 
-Record the deployment address in your environment as `GRANTFUND_ADDRESS`.  As requested, transfer the specified amount of AJNA tokens to the GrantFund address.  WAD-scaled value was included in output for copy/paste convenience.
+Record the deployment address in your environment as `GRANTFUND_ADDRESS`.
+
+The Grant Fund is by default deployed without any Ajna tokens in it's treasury. To add tokens, someone must call `fundTreasury(uint256)` with the amount of Ajna tokens to transfer to the Grant Fund. **WARNING**: Ajna tokens transferred directly to the treasury won't be credited to the treasury balance if `fundTreasury` is circumvented.
 
 To perform the transfer, set `TREASURY_ADDRESS` and `TREASURY_KEY` to the appropriate values and run the following:
 
 ```
-cast send ${AJNA_TOKEN} "transfer(address,uint256)" ${GRANTFUND_ADDRESS} 600000000000000000000000000 --from ${TREASURY_ADDRESS} --keystore ${TREASURY_KEY} --rpc-url ${ETH_RPC_URL} 
+cast send ${AJNA_TOKEN} "approve(address,uint256)" ${GRANTFUND_ADDRESS} 300000000000000000000000000 --from ${TREASURY_ADDRESS} --keystore ${TREASURY_KEY} --rpc-url ${ETH_RPC_URL} 
+cast send ${GRANTFUND_ADDRESS} "fundTreasury(uint256)" 300000000000000000000000000 --from ${TREASURY_ADDRESS} --keystore ${TREASURY_KEY} --rpc-url ${ETH_RPC_URL} 
 ```

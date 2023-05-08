@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 //slither-disable-next-line solc-version
-pragma solidity 0.8.16;
+pragma solidity 0.8.18;
 
 /**
  * @title Ajna Grant Coordination Fund Extraordinary Proposal flow.
@@ -47,7 +47,7 @@ interface IExtraordinaryFunding {
      * @param targets_         The addresses of the contracts to call.
      * @param values_          The amounts of ETH to send to each target.
      * @param calldatas_       The calldata to send to each target.
-     * @param descriptionHash_ The hash of the proposal's description.
+     * @param descriptionHash_ The hash of the proposal's description string.
      * @return proposalId_     The ID of the executed proposal.
      */
     function executeExtraordinary(
@@ -95,7 +95,7 @@ interface IExtraordinaryFunding {
 
     /**
      * @notice Get the number of ajna tokens equivalent to a given percentage.
-     * @param  percentage_ The percentage of the Non treasury to retrieve, in WAD.
+     * @param  percentage_ The percentage of the non-treasury to retrieve, in WAD.
      * @return The number of tokens, in WAD.
      */
     function getSliceOfNonTreasury(
