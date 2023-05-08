@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 
 import { Test }   from "@std/Test.sol";
 
-import { TestGrantFund } from "../../utils/harness/TestGrantFund.sol";
+import { GrantFund } from "../../../src/grants/GrantFund.sol";
 
 import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
@@ -13,7 +13,7 @@ import { TestAjnaToken }       from "../../utils/harness/TestAjnaToken.sol";
 contract TestBase is Test, GrantFundTestHelper {
     // global variables
     IAjnaToken        internal  _ajna;
-    TestGrantFund     internal  _grantFund;
+    GrantFund         internal  _grantFund;
 
     // token deployment variables
     address internal _tokenDeployer = makeAddr("tokenDeployer");
@@ -25,22 +25,10 @@ contract TestBase is Test, GrantFundTestHelper {
     uint256 public currentBlock;
 
     function setUp() public virtual {
-        // deploy ajna token
-        TestAjnaToken token = new TestAjnaToken();
-
-        // Ajna Token contract address on mainnet
-        _ajna = IAjnaToken(address(token));
-
-        _ajna.mint(_tokenDeployer, 1_000_000_000 * 1e18);
-
-        // deploy test grant fund contract
-        _grantFund = new TestGrantFund(address(_ajna));
-
-        vm.startPrank(_tokenDeployer);
-
-        // initial minter distributes treasury to grantFund
-        _ajna.approve(address(_grantFund), treasury);
-        _grantFund.fundTreasury(treasury);
+        // deploy grant fund, and fund treasury
+        address[] memory iniitalVotersArr = new address[](0);
+        uint256 initialVoterBalance = 0;
+        (_grantFund, _ajna) = _deployAndFundGrantFund(_tokenDeployer, treasury, iniitalVotersArr, initialVoterBalance);
 
         // exclude unrelated contracts
         excludeContract(address(_ajna));

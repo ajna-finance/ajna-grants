@@ -7,10 +7,11 @@ import { Test }    from "forge-std/Test.sol";
 import { Strings } from "@oz/utils/Strings.sol";
 import { Math }    from "@oz/utils/math/Math.sol";
 
+import { GrantFund } from "../../../src/grants/GrantFund.sol";
+
 import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
 
-import { TestGrantFund } from "../../utils/harness/TestGrantFund.sol";
 import { IStandardFunding } from "../../../src/grants/interfaces/IStandardFunding.sol";
 
 import { ITestBase } from "../base/ITestBase.sol";
@@ -23,7 +24,7 @@ contract Handler is Test, GrantFundTestHelper {
 
     // global grant fund variables
     IAjnaToken        public  _ajna;
-    TestGrantFund     public  _grantFund;
+    GrantFund         public  _grantFund;
 
     // Test invariant contract
     ITestBase internal testContract;
@@ -65,7 +66,7 @@ contract Handler is Test, GrantFundTestHelper {
     ) {
         // set global contract variables
         _ajna = IAjnaToken(token_);
-        _grantFund = TestGrantFund(grantFund_);
+        _grantFund = GrantFund(grantFund_);
 
         // set token deployer global variable
         _tokenDeployer = tokenDeployer_;

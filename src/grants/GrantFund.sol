@@ -14,6 +14,14 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
 
     using SafeERC20 for IERC20;
 
+    /*******************/
+    /*** Constructor ***/
+    /*******************/
+
+    constructor(address ajnaToken_) {
+        ajnaTokenAddress = ajnaToken_;
+    }
+
     /**************************/
     /*** Proposal Functions ***/
     /**************************/

@@ -9,6 +9,10 @@ import { SigUtils } from "../utils/SigUtils.sol";
 
 contract AjnaTokenTest is Test {
 
+    /*************/
+    /*** Setup ***/
+    /*************/
+
     AjnaToken internal _token;
     SigUtils  internal _sigUtils;
 
@@ -27,6 +31,10 @@ contract AjnaTokenTest is Test {
         _sigUtils = new SigUtils(_token.DOMAIN_SEPARATOR());
         changePrank(_tokenHolder);
     }
+
+    /*************/
+    /*** Tests ***/
+    /*************/
 
     function testCannotSendTokensToContract() external {
         vm.expectRevert("Cannot transfer tokens to the contract itself");
