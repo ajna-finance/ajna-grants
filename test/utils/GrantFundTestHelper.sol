@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.18;
 
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings }  from "@oz/utils/Strings.sol"; // used for createNProposals
@@ -376,7 +376,7 @@ abstract contract GrantFundTestHelper is Test {
     // Returns a random proposal Index from all proposals
     function _getRandomProposal(uint256 noOfProposals_) internal returns(uint256 proposal_) {
         // calculate random proposal Index between 0 and noOfProposals_
-        proposal_ = uint256(keccak256(abi.encodePacked(block.number, block.difficulty))) % noOfProposals_;
+        proposal_ = uint256(keccak256(abi.encodePacked(block.number, block.prevrandao))) % noOfProposals_;
         vm.roll(block.number + 1);
     }
 
@@ -485,7 +485,7 @@ abstract contract GrantFundTestHelper is Test {
             descriptionPartTwo = string.concat(descriptionPartTwo, ", ");
 
             // generate a random nonce to add to the description string to avoid collisions
-            uint256 randomNonce = uint256(keccak256(abi.encodePacked(block.number, block.difficulty))) % 100;
+            uint256 randomNonce = uint256(keccak256(abi.encodePacked(block.number, block.prevrandao))) % 100;
             descriptionPartTwo = string.concat(descriptionPartTwo, Strings.toString(randomNonce));
         }
         description_ = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo));
@@ -670,7 +670,7 @@ abstract contract GrantFundTestHelper is Test {
     // Returns random votes for a user
     function _randomVote() internal returns (uint256 votes_) {
         // calculate random vote between 1 and 1.25 * 1e18
-        votes_ = 1 + uint256(keccak256(abi.encodePacked(block.number, block.difficulty))) % (1.25 * 1e18);
+        votes_ = 1 + uint256(keccak256(abi.encodePacked(block.number, block.prevrandao))) % (1.25 * 1e18);
         vm.roll(block.number + 1);
     }
 

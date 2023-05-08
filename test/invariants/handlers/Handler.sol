@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.16;
+pragma solidity 0.8.18;
 
 import { Test }    from "forge-std/Test.sol";
 import { Strings } from "@oz/utils/Strings.sol";
@@ -200,7 +200,7 @@ contract Handler is Test, GrantFundTestHelper {
 
     function randomSeed() internal returns (uint256) {
         counter++;
-        return uint256(keccak256(abi.encodePacked(block.number, block.difficulty, counter)));
+        return uint256(keccak256(abi.encodePacked(block.number, block.prevrandao, counter)));
     }
 
     function getActorsCount() public view returns(uint256) {
