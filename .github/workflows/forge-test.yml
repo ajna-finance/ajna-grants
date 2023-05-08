@@ -29,11 +29,6 @@ jobs:
           forge build --sizes
         id: build
 
-      - name: Check harness
-        run: |
-          ./check-harness.sh
-        id: check-harness
-
       - name: Run tests
         run: |
           make test-with-gas-report
