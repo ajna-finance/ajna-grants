@@ -12,6 +12,10 @@ import { TestAjnaToken }       from "../utils/harness/TestAjnaToken.sol";
 
 contract GrantFundTest is GrantFundTestHelper {
 
+    /*************/
+    /*** Setup ***/
+    /*************/
+
     IAjnaToken        internal  _token;
     GrantFund         internal  _grantFund;
 
@@ -36,6 +40,10 @@ contract GrantFundTest is GrantFundTestHelper {
         uint256 initialVoterBalance = 50_000_000 * 1e18;
         (_grantFund, _token) = _deployAndFundGrantFund(_tokenDeployer, treasury, _votersArr, initialVoterBalance);
     }
+
+    /*************/
+    /*** Tests ***/
+    /*************/
 
     function testFundTreasury() external {
         // should be able to add additional funds to the treasury

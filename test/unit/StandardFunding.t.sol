@@ -14,6 +14,10 @@ import { TestAjnaToken }       from "../utils/harness/TestAjnaToken.sol";
 
 contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
+    /*************/
+    /*** Setup ***/
+    /*************/
+
     // used to cast 256 to uint64 to match emit expectations
     using SafeCast for uint256;
 

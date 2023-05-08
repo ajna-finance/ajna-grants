@@ -12,6 +12,10 @@ import { DrainGrantFund }        from "../interactions/DrainGrantFund.sol";
 
 contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
+    /*************/
+    /*** Setup ***/
+    /*************/
+
     IAjnaToken        internal  _token;
     GrantFund         internal  _grantFund;
 
@@ -78,6 +82,10 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         uint256 initialVoterBalance = 20_000_000 * 1e18;
         (_grantFund, _token) = _deployAndFundGrantFund(_tokenDeployer, treasury, _votersArr, initialVoterBalance);
     }
+
+    /*************/
+    /*** Tests ***/
+    /*************/
 
     function testGetVotingPowerExtraordinary() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
