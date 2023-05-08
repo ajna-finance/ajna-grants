@@ -72,7 +72,7 @@ contract BurnWrappedTokenTest is Test {
         assertEq(_wrappedToken.totalSupply(), 0);
 
         // transfer some tokens to the test address
-        changePrank(_tokenDeployer);
+        vm.startPrank(_tokenDeployer);
         _token.approve(address(_tokenDeployer), tokensToWrap);
         _token.transferFrom(_tokenDeployer, _tokenHolder, tokensToWrap);
 
@@ -107,7 +107,7 @@ contract BurnWrappedTokenTest is Test {
         uint256 tokensToWrap = 50 * 1e18;
 
         // transfer some tokens to the test address
-        changePrank(_tokenDeployer);
+        vm.startPrank(_tokenDeployer);
         _token.approve(address(_tokenDeployer), tokensToWrap);
         _token.transferFrom(_tokenDeployer, _tokenHolder, tokensToWrap);
 
