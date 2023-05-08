@@ -68,26 +68,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     uint256 delegateRewards = 0;
 
     function setUp() external {
-        // // vm.createSelectFork(vm.envString("ETH_RPC_URL"), _startBlock);
-
-        // // deploy ajna token
-        // TestAjnaToken token = new TestAjnaToken();
-
-        // vm.startPrank(_tokenDeployer);
-
-        // _token = IAjnaToken(address(token));
-
-        // // deploy grant fund contract
-        // _grantFund = new GrantFund(address(token));
-
-        // // initial minter distributes tokens to test addresses
-        // _transferAjnaTokens(_token, _votersArr, 50_000_000 * 1e18, _tokenDeployer);
-
-        // // initial minter distributes treasury to grantFund
-        // changePrank(_tokenDeployer);
-        // _token.approve(address(_grantFund), 500_000_000 * 1e18);
-        // _grantFund.fundTreasury(500_000_000 * 1e18);
-
         // deploy grant fund, fund treasury, and transfer tokens to initial set of voters
         uint256 initialVoterBalance = 25_000_000 * 1e18;
         (_grantFund, _token) = _deployAndFundGrantFund(_tokenDeployer, treasury, _votersArr, initialVoterBalance);
