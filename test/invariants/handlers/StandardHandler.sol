@@ -118,20 +118,8 @@ contract StandardHandler is Handler {
         try _grantFund.proposeStandard(targets, values, calldatas, description) returns (uint256 proposalId) {
             standardFundingProposals[distributionId].push(proposalId);
 
-            // TODO: move into `recordTestProposal()` utility function
             // record proposal information into TestProposal struct
-            (
-                GeneratedTestProposalParams[] memory params,
-                uint256 totalTokensRequested
-            ) = _getGeneratedTestProposalParamsFromParams(targets, values, calldatas);
-            TestProposal storage testProposal = testProposals[proposalId];
-            testProposal.proposalId = proposalId;
-            testProposal.description = description;
-            testProposal.distributionId = distributionId;
-            testProposal.totalTokensRequested = totalTokensRequested;
-            for (uint i = 0; i < params.length; ++i) {
-                testProposal.params.push(params[i]);
-            }
+            _recordTestProposal(proposalId, distributionId, targets, values, calldatas, description);
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -167,7 +155,7 @@ contract StandardHandler is Handler {
             // generate screening vote params
             screeningVoteParams[i] = IStandardFunding.ScreeningVoteParams({
                 proposalId: proposalId,
-                votes: constrictToRange(randomSeed(), 0, votingPower) // FIXME: account for previously used voting power
+                votes: constrictToRange(randomSeed(), 0, votingPower) // TODO: account for previously used voting power in a happy path scenario
             });
         }
 
@@ -332,10 +320,7 @@ contract StandardHandler is Handler {
         if (distributionId == 0) return;
 
         // bool happyPath = true;
-
         // // TestProposal memory proposal = testProposals[randomProposal()];
-
-        // // console.log("hey?");
 
         // if (!happyPath) {
         //     // // get a proposal from the current top funded slate
@@ -523,18 +508,7 @@ contract StandardHandler is Handler {
         standardFundingProposals[distributionId].push(proposalId_);
 
         // record proposal information into TestProposal struct
-        (
-            GeneratedTestProposalParams[] memory params,
-            uint256 totalTokensRequested
-        ) = _getGeneratedTestProposalParamsFromParams(targets, values, calldatas);
-        TestProposal storage testProposal = testProposals[proposalId_];
-        testProposal.proposalId = proposalId_;
-        testProposal.description = description;
-        testProposal.distributionId = distributionId;
-        testProposal.totalTokensRequested = totalTokensRequested;
-        for (uint i = 0; i < params.length; ++i) {
-            testProposal.params.push(params[i]);
-        }
+        _recordTestProposal(proposalId_, distributionId, targets, values, calldatas, description);
     }
 
     // if taking the happy path, array length may not match numProposalsToVoteOn_
@@ -691,6 +665,21 @@ contract StandardHandler is Handler {
         }
     }
 
+    function _recordTestProposal(uint256 proposalId_, uint24 distributionId_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description_) internal {
+        (
+            GeneratedTestProposalParams[] memory params,
+            uint256 totalTokensRequested
+        ) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
+        TestProposal storage testProposal = testProposals[proposalId_];
+        testProposal.proposalId = proposalId_;
+        testProposal.description = description_;
+        testProposal.distributionId = distributionId_;
+        testProposal.totalTokensRequested = totalTokensRequested;
+        for (uint i = 0; i < params.length; ++i) {
+            testProposal.params.push(params[i]);
+        }
+    }
+
     // find a proposalId in an array of potential proposalIds that isn't already present in another array
     function _findUnusedProposalId(uint256[] memory usedProposals_, uint256[] memory potentialProposals_) internal returns (uint256) {
         uint256 proposalId = potentialProposals_[constrictToRange(randomSeed(), 0, potentialProposals_.length - 1)];
@@ -729,7 +718,6 @@ contract StandardHandler is Handler {
             uint256 delegationReward = _grantFund.getDelegateReward(i, actor_);
             numberOfCalls["delegationRewardSet"]++;
             if (delegationReward > 0) {
-                // FIXME: delegation rewards never calculated as > 0?
                 numberOfCalls["delegationRewardSet"]++;
                 distributionIdToClaim_ = i;
                 break;

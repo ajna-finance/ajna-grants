@@ -17,7 +17,7 @@ contract TestBase is Test, GrantFundTestHelper {
 
     // token deployment variables
     address internal _tokenDeployer = makeAddr("tokenDeployer");
-    uint256 public   _startBlock    = 16354861;
+    uint256 public   _startBlock    = 16354861; // at this block on mainnet, all ajna tokens belongs to _tokenDeployer
 
     // initial treasury value
     uint256 treasury = 500_000_000 * 1e18;
