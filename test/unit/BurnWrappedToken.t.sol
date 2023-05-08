@@ -23,10 +23,10 @@ contract BurnWrappedTokenTest is Test {
     event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
 
     function setUp() external {
-        // create mainnet fork
-        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
-        // set fork block to block before token distribution
-        vm.rollFork(16527772);
+        // // create mainnet fork
+        // vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+        // // set fork block to block before token distribution
+        // vm.rollFork(16527772);
 
         // reference mainnet deployment
         _token = AjnaToken(_ajnaAddress);
