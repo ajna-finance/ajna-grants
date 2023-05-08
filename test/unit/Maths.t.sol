@@ -51,13 +51,4 @@ contract MathsTest is Test {
         assertEq(Maths.wpow(0.2 * 1e18, 17), 0.000000000001310720 * 1e18);
     }
 
-    function testSqrt() external {
-        assertEq(Maths.wsqrt(100 * 1e18), 10 * 1e18);
-        assertEq(Maths.wsqrt(25 * 1e18), 5 * 1e18);
-        assertEq(Maths.wsqrt(11_000.143012091382543917 * 1e18), 104.881566598000000000 * 1e18);
-
-        assertEq(Maths.wsqrt(2 * 1e18), 1.414213562000000000 * 1e18);
-        assertEq(Maths.wsqrt(2), 1 * 1e9);
-    }
-
 }

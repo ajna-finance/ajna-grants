@@ -6,6 +6,7 @@ import { console } from "@std/console.sol";
 import { Test }     from "forge-std/Test.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings }  from "@oz/utils/Strings.sol";
+import { Math }     from "@oz/utils/math/Math.sol";
 
 import { GrantFund }        from "../../../src/grants/GrantFund.sol";
 import { IStandardFunding } from "../../../src/grants/interfaces/IStandardFunding.sol";
@@ -504,7 +505,7 @@ contract StandardHandler is Handler {
         uint256 votingPower = _grantFund.getVotesFunding(distributionId, actor_);
 
         // Take the square root of the voting power to determine how many votes are actually available for casting
-        uint256 availableVotes = _grantFund.getFundingPowerVotes(votingPower);
+        uint256 availableVotes = Math.sqrt(votingPower);
 
         fundingVoteParams_ = new IStandardFunding.FundingVoteParams[](numProposalsToVoteOn_);
 
@@ -521,7 +522,7 @@ contract StandardHandler is Handler {
             // if we should account for previous votes, then we need to make sure that the votes used are less than the available votes
             // flag is useful for generating vote params for a happy path required for test setup, as well as the chaotic path.
             if (happyPath_) {
-                votesToCast = int256(constrictToRange(randomSeed(), 0, _grantFund.getFundingPowerVotes(votingPower - votingPowerUsed)));
+                votesToCast = int256(constrictToRange(randomSeed(), 0, Math.sqrt(votingPower - votingPowerUsed)));
 
                 uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
 
@@ -539,7 +540,6 @@ contract StandardHandler is Handler {
                 for (uint256 j = 0; j < priorVotes.length; ++j) {
                     // if we have already voted on this proposal, then we need to update the votes used
                     if (priorVotes[j].proposalId == proposalId) {
-                        // votesToCast = int256(constrictToRange(randomSeed(), 0, _grantFund.getFundingPowerVotes(votingPower - votingPowerUsed)));
                         votingPowerUsed += Maths.wpow(uint256(Maths.abs(priorVotes[j].votesUsed + votesToCast)), 2);
                         votedPrior = true;
                         break;

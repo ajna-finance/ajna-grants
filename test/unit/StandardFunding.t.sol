@@ -2,6 +2,7 @@
 pragma solidity 0.8.16;
 
 import { SafeCast }  from "@oz/utils/math/SafeCast.sol";
+import { Math }      from "@oz/utils/math/Math.sol";
 
 import { GrantFund }        from "../../src/grants/GrantFund.sol";
 import { IFunding }         from "../../src/grants/interfaces/IFunding.sol";
@@ -225,7 +226,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(votingPower, 0);
         votingPower = _getFundingVotes(_grantFund, _tokenHolder1);
         assertEq(votingPower, 2_500_000_000_000_000 * 1e18);
-        assertEq(_grantFund.getFundingPowerVotes(2_500_000_000_000_000 * 1e18), 50_000_000 * 1e18);
 
         // incremental votes that will be added to proposals accumulator is the sqrt of the voter's voting power
         _fundingVote(_grantFund, _tokenHolder1, proposal.proposalId, voteYes, 25_000_000 * 1e18);
@@ -233,13 +233,11 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // voting power reduced when voted in funding stage
         votingPower = _getFundingVotes(_grantFund, _tokenHolder1);
         assertEq(votingPower, 1_875_000_000_000_000 * 1e18);
-        assertEq(_grantFund.getFundingPowerVotes(625_000_000_000_000 * 1e18), 25_000_000 * 1e18);
 
         // check that additional votes on the same proposal will calculate an accumulated square
         _fundingVote(_grantFund, _tokenHolder1, proposal.proposalId, voteYes, 10_000_000 * 1e18);
         votingPower = _getFundingVotes(_grantFund, _tokenHolder1);
         assertEq(votingPower, 1_275_000_000_000_000 * 1e18);
-        assertEq(_grantFund.getFundingPowerVotes(1_225_000_000_000_000 * 1e18), 35_000_000 * 1e18);
 
         // check revert if additional votes exceed the budget
         vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
@@ -839,8 +837,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(votingPowerRemaining, 475_000_000_000_000 * 1e18);
         assertEq(uint256(votingPowerRemaining), _getFundingVotes(_grantFund, _tokenHolder5));
         assertEq(votesCast, 1);
-
-        assertEq(_grantFund.getFundingPowerVotes(2_500_000_000_000_000 * 1e18), 50_000_000 * 1e18);
 
         uint256[] memory potentialProposalSlate = new uint256[](2);
         potentialProposalSlate[0] = screenedProposals[0].proposalId;
