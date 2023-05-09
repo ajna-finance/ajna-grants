@@ -223,8 +223,9 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
     function _getMinimumThresholdPercentage() internal view returns (uint256) {
         uint256 noOfProposals = _fundedExtraordinaryProposals.length;
         // default minimum threshold (when no proposal) is 50%
+        if (noOfProposals == 0) return 0.5 * 1e18;
         // if there are proposals then minimum threshold increases according to the number of funded EFM proposals
-        return (noOfProposals == 0) ? 0.5 * 1e18 : 0.5 * 1e18 + (noOfProposals * (0.05 * 1e18));
+        else return 0.5 * 1e18 + (noOfProposals * (0.05 * 1e18));
     }
 
     /**
