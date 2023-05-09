@@ -18,7 +18,7 @@ abstract contract Funding is IFunding, ReentrancyGuard {
     /******************/
 
     // address of the ajna token used in grant coordination
-    address public immutable ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
+    address public ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
 
     /*****************/
     /*** Constants ***/

@@ -1,28 +1,30 @@
 # GrantFund Invariants
 
-## Grant Fund Invariants:
-   - **GF1**: Unused proposal states should always be 0.
-   - **GF2**: The Grant Fund's `treasury` should always be less than or equal to the contract's token blance.
-<!-- 
-   - TODO: add invariants around treasury balance post updates and with partial slate executions
- -->
+## Treasury Invariants:
+   - **T1**: The Grant Fund's `treasury` should always be less than or equal to the contract's token balance.
+   - **T2**: The Grant Fund's `treasury` should always be less than or equal to the Ajna token total supply.
 
 ## Standard Funding Mechanism Invariants
 
 - #### Distribution Period:
-    - **DP1**: Only one distribution period should be active at a time
+    - **DP1**: Only one distribution period should be active at a time. Each successive distribution period's start block should be greater than the previous periods end block.
     - **DP2**: Each winning proposal successfully claims no more that what was finalized in the challenge stage
     - **DP3**: A distribution's fundsAvailable should be equal to 2% of the treasurie's balance at the block `startNewDistributionPeriod()` is called.
+    - **DP4**: A distribution's endBlock should be greater than its startBlock.
+    - **DP5**: The treasury balance should be greater than the sum of the funds available in all distribution periods.
+    - **DP6**: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury.
+    - **DP7**: A distribution period's surplus should only be readded to the treasury once.
 
 - #### Screening Stage:
     - **SS1**: Only 10 proposals can advance to the funding stage
     - **SS2**: Users can only vote up to the amount of their voting power at the snapshot blocks.
     - **SS3**: Top ten list of screened proposals should be sorted in descending order.
-    - **SS4**: Vote's cast can only be positive.
-    - **SS5**: Votes can only be cast on a proposal in it's distribution period's screening stage.
+    - **SS4**: Screening vote's cast can only be positive.
+    - **SS5**: Screening votes can only be cast on a proposal in it's distribution period's screening stage.
     - **SS6**: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list (typically the 10th of course, but it may be shorter than ten proposals).
     - **SS7**: A proposal should never receive more vote than the Ajna token supply.
     - **SS8**: A proposal can only receive screening votes if it was created via `proposeStandard()`.
+    - **SS9**: A proposal can only be created during a distribution period's screening stage.
 
 - #### Funding Stage:
     - **FS1**: Only 10 proposals can be voted on in the funding stage
@@ -73,3 +75,6 @@
     - **VE2**: A proposal can only be voted on if the block number is less than or equal to the proposals end block and the `MAX_EFM_PROPOSAL_LENGTH` of 216_000 blocks.
     - **VE3**: Votes cast must always be positive.
     - **VE4**: A voter should never be able to cast more votes than the Ajna token supply.
+
+## Global Invariants:
+   - **G1**: A proposal should never enter an unused state (canceled, queued, expired).

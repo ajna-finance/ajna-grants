@@ -4,12 +4,17 @@ pragma solidity 0.8.18;
 import { GrantFund }           from "../../src/grants/GrantFund.sol";
 import { IFunding }            from "../../src/grants/interfaces/IFunding.sol";
 import { IStandardFunding }    from "../../src/grants/interfaces/IStandardFunding.sol";
-
-import { GrantFundTestHelper } from "../utils/GrantFundTestHelper.sol";
-import { IAjnaToken }          from "../utils/IAjnaToken.sol";
 import { Maths }               from "../../src/grants/libraries/Maths.sol";
 
+import { IAjnaToken }          from "../utils/IAjnaToken.sol";
+import { GrantFundTestHelper } from "../utils/GrantFundTestHelper.sol";
+import { TestAjnaToken }       from "../utils/harness/TestAjnaToken.sol";
+
 contract GrantFundTest is GrantFundTestHelper {
+
+    /*************/
+    /*** Setup ***/
+    /*************/
 
     IAjnaToken        internal  _token;
     GrantFund         internal  _grantFund;
@@ -30,19 +35,15 @@ contract GrantFundTest is GrantFundTestHelper {
     ];
 
     function setUp() external {
-        vm.createSelectFork(vm.envString("ETH_RPC_URL"), _startBlock);
-
-        vm.startPrank(_tokenDeployer);
-
-        // Ajna Token contract address on mainnet
-        _token = IAjnaToken(0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079);
-
-        // deploy growth fund contract
-        _grantFund = new GrantFund();
-
-        // initial minter distributes tokens to test addresses
-        _transferAjnaTokens(_token, _votersArr, 50_000_000 * 1e18, _tokenDeployer);
+        // deploy grant fund, skip funding treasury, and transfer tokens to initial set of voters
+        uint256 treasury = 0;
+        uint256 initialVoterBalance = 50_000_000 * 1e18;
+        (_grantFund, _token) = _deployAndFundGrantFund(_tokenDeployer, treasury, _votersArr, initialVoterBalance);
     }
+
+    /*************/
+    /*** Tests ***/
+    /*************/
 
     function testFundTreasury() external {
         // should be able to add additional funds to the treasury

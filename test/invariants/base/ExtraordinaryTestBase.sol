@@ -10,30 +10,24 @@ import { ExtraordinaryHandler } from "../handlers/ExtraordinaryHandler.sol";
 contract ExtraordinaryTestBase is TestBase {
 
     uint256 internal constant NUM_ACTORS = 10;
+    uint256 public constant TOKENS_TO_DISTRIBUTE = 500_000_000 * 1e18;
 
     ExtraordinaryHandler internal _extraordinaryHandler;
 
     function setUp() public virtual override {
         super.setUp();
 
-        // TODO: modify this setup to enable use of random tokens not in treasury
-        // calculate the number of tokens not in the treasury, to be distributed to actors
-        uint256 tokensNotInTreasury = _ajna.balanceOf(_tokenDeployer) - treasury;
-
         _extraordinaryHandler = new ExtraordinaryHandler(
             payable(address(_grantFund)),
             address(_ajna),
             _tokenDeployer,
             NUM_ACTORS,
-            tokensNotInTreasury,
+            TOKENS_TO_DISTRIBUTE,
             address(this)
         );
 
         // explicitly target handler
         targetContract(address(_extraordinaryHandler));
-
-        // roll 100 blocks to allow for actor distribution
-        vm.roll(block.number + 100);
     }
 
 }

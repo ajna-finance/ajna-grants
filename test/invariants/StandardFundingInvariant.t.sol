@@ -12,10 +12,14 @@ import { StandardHandler }  from "./handlers/StandardHandler.sol";
 
 contract StandardFundingInvariant is StandardTestBase {
 
-    // TODO: override the number of voting actors
+    // hash the top ten proposals at the start of the funding stage to check composition
+    bytes32 initialTopTenHash;
+
     // override setup to start tests in the funding stage with already screened proposals
     function setUp() public override {
         super.setUp();
+
+        startDistributionPeriod();
 
         // create 15 proposals
         _standardHandler.createProposals(15);
@@ -28,6 +32,7 @@ contract StandardFundingInvariant is StandardTestBase {
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
         uint256 fundingStageStartBlock = endBlock - 72000;
         vm.roll(fundingStageStartBlock + 100);
+        currentBlock = block.number;
 
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](2);
@@ -39,6 +44,9 @@ contract StandardFundingInvariant is StandardTestBase {
             addr: address(_standardHandler),
             selectors: selectors
         }));
+
+        uint256[] memory initialTopTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
+        initialTopTenHash = keccak256(abi.encode(initialTopTenProposals));
     }
 
     function invariant_FS1_FS2_FS3() external {
@@ -68,7 +76,7 @@ contract StandardFundingInvariant is StandardTestBase {
         }
     }
 
-    function invariant_FS4_FS5_FS6_FS8() external {
+    function invariant_FS4_FS5_FS6_FS7_FS8() external {
         uint24 distributionId = _grantFund.getDistributionId();
 
         // check invariants against every actor
@@ -115,14 +123,19 @@ contract StandardFundingInvariant is StandardTestBase {
                 "invariant FS6: All voter funding votes on a proposal should be cast in the same direction. Multiple votes on the same proposal should see the voting power increase according to the combined cost of votes."
             );
         }
+
+        require(
+            keccak256(abi.encode(_grantFund.getTopTenProposals(distributionId))) == initialTopTenHash,
+            "invariant FS7: List of top ten proposals should never change once the funding stage has started"
+        );
     }
 
     function invariant_call_summary() external view {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _standardHandler.logCallSummary();
-        _standardHandler.logProposalSummary();
-        _standardHandler.logActorSummary(distributionId, true, false);
+        // _standardHandler.logProposalSummary();
+        // _standardHandler.logActorSummary(distributionId, true, false);
         _logFundingSummary(distributionId);
     }
 

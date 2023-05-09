@@ -2,13 +2,15 @@
 
 pragma solidity 0.8.18;
 
-import { console } from "@std/console.sol";
+import { console }  from "@std/console.sol";
 import { Test }     from "forge-std/Test.sol";
+import { Math }     from "@oz/utils/math/Math.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings }  from "@oz/utils/Strings.sol";
 import { Math }     from "@oz/utils/math/Math.sol";
 
 import { GrantFund }        from "../../../src/grants/GrantFund.sol";
+import { IFunding }         from "../../../src/grants/interfaces/IFunding.sol";
 import { IStandardFunding } from "../../../src/grants/interfaces/IStandardFunding.sol";
 import { Maths }            from "../../../src/grants/libraries/Maths.sol";
 
@@ -18,6 +20,10 @@ import { Handler }             from "./Handler.sol";
 
 contract StandardHandler is Handler {
 
+    /***********************/
+    /*** State Variables ***/
+    /***********************/
+
     // proposalId of proposals executed
     uint256[] public proposalsExecuted;
 
@@ -25,56 +31,61 @@ contract StandardHandler is Handler {
     uint256 public screeningVotesCast;
     uint256 public fundingVotesCast;
 
-    // time counter
-    uint256 private systemTime = 0;
-
     struct VotingActor {
-        IStandardFunding.FundingVoteParams[] fundingVotes;
-        IStandardFunding.ScreeningVoteParams[] screeningVotes;
-        uint256 delegationRewardsClaimed;
+        IStandardFunding.FundingVoteParams[] fundingVotes; // list of funding votes made by an actor
+        IStandardFunding.ScreeningVoteParams[] screeningVotes; // list of screening votes made by an actor
+        uint256 delegationRewardsClaimed; // the amount of delegation rewards claimed by the actor
     }
 
     struct DistributionState {
-        bytes32 currentTopSlate;
+        uint256 treasuryBeforeStart;
+        uint256 treasuryAtStartBlock; // GrantFund treasury at the time startNewDistributionPeriod was called.
+        bytes32 currentTopSlate; // slate hash of the current top proposal slate
         Slate[] topSlates; // assume that the last element in the list is the top slate
+        bool treasuryUpdated; // whether the distribution period's surplus tokens have been readded to the treasury
     }
 
     struct Slate {
         uint24 distributionId;
         uint256 updateBlock;
         bytes32 slateHash;
+        uint256 totalTokensRequested; // total tokens requested by all proposals in the slate
     }
 
-    // list of submitted standard funding proposals by distribution period
-    // distributionId => proposalId[]
-    mapping(uint24 => uint256[]) public standardFundingProposals;
-
-    mapping(uint24 => DistributionState) public distributionStates;
-    mapping(bytes32 => uint256[]) public proposalsInTopSlate;
+    mapping(uint24 => uint256[]) public standardFundingProposals;             // distributionId => proposalId[]
+    mapping(uint24 => DistributionState) public distributionStates;           // distributionId => DistributionState
+    mapping(bytes32 => uint256[]) public proposalsInTopSlate;                 // slateHash => proposalId[]
     mapping(address => mapping(uint24 => VotingActor)) internal votingActors; // actor => distributionId => VotingActor
-    mapping(uint256 => TestProposal) public testProposals;
+    mapping(uint256 => TestProposal) public testProposals;                    // proposalId => TestProposal
+    mapping(uint24 => bool) public distributionIdSurplusAdded;
+
+    /*******************/
+    /*** Constructor ***/
+    /*******************/
 
     constructor(
         address payable grantFund_,
         address token_,
         address tokenDeployer_,
         uint256 numOfActors_,
-        uint256 tokensToDistribute_,
+        uint256 treasury_,
         address testContract_
-    ) Handler(grantFund_, token_, tokenDeployer_, numOfActors_, tokensToDistribute_, testContract_) {}
+    ) Handler(grantFund_, token_, tokenDeployer_, numOfActors_, treasury_, testContract_) {}
 
     /*************************/
     /*** Wrapped Functions ***/
     /*************************/
 
-    function startNewDistributionPeriod(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) returns (uint24 newDistributionId_) {
+    function startNewDistributionPeriod(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.startNewDistributionPeriod']++;
-        systemTime++;
 
-        try _grantFund.startNewDistributionPeriod() returns (uint24 newDistributionId) {
-            newDistributionId_ = newDistributionId;
+        uint24 newDistributionId = _grantFund.getDistributionId() + 1;
+        uint256 treasuryBeforeStart = _grantFund.treasury();
+        try _grantFund.startNewDistributionPeriod() returns (uint24 newDistributionId_) {
+            assertEq(newDistributionId, newDistributionId_);
+            distributionStates[newDistributionId].treasuryAtStartBlock = _grantFund.treasury();
+            distributionStates[newDistributionId].treasuryBeforeStart = treasuryBeforeStart;
             vm.roll(block.number + 100);
-            vm.rollFork(block.number + 100);
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -87,7 +98,9 @@ contract StandardHandler is Handler {
 
     function proposeStandard(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.proposeStandard']++;
-        systemTime++;
+
+        uint24 distributionId = _grantFund.getDistributionId();
+        if (distributionId == 0) return;
 
         // get a random number between 1 and 5
         uint256 numProposalParams = constrictToRange(randomSeed(), 1, 5);
@@ -104,7 +117,10 @@ contract StandardHandler is Handler {
         ) = generateProposalParams(address(_ajna), testProposalParams);
 
         try _grantFund.proposeStandard(targets, values, calldatas, description) returns (uint256 proposalId) {
-            standardFundingProposals[_grantFund.getDistributionId()].push(proposalId);
+            standardFundingProposals[distributionId].push(proposalId);
+
+            // record proposal information into TestProposal struct
+            _recordTestProposal(proposalId, distributionId, targets, values, calldatas, description);
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -115,20 +131,18 @@ contract StandardHandler is Handler {
                 UNEXPECTED_REVERT
             );
         }
-
     }
 
     function screeningVote(uint256 actorIndex_, uint256 proposalsToVoteOn_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.screeningVote']++;
-        systemTime++;
 
         uint24 distributionId = _grantFund.getDistributionId();
+        if (distributionId == 0) return;
 
         // get a random number less than the number of submitted proposals
         proposalsToVoteOn_ = constrictToRange(proposalsToVoteOn_, 0, standardFundingProposals[distributionId].length);
 
         vm.roll(block.number + 100);
-        // vm.rollFork(block.number + 100);
 
         // get actor voting power
         uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), _actor);
@@ -142,7 +156,7 @@ contract StandardHandler is Handler {
             // generate screening vote params
             screeningVoteParams[i] = IStandardFunding.ScreeningVoteParams({
                 proposalId: proposalId,
-                votes: constrictToRange(randomSeed(), 0, votingPower) // FIXME: account for previously used voting power
+                votes: constrictToRange(randomSeed(), 0, votingPower) // TODO: account for previously used voting power in a happy path scenario
             });
         }
 
@@ -169,28 +183,24 @@ contract StandardHandler is Handler {
 
     function fundingVote(uint256 actorIndex_, uint256 proposalsToVoteOn_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.fundingVote']++;
-        systemTime++;
 
         // check where block is in the distribution period
         uint24 distributionId = _grantFund.getDistributionId();
+        if (distributionId == 0) return;
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
         if (block.number < endBlock - 72000) {
-                return;
+            return;
         }
 
         // bind proposalsToVoteOn_ to the number of proposals
-        proposalsToVoteOn_ = bound(proposalsToVoteOn_, 0, standardFundingProposals[distributionId].length);
+        proposalsToVoteOn_ = constrictToRange(proposalsToVoteOn_, 0, standardFundingProposals[distributionId].length);
 
-        // TODO: make happy / chaotic path decision random / dynamic?
         // get the fundingVoteParams for the votes the actor is about to cast
         // take the chaotic path, and cast votes that will likely exceed the actor's voting power
         IStandardFunding.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(_actor, proposalsToVoteOn_, false);
 
         try _grantFund.fundingVote(fundingVoteParams) returns (uint256 votesCast) {
             numberOfCalls['SFH.fundingVote.success']++;
-
-            // TODO: can a proposal have 0 votes cast?
-            // assertGt(votesCast, 0);
 
             // check votesCast is equal to the sum of votes cast
             assertEq(votesCast, SafeCast.toUint256(sumFundingVotes(fundingVoteParams)));
@@ -227,34 +237,39 @@ contract StandardHandler is Handler {
         }
     }
 
-    // FIXME: can a proposal slate have no proposals?
-    function updateSlate(uint256 actorIndex_, uint256 proposalSeed) external useCurrentBlock useRandomActor(actorIndex_) {
+    function updateSlate(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.updateSlate']++;
-        systemTime++;
+
+        uint24 distributionId = _grantFund.getDistributionId();
+        if (distributionId == 0) return;
 
         // check that the distribution period ended
-        if (keccak256(getStage()) != keccak256(bytes("Challenge"))) {
+        if (keccak256(getStage(distributionId)) != keccak256(bytes("Challenge"))) {
             return;
         }
 
-        // if (systemTime > 2800) {
-        //     return;
-        // }
-
-        uint256 potentialSlateLength = constrictToRange(proposalSeed, 0, 10);
-        uint24 distributionId = _grantFund.getDistributionId();
-
         // get top ten proposals
         uint256[] memory topTen = _grantFund.getTopTenProposals(distributionId);
+
         // construct potential slate of proposals
+        uint256 potentialSlateLength = 1;
         uint256[] memory potentialSlate = new uint256[](potentialSlateLength);
 
         bool happyPath = true;
-
         if (happyPath) {
+            (, , , , , bytes32 slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+            uint256[] memory currentSlate = _grantFund.getFundedProposalSlate(slateHash);
+            if (currentSlate.length < 9 && currentSlate.length > 0) {
+                numberOfCalls['SFH.updateSlate.prep']++;
+                potentialSlateLength = currentSlate.length + 1;
+            }
+            numberOfCalls['updateSlate.length'] = potentialSlateLength;
+            potentialSlate = new uint256[](potentialSlateLength);
+
             // get subset of top ten in order
             for (uint i = 0; i < potentialSlateLength; ++i) {
-                potentialSlate[i] = topTen[i];
+                potentialSlate[i] = _findUnusedProposalId(potentialSlate, topTen);
+                numberOfCalls['unused.proposal'] = potentialSlate[i];
             }
         }
         else {
@@ -269,12 +284,15 @@ contract StandardHandler is Handler {
             if (newTopSlate) {
                 numberOfCalls['SFH.updateSlate.success']++;
 
+                numberOfCalls['proposalsInSlates'] += potentialSlateLength;
+
                 bytes32 potentialSlateHash = keccak256(abi.encode(potentialSlate));
 
                 Slate memory slate;
                 slate.distributionId = distributionId;
                 slate.slateHash = potentialSlateHash;
                 slate.updateBlock = block.number;
+                slate.totalTokensRequested = getTokensRequestedInFundedSlateInvariant(potentialSlateHash);
 
                 // update distribution state
                 DistributionState storage distribution = distributionStates[distributionId];
@@ -298,29 +316,25 @@ contract StandardHandler is Handler {
 
     function executeStandard(uint256 actorIndex_, uint256 proposalToExecute_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.executeStandard']++;
-        systemTime++;
 
         uint24 distributionId = _grantFund.getDistributionId();
+        if (distributionId == 0) return;
 
-        (, , uint256 endBlock, , , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
+        // TODO: implement unhappy path
+        uint256 proposalId = _findUnexecutedProposalId(distributionId);
+        TestProposal memory proposal = testProposals[proposalId];
+        numberOfCalls['unexecuted.proposal'] = proposalId;
 
-        if (systemTime >= 500) {
-            // skip time to the end of the challenge stage
-            vm.roll(endBlock + 50401);
-        }
+        // get parameters from test proposal required for execution
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+        ) = _getParamsFromGeneratedTestProposalParams(_ajna, proposal.params);
 
-        if (block.number <= endBlock + 50400) return;
+        numberOfCalls['SFH.executeStandard.attempt']++;
 
-        // get a proposal from the current top ten slate
-        uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
-
-        if (topSlateProposalIds.length == 0) return;
-
-        uint256 proposalIndex = constrictToRange(proposalToExecute_, 1, topSlateProposalIds.length) -1;
-
-        TestProposal memory proposal = testProposals[topSlateProposalIds[proposalIndex]];
-
-        try _grantFund.executeStandard(proposal.targets, proposal.values, proposal.calldatas, keccak256(bytes(proposal.description))) returns (uint256 proposalId_) {
+        try _grantFund.executeStandard(targets, values, calldatas, keccak256(bytes(proposal.description))) returns (uint256 proposalId_) {
             assertEq(proposalId_, proposal.proposalId);
             numberOfCalls['SFH.executeStandard.success']++;
             proposalsExecuted.push(proposalId_);
@@ -337,28 +351,23 @@ contract StandardHandler is Handler {
 
     function claimDelegateReward(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.claimDelegateReward']++;
-        systemTime++;
 
         uint24 distributionId = _grantFund.getDistributionId();
+        if (distributionId == 0) return;
 
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        uint24 distributionIdToClaim = _findUnclaimedReward(_actor, distributionId);
 
-        if (systemTime >= 900) {
-            // skip time to the end of the challenge stage
-            vm.roll(endBlock + 50401);
-        }
-
-        try _grantFund.claimDelegateReward(distributionId) returns (uint256 rewardClaimed_) {
+        try _grantFund.claimDelegateReward(distributionIdToClaim) returns (uint256 rewardClaimed_) {
             numberOfCalls['SFH.claimDelegateReward.success']++;
 
             // should only be able to claim delegation rewards once
-            assertEq(votingActors[_actor][distributionId].delegationRewardsClaimed, 0);
+            assertEq(votingActors[_actor][distributionIdToClaim].delegationRewardsClaimed, 0);
 
             // rewards should be non zero
             assertTrue(rewardClaimed_ > 0);
 
             // record the newly claimed rewards
-            votingActors[_actor][distributionId].delegationRewardsClaimed = rewardClaimed_;
+            votingActors[_actor][distributionIdToClaim].delegationRewardsClaimed = rewardClaimed_;
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -402,16 +411,14 @@ contract StandardHandler is Handler {
         }
     }
 
-    function sumSquareOfVotesCast(
-        IStandardFunding.FundingVoteParams[] memory votesCast_
-    ) public pure returns (uint256 votesCastSumSquared_) {
-        uint256 numVotesCast = votesCast_.length;
+    function setDistributionTreasuryUpdated(uint24 distributionId_) public {
+        distributionStates[distributionId_].treasuryUpdated = true;
+        distributionIdSurplusAdded[distributionId_] = true;
+    }
 
-        for (uint256 i = 0; i < numVotesCast; ) {
-            votesCastSumSquared_ += Maths.wpow(SafeCast.toUint256(Maths.abs(votesCast_[i].votesUsed)), 2);
-
-            unchecked { ++i; }
-        }
+    function updateTreasury(uint24 distributionId_, uint256 fundsAvailable_, bytes32 slateHash_) public returns (uint256 surplus_) {
+        surplus_ += fundsAvailable_ - getTokensRequestedInFundedSlateInvariant(slateHash_);
+        setDistributionTreasuryUpdated(distributionId_);
     }
 
     /**********************************/
@@ -428,7 +435,7 @@ contract StandardHandler is Handler {
             (, , , uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
             // account for amount that was previously requested
-            uint256 additionalTokensRequested = randomAmount((fundsAvailable * 9 /10) - totalTokensRequested);
+            uint256 additionalTokensRequested = randomAmount(uint256(fundsAvailable * 9 /10) - totalTokensRequested);
             totalTokensRequested += additionalTokensRequested;
 
             testProposalParams_[i] = TestProposalParams({
@@ -443,16 +450,15 @@ contract StandardHandler is Handler {
         return standardFundingProposals[distributionId][constrictToRange(randomSeed(), 0, standardFundingProposals[distributionId].length - 1)];
     }
 
-    function getStage() internal view returns (bytes memory stage_) {
-        uint24 distributionId = _grantFund.getDistributionId();
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        if (block.number < endBlock - 72000) {
+    function getStage(uint24 distributionId_) internal view returns (bytes memory stage_) {
+        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId_);
+        if (block.number <= endBlock - 72000) {
             stage_ = bytes("Screening");
         }
-        else if (block.number > endBlock - 72000 && block.number < endBlock) {
+        else if (block.number > endBlock - 72000 && block.number <= endBlock) {
             stage_ = bytes("Funding");
         }
-        else if (block.number > endBlock) {
+        else if (block.number > endBlock && block.number <= endBlock + 50400) {
             stage_ = bytes("Challenge");
         }
     }
@@ -465,7 +471,8 @@ contract StandardHandler is Handler {
     }
 
     function _createProposal() internal useRandomActor(randomSeed()) returns (uint256 proposalId_) {
-        // TODO: increase randomness of number of params, including potentially randomizing each separate param?
+        uint24 distributionId = _grantFund.getDistributionId();
+
         // get a random number between 1 and 5
         uint256 numProposalParams = constrictToRange(randomSeed(), 1, 5);
 
@@ -483,96 +490,99 @@ contract StandardHandler is Handler {
         // create proposal
         proposalId_ = _grantFund.proposeStandard(targets, values, calldatas, description);
 
-        // record new proposal
-        standardFundingProposals[_grantFund.getDistributionId()].push(proposalId_);
+        // add new proposal to list of all standard proposals
+        standardFundingProposals[distributionId].push(proposalId_);
 
-        // FIXME: set recipient and tokensRequested
-        // record proposal information
-        testProposals[proposalId_] = TestProposal(
-            proposalId_,
-            targets,
-            values,
-            calldatas,
-            description,
-            address(0),
-            0
-        );
+        // record proposal information into TestProposal struct
+        _recordTestProposal(proposalId_, distributionId, targets, values, calldatas, description);
     }
 
-    // TODO: need to add support for different types of param generation -> turn this into a factory
+    // if taking the happy path, array length may not match numProposalsToVoteOn_
     function _fundingVoteParams(address actor_, uint256 numProposalsToVoteOn_, bool happyPath_) internal returns (IStandardFunding.FundingVoteParams[] memory fundingVoteParams_) {
         uint24 distributionId = _grantFund.getDistributionId();
-        uint256 votingPower = _grantFund.getVotesFunding(distributionId, actor_);
-
-        // Take the square root of the voting power to determine how many votes are actually available for casting
-        uint256 availableVotes = Math.sqrt(votingPower);
+        (uint256 votingPower, uint256 remainingVotingPower, ) = _grantFund.getVoterInfo(distributionId, actor_);
+        uint256 votingPowerUsed = votingPower - remainingVotingPower;
+        if (votingPower == 0) {
+            votingPower = _grantFund.getVotesFunding(distributionId, actor_);
+            votingPowerUsed = 0;
+        }
 
         fundingVoteParams_ = new IStandardFunding.FundingVoteParams[](numProposalsToVoteOn_);
 
-        uint256 votingPowerUsed;
+        uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
 
         // generate the array of fundingVoteParams structs
-        for (uint256 i = 0; i < numProposalsToVoteOn_; ) {
+        uint256 i = 0;
+        for (i; i < numProposalsToVoteOn_; ) {
             // get a random proposal
             uint256 proposalId = randomProposal();
 
             // get the random number of votes to cast
-            int256 votesToCast = int256(constrictToRange(randomSeed(), 0, availableVotes));
+            // Take the square root of the voting power to determine how many votes are actually available for casting
+            int256 votesToCast = int256(constrictToRange(randomSeed(), 0, Math.sqrt(votingPower)));
 
             // if we should account for previous votes, then we need to make sure that the votes used are less than the available votes
             // flag is useful for generating vote params for a happy path required for test setup, as well as the chaotic path.
             if (happyPath_) {
                 votesToCast = int256(constrictToRange(randomSeed(), 0, Math.sqrt(votingPower - votingPowerUsed)));
 
-                uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
-
                 // if taking the happy path, set proposalId to a random proposal in the top ten
                 if (_findProposalIndexOfVotesCast(proposalId, fundingVoteParams_) == -1) {
                     proposalId = topTenProposals[constrictToRange(randomSeed(), 0, topTenProposals.length - 1)];
                 }
 
-                bool votedPrior = false;
-
-                // FIXME: check prior votes as well as pending votes.
-                    // this may not be possible as we don't yet know what the pending votes will be...
                 // check for any previous votes on this proposal
+                int256 priorVoteIndex = -1;
                 IStandardFunding.FundingVoteParams[] memory priorVotes = votingActors[actor_][distributionId].fundingVotes;
                 for (uint256 j = 0; j < priorVotes.length; ++j) {
                     // if we have already voted on this proposal, then we need to update the votes used
                     if (priorVotes[j].proposalId == proposalId) {
                         votingPowerUsed += Maths.wpow(uint256(Maths.abs(priorVotes[j].votesUsed + votesToCast)), 2);
-                        votedPrior = true;
+                        priorVoteIndex = int256(j);
                         break;
                     }
                 }
 
-                if (!votedPrior) {
+                // Need to account for a proposal prior vote direction in test setup
+                if (priorVoteIndex != -1) {
+                    // check if prior vote was negative
+                    if (priorVotes[uint256(priorVoteIndex)].votesUsed < 0) {
+                        votesToCast = votesToCast * -1;
+                    }
+                }
+                else {
                     votingPowerUsed += Maths.wpow(uint256(Maths.abs(votesToCast)), 2);
                 }
 
-            }
+                // check if additional vote would break the happy path
+                if (Maths.wpow(SafeCast.toUint256(Maths.abs(votesToCast)), 2) > votingPower - votingPowerUsed) {
+                    // resize array before breaking out of the happy path
+                    assembly { mstore(fundingVoteParams_, i) }
+                    break;
+                }
 
-            // TODO: happy path expects non negative? -> reverts with InvalidVote if used
-                // Need to account for a proposal prior vote direction in test setup
-            // flip a coin to see if should instead use a negative vote
-            if (randomSeed() % 2 == 0) {
-                numberOfCalls['SFH.negativeFundingVote']++;
-                // generate negative vote
+                // generate funding vote params
                 fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
                     proposalId: proposalId,
-                    votesUsed: -1 * votesToCast
+                    votesUsed: votesToCast
                 });
+
+                // start voting on the next proposal
                 ++i;
-                continue;
             }
-
-            // generate funding vote params
-            fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
-                proposalId: proposalId,
-                votesUsed: votesToCast
-            });
-
-            ++i;
+            else {
+                // flip a coin to see if should instead use a negative vote
+                if (randomSeed() % 2 == 0) {
+                    numberOfCalls['SFH.negativeFundingVote']++;
+                    // generate negative vote
+                    fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
+                        proposalId: proposalId,
+                        votesUsed: -1 * votesToCast
+                    });
+                    ++i;
+                    continue;
+                }
+            }
         }
     }
 
@@ -589,7 +599,7 @@ contract StandardHandler is Handler {
 
         // record cast votes
         VotingActor storage actor = votingActors[actor_][distributionId];
-        for (uint256 i = 0; i < numProposalsToVoteOn_; ) {
+        for (uint256 i = 0; i < fundingVoteParams.length; ) {
             actor.fundingVotes.push(fundingVoteParams[i]);
             fundingVotesCast++;
 
@@ -600,7 +610,7 @@ contract StandardHandler is Handler {
     function _screeningVoteProposal(address actor_) internal {
         uint24 distributionId = _grantFund.getDistributionId();
 
-        uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), actor_);
+        uint256 votingPower = _grantFund.getVotesScreening(distributionId, actor_);
 
         // get random number of proposals to vote on
         uint256 numProposalsToVoteOn = constrictToRange(randomSeed(), 1, 10);
@@ -614,7 +624,10 @@ contract StandardHandler is Handler {
             uint256 proposalId = randomProposal();
 
             // account for already used voting power
-            uint256 additionalVotesUsed = randomAmount(votingPower - totalVotesUsed);
+            uint256 additionalVotesUsed = 0;
+            if (votingPower != 0) {
+                additionalVotesUsed = randomAmount(votingPower - totalVotesUsed);
+            }
             totalVotesUsed += additionalVotesUsed;
 
             // generate screening vote params
@@ -634,6 +647,67 @@ contract StandardHandler is Handler {
             actor.screeningVotes.push(screeningVoteParams[i]);
             screeningVotesCast++;
 
+            ++i;
+        }
+    }
+
+    function _recordTestProposal(uint256 proposalId_, uint24 distributionId_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description_) internal {
+        (
+            GeneratedTestProposalParams[] memory params,
+            uint256 totalTokensRequested
+        ) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
+        TestProposal storage testProposal = testProposals[proposalId_];
+        testProposal.proposalId = proposalId_;
+        testProposal.description = description_;
+        testProposal.distributionId = distributionId_;
+        testProposal.totalTokensRequested = totalTokensRequested;
+        for (uint i = 0; i < params.length; ++i) {
+            testProposal.params.push(params[i]);
+        }
+    }
+
+    // find a proposalId in an array of potential proposalIds that isn't already present in another array
+    function _findUnusedProposalId(uint256[] memory usedProposals_, uint256[] memory potentialProposals_) internal returns (uint256) {
+        uint256 proposalId = potentialProposals_[constrictToRange(randomSeed(), 0, potentialProposals_.length - 1)];
+
+        // check if proposalId is already in the array
+        for (uint256 i = 0; i < usedProposals_.length; ++i) {
+            if (usedProposals_[i] != proposalId) {
+                // if it hasn't been used, then return out
+                return proposalId;
+            }
+        }
+
+        // if random proposal was already used, then try again
+        return _findUnusedProposalId(usedProposals_, potentialProposals_);
+    }
+
+    function _findUnexecutedProposalId(uint256 endingDistributionId_) internal view returns (uint256 proposalId_) {
+        for (uint24 i = 1; i <= endingDistributionId_; ) {
+            // get top slate proposals for each distribution period
+            (, , , , , bytes32 topSlateHash) = _grantFund.getDistributionPeriodInfo(i);
+            uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
+
+            for (uint256 j = 0; j < topSlateProposalIds.length; j++) {
+                // determine if a proposal is executable but hasn't already been executed
+                IFunding.ProposalState state = _grantFund.state(topSlateProposalIds[j]);
+                if (state == IFunding.ProposalState.Succeeded) {
+                    proposalId_ = topSlateProposalIds[j];
+                }
+            }
+            ++i;
+        }
+    }
+
+    function _findUnclaimedReward(address actor_, uint24 endingDistributionId_) internal returns (uint24 distributionIdToClaim_) {
+        for (uint24 i = 1; i <= endingDistributionId_; ) {
+            uint256 delegationReward = _grantFund.getDelegateReward(i, actor_);
+            numberOfCalls["delegationRewardSet"]++;
+            if (delegationReward > 0) {
+                numberOfCalls["delegationRewardSet"]++;
+                distributionIdToClaim_ = i;
+                break;
+            }
             ++i;
         }
     }
@@ -720,11 +794,11 @@ contract StandardHandler is Handler {
         for (uint256 i = 0; i < proposals.length; ++i) {
             console.log("------------------");
             (uint256 proposalId, , uint128 votesReceived, uint128 tokensRequested, int128 fundingVotesReceived, bool executed) = _grantFund.getProposalInfo(proposals[i]);
-            console.log("proposalId:           ",  proposalId);
-            console.log("distributionId:       ",  distributionId);
-            console.log("executed:             ",  executed);
-            console.log("votesReceived:        ",  votesReceived);
-            console.log("tokensRequested:      ",  tokensRequested);
+            console.log("proposalId:              ",  proposalId);
+            console.log("distributionId:          ",  distributionId);
+            console.log("executed:                ",  executed);
+            console.log("screening votesReceived: ",  votesReceived);
+            console.log("tokensRequested:         ",  tokensRequested);
             if (fundingVotesReceived < 0) {
                 console.log("Negative fundingVotesReceived: ",  uint256(Maths.abs(fundingVotesReceived)));
             }
@@ -737,12 +811,39 @@ contract StandardHandler is Handler {
         console.log("\n");
     }
 
+    function logTimeSummary() external view {
+        uint24 distributionId = _grantFund.getDistributionId();
+        (, uint256 startBlock, uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        console.log("\nTime Summary\n");
+        console.log("------------------");
+        console.log("Distribution Id:        %s", distributionId);
+        console.log("start block:            %s", startBlock);
+        console.log("end block:              %s", endBlock);
+        console.log("block number:           %s", block.number);
+        console.log("current block:          %s", testContract.currentBlock());
+        console.log("------------------");
+    }
+
     /***********************/
     /*** View Functions ****/
     /***********************/
 
+    function getDistributionFundsUpdated(uint24 distributionId_) external view returns (bool) {
+        return distributionStates[distributionId_].treasuryUpdated;
+    }
+
     function getDistributionState(uint24 distributionId_) external view returns (DistributionState memory) {
         return distributionStates[distributionId_];
+    }
+
+    function getDistributionStartBlock(uint24 distributionId_) external view returns (uint256 startBlock_) {
+        (
+            ,
+            startBlock_,
+            ,
+            ,
+            ,
+        ) = _grantFund.getDistributionPeriodInfo(distributionId_);
     }
 
     function getStandardFundingProposals(uint24 distributionId_) external view returns (uint256[] memory) {
@@ -753,12 +854,36 @@ contract StandardHandler is Handler {
         return proposalsExecuted;
     }
 
+    function getTestProposal(uint256 proposalId_) external view returns (TestProposal memory) {
+        return testProposals[proposalId_];
+    }
+
     function getVotingActorsInfo(address actor_, uint24 distributionId_) public view returns (IStandardFunding.FundingVoteParams[] memory, IStandardFunding.ScreeningVoteParams[] memory, uint256) {
         return (
             votingActors[actor_][distributionId_].fundingVotes,
             votingActors[actor_][distributionId_].screeningVotes,
             votingActors[actor_][distributionId_].delegationRewardsClaimed
         );
+    }
+
+    function getTokensRequestedInFundedSlateInvariant(bytes32 slateHash_) public view returns (uint256 tokensRequested_) {
+        uint256[] memory fundedProposals = _grantFund.getFundedProposalSlate(slateHash_);
+        for (uint256 i = 0; i < fundedProposals.length; ++i) {
+            (, , , uint128 tokensRequested, , ) = _grantFund.getProposalInfo(fundedProposals[i]);
+            tokensRequested_ += tokensRequested;
+        }
+    }
+
+    function sumSquareOfVotesCast(
+        IStandardFunding.FundingVoteParams[] memory votesCast_
+    ) public pure returns (uint256 votesCastSumSquared_) {
+        uint256 numVotesCast = votesCast_.length;
+
+        for (uint256 i = 0; i < numVotesCast; ) {
+            votesCastSumSquared_ += Maths.wpow(SafeCast.toUint256(Maths.abs(votesCast_[i].votesUsed)), 2);
+
+            unchecked { ++i; }
+        }
     }
 
     function sumVoterScreeningVotes(address actor_, uint24 distributionId_) public view returns (uint256 sum_) {

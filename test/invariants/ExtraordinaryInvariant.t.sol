@@ -16,7 +16,6 @@ contract ExtraordinaryInvariant is ExtraordinaryTestBase {
     function setUp() public override {
         super.setUp();
 
-        // TODO: need to setCurrentBlock?
         currentBlock = block.number;
 
         // set the list of function selectors to run
@@ -102,7 +101,8 @@ contract ExtraordinaryInvariant is ExtraordinaryTestBase {
     }
 
     function invariant_VE1_VE2_VE3_VE4() external view {
-        for (uint256 i = 0; i < _extraordinaryHandler.getActorsCount(); ++i) {
+        uint256 actorCount = _extraordinaryHandler.getActorsCount();
+        for (uint256 i = 0; i < actorCount; ++i) {
             address actor = _extraordinaryHandler.actors(i);
 
             // check has no duplicates
@@ -126,12 +126,12 @@ contract ExtraordinaryInvariant is ExtraordinaryTestBase {
                     param.votesCast >= 0,
                     "invariant VE3: Votes cast must always be positive"
                 );
-            }
 
-            require(
-                _extraordinaryHandler.getSumVotesCast(actor) <= _ajna.totalSupply(),
-                "invariant VE4: A voter should never be able to cast more votes than the Ajna token supply"
-            );
+                require(
+                    param.votesCast <= _ajna.totalSupply(),
+                    "invariant VE4: A voter should never be able to cast more votes than the Ajna token supply"
+                );
+            }
         }
     }
 
