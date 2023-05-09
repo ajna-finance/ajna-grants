@@ -455,7 +455,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertFalse(executed);
         assertTrue(_grantFund.getExtraordinaryProposalSucceeded(testProposal.proposalId));
 
-        // minimum threshold percentage should be at default levels before the succesful proposal is executed
+        // minimum threshold percentage should be at default levels before the successful proposal is executed
         uint256 minimumThresholdPercentage = _grantFund.getMinimumThresholdPercentage();
         assertEq(minimumThresholdPercentage, 0.500000000000000000 * 1e18);
 
@@ -502,7 +502,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
         _executeExtraordinaryProposalNoLog(_grantFund, _token, testProposal);
 
-        // minimum threshold percentage should increase after the succesful proposal is executed
+        // minimum threshold percentage should increase after the successful proposal is executed
         minimumThresholdPercentage = _grantFund.getMinimumThresholdPercentage();
         assertEq(minimumThresholdPercentage, 0.550000000000000000 * 1e18);
     }

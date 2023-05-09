@@ -18,7 +18,7 @@ interface IFunding {
     error AlreadyVoted();
 
     /**
-     * @notice User submitted a proposal with invalid paramteres.
+     * @notice User submitted a proposal with invalid parameteres.
      * @dev    A proposal is invalid if it has a mismatch in the number of targets, values, or calldatas.
      * @dev    It is also invalid if it's calldata selector doesn't equal transfer().
      */
@@ -35,7 +35,7 @@ interface IFunding {
     error ProposalNotFound();
 
     /**
-     * @notice Proposal didn't meet requirements for execcution.
+     * @notice Proposal didn't meet requirements for execution.
      */
     error ProposalNotSuccessful();
 

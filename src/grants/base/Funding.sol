@@ -45,9 +45,11 @@ abstract contract Funding is IFunding, ReentrancyGuard {
 
      /**
      * @notice Execute the calldata of a passed proposal.
-     * @param targets_   The list of smart contract targets for the calldata execution. Should be the Ajna token address.
-     * @param values_    Unused. Should be 0 since all calldata is executed on the Ajna token's transfer method.
-     * @param calldatas_ The list of calldatas to execute.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param proposalId_ The ID of proposal to execute.
+     * @param targets_    The list of smart contract targets for the calldata execution. Should be the Ajna token address.
+     * @param values_     Unused. Should be 0 since all calldata is executed on the Ajna token's transfer method.
+     * @param calldatas_  The list of calldatas to execute.
      */
     function _execute(
         uint256 proposalId_,
@@ -59,9 +61,13 @@ abstract contract Funding is IFunding, ReentrancyGuard {
         emit ProposalExecuted(proposalId_);
 
         string memory errorMessage = "Governor: call reverted without message";
-        for (uint256 i = 0; i < targets_.length; ++i) {
+
+        uint256 noOfTargets = targets_.length;
+        for (uint256 i = 0; i < noOfTargets;) {
             (bool success, bytes memory returndata) = targets_[i].call{value: values_[i]}(calldatas_[i]);
             Address.verifyCallResult(success, returndata, errorMessage);
+
+            unchecked { ++i; }
         }
     }
 
@@ -105,11 +111,14 @@ abstract contract Funding is IFunding, ReentrancyGuard {
         uint256[] memory values_,
         bytes[] memory calldatas_
     ) internal view returns (uint128 tokensRequested_) {
+        uint256 noOfTargets = targets_.length;
 
         // check params have matching lengths
-        if (targets_.length == 0 || targets_.length != values_.length || targets_.length != calldatas_.length) revert InvalidProposal();
+        if (
+            noOfTargets == 0 || noOfTargets != values_.length || noOfTargets != calldatas_.length
+        ) revert InvalidProposal();
 
-        for (uint256 i = 0; i < targets_.length;) {
+        for (uint256 i = 0; i < noOfTargets;) {
 
             // check targets and values params are valid
             if (targets_[i] != ajnaTokenAddress || values_[i] != 0) revert InvalidProposal();
@@ -118,7 +127,7 @@ abstract contract Funding is IFunding, ReentrancyGuard {
             bytes memory selDataWithSig = calldatas_[i];
 
             bytes4 selector;
-            //slither-disable-next-line assembly
+            // slither-disable-next-line assembly
             assembly {
                 selector := mload(add(selDataWithSig, 0x20))
             }
@@ -128,7 +137,7 @@ abstract contract Funding is IFunding, ReentrancyGuard {
             // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
             uint256 tokensRequested;
             bytes memory tokenDataWithSig = calldatas_[i];
-            //slither-disable-next-line assembly
+            // slither-disable-next-line assembly
             assembly {
                 tokensRequested := mload(add(tokenDataWithSig, 68))
             }

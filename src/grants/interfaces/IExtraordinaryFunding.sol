@@ -119,7 +119,7 @@ interface IExtraordinaryFunding {
      *  @return endBlock        The block by which the proposal must pass.
      *  @return tokensRequested Amount of Ajna tokens requested by the proposal.
      *  @return votesReceived   Number of votes the proposal has received. One Ajna token is one vote.
-     *  @return executed        Whether a succesful proposal has been executed.
+     *  @return executed        Whether a successful proposal has been executed.
      */
     function getExtraordinaryProposalInfo(
         uint256 proposalId_
