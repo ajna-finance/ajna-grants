@@ -260,11 +260,12 @@ abstract contract GrantFundTestHelper is Test {
         TestProposal[] memory testProposals = new TestProposal[](testProposalParams_.length);
 
         for (uint256 i = 0; i < testProposalParams_.length; ++i) {
-            // generate description string
+            // generate description string from data
             string memory descriptionPartOne = "Proposal to transfer ";
             string memory descriptionPartTwo = Strings.toString(testProposalParams_[i].tokensRequested);
-            string memory descriptionPartThree = " tokens to tester address";
-            string memory description = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo, descriptionPartThree));
+            string memory descriptionPartThree = " tokens to recipient ";
+            string memory descriptionPartFour = Strings.toHexString(testProposalParams_[i].recipient);
+            string memory description = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo, descriptionPartThree, descriptionPartFour));
 
             // generate calldata
             bytes[] memory proposalCalldata = new bytes[](1);
