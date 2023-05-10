@@ -137,7 +137,8 @@ contract ExtraordinaryHandler is Handler {
             bytes32 err = keccak256(_err);
             require(
                 err == keccak256(abi.encodeWithSignature("AlreadyVoted()")) ||
-                err == keccak256(abi.encodeWithSignature("ExtraordinaryFundingProposalInactive()")),
+                err == keccak256(abi.encodeWithSignature("ExtraordinaryFundingProposalInactive()")) ||
+                err == keccak256(abi.encodeWithSignature("InvalidVote()")),
                 UNEXPECTED_REVERT
             );
         }

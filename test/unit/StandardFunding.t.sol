@@ -406,6 +406,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         uint256 screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder1);
         assertEq(screeningVotesCast, 0);
 
+        // check revert if attempts to vote with 0 power
+        assertScreeningVoteInvalidVoteRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, 0);
+
         // cast screening stage vote
         IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](2);
         screeningVoteParams[0] = IStandardFunding.ScreeningVoteParams({
@@ -436,6 +439,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // should be false if user has not voted in funding stage but voted in screening stage
         IStandardFunding.FundingVoteParams[] memory fundingVoteParams = _grantFund.getFundingVotesCast(distributionId, _tokenHolder1);
         assertEq(fundingVoteParams.length, 0);
+
+        // check revert if attempts to vote with 0 power
+        assertFundingVoteInvalidVoteRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, 0);
 
         // voter allocates all of their voting power in support of the proposal
         _fundingVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, voteNo, -25_000_000 * 1e18);
@@ -835,7 +841,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // including Proposal in potentialProposalSlate that is not in topTenProposal (funding Stage)
         potentialProposalSlate[1] = testProposals[6].proposalId;
         
-        // ensure updateSlate won't allow if called before DistributionPeriod starts
+        // ensure updateSlate won't work if called before DistributionPeriod starts
         vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
         _grantFund.updateSlate(potentialProposalSlate, distributionId);
 
@@ -846,7 +852,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // skip to the end of the DistributionPeriod
         vm.roll(_startBlock + 650_000);
 
-        // ensure updateSlate won't allow if slate has a proposal that is not in topTenProposal (funding Stage)
+        // ensure updateSlate won't accept a slate containing a proposal that is not in topTenProposal (funding Stage)
+        vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
+        _grantFund.updateSlate(potentialProposalSlate, distributionId);
+
+        // ensure updateSlate won't accept a slate with no proposals
+        potentialProposalSlate = new uint256[](0);
         vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
         _grantFund.updateSlate(potentialProposalSlate, distributionId);
 
