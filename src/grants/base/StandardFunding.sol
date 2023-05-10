@@ -242,7 +242,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution memory currentDistribution = _distributions[distributionId_];
 
         // Check if Challenge Period is still active
-        if(block.number < _getChallengeStageEndBlock(currentDistribution.endBlock)) revert ChallengePeriodNotEnded();
+        if(block.number <= _getChallengeStageEndBlock(currentDistribution.endBlock)) revert ChallengePeriodNotEnded();
 
         // check rewards haven't already been claimed
         if(hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
