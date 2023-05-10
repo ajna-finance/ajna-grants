@@ -245,8 +245,7 @@ abstract contract GrantFundTestHelper is Test {
         uint256 proposalId = grantFund_.proposeStandard(targets_, values_, calldatas_, description);
         assertEq(proposalId, expectedProposalId);
 
-        (GeneratedTestProposalParams[] memory params, uint256 totalTokensRequested) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
-        return TestProposal(proposalId, distributionId, description, totalTokensRequested, block.number, params);
+        return _createTestProposalStandard(distributionId, proposalId, targets_, values_, calldatas_, description);
     }
 
     function _createNProposals(GrantFund grantFund_, IAjnaToken token_, TestProposalParams[] memory testProposalParams_) internal returns (TestProposal[] memory) {
@@ -279,6 +278,12 @@ abstract contract GrantFundTestHelper is Test {
             testProposals[i] = proposal;
         }
         return testProposals;
+    }
+
+    // return a TestProposal struct containing the state of a created proposal
+    function _createTestProposalStandard(uint24 distributionId_, uint256 proposalId_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal returns (TestProposal memory proposal_) {
+        (GeneratedTestProposalParams[] memory params, uint256 totalTokensRequested) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
+        proposal_ = TestProposal(proposalId_, distributionId_, description, totalTokensRequested, block.number, params);
     }
 
     /**

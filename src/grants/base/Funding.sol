@@ -124,6 +124,8 @@ abstract contract Funding is IFunding, ReentrancyGuard {
             }
             if (selector != bytes4(0xa9059cbb)) revert InvalidProposal();
 
+            // TODO: check address in calldata as well isn't 0 address or the token address or this contract
+
             // https://github.com/ethereum/solidity/issues/9439
             // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
             uint256 tokensRequested;

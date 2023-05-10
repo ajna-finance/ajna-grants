@@ -648,6 +648,71 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(currentDistributionId, 2);
     }
 
+    function testExecuteInvalidCalldata() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _votersArr);
+
+        vm.roll(_startBlock + 150);
+
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+        uint24 distributionId = _grantFund.getDistributionId();
+
+        vm.roll(_startBlock + 200);
+
+        // generate proposal targets
+        address[] memory targets = new address[](1);
+        targets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata for an invalid transfer to the ajna token contract
+        uint256 proposalTokenAmount = 1 * 1e18;
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            address(_token),
+            1 * 1e18
+        );
+
+        // generate proposal message
+        string memory description = "Proposal for Ajna token transfer to the ajna token contract";
+
+        // create proposal with unexecutable calldata
+        uint256 proposalId = _grantFund.proposeStandard(targets, values, calldatas, description);
+
+        TestProposal memory testProposal = _createTestProposalStandard(distributionId, proposalId, targets, values, calldatas, description);
+
+        // cast screening votes on unexecutable proposal
+        _screeningVote(_grantFund, _tokenHolder1, proposalId, _grantFund.getVotesScreening(distributionId, _tokenHolder1));
+
+        // skip time to move from screening stage to funding stage
+        vm.roll(_startBlock + 600_000);
+
+        GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
+        assertEq(screenedProposals.length, 1);
+
+        // tokenholder 1 casts funding votes on the unexecutable proposal
+        _fundingVote(_grantFund, _tokenHolder1, proposalId, voteYes, 25_000_000 * 1e18);
+
+        // skip time to move to the challenge stage
+        vm.roll(_startBlock + 650_000);
+
+        // update proposal slate with the invalid proposal
+        uint256[] memory potentialProposalSlate = new uint256[](1);
+        potentialProposalSlate[0] = proposalId;
+        _grantFund.updateSlate(potentialProposalSlate, distributionId);
+
+        // skip to the end of the Distribution's challenge stage
+        vm.roll(_startBlock + 700_000);
+
+        // attempt to execute the proposal
+        vm.expectRevert(IFunding.ProposalNotSuccessful.selector);
+        _executeProposalNoLog(_grantFund, _token, testProposal);
+    }
+
     /**
      *  @notice Integration test of 7 proposals submitted, with 6 passing the screening stage. Five potential funding slates are tested.
      *  @dev    Maximum quarterly distribution is 10_000_000.
@@ -706,13 +771,13 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         /*** Funding Stage ***/
         /*********************/
 
-        // skip time to move from screening period to funding period
+        // skip time to move from screening stage to funding stage
         vm.roll(_startBlock + 600_000);
 
         // check can't cast screening votes in the funding stage
         assertScreeningVoteInvalidVoteRevert(_grantFund, _tokenHolder11, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder11));
 
-        // check topTenProposals array is correct after screening period - only six should have advanced
+        // check topTenProposals array is correct after screening stage - only six should have advanced
         GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         assertEq(screenedProposals.length, 6);
         assertEq(screenedProposals[0].proposalId, testProposals[0].proposalId);
@@ -731,7 +796,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // check can't cast funding vote on proposal that didn't make it through the screening stage
         assertFundingVoteInvalidVoteRevert(_grantFund, _tokenHolder1, testProposals[6].proposalId, 25_000_000 * 1e18);
 
-        // funding period votes for two competing slates, 1, or 2 and 3
+        // funding stage votes for two competing slates, 1, or 2 and 3
         _fundingVote(_grantFund, _tokenHolder1, screenedProposals[0].proposalId, voteYes, 25_000_000 * 1e18);
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         _fundingVote(_grantFund, _tokenHolder2, screenedProposals[1].proposalId, voteYes, 25_000_000 * 1e18);
