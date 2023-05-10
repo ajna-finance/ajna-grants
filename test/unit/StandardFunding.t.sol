@@ -353,6 +353,65 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.proposeStandard(targets, values, proposalCalldata, description);
     }
 
+    function testInvalidRecipientCalldata() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _votersArr);
+
+        vm.roll(_startBlock + 150);
+
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+        uint24 distributionId = _grantFund.getDistributionId();
+
+        vm.roll(_startBlock + 200);
+
+        // generate proposal targets
+        address[] memory targets = new address[](1);
+        targets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata for an invalid transfer to the ajna token contract
+        uint256 tokensRequested = 1 * 1e18;
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            address(_token),
+            tokensRequested
+        );
+
+        // generate proposal message
+        string memory description = "Proposal for Ajna token transfer to the ajna token contract";
+
+        // create proposal should revert since the proposer requested to transfer tokens to ajna token contract
+        vm.expectRevert(IFunding.InvalidProposal.selector);
+        uint256 proposalId = _grantFund.proposeStandard(targets, values, calldatas, description);
+
+        // generate proposal calldata for an invalid transfer to the 0 address
+        calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            address(0),
+            tokensRequested
+        );
+
+        vm.expectRevert(IFunding.InvalidProposal.selector);
+        proposalId = _grantFund.proposeStandard(targets, values, calldatas, description);
+
+        // generate proposal calldata for an invalid transfer to the grant fund
+        calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            address(_grantFund),
+            tokensRequested
+        );
+
+        vm.expectRevert(IFunding.InvalidProposal.selector);
+        proposalId = _grantFund.proposeStandard(targets, values, calldatas, description);
+    }
+
     function testInvalidProposalTarget() external {
         // start distribution period
         _startDistributionPeriod(_grantFund);
@@ -646,71 +705,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _startDistributionPeriod(_grantFund);
         currentDistributionId = _grantFund.getDistributionId();
         assertEq(currentDistributionId, 2);
-    }
-
-    function testExecuteInvalidCalldata() external {
-        // 14 tokenholders self delegate their tokens to enable voting on the proposals
-        _selfDelegateVoters(_token, _votersArr);
-
-        vm.roll(_startBlock + 150);
-
-        // start distribution period
-        _startDistributionPeriod(_grantFund);
-        uint24 distributionId = _grantFund.getDistributionId();
-
-        vm.roll(_startBlock + 200);
-
-        // generate proposal targets
-        address[] memory targets = new address[](1);
-        targets[0] = address(_token);
-
-        // generate proposal values
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        // generate proposal calldata for an invalid transfer to the ajna token contract
-        uint256 proposalTokenAmount = 1 * 1e18;
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSignature(
-            "transfer(address,uint256)",
-            address(_token),
-            1 * 1e18
-        );
-
-        // generate proposal message
-        string memory description = "Proposal for Ajna token transfer to the ajna token contract";
-
-        // create proposal with unexecutable calldata
-        uint256 proposalId = _grantFund.proposeStandard(targets, values, calldatas, description);
-
-        TestProposal memory testProposal = _createTestProposalStandard(distributionId, proposalId, targets, values, calldatas, description);
-
-        // cast screening votes on unexecutable proposal
-        _screeningVote(_grantFund, _tokenHolder1, proposalId, _grantFund.getVotesScreening(distributionId, _tokenHolder1));
-
-        // skip time to move from screening stage to funding stage
-        vm.roll(_startBlock + 600_000);
-
-        GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
-        assertEq(screenedProposals.length, 1);
-
-        // tokenholder 1 casts funding votes on the unexecutable proposal
-        _fundingVote(_grantFund, _tokenHolder1, proposalId, voteYes, 25_000_000 * 1e18);
-
-        // skip time to move to the challenge stage
-        vm.roll(_startBlock + 650_000);
-
-        // update proposal slate with the invalid proposal
-        uint256[] memory potentialProposalSlate = new uint256[](1);
-        potentialProposalSlate[0] = proposalId;
-        _grantFund.updateSlate(potentialProposalSlate, distributionId);
-
-        // skip to the end of the Distribution's challenge stage
-        vm.roll(_startBlock + 700_000);
-
-        // attempt to execute the proposal
-        vm.expectRevert(IFunding.ProposalNotSuccessful.selector);
-        _executeProposalNoLog(_grantFund, _token, testProposal);
     }
 
     /**
