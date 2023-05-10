@@ -330,6 +330,13 @@ interface IStandardFunding {
     ) external pure returns (bytes32);
 
     /**
+        * @notice Retrieve the current stage of the current distribution period.
+        * @dev    Stage is determined by the current block number relative to the current distribution period's start and end blocks.
+        * @return stage_ The stage of the current distribution period.
+     */
+    function getStage() external view returns (string memory stage_);
+
+    /**
      * @notice Retrieve the top ten proposals that have received the most votes in a given distribution period's screening round.
      * @dev    It may return less than 10 proposals if less than 10 have been submitted. 
      * @dev    Values are subject to change if the queried distribution period's screening round is ongoing.

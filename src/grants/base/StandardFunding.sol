@@ -976,10 +976,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         return keccak256(abi.encode(proposalIds_));
     }
 
-    /**
-        * @notice Retrieve the current stage of the current distribution period.
-        * @return stage_ The stage of the current distribution period.
-     */
+    /// @inheritdoc IStandardFunding
     function getStage() external view returns (string memory stage_) {
         QuarterlyDistribution memory currentDistribution = _distributions[_currentDistributionId];
         uint256 endBlock = currentDistribution.endBlock;
