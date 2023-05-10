@@ -1156,9 +1156,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check revert if attempts to cast screening votes on proposals from first distribution period
         changePrank(_tokenHolder10);
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _screeningVoteNoLog(_grantFund, _tokenHolder10, testProposals_distribution1[0].proposalId, 50_000_000 * 1e18);
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _screeningVoteNoLog(_grantFund, _tokenHolder5, testProposals_distribution1[0].proposalId, 20_000_000 * 1e18);
 
         // skip time to move from screening period to funding period
@@ -1173,9 +1173,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check revert if attempts to cast funding votes on proposals from first distribution period
         changePrank(_tokenHolder10);
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _fundingVoteNoLog(_grantFund, _tokenHolder10, testProposals_distribution1[0].proposalId, 50_000_000 * 1e18);
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _fundingVoteNoLog(_grantFund, _tokenHolder5, screenedProposals_distribution1[0].proposalId, 21_000_000 * 1e18);
 
         // skip to the Challenge period

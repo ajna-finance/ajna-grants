@@ -48,11 +48,6 @@ interface IStandardFunding {
     error DelegateRewardInvalid();
 
     /**
-     * @notice User attempted to vote on a proposal outside of the current distribution period.
-     */
-    error InvalidVote();
-
-    /**
      * @notice User attempted to propose after screening period ended
      */
     error ScreeningPeriodEnded();

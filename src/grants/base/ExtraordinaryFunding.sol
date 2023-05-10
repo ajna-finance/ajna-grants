@@ -142,6 +142,10 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         // check voting power at snapshot block and update proposal votes
         votesCast_ = _getVotesExtraordinary(msg.sender, proposalId_);
+
+        // check that the voter isn't attempting to cast a vote with 0 power
+        if (votesCast_ == 0) revert InvalidVote();
+
         proposal.votesReceived += SafeCast.toUint120(votesCast_);
 
         // record that voter has voted on this extraordinary funding proposal

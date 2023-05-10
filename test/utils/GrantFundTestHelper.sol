@@ -6,6 +6,7 @@ import { Strings }  from "@oz/utils/Strings.sol"; // used for createNProposals
 import { Test }     from "@std/Test.sol";
 
 import { GrantFund }        from "../../src/grants/GrantFund.sol";
+import { IFunding }         from "../../src/grants/interfaces/IFunding.sol";
 import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
 import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
@@ -752,12 +753,12 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     function assertFundingVoteInvalidVoteRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 
     function assertScreeningVoteInvalidVoteRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _screeningVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 
