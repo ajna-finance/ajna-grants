@@ -196,7 +196,7 @@ contract StandardHandler is Handler {
 
         // get the fundingVoteParams for the votes the actor is about to cast
         // take the chaotic path, and cast votes that will likely exceed the actor's voting power
-        IStandardFunding.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(_actor, proposalsToVoteOn_, false);
+        IStandardFunding.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(_actor, distributionId, proposalsToVoteOn_, false);
 
         try _grantFund.fundingVote(fundingVoteParams) returns (uint256 votesCast) {
             numberOfCalls['SFH.fundingVote.success']++;
@@ -497,18 +497,23 @@ contract StandardHandler is Handler {
     }
 
     // if taking the happy path, array length may not match numProposalsToVoteOn_
-    function _fundingVoteParams(address actor_, uint256 numProposalsToVoteOn_, bool happyPath_) internal returns (IStandardFunding.FundingVoteParams[] memory fundingVoteParams_) {
-        uint24 distributionId = _grantFund.getDistributionId();
-        (uint256 votingPower, uint256 remainingVotingPower, ) = _grantFund.getVoterInfo(distributionId, actor_);
+    function _fundingVoteParams(
+        address actor_,
+        uint24 distributionId_,
+        uint256 numProposalsToVoteOn_,
+        bool happyPath_
+    ) internal returns (IStandardFunding.FundingVoteParams[] memory fundingVoteParams_) {
+
+        (uint256 votingPower, uint256 remainingVotingPower, ) = _grantFund.getVoterInfo(distributionId_, actor_);
         uint256 votingPowerUsed = votingPower - remainingVotingPower;
         if (votingPower == 0) {
-            votingPower = _grantFund.getVotesFunding(distributionId, actor_);
+            votingPower = _grantFund.getVotesFunding(distributionId_, actor_);
             votingPowerUsed = 0;
         }
 
         fundingVoteParams_ = new IStandardFunding.FundingVoteParams[](numProposalsToVoteOn_);
 
-        uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
+        uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId_);
 
         // generate the array of fundingVoteParams structs
         uint256 i = 0;
@@ -532,7 +537,7 @@ contract StandardHandler is Handler {
 
                 // check for any previous votes on this proposal
                 int256 priorVoteIndex = -1;
-                IStandardFunding.FundingVoteParams[] memory priorVotes = votingActors[actor_][distributionId].fundingVotes;
+                IStandardFunding.FundingVoteParams[] memory priorVotes = votingActors[actor_][distributionId_].fundingVotes;
                 for (uint256 j = 0; j < priorVotes.length; ++j) {
                     // if we have already voted on this proposal, then we need to update the votes used
                     if (priorVotes[j].proposalId == proposalId) {
@@ -585,16 +590,50 @@ contract StandardHandler is Handler {
         }
     }
 
+    function _screeningVoteParams(
+        address actor_,
+        uint24 distributionId_,
+        uint256 numProposalsToVoteOn_,
+        bool happyPath_
+    ) internal returns (IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams_) {
+        uint256 votingPower = _grantFund.getVotesScreening(distributionId_, actor_);
+        uint256 totalVotesUsed = 0;
+
+        // determine which proposals should be voted upon
+        screeningVoteParams_ = new IStandardFunding.ScreeningVoteParams[](numProposalsToVoteOn_);
+        // TODO: if (happyPath_) {}
+        for (uint256 i = 0; i < numProposalsToVoteOn_; ++i) {
+            // get a random proposal
+            uint256 proposalId = randomProposal();
+
+            // account for already used voting power
+            uint256 additionalVotesUsed = 0;
+            if (votingPower != 0) {
+                additionalVotesUsed = randomAmount(votingPower - totalVotesUsed);
+            }
+            totalVotesUsed += additionalVotesUsed;
+
+            // generate screening vote params
+            screeningVoteParams_[i] = IStandardFunding.ScreeningVoteParams({
+                proposalId: proposalId,
+                votes: additionalVotesUsed
+            });
+        }
+    }
+
     function _fundingVoteProposal(address actor_, uint256 numProposalsToVoteOn_) internal {
+        uint24 distributionId = _grantFund.getDistributionId();
+
+        // if voter has no voting power, no voting is possible
+        if (_grantFund.getVotesFunding(distributionId, actor_) == 0) return;
+
         // get the fundingVoteParams for the votes the actor is about to cast
         // take the happy path, and cast votes that wont exceed the actor's voting power
-        IStandardFunding.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(actor_, numProposalsToVoteOn_, true);
+        IStandardFunding.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(actor_, distributionId, numProposalsToVoteOn_, true);
 
         // cast votes
         changePrank(actor_);
         _grantFund.fundingVote(fundingVoteParams);
-
-        uint24 distributionId = _grantFund.getDistributionId();
 
         // record cast votes
         VotingActor storage actor = votingActors[actor_][distributionId];
@@ -608,33 +647,15 @@ contract StandardHandler is Handler {
 
     function _screeningVoteProposal(address actor_) internal {
         uint24 distributionId = _grantFund.getDistributionId();
-
         uint256 votingPower = _grantFund.getVotesScreening(distributionId, actor_);
+
+        // if voter has no voting power, no voting is possible
+        if (votingPower == 0) return;
 
         // get random number of proposals to vote on
         uint256 numProposalsToVoteOn = constrictToRange(randomSeed(), 1, 10);
 
-        uint256 totalVotesUsed = 0;
-
-        // calculate which proposals should be voted upon
-        IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](numProposalsToVoteOn);
-        for (uint256 i = 0; i < numProposalsToVoteOn; ++i) {
-            // get a random proposal
-            uint256 proposalId = randomProposal();
-
-            // account for already used voting power
-            uint256 additionalVotesUsed = 0;
-            if (votingPower != 0) {
-                additionalVotesUsed = randomAmount(votingPower - totalVotesUsed);
-            }
-            totalVotesUsed += additionalVotesUsed;
-
-            // generate screening vote params
-            screeningVoteParams[i] = IStandardFunding.ScreeningVoteParams({
-                proposalId: proposalId,
-                votes: additionalVotesUsed
-            });
-        }
+        IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = _screeningVoteParams(actor_, distributionId, numProposalsToVoteOn, true);
 
         // cast votes
         changePrank(actor_);
