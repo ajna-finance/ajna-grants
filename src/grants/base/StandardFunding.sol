@@ -427,6 +427,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check that the slate has no duplicates
         if (_hasDuplicates(proposalIds_)) revert InvalidProposalSlate();
 
+        // check that there is a proposal in the slate
+        if (numProposalsInSlate_ == 0) revert InvalidProposalSlate();
+
         uint256 gbc = distributionPeriodFundsAvailable_;
         uint256 totalTokensRequested = 0;
 
@@ -438,7 +441,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             if (_findProposalIndex(proposalIds_[i], _topTenProposals[distributionId_]) == -1) revert InvalidProposalSlate();
 
             // account for fundingVotesReceived possibly being negative
-            if (proposal.fundingVotesReceived < 0) revert InvalidProposalSlate();
+            // block proposals that recieve no positive funding votes from entering a finalized slate
+            if (proposal.fundingVotesReceived <= 0) revert InvalidProposalSlate();
 
             // update counters
             sum_ += uint128(proposal.fundingVotesReceived); // since we are converting from int128 to uint128, we can safely assume that the value will not overflow
