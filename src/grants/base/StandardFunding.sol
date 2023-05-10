@@ -555,6 +555,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             // check that the proposal being voted on is in the top ten screened proposals
             if (_findProposalIndex(voteParams_[i].proposalId, _topTenProposals[currentDistributionId]) == -1) revert InvalidVote();
 
+            // check that the voter isn't attempting to cast a vote with 0 power
+            if (voteParams_[i].votesUsed == 0) revert InvalidVote();
+
             // cast each successive vote
             votesCast_ += _fundingVote(
                 currentDistribution,
@@ -586,6 +589,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             if (proposal.distributionId != currentDistribution.id) revert InvalidVote();
 
             uint256 votes = voteParams_[i].votes;
+
+            // check that the voter isn't attempting to cast a vote with 0 power
+            if (votes == 0) revert InvalidVote();
 
             // cast each successive vote
             votesCast_ += votes;
