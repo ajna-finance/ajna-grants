@@ -605,7 +605,7 @@ abstract contract GrantFundTestHelper is Test {
         int256 arrayLength = int256(array_.length);
 
         for (int256 i = 0; i < arrayLength;) {
-            //slither-disable-next-line incorrect-equality
+            // slither-disable-next-line incorrect-equality
             if (array_[uint256(i)] == proposalId_) {
                 index_ = i;
                 break;
@@ -624,7 +624,7 @@ abstract contract GrantFundTestHelper is Test {
         // since we are converting from uint256 to int256, we can safely assume that the value will not overflow
         int256 numVotesCast = int256(voteParams_.length);
         for (int256 i = 0; i < numVotesCast; ) {
-            //slither-disable-next-line incorrect-equality
+            // slither-disable-next-line incorrect-equality
             if (voteParams_[uint256(i)].proposalId == proposalId_) {
                 index_ = i;
                 break;

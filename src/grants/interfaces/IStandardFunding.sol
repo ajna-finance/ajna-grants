@@ -84,8 +84,8 @@ interface IStandardFunding {
     /**
      *  @notice Emitted at the beginning of a new quarterly distribution period.
      *  @param  distributionId Id of the new distribution period.
-     *  @param  startBlock     Block number of the quarterly distrubtions start.
-     *  @param  endBlock       Block number of the quarterly distrubtions end.
+     *  @param  startBlock     Block number of the quarterly distributions start.
+     *  @param  endBlock       Block number of the quarterly distributions end.
      */
     event QuarterlyDistributionStarted(
         uint256 indexed distributionId,
@@ -177,7 +177,7 @@ interface IStandardFunding {
     /**
      * @notice distributes delegate reward based on delegatee Vote share.
      * @dev Can be called by anyone who has voted in both screening and funding period.
-     * @param  distributionId_ Id of distribution from whinch delegatee wants to claim his reward.
+     * @param  distributionId_ Id of distribution from which delegatee wants to claim his reward.
      * @return rewardClaimed_  Amount of reward claimed by delegatee.
      */
     function claimDelegateReward(
@@ -191,7 +191,7 @@ interface IStandardFunding {
     /**
      * @notice Execute a proposal that has been approved by the community.
      * @dev    Calls out to Governor.execute().
-     * @dev    Check for proposal being succesfully funded or previously executed is handled by Governor.execute().
+     * @dev    Check for proposal being successfully funded or previously executed is handled by Governor.execute().
      * @param  targets_         List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
      * @param  values_          List of values to be sent with the proposal calldata. Should be 0 for all proposals.
      * @param  calldatas_       List of calldata to be executed. Should be the transfer() method.
@@ -318,7 +318,7 @@ interface IStandardFunding {
      * @notice Get the list of funding votes cast by an account in a given distribution period.
      * @param  distributionId_   The distributionId of the distribution period to check.
      * @param  account_          The address of the voter to check.
-     * @return FundingVoteParams The list of FundingVoteParams structs that have been succesfully cast the voter.
+     * @return FundingVoteParams The list of FundingVoteParams structs that have been successfully cast the voter.
      */
     function getFundingVotesCast(uint24 distributionId_, address account_) external view returns (FundingVoteParams[] memory);
 
