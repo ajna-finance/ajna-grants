@@ -449,6 +449,79 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertInsufficientVotingPowerRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, -1);
     }
 
+    // test the behaviour of the system with voters who only vote in the screening or funding rounds but not both
+    // token holders 1 - 5 votes in screening only, 6 - 10 in funding only, and _tokenHolder11 votes in both stages
+    function testSingleRoundVoting() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _votersArr);
+
+        vm.roll(_startBlock + 150);
+
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+        uint24 distributionId = _grantFund.getDistributionId();
+
+        vm.roll(_startBlock + 200);
+
+        // create proposals
+        TestProposalParams[] memory testProposalParams = new TestProposalParams[](5);
+        testProposalParams[0] = TestProposalParams(_tokenHolder1, 9_000_000 * 1e18);
+        testProposalParams[1] = TestProposalParams(_tokenHolder2, 2_000_000 * 1e18);
+        testProposalParams[2] = TestProposalParams(_tokenHolder3, 5_000_000 * 1e18);
+        testProposalParams[3] = TestProposalParams(_tokenHolder4, 5_000_000 * 1e18);
+        testProposalParams[4] = TestProposalParams(_tokenHolder5, 50_000 * 1e18);
+        TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
+
+        // 5 voters cast screening votes only
+        _screeningVote(_grantFund, _tokenHolder1, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
+        _screeningVote(_grantFund, _tokenHolder2, testProposals[1].proposalId, _getScreeningVotes(_grantFund, _tokenHolder2));
+        _screeningVote(_grantFund, _tokenHolder3, testProposals[2].proposalId, _getScreeningVotes(_grantFund, _tokenHolder3));
+        _screeningVote(_grantFund, _tokenHolder4, testProposals[3].proposalId, _getScreeningVotes(_grantFund, _tokenHolder4));
+        _screeningVote(_grantFund, _tokenHolder5, testProposals[4].proposalId, _getScreeningVotes(_grantFund, _tokenHolder5));
+
+        // _tokenHolder11 votes screening
+        _screeningVote(_grantFund, _tokenHolder11, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder11));
+
+        // check top ten proposals
+        GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
+        assertEq(screenedProposals.length, 5);
+
+        // skip time to move from screening period to funding period
+        vm.roll(_startBlock + 600_000);
+
+        // 5 different voters cast funding votes only
+        _fundingVote(_grantFund, _tokenHolder6, screenedProposals[0].proposalId, voteYes, 25_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder7, screenedProposals[1].proposalId, voteYes, 25_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder8, screenedProposals[2].proposalId, voteYes, 25_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder9, screenedProposals[3].proposalId, voteYes, 25_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder10, screenedProposals[4].proposalId, voteYes, 25_000_000 * 1e18);
+
+        // _tokenHolder11 votes funding
+        _fundingVote(_grantFund, _tokenHolder11, screenedProposals[4].proposalId, voteNo, -25_000_000 * 1e18);
+
+        // check that the total funding votes cast is only equal to the voting power expended by tokenHolder11 who voted in both stages
+        (, , , uint256 fundsAvailable, uint256 fundingVotesCast, ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        assertEq(fundingVotesCast, Maths.wpow(25_000_000 * 1e18, 2));
+
+        // skip to the end of the Distribution's challenge period
+        vm.roll(_startBlock + 700_000);
+
+        // delegate reward should be 0 for _tokenHolder1 who only participated in the screening stage
+        changePrank(_tokenHolder1);
+        uint256 rewardsClaimed = _grantFund.claimDelegateReward(distributionId);
+        assertEq(rewardsClaimed, 0);
+
+        // should revert as _tokenHolder6 has not participated in screening stage
+        changePrank(_tokenHolder6);
+        vm.expectRevert(IStandardFunding.DelegateRewardInvalid.selector);
+        _grantFund.claimDelegateReward(distributionId);
+
+        // check that only tokenHolder11 can claim delegate rewards and that they get the full amount of rewards
+        changePrank(_tokenHolder11);
+        rewardsClaimed = _grantFund.claimDelegateReward(distributionId);
+        assertEq(rewardsClaimed, fundsAvailable / 10);
+    }
+
     /**
      *  @notice 14 voters consider 18 different proposals. 10 Make it through to the funding stage.
      */
@@ -829,6 +902,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(uint256(votingPowerRemaining), _getFundingVotes(_grantFund, _tokenHolder5));
         assertEq(votesCast, 1);
 
+        // tokenholder 11 votes in the funding stage after having not voted in the screening stage
+        _fundingVote(_grantFund, _tokenHolder11, screenedProposals[5].proposalId, voteNo, -10_000_000 * 1e18);
+
         uint256[] memory potentialProposalSlate = new uint256[](2);
         potentialProposalSlate[0] = screenedProposals[0].proposalId;
 
@@ -1047,6 +1123,11 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // should revert as _tokenHolder14 has not participated in screening stage
         changePrank(_tokenHolder14);
+        vm.expectRevert(IStandardFunding.DelegateRewardInvalid.selector);
+        _grantFund.claimDelegateReward(distributionId);
+
+        // should revert as _tokenHolder11 has not participated in screening stage, even though they voted in the funding stage
+        changePrank(_tokenHolder11);
         vm.expectRevert(IStandardFunding.DelegateRewardInvalid.selector);
         _grantFund.claimDelegateReward(distributionId);
     }
