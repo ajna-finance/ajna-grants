@@ -33,6 +33,11 @@ interface IStandardFunding {
     error InsufficientVotingPower();
 
     /**
+     * @notice Voter does not have enough voting power remaining to cast the vote.
+     */
+    error InsufficientRemainingVotingPower();
+
+    /**
      * @notice Delegatee attempted to claim delegate reward before the challenge period ended.
      */
     error ChallengePeriodNotEnded();

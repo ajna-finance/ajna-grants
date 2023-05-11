@@ -208,7 +208,7 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
     }
 
     function invariant_call_summary() external view {
-        uint24 distributionId = _grantFund.getDistributionId();
+        // uint24 distributionId = _grantFund.getDistributionId();
 
         _standardHandler.logCallSummary();
         _standardHandler.logTimeSummary();

@@ -231,7 +231,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(votingPower, 625_000_000_000_000 * 1e18 - Maths.wpow(15_000_000 * 1e18, 2));
 
         // check revert if additional votes exceed the budget
-        vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
+        vm.expectRevert(IStandardFunding.InsufficientRemainingVotingPower.selector);
         _fundingVoteNoLog(_grantFund, _tokenHolder1, proposal.proposalId, 16_000_000 * 1e18);
     }
 
@@ -505,7 +505,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(fundingVoteParams[0].votesUsed, -25_000_000 * 1e18);
 
         // check revert if attempts to vote again
-        assertInsufficientVotingPowerRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, -1);
+        assertInsufficientRemainingVotingPowerRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, -1);
     }
 
     /**
@@ -836,7 +836,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             votesUsed: -17_500_000 * 1e18
         });
         changePrank(_tokenHolder4);
-        vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
+        vm.expectRevert(IStandardFunding.InsufficientRemainingVotingPower.selector);
         _grantFund.fundingVote(fundingVoteParams);
 
         // tokenholder4 divides their full votingpower into two proposals in one transaction

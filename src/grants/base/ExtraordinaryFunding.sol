@@ -136,7 +136,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         ExtraordinaryFundingProposal storage proposal = _extraordinaryFundingProposals[proposalId_];
         // revert if proposal is inactive
-        if (proposal.startBlock > block.number || proposal.endBlock < block.number || proposal.executed) {
+        if (proposal.endBlock < block.number || proposal.executed) {
             revert ExtraordinaryFundingProposalInactive();
         }
 
@@ -169,10 +169,10 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         uint256 minThresholdPercentage = _getMinimumThresholdPercentage();
 
         return
-            // succeeded if proposal's votes received doesn't exceed the minimum threshold required
+            // proposal succeeded if received more votes than tokens requested plus the minimum non treasury threshold required
             (votesReceived >= tokensRequested_ + _getSliceOfNonTreasury(minThresholdPercentage))
             &&
-            // succeeded if tokens requested are available for claiming from the treasury
+            // proposal succeeded if tokens requested are less than treasury threshold required
             (tokensRequested_ <= _getSliceOfTreasury(Maths.WAD - minThresholdPercentage))
         ;
     }
