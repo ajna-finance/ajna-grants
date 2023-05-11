@@ -245,8 +245,7 @@ abstract contract GrantFundTestHelper is Test {
         uint256 proposalId = grantFund_.proposeStandard(targets_, values_, calldatas_, description);
         assertEq(proposalId, expectedProposalId);
 
-        (GeneratedTestProposalParams[] memory params, uint256 totalTokensRequested) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
-        return TestProposal(proposalId, distributionId, description, totalTokensRequested, block.number, params);
+        return _createTestProposalStandard(distributionId, proposalId, targets_, values_, calldatas_, description);
     }
 
     function _createNProposals(GrantFund grantFund_, IAjnaToken token_, TestProposalParams[] memory testProposalParams_) internal returns (TestProposal[] memory) {
@@ -261,11 +260,12 @@ abstract contract GrantFundTestHelper is Test {
         TestProposal[] memory testProposals = new TestProposal[](testProposalParams_.length);
 
         for (uint256 i = 0; i < testProposalParams_.length; ++i) {
-            // generate description string
+            // generate description string from data
             string memory descriptionPartOne = "Proposal to transfer ";
             string memory descriptionPartTwo = Strings.toString(testProposalParams_[i].tokensRequested);
-            string memory descriptionPartThree = " tokens to tester address";
-            string memory description = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo, descriptionPartThree));
+            string memory descriptionPartThree = " tokens to recipient ";
+            string memory descriptionPartFour = Strings.toHexString(testProposalParams_[i].recipient);
+            string memory description = string(abi.encodePacked(descriptionPartOne, descriptionPartTwo, descriptionPartThree, descriptionPartFour));
 
             // generate calldata
             bytes[] memory proposalCalldata = new bytes[](1);
@@ -279,6 +279,12 @@ abstract contract GrantFundTestHelper is Test {
             testProposals[i] = proposal;
         }
         return testProposals;
+    }
+
+    // return a TestProposal struct containing the state of a created proposal
+    function _createTestProposalStandard(uint24 distributionId_, uint256 proposalId_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal returns (TestProposal memory proposal_) {
+        (GeneratedTestProposalParams[] memory params, uint256 totalTokensRequested) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
+        proposal_ = TestProposal(proposalId_, distributionId_, description, totalTokensRequested, block.number, params);
     }
 
     /**
@@ -748,6 +754,11 @@ abstract contract GrantFundTestHelper is Test {
 
     function assertInsufficientVotingPowerRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
         vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
+        _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
+    }
+
+    function assertInsufficientRemainingVotingPowerRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
+        vm.expectRevert(IStandardFunding.InsufficientRemainingVotingPower.selector);
         _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 

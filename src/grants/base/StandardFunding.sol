@@ -213,7 +213,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             unchecked { ++i; }
         }
 
-        // readd non distributed tokens to the treasury
+        // re-add non distributed tokens to the treasury
         treasury += (fundsAvailable - totalTokensRequested);
 
         _isSurplusFundsUpdated[distributionId_] = true;
@@ -242,7 +242,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         QuarterlyDistribution memory currentDistribution = _distributions[distributionId_];
 
         // Check if Challenge Period is still active
-        if(block.number < _getChallengeStageEndBlock(currentDistribution.endBlock)) revert ChallengePeriodNotEnded();
+        if(block.number <= _getChallengeStageEndBlock(currentDistribution.endBlock)) revert ChallengePeriodNotEnded();
 
         // check rewards haven't already been claimed
         if(hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
@@ -320,14 +320,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         bytes32 newSlateHash     = keccak256(abi.encode(proposalIds_));
 
         // check if slate of proposals is better than the existing slate, and is thus the new top slate
-        newTopSlate_ = currentSlateHash == 0 ||
-            (currentSlateHash!= 0 && sum > _sumProposalFundingVotes(_fundedProposalSlates[currentSlateHash]));
+        newTopSlate_ = currentSlateHash == 0 || sum > _sumProposalFundingVotes(_fundedProposalSlates[currentSlateHash]);
 
         // if slate of proposals is new top slate, update state
         if (newTopSlate_) {
             uint256[] storage existingSlate = _fundedProposalSlates[newSlateHash];
 
-            for (uint i = 0; i < numProposalsInSlate; ) {
+            for (uint256 i = 0; i < numProposalsInSlate; ) {
 
                 // update list of proposals to fund
                 existingSlate.push(proposalIds_[i]);
@@ -437,7 +436,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 totalTokensRequested = 0;
 
         // check each proposal in the slate is valid
-        for (uint i = 0; i < numProposalsInSlate_; ) {
+        for (uint256 i = 0; i < numProposalsInSlate_; ) {
             Proposal memory proposal = _standardFundingProposals[proposalIds_[i]];
 
             // check if Proposal is in the topTenProposals list
@@ -453,13 +452,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             sum_ += uint128(proposal.fundingVotesReceived);
             totalTokensRequested += proposal.tokensRequested;
 
-            // check if slate of proposals exceeded budget constraint ( 90% of GBC )
-            if (totalTokensRequested > (gbc * 9 / 10)) {
-                revert InvalidProposalSlate();
-            }
-
             unchecked { ++i; }
         }
+
+        // check if slate of proposals exceeded budget constraint ( 90% of GBC )
+        if (totalTokensRequested > (gbc * 9 / 10)) revert InvalidProposalSlate();
     }
 
     /**
@@ -474,8 +471,8 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     ) internal pure returns (bool) {
         uint256 numProposals = proposalIds_.length;
 
-        for (uint i = 0; i < numProposals; ) {
-            for (uint j = i + 1; j < numProposals; ) {
+        for (uint256 i = 0; i < numProposals; ) {
+            for (uint256 j = i + 1; j < numProposals; ) {
                 if (proposalIds_[i] == proposalIds_[j]) return true;
 
                 unchecked { ++j; }
@@ -513,7 +510,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @param  proposalId_ The ID of the proposal being checked.
      * @return The proposals status in the ProposalState enum.
      */
-    function _standardProposalState(uint256 proposalId_) internal view returns (ProposalState) {
+    function _getStandardProposalState(uint256 proposalId_) internal view returns (ProposalState) {
         Proposal memory proposal = _standardFundingProposals[proposalId_];
 
         if (proposal.executed)                                                     return ProposalState.Executed;
@@ -684,7 +681,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint128 cumulativeVotePowerUsed = SafeCast.toUint128(sumOfTheSquareOfVotesCast);
 
         // check that the voter has enough voting power remaining to cast the vote
-        if (cumulativeVotePowerUsed > votingPower) revert InsufficientVotingPower();
+        if (cumulativeVotePowerUsed > votingPower) revert InsufficientRemainingVotingPower();
 
         // update voter voting power accumulator
         voter_.remainingVotingPower = votingPower - cumulativeVotePowerUsed;
@@ -700,7 +697,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         proposal_.fundingVotesReceived += SafeCast.toInt128(voteParams_.votesUsed);
 
         // the incremental additional votes cast on the proposal to be used as a return value and emit value
-        incrementalVotesUsed_ = SafeCast.toUint256(Maths.abs(voteParams_.votesUsed));
+        incrementalVotesUsed_ = Maths.abs(voteParams_.votesUsed);
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         // emits the amount of incremental votes cast for the proposal, not the voting power cost or total votes on a proposal
@@ -738,7 +735,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         proposal_.votesReceived += SafeCast.toUint128(votes_);
 
         // check if proposal was already screened
-        int indexInArray = _findProposalIndex(proposalId, currentTopTenProposals);
+        int256 indexInArray = _findProposalIndex(proposalId, currentTopTenProposals);
         uint256 screenedProposalsLength = currentTopTenProposals.length;
 
         // check if the proposal should be added to the top ten list for the first time
@@ -836,25 +833,25 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev    Implements the descending insertion sort algorithm.
      * @dev    Counters incremented in an unchecked block due to being bounded by array length.
      * @dev    Since we are converting from int256 to uint256, we can safely assume that the values will not overflow.
-     * @param proposals_        The array of proposals to sort by votes received.
-     * @param targetProposalId_ The targeted proposal id to insert.
+     * @param proposals_           The array of proposals to sort by votes received.
+     * @param targetProposalIndex_ The targeted proposal index to insert in proposals array.
      */
     function _insertionSortProposalsByVotes(
         uint256[] storage proposals_,
-        uint256 targetProposalId_
+        uint256 targetProposalIndex_
     ) internal {
         while (
-            targetProposalId_ != 0
+            targetProposalIndex_ != 0
             &&
-            _standardFundingProposals[proposals_[targetProposalId_]].votesReceived > _standardFundingProposals[proposals_[targetProposalId_ - 1]].votesReceived
+            _standardFundingProposals[proposals_[targetProposalIndex_]].votesReceived > _standardFundingProposals[proposals_[targetProposalIndex_ - 1]].votesReceived
         ) {
             // swap values if left item < right item
-            uint256 temp = proposals_[targetProposalId_ - 1];
+            uint256 temp = proposals_[targetProposalIndex_ - 1];
 
-            proposals_[targetProposalId_ - 1] = proposals_[targetProposalId_];
-            proposals_[targetProposalId_] = temp;
+            proposals_[targetProposalIndex_ - 1] = proposals_[targetProposalIndex_];
+            proposals_[targetProposalIndex_] = temp;
 
-            unchecked { --targetProposalId_; }
+            unchecked { --targetProposalIndex_; }
         }
     }
 
@@ -872,7 +869,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 numVotesCast = votesCast_.length;
 
         for (uint256 i = 0; i < numVotesCast; ) {
-            votesCastSumSquared_ += Maths.wpow(SafeCast.toUint256(Maths.abs(votesCast_[i].votesUsed)), 2);
+            votesCastSumSquared_ += Maths.wpow(Maths.abs(votesCast_[i].votesUsed), 2);
 
             unchecked { ++i; }
         }
