@@ -125,13 +125,18 @@ abstract contract Funding is IFunding, ReentrancyGuard {
             if (selector != bytes4(0xa9059cbb)) revert InvalidProposal();
 
             // https://github.com/ethereum/solidity/issues/9439
-            // retrieve tokensRequested from incoming calldata, accounting for selector and recipient address
+            // retrieve recipient and tokensRequested from incoming calldata, accounting for the function selector
             uint256 tokensRequested;
+            address recipient;
             bytes memory tokenDataWithSig = calldatas_[i];
             //slither-disable-next-line assembly
             assembly {
-                tokensRequested := mload(add(tokenDataWithSig, 68))
+                recipient := mload(add(tokenDataWithSig, 36)) // 36 = 4 (selector) + 32 (recipient address)
+                tokensRequested := mload(add(tokenDataWithSig, 68)) // 68 = 4 (selector) + 32 (recipient address) + 32 (tokens requested)
             }
+
+            // check recipient in the calldata is valid and doesn't attempt to transfer tokens to a disallowed address
+            if (recipient == address(0) || recipient == ajnaTokenAddress || recipient == address(this)) revert InvalidProposal();
 
             // update tokens requested for additional calldata
             tokensRequested_ += SafeCast.toUint128(tokensRequested);
