@@ -670,7 +670,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 incrementalVotingPowerUsed = uint256(cumulativeVotePowerUsed - voterPowerUsedPreVote);
 
         // update accumulator for total voting power used in the funding stage in order to calculate delegate rewards
-        currentDistribution_.fundingVotePowerCast += incrementalVotingPowerUsed;
+        // check that the voter voted in the screening round before updating the accumulator
+        if (screeningVotesCast[_currentDistributionId][msg.sender] != 0) {
+            currentDistribution_.fundingVotePowerCast += incrementalVotingPowerUsed;
+        }
 
         // update proposal vote tracking
         proposal_.fundingVotesReceived += SafeCast.toInt128(voteParams_.votesUsed);
