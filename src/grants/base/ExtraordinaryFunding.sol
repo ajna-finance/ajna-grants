@@ -105,7 +105,11 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
             targets_,
             values_,
             calldatas_, 
-            keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_EXTRAORDINARY, keccak256(bytes(description_))))
+            keccak256(abi.encode(
+                DESCRIPTION_PREFIX_HASH_EXTRAORDINARY,
+                keccak256(bytes(description_)),
+                msg.sender
+            ))
         );
 
         ExtraordinaryFundingProposal storage newProposal = _extraordinaryFundingProposals[proposalId_];

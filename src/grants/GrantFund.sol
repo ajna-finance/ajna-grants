@@ -26,14 +26,23 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     /*** Proposal Functions ***/
     /**************************/
 
+    // TODO: remove hashProposal() external function entirely? It's nice to have for verifying before execution
+    // Open question about what we want the interface to look like for the description when proposing and executing -> do they need to have already hashed a description string? if they did hash what params were hashed already?
     /// @inheritdoc IGrantFund
     function hashProposal(
         address[] memory targets_,
         uint256[] memory values_,
         bytes[] memory calldatas_,
         bytes32 descriptionHash_
+        // FundingMechanism type_
     ) external pure override returns (uint256 proposalId_) {
         proposalId_ = _hashProposal(targets_, values_, calldatas_, descriptionHash_);
+
+        // if(type_ == FundingMechanism.Standard) {
+        //     proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, descriptionHash_)));
+        // } else { // the type is Extraordinary
+        //     proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_EXTRAORDINARY, descriptionHash_)));
+        // }
     }
 
     /**
