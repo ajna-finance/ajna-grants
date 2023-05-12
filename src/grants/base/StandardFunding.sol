@@ -529,7 +529,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         Proposal memory proposal = _standardFundingProposals[proposalId_];
 
         if (proposal.executed)                                                     return ProposalState.Executed;
-        else if (_distributions[proposal.distributionId].endBlock >= block.number) return ProposalState.Active;
+        else if (_distributions[proposal.distributionId].endBlock > block.number)  return ProposalState.Active;
         else if (_standardFundingVoteSucceeded(proposalId_))                      return ProposalState.Succeeded;
         else                                                                       return ProposalState.Defeated;
     }
