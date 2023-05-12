@@ -374,6 +374,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         bytes[] memory calldatas_,
         string memory description_
     ) external override returns (uint256 proposalId_) {
+        // check description string isn't empty
+        if (bytes(description_).length == 0) revert InvalidProposal();
+
         proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, keccak256(bytes(description_)))));
 
         Proposal storage newProposal = _standardFundingProposals[proposalId_];
@@ -423,9 +426,20 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @param  numProposalsInSlate_              Number of proposals in the slate.
      * @return sum_                              The total funding votes received by all proposals in the proposed slate.
      */
-    function _validateSlate(uint24 distributionId_, uint256 endBlock, uint256 distributionPeriodFundsAvailable_, uint256[] calldata proposalIds_, uint256 numProposalsInSlate_) internal view returns (uint256 sum_) {
-        // check that the function is being called within the challenge period
-        if (block.number <= endBlock || block.number > _getChallengeStageEndBlock(endBlock)) {
+    function _validateSlate(
+        uint24 distributionId_,
+        uint256 endBlock,
+        uint256 distributionPeriodFundsAvailable_,
+        uint256[] calldata proposalIds_,
+        uint256 numProposalsInSlate_
+    ) internal view returns (uint256 sum_) {
+        // check that the function is being called within the challenge period,
+        // and that there is a proposal in the slate
+        if (
+            block.number <= endBlock ||
+            block.number > _getChallengeStageEndBlock(endBlock) ||
+            numProposalsInSlate_ == 0
+        ) {
             revert InvalidProposalSlate();
         }
 
@@ -439,13 +453,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         for (uint256 i = 0; i < numProposalsInSlate_; ) {
             Proposal memory proposal = _standardFundingProposals[proposalIds_[i]];
 
+            // account for fundingVotesReceived possibly being negative
+            // block proposals that recieve no positive funding votes from entering a finalized slate
+            if (proposal.fundingVotesReceived <= 0) revert InvalidProposalSlate();
+
             // check if Proposal is in the topTenProposals list
             if (
                 _findProposalIndex(proposalIds_[i], _topTenProposals[distributionId_]) == -1
             ) revert InvalidProposalSlate();
-
-            // account for fundingVotesReceived possibly being negative
-            if (proposal.fundingVotesReceived < 0) revert InvalidProposalSlate();
 
             // update counters
             // since we are converting from int128 to uint128, we can safely assume that the value will not overflow
@@ -567,6 +582,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             // check that the proposal is part of the current distribution period
             if (proposal.distributionId != currentDistributionId) revert InvalidVote();
 
+            // check that the voter isn't attempting to cast a vote with 0 power
+            if (voteParams_[i].votesUsed == 0) revert InvalidVote();
+
             // check that the proposal being voted on is in the top ten screened proposals
             if (
                 _findProposalIndex(voteParams_[i].proposalId, _topTenProposals[currentDistributionId]) == -1
@@ -607,6 +625,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             if (proposal.distributionId != currentDistribution.id) revert InvalidVote();
 
             uint256 votes = voteParams_[i].votes;
+
+            // check that the voter isn't attempting to cast a vote with 0 power
+            if (votes == 0) revert InvalidVote();
 
             // cast each successive vote
             votesCast_ += votes;

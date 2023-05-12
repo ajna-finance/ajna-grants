@@ -324,7 +324,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assert(_grantFund.findMechanismOfProposal(proposalId) == IFunding.FundingMechanism.Standard);
     }
 
-    function testInvalidProposalCalldata() external {
+    function testInvalidProposalCalldataSelector() external {
         // start distribution period
         _startDistributionPeriod(_grantFund);
 
@@ -353,7 +353,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.proposeStandard(targets, values, proposalCalldata, description);
     }
 
-    function testInvalidRecipientCalldata() external {
+    function testInvalidProposalCalldata() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
 
@@ -361,7 +361,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // start distribution period
         _startDistributionPeriod(_grantFund);
-        uint24 distributionId = _grantFund.getDistributionId();
 
         vm.roll(_startBlock + 200);
 
@@ -410,6 +409,15 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         vm.expectRevert(IFunding.InvalidProposal.selector);
         proposalId = _grantFund.proposeStandard(targets, values, calldatas, description);
+
+        // generate proposals calldata for an invalid transfer to a valid address with no tokens requested
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            address(1)
+        );
+
+        vm.expectRevert(IFunding.InvalidProposal.selector);
+        proposalId = _grantFund.proposeStandard(targets, values, calldatas, description);
     }
 
     function testInvalidProposalTarget() external {
@@ -445,6 +453,34 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.proposeStandard(targets, values, proposalCalldata, description);
     }
 
+    function testInvalidProposalDescription() external {
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+
+        // generate proposal targets
+        address[] memory targets = new address[](1);
+        targets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory proposalCalldata = new bytes[](1);
+        proposalCalldata[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            1 * 1e18
+        );
+
+        // generate proposal message
+        string memory description = "";
+
+        // create proposal should revert since a non Ajna token contract target was used
+        vm.expectRevert(IFunding.InvalidProposal.selector);
+        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
+    }
+
     function testVotesCast() external {
         _selfDelegateVoters(_token, _votersArr);
 
@@ -464,6 +500,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // ensure that user has not voted
         uint256 screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder1);
         assertEq(screeningVotesCast, 0);
+
+        // check revert if attempts to vote with 0 power
+        assertScreeningVoteInvalidVoteRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, 0);
 
         // cast screening stage vote
         IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](2);
@@ -495,6 +534,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // should be false if user has not voted in funding stage but voted in screening stage
         IStandardFunding.FundingVoteParams[] memory fundingVoteParams = _grantFund.getFundingVotesCast(distributionId, _tokenHolder1);
         assertEq(fundingVoteParams.length, 0);
+
+        // check revert if attempts to vote with 0 power
+        assertFundingVoteInvalidVoteRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, 0);
 
         // voter allocates all of their voting power in support of the proposal
         _fundingVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, voteNo, -25_000_000 * 1e18);
@@ -894,7 +936,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // including Proposal in potentialProposalSlate that is not in topTenProposal (funding Stage)
         potentialProposalSlate[1] = testProposals[6].proposalId;
         
-        // ensure updateSlate won't allow if called before DistributionPeriod starts
+        // ensure updateSlate won't work if called before DistributionPeriod starts
         vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
         _grantFund.updateSlate(potentialProposalSlate, distributionId);
 
@@ -905,7 +947,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // skip to the end of the DistributionPeriod
         vm.roll(_startBlock + 650_000);
 
-        // ensure updateSlate won't allow if slate has a proposal that is not in topTenProposal (funding Stage)
+        // ensure updateSlate won't accept a slate containing a proposal that is not in topTenProposal (funding Stage)
+        vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
+        _grantFund.updateSlate(potentialProposalSlate, distributionId);
+
+        // ensure updateSlate won't accept a slate with no proposals
+        potentialProposalSlate = new uint256[](0);
         vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
         _grantFund.updateSlate(potentialProposalSlate, distributionId);
 
@@ -1215,9 +1262,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check revert if attempts to cast screening votes on proposals from first distribution period
         changePrank(_tokenHolder10);
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _screeningVoteNoLog(_grantFund, _tokenHolder10, testProposals_distribution1[0].proposalId, 50_000_000 * 1e18);
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _screeningVoteNoLog(_grantFund, _tokenHolder5, testProposals_distribution1[0].proposalId, 20_000_000 * 1e18);
 
         // skip time to move from screening period to funding period
@@ -1232,9 +1279,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check revert if attempts to cast funding votes on proposals from first distribution period
         changePrank(_tokenHolder10);
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _fundingVoteNoLog(_grantFund, _tokenHolder10, testProposals_distribution1[0].proposalId, 50_000_000 * 1e18);
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _fundingVoteNoLog(_grantFund, _tokenHolder5, screenedProposals_distribution1[0].proposalId, 21_000_000 * 1e18);
 
         // skip to the Challenge period

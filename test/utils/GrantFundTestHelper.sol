@@ -6,6 +6,7 @@ import { Strings }  from "@oz/utils/Strings.sol"; // used for createNProposals
 import { Test }     from "@std/Test.sol";
 
 import { GrantFund }        from "../../src/grants/GrantFund.sol";
+import { IFunding }         from "../../src/grants/interfaces/IFunding.sol";
 import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
 import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
@@ -282,7 +283,7 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     // return a TestProposal struct containing the state of a created proposal
-    function _createTestProposalStandard(uint24 distributionId_, uint256 proposalId_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal returns (TestProposal memory proposal_) {
+    function _createTestProposalStandard(uint24 distributionId_, uint256 proposalId_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal view returns (TestProposal memory proposal_) {
         (GeneratedTestProposalParams[] memory params, uint256 totalTokensRequested) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
         proposal_ = TestProposal(proposalId_, distributionId_, description, totalTokensRequested, block.number, params);
     }
@@ -763,12 +764,12 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     function assertFundingVoteInvalidVoteRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 
     function assertScreeningVoteInvalidVoteRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _screeningVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 

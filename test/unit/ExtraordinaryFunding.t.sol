@@ -334,8 +334,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // check can't submit proposal with end block higher than limit
         endBlockParam = block.number + 500_000;
-
-        // check can't request more than minium threshold amount of tokens
         calldatas = new bytes[](1);
         calldatas[0] = abi.encodeWithSignature(
             "transfer(address,uint256)",
@@ -344,6 +342,17 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         );
         vm.expectRevert(IFunding.InvalidProposal.selector);
         _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
+
+        // check can't submit a proposal with an empty description string, even if otherwise valid
+        endBlockParam = block.number + 100_000;
+        calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            50_000_000 * 1e18
+        );
+        vm.expectRevert(IFunding.InvalidProposal.selector);
+        _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "");
     }
 
     function testProposeAndExecuteExtraordinary() external {
@@ -592,7 +601,14 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         // each voter(fuzzed) votes on all proposals
         for(uint i = 0; i < noOfVoters; i++) {
             for(uint j = 0; j < noOfProposals; j++) {
-                _extraordinaryVote(_grantFund, voters[i], testProposals[j].proposalId, voteYes);
+                // attempt to have fuzzed voters cast votes on each proposal
+                // in many of these fuzz scenarios a voter will have 0 voting power breaking an otherwise valuable test
+                changePrank(voters[i]);
+                try _grantFund.voteExtraordinary(testProposals[j].proposalId) {
+                } catch (bytes memory err) {
+                    bytes32 err = keccak256(err);
+                    require(err == keccak256(abi.encodeWithSignature("InvalidVote()")));
+                }
             }
         }
 
@@ -648,7 +664,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(_token.balanceOf(attacker), 0);
 
         // attacker should be able to vote only once on proposal
-        vm.expectRevert(IFunding.AlreadyVoted.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         new DrainGrantFund(
             address(_token),
             _grantFund,

