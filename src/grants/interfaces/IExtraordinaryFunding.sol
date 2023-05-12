@@ -59,6 +59,8 @@ interface IExtraordinaryFunding {
 
     /**
      * @notice Submit a proposal to the extraordinary funding flow.
+     * @dev    The proposal will be rejected if the proposal already exists, or if it's parameters were invalid.
+     * @dev    The start block is set to the next block to prevent proposals from being voted on in the same block as creation.
      * @param endBlock_            Block number of the end of the extraordinary funding proposal voting period.
      * @param targets_             Array of addresses to send transactions to.
      * @param values_              Array of values to send with transactions.

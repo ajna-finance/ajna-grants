@@ -111,7 +111,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         if (newProposal.proposalId != 0) revert ProposalAlreadyExists();
 
         // check proposal length is within limits of 1 month maximum
-        if (block.number + MAX_EFM_PROPOSAL_LENGTH < endBlock_) revert InvalidProposal();
+        if ((block.number + 1) + MAX_EFM_PROPOSAL_LENGTH < endBlock_) revert InvalidProposal();
 
         uint128 totalTokensRequested = _validateCallDatas(targets_, values_, calldatas_);
 
@@ -122,7 +122,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         // store newly created proposal
         newProposal.proposalId      = proposalId_;
-        newProposal.startBlock      = SafeCast.toUint128(block.number);
+        newProposal.startBlock      = SafeCast.toUint128(block.number + 1); // set start block to one block ahead to prevent back running
         newProposal.endBlock        = SafeCast.toUint128(endBlock_);
         newProposal.tokensRequested = totalTokensRequested;
 
