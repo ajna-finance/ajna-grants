@@ -361,7 +361,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // start distribution period
         _startDistributionPeriod(_grantFund);
-        uint24 distributionId = _grantFund.getDistributionId();
 
         vm.roll(_startBlock + 200);
 
@@ -450,6 +449,34 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // create proposal withs no targets should revert
         targets = new address[](0);
+        vm.expectRevert(IFunding.InvalidProposal.selector);
+        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
+    }
+
+    function testInvalidProposalDescription() external {
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+
+        // generate proposal targets
+        address[] memory targets = new address[](1);
+        targets[0] = address(_token);
+
+        // generate proposal values
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        // generate proposal calldata
+        bytes[] memory proposalCalldata = new bytes[](1);
+        proposalCalldata[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            1 * 1e18
+        );
+
+        // generate proposal message
+        string memory description = "";
+
+        // create proposal should revert since a non Ajna token contract target was used
         vm.expectRevert(IFunding.InvalidProposal.selector);
         _grantFund.proposeStandard(targets, values, proposalCalldata, description);
     }

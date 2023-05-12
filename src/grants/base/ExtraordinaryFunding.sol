@@ -96,7 +96,10 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         address[] memory targets_,
         uint256[] memory values_,
         bytes[] memory calldatas_,
-        string memory description_) external override returns (uint256 proposalId_) {
+        string memory description_
+    ) external override returns (uint256 proposalId_) {
+        // check description string isn't empty
+        if (bytes(description_).length == 0) revert InvalidProposal();
 
         proposalId_ = _hashProposal(
             targets_,

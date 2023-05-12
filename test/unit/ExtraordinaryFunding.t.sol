@@ -334,8 +334,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // check can't submit proposal with end block higher than limit
         endBlockParam = block.number + 500_000;
-
-        // check can't request more than minium threshold amount of tokens
         calldatas = new bytes[](1);
         calldatas[0] = abi.encodeWithSignature(
             "transfer(address,uint256)",
@@ -344,6 +342,17 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         );
         vm.expectRevert(IFunding.InvalidProposal.selector);
         _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "proposal for excessive transfer");
+
+        // check can't submit a proposal with an empty description string, even if otherwise valid
+        endBlockParam = block.number + 100_000;
+        calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            _tokenHolder1,
+            50_000_000 * 1e18
+        );
+        vm.expectRevert(IFunding.InvalidProposal.selector);
+        _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "");
     }
 
     function testProposeAndExecuteExtraordinary() external {

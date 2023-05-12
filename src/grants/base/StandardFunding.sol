@@ -374,6 +374,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         bytes[] memory calldatas_,
         string memory description_
     ) external override returns (uint256 proposalId_) {
+        // check description string isn't empty
+        if (bytes(description_).length == 0) revert InvalidProposal();
+
         proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, keccak256(bytes(description_)))));
 
         Proposal storage newProposal = _standardFundingProposals[proposalId_];
