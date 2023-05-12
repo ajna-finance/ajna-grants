@@ -202,7 +202,7 @@ contract StandardHandler is Handler {
             numberOfCalls['SFH.fundingVote.success']++;
 
             // check votesCast is equal to the sum of votes cast
-            assertEq(votesCast, SafeCast.toUint256(sumFundingVotes(fundingVoteParams)));
+            assertEq(votesCast, sumFundingVotes(fundingVoteParams));
 
             // update actor funding votes counts
             // find and replace previous vote record for that proposlId, in that distributonId
@@ -313,7 +313,7 @@ contract StandardHandler is Handler {
         }
     }
 
-    function executeStandard(uint256 actorIndex_, uint256 proposalToExecute_) external useCurrentBlock useRandomActor(actorIndex_) {
+    function executeStandard(uint256 actorIndex_, uint256) external useCurrentBlock useRandomActor(actorIndex_) {
         numberOfCalls['SFH.executeStandard']++;
 
         uint24 distributionId = _grantFund.getDistributionId();
@@ -559,7 +559,7 @@ contract StandardHandler is Handler {
                 }
 
                 // check if additional vote would break the happy path
-                if (Maths.wpow(SafeCast.toUint256(Maths.abs(votesToCast)), 2) > votingPower - votingPowerUsed) {
+                if (Maths.wpow(Maths.abs(votesToCast), 2) > votingPower - votingPowerUsed) {
                     // resize array before breaking out of the happy path
                     assembly { mstore(fundingVoteParams_, i) }
                     break;
@@ -900,7 +900,7 @@ contract StandardHandler is Handler {
         uint256 numVotesCast = votesCast_.length;
 
         for (uint256 i = 0; i < numVotesCast; ) {
-            votesCastSumSquared_ += Maths.wpow(SafeCast.toUint256(Maths.abs(votesCast_[i].votesUsed)), 2);
+            votesCastSumSquared_ += Maths.wpow(Maths.abs(votesCast_[i].votesUsed), 2);
 
             unchecked { ++i; }
         }
@@ -913,7 +913,7 @@ contract StandardHandler is Handler {
         }
     }
 
-    function sumFundingVotes(IStandardFunding.FundingVoteParams[] memory fundingVotes_) public pure returns (int256 sum_) {
+    function sumFundingVotes(IStandardFunding.FundingVoteParams[] memory fundingVotes_) public pure returns (uint256 sum_) {
         for (uint256 i = 0; i < fundingVotes_.length; ++i) {
             sum_ += Maths.abs(fundingVotes_[i].votesUsed);
         }
