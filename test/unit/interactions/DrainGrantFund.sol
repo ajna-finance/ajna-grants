@@ -1,9 +1,12 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
+
+import { Test } from "@std/Test.sol";
 
 import { IExtraordinaryFunding } from "src/grants/interfaces/IExtraordinaryFunding.sol";
 import { IAjnaToken }            from "../../utils/IAjnaToken.sol";
 
-contract DrainGrantFund {
+contract DrainGrantFund is Test{
     constructor(
         address ajnaToken,
         IExtraordinaryFunding grantFund,
@@ -31,6 +34,9 @@ contract DrainGrantFund {
 
         // attacker creates and submits her proposal
         uint256 proposalId = grantFund.proposeExtraordinary(endBlock, targets, values, calldatas, description);
+
+        // roll blocks forward to allow voting on the proposal at the start block the next block ahead
+        vm.roll(block.number + 1);
 
         // attacker is going to make every token holder vote in favor of her proposal
         for (uint i = 0; i < tokenHolders.length; i++) {

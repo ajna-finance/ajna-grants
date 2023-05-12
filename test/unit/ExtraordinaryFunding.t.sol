@@ -120,6 +120,8 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             "Extraordinary Proposal for Ajna token transfer to tester address"
         );
 
+        vm.roll(block.number + 1);
+
         // check voting power is greater than 0 for extant proposal
         uint256 votingPower = _grantFund.getVotesExtraordinary(_tokenHolder1, testProposal.proposalId);
         assertEq(votingPower, 20_000_000 * 1e18);
@@ -168,6 +170,9 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             calldatas,
             "Extraordinary Proposal for Ajna token transfer to tester address"
         );
+
+        // roll to proposal start block
+        vm.roll(_startBlock + 51);
 
         // check voting power at vote start
         uint256 votingPower = _grantFund.getVotesExtraordinary(_tokenHolder1, testProposal.proposalId);
@@ -278,7 +283,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(proposalId, testProposal.proposalId);
         assertEq(tokensRequested, tokensRequestedParam);
         assertEq(tokensRequested, testProposal.totalTokensRequested);
-        assertEq(startBlock, block.number);
+        assertEq(startBlock, block.number + 1);
         assertEq(endBlock, endBlockParam);
         assertEq(votesReceived, 0);
         // assertFalse(succeeded);
@@ -581,6 +586,9 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
         // create and submit N Extraordinary proposals 
         TestProposalExtraordinary[] memory testProposals = _getNExtraOridinaryProposals(noOfProposals, _grantFund, _tokenHolder1, _token, tokenRequested);
+
+        // roll forward to new proposal's start blocks
+        vm.roll(_startBlock + 101);
 
         // each tokenHolder(fixed in setup) votes on all proposals
         for(uint i = 0; i < _votersArr.length; i++) {
