@@ -324,7 +324,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assert(_grantFund.findMechanismOfProposal(proposalId) == IFunding.FundingMechanism.Standard);
     }
 
-    function testInvalidProposalCalldata() external {
+    function testInvalidProposalCalldataSelector() external {
         // start distribution period
         _startDistributionPeriod(_grantFund);
 
@@ -353,7 +353,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.proposeStandard(targets, values, proposalCalldata, description);
     }
 
-    function testInvalidRecipientCalldata() external {
+    function testInvalidProposalCalldata() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
 
@@ -406,6 +406,15 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             "transfer(address,uint256)",
             address(_grantFund),
             tokensRequested
+        );
+
+        vm.expectRevert(IFunding.InvalidProposal.selector);
+        proposalId = _grantFund.proposeStandard(targets, values, calldatas, description);
+
+        // generate proposals calldata for an invalid transfer to a valid address with no tokens requested
+        calldatas[0] = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            address(1)
         );
 
         vm.expectRevert(IFunding.InvalidProposal.selector);
