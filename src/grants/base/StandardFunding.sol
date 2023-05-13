@@ -324,13 +324,9 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // if slate of proposals is new top slate, update state
         if (newTopSlate_) {
-            uint256[] storage existingSlate = _fundedProposalSlates[newSlateHash];
-
+            // record list of proposals to fund
             for (uint256 i = 0; i < numProposalsInSlate; ) {
-
-                // update list of proposals to fund
-                existingSlate.push(proposalIds_[i]);
-
+                _fundedProposalSlates[newSlateHash].push(proposalIds_[i]);
                 unchecked { ++i; }
             }
 
