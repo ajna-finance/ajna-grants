@@ -362,8 +362,7 @@ abstract contract GrantFundTestHelper is Test {
         uint256 totalTokensRequested = 0;
         bytes32 descriptionHash = grantFund_.getDescriptionHashExtraordinary(testProposal_.description, testProposal_.proposer);
 
-        // TODO: select a random recipient to execute the proposal
-        changePrank(testProposal_.params[0].recipient);
+        changePrank(testProposal_.proposer);
 
         vm.expectEmit(true, true, false, true);
         emit ProposalExecuted(testProposal_.proposalId);
@@ -785,8 +784,7 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     function assertExecuteExtraordinaryProposalInvalidRevert(GrantFund grantFund_, IAjnaToken token_, TestProposalExtraordinary memory testProposal_) internal {
-        // TODO: select a random recipient to execute the proposal
-        changePrank(testProposal_.params[0].recipient);
+        changePrank(testProposal_.proposer);
 
         (
             address[] memory targets,

@@ -483,7 +483,6 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         proposalState = _grantFund.state(testProposal.proposalId);
         assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Succeeded));
 
-        // FIXME: broken here
         // execute proposal
         _executeExtraordinaryProposal(_grantFund, _token, testProposal);
 
