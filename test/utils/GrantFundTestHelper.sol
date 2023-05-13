@@ -801,7 +801,34 @@ abstract contract GrantFundTestHelper is Test {
         changePrank(recipient);
         vm.expectRevert(selector_);
         grantFund_.executeStandard(targets, values, calldatas, descriptionHash);
+    }
 
+    function assertStandardProposalState(
+        GrantFund grantFund_,
+        TestProposal memory proposal,
+        uint24 expectedDistributionId_,
+        uint256 expectedVotesReceived_,
+        uint256 expectedTokensRequested_,
+        int256 expectedFundingPowerCast_,
+        bool expectedExecuted_
+    ) internal returns (uint256) {
+        (
+            uint256 proposalId,
+            uint256 distributionId,
+            uint256 votesReceived,
+            uint256 tokensRequested,
+            int256 qvBudgetAllocated,
+            bool executed
+        ) = grantFund_.getProposalInfo(proposal.proposalId);
+
+        assertEq(proposalId, proposal.proposalId);
+        assertEq(distributionId, expectedDistributionId_);
+        assertEq(votesReceived, expectedVotesReceived_);
+        assertEq(tokensRequested, expectedTokensRequested_);
+        assertEq(qvBudgetAllocated, expectedFundingPowerCast_);
+        assertEq(executed, expectedExecuted_);
+
+        return proposalId;
     }
 
 }
