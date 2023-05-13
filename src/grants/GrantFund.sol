@@ -63,8 +63,11 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     /**************************/
 
     /// @inheritdoc IGrantFund
-    function fundTreasury(uint256 fundingAmount_) external override {
+    function fundTreasury(uint256 fundingAmount_) external nonReentrant override {
         IERC20 token = IERC20(ajnaTokenAddress);
+
+        // check that fundingAmount is realistic and won't cause an overflow
+        if (fundingAmount_ > token.totalSupply()) revert InsufficientFunds();
 
         // update treasury accounting
         treasury += fundingAmount_;
