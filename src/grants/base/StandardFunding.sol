@@ -631,7 +631,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
             // cast each successive vote
             votesCast_ += votes;
-            _screeningVote(msg.sender, proposal, votes);
+            _screeningVote(proposal, votes);
 
             unchecked { ++i; }
         }
@@ -733,12 +733,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
     /**
      * @notice Vote on a proposal in the screening stage of the Distribution Period.
-     * @param account_  The voting account.
      * @param proposal_ The current proposal being voted upon.
      * @param votes_    The amount of votes being cast.
      */
     function _screeningVote(
-        address account_,
         Proposal storage proposal_,
         uint256 votes_
     ) internal {
@@ -746,7 +744,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // check that the voter has enough voting power to cast the vote
         if (
-            screeningVotesCast[distributionId][account_] + votes_ > _getVotesScreening(distributionId, account_)
+            screeningVotesCast[distributionId][msg.sender] + votes_ > _getVotesScreening(distributionId, msg.sender)
         ) revert InsufficientVotingPower();
 
         uint256[] storage currentTopTenProposals = _topTenProposals[distributionId];
@@ -784,11 +782,11 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
 
         // record voters vote
-        screeningVotesCast[proposal_.distributionId][account_] += votes_;
+        screeningVotesCast[proposal_.distributionId][msg.sender] += votes_;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(
-            account_,
+            msg.sender,
             proposalId,
             1,
             votes_,
