@@ -940,6 +940,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
         _grantFund.updateSlate(potentialProposalSlate, distributionId);
 
+        // should revert if user tries to claim rewards before the distribution period ends
+        vm.expectRevert(IStandardFunding.DistributionPeriodStillActive.selector);
+        _grantFund.claimDelegateReward(distributionId);
+
         /************************/
         /*** Challenge Period ***/
         /************************/
@@ -1051,10 +1055,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // check can't execute proposals prior to the end of the challenge period
         vm.expectRevert(IStandardFunding.ExecuteProposalInvalid.selector);
         _executeProposalNoLog(_grantFund, _token, testProposals[0]);
-
-        // should revert if user tries to claim reward in before challenge Period ends
-        vm.expectRevert(IStandardFunding.ChallengePeriodNotEnded.selector);
-        _grantFund.claimDelegateReward(distributionId);
 
         /********************************/
         /*** Execute Funded Proposals ***/

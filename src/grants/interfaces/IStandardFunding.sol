@@ -13,7 +13,7 @@ interface IStandardFunding {
     /**************/
 
     /**
-     * @notice User attempted to execute a proposal before the distribution period ended.
+     * @notice User attempted to start a new distribution or claim delegation rewards before the distribution period ended.
      */
      error DistributionPeriodStillActive();
 
@@ -36,11 +36,6 @@ interface IStandardFunding {
      * @notice Voter does not have enough voting power remaining to cast the vote.
      */
     error InsufficientRemainingVotingPower();
-
-    /**
-     * @notice Delegatee attempted to claim delegate reward before the challenge period ended.
-     */
-    error ChallengePeriodNotEnded();
 
     /**
      * @notice User provided a slate of proposalIds that is invalid.
