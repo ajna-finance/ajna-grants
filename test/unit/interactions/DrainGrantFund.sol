@@ -32,7 +32,7 @@ contract DrainGrantFund is Test{
 
         string memory description = "Extraordinary Proposal by attacker";
 
-        // attacker creates and submits her proposal
+        // attacker creates and submits their proposal
         uint256 proposalId = grantFund.proposeExtraordinary(endBlock, targets, values, calldatas, description);
 
         // roll blocks forward to allow voting on the proposal at the start block the next block ahead

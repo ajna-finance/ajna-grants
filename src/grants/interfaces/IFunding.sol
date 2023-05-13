@@ -25,6 +25,12 @@ interface IFunding {
     error InvalidProposal();
 
     /**
+     * @notice User attempted to cast an invalid vote (outside of the distribution period, ).
+     * @dev    This error is thrown when the user attempts to vote outside of the allowed period, vote with 0 votes, or vote with more than their voting power.
+     */
+    error InvalidVote();
+
+    /**
      * @notice User attempted to submit a duplicate proposal.
      */
     error ProposalAlreadyExists();
