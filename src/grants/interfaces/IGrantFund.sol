@@ -13,6 +13,15 @@ interface IGrantFund is
 {
 
     /**************/
+    /*** Errors ***/
+    /**************/
+
+    /**
+     * @notice User attempted to call fundTreasury with more tokens than the total supply.
+     */
+    error FundTreasuryInvalid();
+
+    /**************/
     /*** Events ***/
     /**************/
 

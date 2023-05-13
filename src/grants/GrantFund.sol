@@ -67,7 +67,7 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         IERC20 token = IERC20(ajnaTokenAddress);
 
         // check that fundingAmount is realistic and won't cause an overflow
-        if (fundingAmount_ > token.totalSupply()) revert InsufficientFunds();
+        if (fundingAmount_ > token.totalSupply()) revert FundTreasuryInvalid();
 
         // update treasury accounting
         treasury += fundingAmount_;
