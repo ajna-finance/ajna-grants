@@ -364,7 +364,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         proposal.executed = true;
 
-        _execute(proposalId_, targets_, values_, calldatas_);
+        _execute(proposalId_, calldatas_);
     }
 
     /// @inheritdoc IStandardFunding

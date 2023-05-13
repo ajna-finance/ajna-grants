@@ -87,7 +87,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         treasury -= tokensRequested;
 
         // execute proposal's calldata
-        _execute(proposalId_, targets_, values_, calldatas_);
+        _execute(proposalId_, calldatas_);
     }
 
     /// @inheritdoc IExtraordinaryFunding
