@@ -319,6 +319,8 @@ abstract contract GrantFundTestHelper is Test {
         uint256 voterStartingBalance = token_.balanceOf(recipient);
         uint256 growthFundStartingBalance = token_.balanceOf(address(grantFund_));
 
+        bytes32 descriptionHash = grantFund_.getDescriptionHashStandard(testProposal_.description);
+
         // get parameters from test proposal required for execution
         (
             address[] memory targets,
@@ -334,26 +336,11 @@ abstract contract GrantFundTestHelper is Test {
         emit Transfer(address(grantFund_), recipient, testProposal_.totalTokensRequested);
         vm.expectEmit(true, true, false, true);
         emit DelegateVotesChanged(recipient, voterStartingBalance, voterStartingBalance + testProposal_.totalTokensRequested);
-        grantFund_.executeStandard(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
+        grantFund_.executeStandard(targets, values, calldatas, descriptionHash);
 
         // check ending token balances
         assertEq(token_.balanceOf(recipient), voterStartingBalance + testProposal_.totalTokensRequested);
         assertEq(token_.balanceOf(address(grantFund_)), growthFundStartingBalance - testProposal_.totalTokensRequested);
-    }
-
-    function _executeProposalNoLog(GrantFund grantFund_, IAjnaToken token_, TestProposal memory testProposal_) internal {
-        address recipient = testProposal_.params[0].recipient;
-
-        // get parameters from test proposal required for execution
-        (
-            address[] memory targets,
-            uint256[] memory values,
-            bytes[] memory calldatas,
-        ) = _getParamsFromGeneratedTestProposalParams(token_, testProposal_.params);
-
-        // execute proposal
-        changePrank(recipient);
-        grantFund_.executeStandard(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
     }
 
     function _executeExtraordinaryProposal(GrantFund grantFund_, IAjnaToken token_, TestProposalExtraordinary memory testProposal_) internal {
@@ -797,6 +784,24 @@ abstract contract GrantFundTestHelper is Test {
         // execute proposal
         vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
         grantFund_.executeExtraordinary(targets, values, calldatas, descriptionHash);
+    }
+
+    function assertExecuteProposalRevert(GrantFund grantFund_, IAjnaToken token_, TestProposal memory testProposal_, bytes4 selector_) internal {
+        address recipient = testProposal_.params[0].recipient;
+        bytes32 descriptionHash = grantFund_.getDescriptionHashStandard(testProposal_.description);
+
+        // get parameters from test proposal required for execution
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+        ) = _getParamsFromGeneratedTestProposalParams(token_, testProposal_.params);
+
+        // execute proposal
+        changePrank(recipient);
+        vm.expectRevert(selector_);
+        grantFund_.executeStandard(targets, values, calldatas, descriptionHash);
+
     }
 
 }

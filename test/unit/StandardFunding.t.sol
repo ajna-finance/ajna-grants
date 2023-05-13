@@ -1049,8 +1049,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(fundedProposalSlate[1].proposalId, screenedProposals[4].proposalId);
 
         // check can't execute proposals prior to the end of the challenge period
-        vm.expectRevert(IStandardFunding.ExecuteProposalInvalid.selector);
-        _executeProposalNoLog(_grantFund, _token, testProposals[0]);
+        assertExecuteProposalRevert(_grantFund, _token, testProposals[0], IStandardFunding.ExecuteProposalInvalid.selector);
 
         // should revert if user tries to claim reward in before challenge Period ends
         vm.expectRevert(IStandardFunding.ChallengePeriodNotEnded.selector);
@@ -1072,12 +1071,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(uint8(_grantFund.state(testProposals[1].proposalId)), uint8(IFunding.ProposalState.Defeated));
 
         // check that shouldn't be able to execute unfunded proposals
-        vm.expectRevert(IFunding.ProposalNotSuccessful.selector);
-        _executeProposalNoLog(_grantFund, _token, testProposals[1]);
+        assertExecuteProposalRevert(_grantFund, _token, testProposals[1], IFunding.ProposalNotSuccessful.selector);
 
         // check that shouldn't be able to execute a proposal twice
-        vm.expectRevert(IFunding.ProposalNotSuccessful.selector);
-        _executeProposalNoLog(_grantFund, _token, testProposals[0]);
+        assertExecuteProposalRevert(_grantFund, _token, testProposals[0], IFunding.ProposalNotSuccessful.selector);
 
         /******************************/
         /*** Claim Delegate Rewards ***/
