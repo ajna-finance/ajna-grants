@@ -59,15 +59,24 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         bytes[] memory calldatas_,
         bytes32 descriptionHash_
     ) external nonReentrant override returns (uint256 proposalId_) {
-        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_EXTRAORDINARY, descriptionHash_)));
+        proposalId_ = _hashProposal(
+            targets_,
+            values_,
+            calldatas_,
+            keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_EXTRAORDINARY, descriptionHash_))
+        );
 
         ExtraordinaryFundingProposal storage proposal = _extraordinaryFundingProposals[proposalId_];
 
         // since we are casting from uint128 to uint256, we can safely assume that the value will not overflow
         uint256 tokensRequested = uint256(proposal.tokensRequested);
 
-        // check proposal is succesful and hasn't already been executed
-        if (proposal.executed || !_extraordinaryProposalSucceeded(proposalId_, tokensRequested)) revert ExecuteExtraordinaryProposalInvalid();
+        // check proposal is successful and hasn't already been executed
+        if (
+            proposal.executed
+            ||
+            !_extraordinaryProposalSucceeded(proposalId_, tokensRequested)
+        ) revert ExecuteExtraordinaryProposalInvalid();
 
         _fundedExtraordinaryProposals.push(proposalId_);
 
@@ -87,9 +96,17 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         address[] memory targets_,
         uint256[] memory values_,
         bytes[] memory calldatas_,
-        string memory description_) external override returns (uint256 proposalId_) {
+        string memory description_
+    ) external override returns (uint256 proposalId_) {
+        // check description string isn't empty
+        if (bytes(description_).length == 0) revert InvalidProposal();
 
-        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_EXTRAORDINARY, keccak256(bytes(description_)))));
+        proposalId_ = _hashProposal(
+            targets_,
+            values_,
+            calldatas_, 
+            keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_EXTRAORDINARY, keccak256(bytes(description_))))
+        );
 
         ExtraordinaryFundingProposal storage newProposal = _extraordinaryFundingProposals[proposalId_];
 
@@ -102,7 +119,9 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         uint128 totalTokensRequested = _validateCallDatas(targets_, values_, calldatas_);
 
         // check tokens requested are available for claiming from the treasury
-        if (uint256(totalTokensRequested) > _getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())) revert InvalidProposal();
+        if (
+            uint256(totalTokensRequested) > _getSliceOfTreasury(Maths.WAD - _getMinimumThresholdPercentage())
+        ) revert InvalidProposal();
 
         // store newly created proposal
         newProposal.proposalId      = proposalId_;
@@ -136,12 +155,16 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
         ExtraordinaryFundingProposal storage proposal = _extraordinaryFundingProposals[proposalId_];
         // revert if proposal is inactive
-        if (proposal.startBlock > block.number || proposal.endBlock < block.number || proposal.executed) {
+        if (proposal.endBlock < block.number || proposal.executed) {
             revert ExtraordinaryFundingProposalInactive();
         }
 
         // check voting power at snapshot block and update proposal votes
         votesCast_ = _getVotesExtraordinary(msg.sender, proposalId_);
+
+        // check that the voter isn't attempting to cast a vote with 0 power
+        if (votesCast_ == 0) revert InvalidVote();
+
         proposal.votesReceived += SafeCast.toUint120(votesCast_);
 
         // record that voter has voted on this extraordinary funding proposal
@@ -158,7 +181,8 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
     /**
      * @notice Check if a proposal for extraordinary funding has succeeded.
-     * @param  proposalId_ The ID of the proposal being checked.
+     * @param  proposalId_      The ID of the proposal being checked.
+     * @param  tokensRequested_ The amount of tokens requested for proposal.
      * @return Boolean indicating whether the proposal has succeeded.
      */
     function _extraordinaryProposalSucceeded(
@@ -169,10 +193,10 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
         uint256 minThresholdPercentage = _getMinimumThresholdPercentage();
 
         return
-            // succeeded if proposal's votes received doesn't exceed the minimum threshold required
+            // proposal succeeded if received more votes than tokens requested plus the minimum non treasury threshold required
             (votesReceived >= tokensRequested_ + _getSliceOfNonTreasury(minThresholdPercentage))
             &&
-            // succeeded if tokens requested are available for claiming from the treasury
+            // proposal succeeded if tokens requested are less than treasury threshold required
             (tokensRequested_ <= _getSliceOfTreasury(Maths.WAD - minThresholdPercentage))
         ;
     }
@@ -183,7 +207,7 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
 
     /**
      * @notice Get the current ProposalState of a given proposal.
-     * @dev    Used by GrantFund.state() for analytics compatability purposes.
+     * @dev    Used by GrantFund.state() for analytics compatibility purposes.
      * @param  proposalId_ The ID of the proposal being checked.
      * @return The proposals status in the ProposalState enum.
      */
@@ -204,14 +228,11 @@ abstract contract ExtraordinaryFunding is Funding, IExtraordinaryFunding {
      * @return The minimum threshold percentage, as a WAD.
      */
     function _getMinimumThresholdPercentage() internal view returns (uint256) {
-        // default minimum threshold is 50
-        if (_fundedExtraordinaryProposals.length == 0) {
-            return 0.5 * 1e18;
-        }
-        // minimum threshold increases according to the number of funded EFM proposals
-        else {
-            return 0.5 * 1e18 + (_fundedExtraordinaryProposals.length * (0.05 * 1e18));
-        }
+        uint256 noOfProposals = _fundedExtraordinaryProposals.length;
+        // default minimum threshold (when no proposal) is 50%
+        if (noOfProposals == 0) return 0.5 * 1e18;
+        // if there are proposals then minimum threshold increases according to the number of funded EFM proposals
+        else return 0.5 * 1e18 + (noOfProposals * (0.05 * 1e18));
     }
 
     /**
