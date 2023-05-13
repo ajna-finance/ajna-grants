@@ -395,8 +395,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 150);
 
         // check can't execute unsuccessful proposal
-        vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
-        _executeExtraordinaryProposalNoLog(_grantFund, _token, testProposal);
+        assertExecuteExtraordinaryProposalInvalidRevert(_grantFund, _token, testProposal);
 
         // check proposal status
         IFunding.ProposalState proposalState = _grantFund.state(testProposal.proposalId);
@@ -484,6 +483,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         proposalState = _grantFund.state(testProposal.proposalId);
         assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Succeeded));
 
+        // FIXME: broken here
         // execute proposal
         _executeExtraordinaryProposal(_grantFund, _token, testProposal);
 
@@ -508,8 +508,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(_token.balanceOf(address(_grantFund)), 450_000_000 * 1e18);
 
         // check can't execute proposal twice
-        vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
-        _executeExtraordinaryProposalNoLog(_grantFund, _token, testProposal);
+        assertExecuteExtraordinaryProposalInvalidRevert(_grantFund, _token, testProposal);
 
         // minimum threshold percentage should increase after the successful proposal is executed
         minimumThresholdPercentage = _grantFund.getMinimumThresholdPercentage();
@@ -571,8 +570,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Defeated));
 
         // check can't execute defeated proposal
-        vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
-        _executeExtraordinaryProposalNoLog(_grantFund, _token, testProposal);
+        assertExecuteExtraordinaryProposalInvalidRevert(_grantFund, _token, testProposal);
     }
 
     function testFuzzExtraordinaryFunding(uint256 noOfVoters_, uint256 noOfProposals_) external {
@@ -626,16 +624,14 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
 
                 // check if the proposal requested too many tokens
                 if (votesReceived >= tokensRequested + _grantFund.getSliceOfNonTreasury(_grantFund.getMinimumThresholdPercentage())) {
-                    vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
-                    _executeExtraordinaryProposalNoLog(_grantFund, _token, testProposals[i]);
+                    assertExecuteExtraordinaryProposalInvalidRevert(_grantFund, _token, testProposals[i]);
                     continue;
                 }
                 else {
                     // check state has been marked as Defeated
                     assertEq(uint8(_grantFund.state(testProposals[i].proposalId)), uint8(IFunding.ProposalState.Defeated));
 
-                    vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
-                    _executeExtraordinaryProposalNoLog(_grantFund, _token, testProposals[i]);
+                    assertExecuteExtraordinaryProposalInvalidRevert(_grantFund, _token, testProposals[i]);
                 }
             }
             else {

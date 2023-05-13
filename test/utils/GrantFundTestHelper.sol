@@ -5,10 +5,11 @@ import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings }  from "@oz/utils/Strings.sol"; // used for createNProposals
 import { Test }     from "@std/Test.sol";
 
-import { GrantFund }        from "../../src/grants/GrantFund.sol";
-import { IFunding }         from "../../src/grants/interfaces/IFunding.sol";
-import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
-import { Maths }            from "../../src/grants/libraries/Maths.sol";
+import { GrantFund }             from "../../src/grants/GrantFund.sol";
+import { IFunding }              from "../../src/grants/interfaces/IFunding.sol";
+import { IExtraordinaryFunding } from "../../src/grants/interfaces/IExtraordinaryFunding.sol";
+import { IStandardFunding }      from "../../src/grants/interfaces/IStandardFunding.sol";
+import { Maths }                 from "../../src/grants/libraries/Maths.sol";
 
 import { IAjnaToken }       from "./IAjnaToken.sol";
 import { TestAjnaToken }    from "./harness/TestAjnaToken.sol";
@@ -71,6 +72,7 @@ abstract contract GrantFundTestHelper is Test {
 
     struct TestProposalExtraordinary {
         uint256 proposalId;
+        address proposer;
         string description;
         uint256 startBlock;
         uint256 endBlock;
@@ -193,7 +195,12 @@ abstract contract GrantFundTestHelper is Test {
         string memory description
     ) internal returns (TestProposalExtraordinary memory) {
         // generate expected proposal state
-        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(keccak256(bytes("Extraordinary Funding: ")), keccak256(bytes(description)))));
+        uint256 expectedProposalId = grantFund_.hashProposal(
+            targets_,
+            values_,
+            calldatas_,
+            grantFund_.getDescriptionHashExtraordinary(description, proposer_)
+        );
         uint256 startBlock = block.number;
 
         // submit proposal
@@ -218,7 +225,20 @@ abstract contract GrantFundTestHelper is Test {
             uint256 totalTokensRequested
         ) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
 
-        return TestProposalExtraordinary(proposalId, description, block.number, endBlock, totalTokensRequested, grantFund_.treasury(), grantFund_.getMinimumThresholdPercentage(), 0, 0, 0, params);
+        return TestProposalExtraordinary(
+            proposalId,
+            proposer_,
+            description,
+            block.number,
+            endBlock,
+            totalTokensRequested,
+            grantFund_.treasury(),
+            grantFund_.getMinimumThresholdPercentage(),
+            0,
+            0,
+            0,
+            params
+        );
     }
 
     function _createProposalStandard(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal returns (TestProposal memory) {
@@ -340,6 +360,7 @@ abstract contract GrantFundTestHelper is Test {
         // calculate starting balances
         uint256 growthFundStartingBalance = token_.balanceOf(address(grantFund_));
         uint256 totalTokensRequested = 0;
+        bytes32 descriptionHash = grantFund_.getDescriptionHashExtraordinary(testProposal_.description, testProposal_.proposer);
 
         // TODO: select a random recipient to execute the proposal
         changePrank(testProposal_.params[0].recipient);
@@ -372,24 +393,10 @@ abstract contract GrantFundTestHelper is Test {
         }
 
         // execute proposal
-        grantFund_.executeExtraordinary(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
+        grantFund_.executeExtraordinary(targets, values, calldatas, descriptionHash);
 
         // check grant fund token balance change
         assertEq(token_.balanceOf(address(grantFund_)), growthFundStartingBalance - totalTokensRequested);
-    }
-
-    function _executeExtraordinaryProposalNoLog(GrantFund grantFund_, IAjnaToken token_, TestProposalExtraordinary memory testProposal_) internal {
-        // TODO: select a random recipient to execute the proposal
-        changePrank(testProposal_.params[0].recipient);
-
-        (
-            address[] memory targets,
-            uint256[] memory values,
-            bytes[] memory calldatas,
-        ) = _getParamsFromGeneratedTestProposalParams(token_, testProposal_.params);
-
-        // execute proposal
-        grantFund_.executeExtraordinary(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
     }
 
     function _getParamsFromGeneratedTestProposalParams(IAjnaToken token_, GeneratedTestProposalParams[] memory params_) internal pure returns(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, uint256 totalTokensRequested_) {
@@ -775,6 +782,23 @@ abstract contract GrantFundTestHelper is Test {
 
     function assertInferiorSlateFalse(GrantFund grantFund_, uint256[] memory potentialSlate_, uint24 distributionId_) internal {
         assertFalse(grantFund_.updateSlate(potentialSlate_, distributionId_));
+    }
+
+    function assertExecuteExtraordinaryProposalInvalidRevert(GrantFund grantFund_, IAjnaToken token_, TestProposalExtraordinary memory testProposal_) internal {
+        // TODO: select a random recipient to execute the proposal
+        changePrank(testProposal_.params[0].recipient);
+
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+        ) = _getParamsFromGeneratedTestProposalParams(token_, testProposal_.params);
+
+        bytes32 descriptionHash = grantFund_.getDescriptionHashExtraordinary(testProposal_.description, testProposal_.proposer);
+
+        // execute proposal
+        vm.expectRevert(IExtraordinaryFunding.ExecuteExtraordinaryProposalInvalid.selector);
+        grantFund_.executeExtraordinary(targets, values, calldatas, descriptionHash);
     }
 
 }

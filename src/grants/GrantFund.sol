@@ -26,8 +26,6 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
     /*** Proposal Functions ***/
     /**************************/
 
-    // TODO: remove hashProposal() external function entirely? It's nice to have for verifying before execution
-    // Open question about what we want the interface to look like for the description when proposing and executing -> do they need to have already hashed a description string? if they did hash what params were hashed already?
     /// @inheritdoc IGrantFund
     function hashProposal(
         address[] memory targets_,
