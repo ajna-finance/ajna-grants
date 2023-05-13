@@ -1161,7 +1161,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     /**
      *  @notice Test GBC calculations for 4 consecutive distributions.
      */ 
-    function xtestMultipleDistribution() external {
+    function testMultipleDistribution() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
 
@@ -1204,7 +1204,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(screenedProposals_distribution1.length, 1);
 
         // funding period votes
-        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution1[0].proposalId, voteYes, 50_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution1[0].proposalId, voteYes, 25_000_000 * 1e18);
 
         // skip to the Challenge period
         vm.roll(_startBlock + 650_000);
@@ -1217,7 +1217,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // skip to the end of Challenge period
         vm.roll(_startBlock + 700_000);
 
-        // check proposal status
         // check proposal status isn't defeated
         IFunding.ProposalState proposalState = _grantFund.state(testProposals_distribution1[0].proposalId);
         assertTrue(uint8(proposalState) != uint8(IFunding.ProposalState.Defeated));
@@ -1264,7 +1263,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // check revert if attempts to cast screening votes on proposals from first distribution period
         changePrank(_tokenHolder10);
         vm.expectRevert(IFunding.InvalidVote.selector);
-        _screeningVoteNoLog(_grantFund, _tokenHolder10, testProposals_distribution1[0].proposalId, 50_000_000 * 1e18);
+        _screeningVoteNoLog(_grantFund, _tokenHolder10, testProposals_distribution1[0].proposalId, 25_000_000 * 1e18);
         vm.expectRevert(IFunding.InvalidVote.selector);
         _screeningVoteNoLog(_grantFund, _tokenHolder5, testProposals_distribution1[0].proposalId, 20_000_000 * 1e18);
 
@@ -1276,12 +1275,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(screenedProposals_distribution2.length, 1);
 
         // funding period votes
-        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution2[0].proposalId, voteYes, 50_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution2[0].proposalId, voteYes, 25_000_000 * 1e18);
 
         // check revert if attempts to cast funding votes on proposals from first distribution period
         changePrank(_tokenHolder10);
         vm.expectRevert(IFunding.InvalidVote.selector);
-        _fundingVoteNoLog(_grantFund, _tokenHolder10, testProposals_distribution1[0].proposalId, 50_000_000 * 1e18);
+        _fundingVoteNoLog(_grantFund, _tokenHolder10, testProposals_distribution1[0].proposalId, 25_000_000 * 1e18);
         vm.expectRevert(IFunding.InvalidVote.selector);
         _fundingVoteNoLog(_grantFund, _tokenHolder5, screenedProposals_distribution1[0].proposalId, 21_000_000 * 1e18);
 
@@ -1335,7 +1334,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(screenedProposals_distribution3.length, 1);
 
         // funding period votes
-        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution3[0].proposalId, voteYes, 50_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution3[0].proposalId, voteYes, 25_000_000 * 1e18);
 
         // skip to the Challenge period
         vm.roll(_startBlock + 2_000_000);
