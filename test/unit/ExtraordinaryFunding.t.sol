@@ -249,6 +249,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             _tokenHolder1,
             tokensRequestedParam
         );
+        string memory description = "Extraordinary Proposal for Ajna token transfer to tester address";
 
         // create and submit proposal
         TestProposalExtraordinary memory testProposal = _createProposalExtraordinary(
@@ -258,7 +259,7 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
             targets,
             values,
             calldatas,
-            "Extraordinary Proposal for Ajna token transfer to tester address"
+            description
         );
 
         // check proposal status
@@ -266,31 +267,28 @@ contract ExtraordinaryFundingGrantFundTest is GrantFundTestHelper {
         assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Active));
 
         // check proposal state
-        (
-            uint256 proposalId,
-            uint128 startBlock,
-            uint128 endBlock,
-            uint128 tokensRequested,
-            uint120 votesReceived,
-            bool executed
-        ) = _grantFund.getExtraordinaryProposalInfo(testProposal.proposalId);
-
-        assertEq(proposalId, testProposal.proposalId);
-        assertEq(tokensRequested, tokensRequestedParam);
-        assertEq(tokensRequested, testProposal.totalTokensRequested);
-        assertEq(startBlock, block.number);
-        assertEq(endBlock, endBlockParam);
-        assertEq(votesReceived, 0);
-        // assertFalse(succeeded);
-        assertFalse(executed);
+        uint256 proposalId = assertExtraordinaryProposalState(
+            _grantFund,
+            testProposal,
+            uint128(block.number),
+            uint128(endBlockParam),
+            uint128(tokensRequestedParam),
+            0,
+            false
+        );
         assertFalse(_grantFund.getExtraordinaryProposalSucceeded(testProposal.proposalId));
 
         // should revert is same proposal is being proposed
         vm.expectRevert(IFunding.ProposalAlreadyExists.selector);
-        _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, "Extraordinary Proposal for Ajna token transfer to tester address");
+        _grantFund.proposeExtraordinary(endBlockParam, targets, values, calldatas, description);
 
-        // check findMechanism identifies it as an extraOrdinary proposal
+        // check findMechanism identifies it as an extraordinary proposal
         assert(_grantFund.findMechanismOfProposal(proposalId) == IFunding.FundingMechanism.Extraordinary);
+
+        // check proposal description hash
+        bytes32 descriptionHash = _grantFund.getDescriptionHashExtraordinary(description, _tokenHolder1);
+        uint256 hashedProposalId = _grantFund.hashProposal(targets, values, calldatas, descriptionHash);
+        assertEq(proposalId, hashedProposalId);
     }
 
     function testProposeExtraordinaryInvalid() external {

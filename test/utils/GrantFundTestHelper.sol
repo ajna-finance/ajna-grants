@@ -803,9 +803,37 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.executeStandard(targets, values, calldatas, descriptionHash);
     }
 
+    function assertExtraordinaryProposalState(
+        GrantFund grantFund_,
+        TestProposalExtraordinary memory testProposal_,
+        uint128 expectedStartBlock_,
+        uint128 expectedEndBlock_,
+        uint128 expectedTokensRequested_,
+        uint128 expectedVotesReceived_,
+        bool expectedExecuted_
+    ) internal returns (uint256) {
+        (
+            uint256 proposalId,
+            uint128 startBlock,
+            uint128 endBlock,
+            uint128 tokensRequested,
+            uint120 votesReceived,
+            bool executed
+        ) = grantFund_.getExtraordinaryProposalInfo(testProposal_.proposalId);
+
+        assertEq(proposalId, testProposal_.proposalId);
+        assertEq(tokensRequested, expectedTokensRequested_);
+        assertEq(startBlock, expectedStartBlock_);
+        assertEq(endBlock, expectedEndBlock_);
+        assertEq(votesReceived, expectedVotesReceived_);
+        assertFalse(executed);
+
+        return proposalId;
+    }
+
     function assertStandardProposalState(
         GrantFund grantFund_,
-        TestProposal memory proposal,
+        TestProposal memory proposal_,
         uint24 expectedDistributionId_,
         uint256 expectedVotesReceived_,
         uint256 expectedTokensRequested_,
@@ -819,9 +847,9 @@ abstract contract GrantFundTestHelper is Test {
             uint256 tokensRequested,
             int256 qvBudgetAllocated,
             bool executed
-        ) = grantFund_.getProposalInfo(proposal.proposalId);
+        ) = grantFund_.getProposalInfo(proposal_.proposalId);
 
-        assertEq(proposalId, proposal.proposalId);
+        assertEq(proposalId, proposal_.proposalId);
         assertEq(distributionId, expectedDistributionId_);
         assertEq(votesReceived, expectedVotesReceived_);
         assertEq(tokensRequested, expectedTokensRequested_);
