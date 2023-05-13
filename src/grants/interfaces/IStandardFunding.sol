@@ -270,6 +270,14 @@ interface IStandardFunding {
     ) external view returns (uint256 rewards_);
 
     /**
+     * @notice Calculate the description hash of a standard proposal.
+     * @dev    The description hash is used as a unique identifier for a proposal. It is created by hashing the description string with a prefix.
+     * @param  description_ The proposal's description string.
+     * @return              The hash of the proposal's prefix and description string.
+     */
+    function getDescriptionHashStandard(string memory description_) external pure returns (bytes32);
+
+    /**
      * @notice Retrieve the current QuarterlyDistribution distributionId.
      * @return The current distributionId.
      */

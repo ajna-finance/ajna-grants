@@ -34,15 +34,8 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         uint256[] memory values_,
         bytes[] memory calldatas_,
         bytes32 descriptionHash_
-        // FundingMechanism type_
     ) external pure override returns (uint256 proposalId_) {
         proposalId_ = _hashProposal(targets_, values_, calldatas_, descriptionHash_);
-
-        // if(type_ == FundingMechanism.Standard) {
-        //     proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, descriptionHash_)));
-        // } else { // the type is Extraordinary
-        //     proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_EXTRAORDINARY, descriptionHash_)));
-        // }
     }
 
     /**

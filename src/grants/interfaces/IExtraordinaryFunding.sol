@@ -94,6 +94,15 @@ interface IExtraordinaryFunding {
     /**********************/
 
     /**
+     * @notice Calculate the description hash of an extraordinary proposal.
+     * @dev    The description hash is used as a unique identifier for a proposal. It is created by hashing the description string with a prefix, and the address of the proposal creator.
+     * @param  description_     The proposal's description string.
+     * @param  proposalCreator_ The address of the proposal's creator.
+     * @return                  The hash of the proposal's prefix, description string, and proposal creator.
+     */
+    function getDescriptionHashExtraordinary(string memory description_, address proposalCreator_) external pure returns (bytes32);
+
+    /**
      * @notice Get the number of ajna tokens equivalent to a given percentage.
      * @param  percentage_ The percentage of the non-treasury to retrieve, in WAD.
      * @return The number of tokens, in WAD.
