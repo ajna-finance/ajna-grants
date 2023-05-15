@@ -202,19 +202,23 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         uint256[] memory fundingProposalIds = _fundedProposalSlates[fundedSlateHash];
 
-        uint256 totalTokensRequested;
+        uint256 totalTokenDistributed;
         uint256 numFundedProposals = fundingProposalIds.length;
 
         for (uint i = 0; i < numFundedProposals; ) {
             Proposal memory proposal = _standardFundingProposals[fundingProposalIds[i]];
 
-            totalTokensRequested += proposal.tokensRequested;
+            totalTokenDistributed += proposal.tokensRequested;
 
             unchecked { ++i; }
         }
 
+        uint256 totalDelegateRewards;
+        // Increament totalTokenDistributed by delegate rewards if anyone has voted during funding voting
+        if (_distributions[distributionId_].fundingVotePowerCast != 0) totalDelegateRewards = (fundsAvailable / 10);
+
         // readd non distributed tokens to the treasury
-        treasury += (fundsAvailable - totalTokensRequested);
+        treasury += (fundsAvailable - totalTokenDistributed - totalDelegateRewards);
 
         _isSurplusFundsUpdated[distributionId_] = true;
     }

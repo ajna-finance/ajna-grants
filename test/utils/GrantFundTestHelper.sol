@@ -579,9 +579,11 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     function getSurplusTokensInDistribution(GrantFund grantFund_, uint24 distributionId_) public view returns (uint256 surplus_) {
-        (, , , uint128 fundsAvailable, , bytes32 topSlateHash) = grantFund_.getDistributionPeriodInfo(distributionId_);
+        (, , , uint128 fundsAvailable, uint256 fundingVotePowerCast, bytes32 topSlateHash) = grantFund_.getDistributionPeriodInfo(distributionId_);
         uint256 tokensRequested = getTokensRequestedInFundedSlate(grantFund_, topSlateHash);
-        surplus_ = fundsAvailable - tokensRequested;
+        uint256 totalDelegateRewards;
+        if (fundingVotePowerCast != 0) totalDelegateRewards = fundsAvailable / 10;
+        surplus_ = fundsAvailable - tokensRequested - totalDelegateRewards;
     }
 
     /************************/
