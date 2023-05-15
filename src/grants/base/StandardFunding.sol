@@ -594,7 +594,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
             votesCast_ += _fundingVote(
                 currentDistribution,
                 proposal,
-                msg.sender,
                 voter,
                 voteParams_[i]
             );
@@ -646,7 +645,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev    Votes can be allocated to multiple proposals, quadratically, for or against.
      * @param  currentDistribution_  The current distribution period.
      * @param  proposal_             The current proposal being voted upon.
-     * @param  account_              The voting account.
      * @param  voter_                The voter data struct tracking available votes.
      * @param  voteParams_           The amount of votes being allocated to the proposal. Not squared. If less than 0, vote is against.
      * @return incrementalVotesUsed_ The amount of funding stage votes allocated to the proposal.
@@ -654,7 +652,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     function _fundingVote(
         QuarterlyDistribution storage currentDistribution_,
         Proposal storage proposal_,
-        address account_,
         QuadraticVoter storage voter_,
         FundingVoteParams memory voteParams_
     ) internal returns (uint256 incrementalVotesUsed_) {
@@ -712,7 +709,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 incrementalVotingPowerUsed = uint256(cumulativeVotePowerUsed - voterPowerUsedPreVote);
 
         // update accumulator for total voting power used in the funding stage in order to calculate delegate rewards
-        currentDistribution_.fundingVotePowerCast += incrementalVotingPowerUsed;
+        // check that the voter voted in the screening round before updating the accumulator
+        if (screeningVotesCast[_currentDistributionId][msg.sender] != 0) {
+            currentDistribution_.fundingVotePowerCast += incrementalVotingPowerUsed;
+        }
 
         // update proposal vote tracking
         proposal_.fundingVotesReceived += SafeCast.toInt128(voteParams_.votesUsed);
@@ -723,7 +723,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         // emits the amount of incremental votes cast for the proposal, not the voting power cost or total votes on a proposal
         emit VoteCast(
-            account_,
+            msg.sender,
             proposalId,
             support,
             incrementalVotesUsed_,
