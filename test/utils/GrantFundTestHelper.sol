@@ -6,6 +6,7 @@ import { Strings }  from "@oz/utils/Strings.sol"; // used for createNProposals
 import { Test }     from "@std/Test.sol";
 
 import { GrantFund }        from "../../src/grants/GrantFund.sol";
+import { IFunding }         from "../../src/grants/interfaces/IFunding.sol";
 import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
 import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
@@ -282,7 +283,7 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     // return a TestProposal struct containing the state of a created proposal
-    function _createTestProposalStandard(uint24 distributionId_, uint256 proposalId_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal returns (TestProposal memory proposal_) {
+    function _createTestProposalStandard(uint24 distributionId_, uint256 proposalId_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal view returns (TestProposal memory proposal_) {
         (GeneratedTestProposalParams[] memory params, uint256 totalTokensRequested) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
         proposal_ = TestProposal(proposalId_, distributionId_, description, totalTokensRequested, block.number, params);
     }
@@ -607,7 +608,7 @@ abstract contract GrantFundTestHelper is Test {
         int256 arrayLength = int256(array_.length);
 
         for (int256 i = 0; i < arrayLength;) {
-            //slither-disable-next-line incorrect-equality
+            // slither-disable-next-line incorrect-equality
             if (array_[uint256(i)] == proposalId_) {
                 index_ = i;
                 break;
@@ -626,7 +627,7 @@ abstract contract GrantFundTestHelper is Test {
         // since we are converting from uint256 to int256, we can safely assume that the value will not overflow
         int256 numVotesCast = int256(voteParams_.length);
         for (int256 i = 0; i < numVotesCast; ) {
-            //slither-disable-next-line incorrect-equality
+            // slither-disable-next-line incorrect-equality
             if (voteParams_[uint256(i)].proposalId == proposalId_) {
                 index_ = i;
                 break;
@@ -759,13 +760,18 @@ abstract contract GrantFundTestHelper is Test {
         _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 
+    function assertInsufficientRemainingVotingPowerRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
+        vm.expectRevert(IStandardFunding.InsufficientRemainingVotingPower.selector);
+        _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
+    }
+
     function assertFundingVoteInvalidVoteRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 
     function assertScreeningVoteInvalidVoteRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
-        vm.expectRevert(IStandardFunding.InvalidVote.selector);
+        vm.expectRevert(IFunding.InvalidVote.selector);
         _screeningVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 
