@@ -9,7 +9,7 @@
 - #### Distribution Period:
     - **DP1**: Only one distribution period should be active at a time. Each successive distribution period's start block should be greater than the previous periods end block.
     - **DP2**: Each winning proposal successfully claims no more that what was finalized in the challenge stage
-    - **DP3**: A distribution's fundsAvailable should be equal to 2% of the treasurie's balance at the block `startNewDistributionPeriod()` is called.
+    - **DP3**: A distribution's fundsAvailable should be equal to 3% of the treasurie's balance at the block `startNewDistributionPeriod()` is called.
     - **DP4**: A distribution's endBlock should be greater than its startBlock.
     - **DP5**: The treasury balance should be greater than the sum of the funds available in all distribution periods.
     - **DP6**: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury.

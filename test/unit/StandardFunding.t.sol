@@ -1157,7 +1157,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.claimDelegateReward(distributionId);
     }
 
-    function testTreasureUpdatedWithSurplusTokens() external {
+    function testTreasuryUpdatedWithSurplusTokens() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
 
