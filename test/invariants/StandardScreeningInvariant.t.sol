@@ -57,6 +57,7 @@ contract StandardScreeningInvariant is StandardTestBase {
                     "invariant SS4: Screening votes recieved for a proposal can only be positive"
                 );
 
+                // TODO: improve this check
                 require(
                     distributionIdCurr == distributionIdNext && distributionIdCurr == distributionId,
                     "invariant SS5: distribution id for a proposal should be the same as the current distribution id"

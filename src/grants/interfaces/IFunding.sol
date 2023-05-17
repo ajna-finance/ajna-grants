@@ -36,11 +36,6 @@ interface IFunding {
     error ProposalAlreadyExists();
 
     /**
-     * @notice Provided proposalId isn't present in either funding mechanisms storage mappings.
-     */
-    error ProposalNotFound();
-
-    /**
      * @notice Proposal didn't meet requirements for execution.
      */
     error ProposalNotSuccessful();

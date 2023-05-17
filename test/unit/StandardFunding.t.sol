@@ -315,13 +315,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(tokensRequested, 1 * 1e18);
         assertEq(qvBudgetAllocated, 0);
         assertFalse(executed);
-
-        // should revert to find mechanism with invalid ProposalId
-        vm.expectRevert(IFunding.ProposalNotFound.selector);
-        _grantFund.findMechanismOfProposal(0x223);
-
-        // check findMechanism identifies it as a standard proposal
-        assert(_grantFund.findMechanismOfProposal(proposalId) == IFunding.FundingMechanism.Standard);
     }
 
     function testInvalidProposalCalldataSelector() external {

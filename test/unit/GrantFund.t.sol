@@ -54,40 +54,6 @@ contract GrantFundTest is GrantFundTestHelper {
         _grantFund.fundTreasury(50_000_000 * 1e18);
     }
 
-    function testTreasuryInsufficientBalanceExtraordinary() external {
-        // tiny amount of ajna tokens are added to the treasury
-        changePrank(_tokenHolder1);
-        _token.approve(address(_grantFund), 1);
-        vm.expectEmit(true, true, false, true);
-        emit FundTreasury(1, 1);
-        _grantFund.fundTreasury(1);
-
-        // voter self delegates
-        _token.delegate(_tokenHolder1);
-
-        vm.roll(_startBlock + 100);
-
-        // generate proposal targets
-        address[] memory targets = new address[](1);
-        targets[0] = address(_token);
-
-        // generate proposal values
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        // generate proposal calldata
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSignature(
-            "transfer(address,uint256)",
-            _tokenHolder1,
-            50_000_000 * 1e18
-        );
-
-        // should revert when extraordinary funding proposal created for an amount greater than that in the treasury
-        vm.expectRevert(IFunding.InvalidProposal.selector);
-        _grantFund.proposeExtraordinary(block.number + 100_000, targets, values, calldatas, "Extraordinary Proposal for Ajna token transfer to tester address");
-    }
-
     function testTreasuryDistributionPeriodFunding() external {
         // fund treasury before and after starting the distribution period
         changePrank(_tokenDeployer);

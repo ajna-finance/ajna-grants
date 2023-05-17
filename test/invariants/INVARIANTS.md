@@ -22,9 +22,12 @@
     - **SS4**: Screening vote's cast can only be positive.
     - **SS5**: Screening votes can only be cast on a proposal in it's distribution period's screening stage.
     - **SS6**: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list (typically the 10th of course, but it may be shorter than ten proposals).
+    <!-- TODO: move these into separate 'Propose Standard:' section -->
     - **SS7**: A proposal should never receive more vote than the Ajna token supply.
     - **SS8**: A proposal can only receive screening votes if it was created via `proposeStandard()`.
     - **SS9**: A proposal can only be created during a distribution period's screening stage.
+    - **SS10**: A proposal's proposalId must be unique.
+    - **SS11**: A proposal's tokens requested must be <= GBC>.
 
 - #### Funding Stage:
     - **FS1**: Only 10 proposals can be voted on in the funding stage
@@ -48,33 +51,14 @@
     - **ES1**: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round.
     - **ES2**: A proposal can only be executed after the challenge stage is complete.
     - **ES3**: A proposal can only be executed once.
+    - **ES4**: A proposal can only be executed if it was in the top ten screened proposals at the end of the screening stage.
+    - **ES5**: An executed proposal should only ever transfer tokens <= GBC.
 
 - #### Delegation Rewards:
     - **DR1**: Cumulative delegation rewards should be 10% of a distribution periods GBC.
     - **DR2**: Delegation rewards are 0 if voter didn't vote in both stages.
     - **DR3**: Delegation rewards are proportional to voters funding power allocated in the funding stage.
-
-## Extraordinary Funding Mechanism Invariants
-
-- #### Extraordinary Global Invariants:
-    - **EG1**: The `minimumThresholdPercentage` variable increases by 5% for each successive executed proposal.
-
-- #### Execute Extraordinary:
-    - **EE1**: A proposal can only be executed once.
-    - **EE2**: A proposal can only be executed if its `votesReceived` exceeds its `tokensRequested` + the `minimumThresholdPercentage` times the non-treasury token supply at the time of execution.
-    - **EE3**: A proposal can only be executed if it's `tokensRequested` is less than `treasury` * (1 - `minimumThresholdPercentage`).
-    - **EE4**: Only 9 proposals can be executed.
-
-- #### Propose Extraordinary:
-    - **PE1**: A proposal's proposalId must be unique.
-    - **PE2**: A proposal's endBlock must be less than the `MAX_EFM_PROPOSAL_LENGTH` of 216_000 blocks.
-    - **PE3**: A proposal's tokens requested must be less than treasuryBalance * (1 - `minimumThresholdPercentage`).
-
-- #### Vote Extraordinary:
-    - **VE1**: A proposal can only be voted on once.
-    - **VE2**: A proposal can only be voted on if the block number is less than or equal to the proposals end block and the `MAX_EFM_PROPOSAL_LENGTH` of 216_000 blocks.
-    - **VE3**: Votes cast must always be positive.
-    - **VE4**: A voter should never be able to cast more votes than the Ajna token supply.
+    - **DR4**: Delegation rewards can only be claimed for a distribution period after it ended.
 
 ## Global Invariants:
    - **G1**: A proposal should never enter an unused state (canceled, queued, expired).

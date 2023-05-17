@@ -5,12 +5,11 @@ pragma solidity 0.8.18;
 import { IERC20 }    from "@oz/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@oz/token/ERC20/utils/SafeERC20.sol";
 
-import { ExtraordinaryFunding } from "./base/ExtraordinaryFunding.sol";
 import { StandardFunding }      from "./base/StandardFunding.sol";
 
 import { IGrantFund } from "./interfaces/IGrantFund.sol";
 
-contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
+contract GrantFund is IGrantFund, StandardFunding {
 
     using SafeERC20 for IERC20;
 
@@ -36,26 +35,11 @@ contract GrantFund is IGrantFund, ExtraordinaryFunding, StandardFunding {
         proposalId_ = _hashProposal(targets_, values_, calldatas_, descriptionHash_);
     }
 
-    /**
-     * @notice Given a proposalId, find if it is a standard or extraordinary proposal.
-     * @param proposalId_ The id of the proposal to query the mechanism of.
-     * @return FundingMechanism to which the proposal was submitted.
-     */
-    function findMechanismOfProposal(
-        uint256 proposalId_
-    ) public view returns (FundingMechanism) {
-        if (_standardFundingProposals[proposalId_].proposalId != 0)           return FundingMechanism.Standard;
-        else if (_extraordinaryFundingProposals[proposalId_].proposalId != 0) return FundingMechanism.Extraordinary;
-        else revert ProposalNotFound();
-    }
-
     /// @inheritdoc IGrantFund
     function state(
         uint256 proposalId_
     ) external view override returns (ProposalState) {
-        FundingMechanism mechanism = findMechanismOfProposal(proposalId_);
-
-        return mechanism == FundingMechanism.Standard ? _getStandardProposalState(proposalId_) : _getExtraordinaryProposalState(proposalId_);
+        return _getStandardProposalState(proposalId_);
     }
 
     /**************************/
