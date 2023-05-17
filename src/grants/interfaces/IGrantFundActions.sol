@@ -4,154 +4,19 @@
 pragma solidity 0.8.18;
 
 /**
- * @title Ajna Grant Coordination Fund Standard Proposal flow.
+ * @title Grant Fund User Actions.
  */
-interface IStandardFunding {
-
-    /**************/
-    /*** Errors ***/
-    /**************/
-
-    /**
-     * @notice User attempted to start a new distribution or claim delegation rewards before the distribution period ended.
-     */
-     error DistributionPeriodStillActive();
-
-    /**
-     * @notice User attempted to execute a proposal before the distribution period ended.
-     */
-     error ExecuteProposalInvalid();
-
-    /**
-     * @notice User attempted to change the direction of a subsequent funding vote on the same proposal.
-     */
-    error FundingVoteWrongDirection();
-
-    /**
-     * @notice User attempted to vote with more voting power than was available to them.
-     */
-    error InsufficientVotingPower();
-
-    /**
-     * @notice Voter does not have enough voting power remaining to cast the vote.
-     */
-    error InsufficientRemainingVotingPower();
-
-    /**
-     * @notice User provided a slate of proposalIds that is invalid.
-     */
-    error InvalidProposalSlate();
-
-    /**
-     * @notice Delegatee attempted to claim delegate reward when not voted in screening.
-     */
-    error DelegateRewardInvalid();
-
-    /**
-     * @notice User attempted to propose after screening period ended
-     */
-    error ScreeningPeriodEnded();
-
-    /**
-     * @notice User attempted to Claim delegate reward again
-     */
-    error RewardAlreadyClaimed();
-
-    /**************/
-    /*** Events ***/
-    /**************/
-
-    /**
-     *  @notice Emitted when a new top ten slate is submitted and set as the leading optimized slate.
-     *  @param  distributionId  Id of the distribution period.
-     *  @param  fundedSlateHash Hash of the proposals to be funded.
-     */
-    event FundedSlateUpdated(
-        uint256 indexed distributionId,
-        bytes32 indexed fundedSlateHash
-    );
-
-    /**
-     *  @notice Emitted at the beginning of a new quarterly distribution period.
-     *  @param  distributionId Id of the new distribution period.
-     *  @param  startBlock     Block number of the quarterly distributions start.
-     *  @param  endBlock       Block number of the quarterly distributions end.
-     */
-    event QuarterlyDistributionStarted(
-        uint256 indexed distributionId,
-        uint256 startBlock,
-        uint256 endBlock
-    );
-
-    /**
-     *  @notice Emitted when delegatee claims his rewards.
-     *  @param  delegateeAddress Address of delegatee.
-     *  @param  distributionId   Id of distribution period.
-     *  @param  rewardClaimed    Amount of Reward Claimed.
-     */
-    event DelegateRewardClaimed(
-        address indexed delegateeAddress,
-        uint256 indexed distributionId,
-        uint256 rewardClaimed
-    );
-
-    /***************/
-    /*** Structs ***/
-    /***************/
-
-    /**
-     * @notice Contains proposals that made it through the screening process to the funding stage.
-     */
-    struct QuarterlyDistribution {
-        uint24  id;                   // id of the current quarterly distribution
-        uint48  startBlock;           // block number of the quarterly distributions start
-        uint48  endBlock;             // block number of the quarterly distributions end
-        uint128 fundsAvailable;       // maximum fund (including delegate reward) that can be taken out that quarter
-        uint256 fundingVotePowerCast; // total number of voting power allocated in funding stage that quarter
-        bytes32 fundedSlateHash;      // hash of list of proposals to fund
-    }
-
-    /**
-     * @notice Contains information about proposals in a distribution period.
-     */
-    struct Proposal {
-        uint256 proposalId;           // OZ.Governor compliant proposalId. Hash of propose() inputs
-        uint24  distributionId;       // Id of the distribution period in which the proposal was made
-        bool    executed;             // whether the proposal has been executed
-        uint128 votesReceived;        // accumulator of screening votes received by a proposal
-        uint128 tokensRequested;      // number of Ajna tokens requested in the proposal
-        int128  fundingVotesReceived; // accumulator of funding votes allocated to the proposal.
-    }
-
-    /**
-     * @notice Contains information about voters during a vote made by a QuadraticVoter in the Funding stage of a distribution period.
-     */
-    struct FundingVoteParams {
-        uint256 proposalId;
-        int256 votesUsed;
-    }
-
-    /**
-     * @notice Contains information about voters during a vote made during the Screening stage of a distribution period.
-     * @dev    Used in screeningVoteMulti().
-     */
-    struct ScreeningVoteParams {
-        uint256 proposalId; // the proposal being voted on
-        uint256 votes;      // the number of votes to allocate to the proposal
-    }
-
-    /**
-     * @notice Contains information about voters during a distribution period's funding stage.
-     */
-    struct QuadraticVoter {
-        uint128 votingPower;           // amount of votes originally available to the voter, equal to the sum of the square of their initial votes
-        uint128 remainingVotingPower;  // remaining voting power in the given period
-        FundingVoteParams[] votesCast; // array of votes cast by the voter
-    }
+interface IGrantFundActions {
 
     /*****************************************/
     /*** Distribution Management Functions ***/
     /*****************************************/
+
+    /**
+     * @notice Transfers Ajna tokens to the GrantFund contract.
+     * @param fundingAmount_ The amount of Ajna tokens to transfer.
+     */
+    function fundTreasury(uint256 fundingAmount_) external;
 
     /**
      * @notice Start a new Distribution Period and reset appropriate state.
@@ -196,6 +61,23 @@ interface IStandardFunding {
     ) external returns (uint256 proposalId_);
 
     /**
+     * @notice Create a proposalId from a hash of proposal's targets, values, and calldatas arrays, and a description hash.
+     * @dev    Consistent with proposalId generation methods used in OpenZeppelin Governor.
+     * @param targets_         The addresses of the contracts to call.
+     * @param values_          The amounts of ETH to send to each target.
+     * @param calldatas_       The calldata to send to each target.
+     * @param descriptionHash_ The hash of the proposal's description string. Generated by `abi.encode(DESCRIPTION_PREFIX_HASH, keccak256(bytes(description_))`.
+     *                         The `DESCRIPTION_PREFIX_HASH` is unique for each funding mechanism: `keccak256(bytes("Standard Funding: "))` for standard and `keccak256(bytes("Extraordinary Funding: "))` for extraordinary
+     * @return proposalId_     The hashed proposalId created from the provided params.
+     */
+    function hashProposal(
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory calldatas_,
+        bytes32 descriptionHash_
+    ) external pure returns (uint256 proposalId_);
+
+    /**
      * @notice Submit a new proposal to the Grant Coordination Fund Standard Funding mechanism.
      * @dev    All proposals can be submitted by anyone. There can only be one value in each array. Interface inherits from OZ.propose().
      * @param  targets_     List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
@@ -210,6 +92,16 @@ interface IStandardFunding {
         bytes[] memory calldatas_,
         string memory description_
     ) external returns (uint256 proposalId_);
+
+    /**
+     * @notice Find the status of a given proposal.
+     * @dev Check proposal status based upon Grant Fund specific logic.
+     * @param proposalId_ The id of the proposal to query the status of.
+     * @return ProposalState of the given proposal.
+     */
+    function state(
+        uint256 proposalId_
+    ) external view returns (ProposalState);
 
     /**
      * @notice Check if a slate of proposals meets requirements, and maximizes votes. If so, update QuarterlyDistribution.
@@ -375,5 +267,4 @@ interface IStandardFunding {
      * @return votes_           The voter's voting power.
      */
     function getVotesScreening(uint24 distributionId_, address account_) external view returns (uint256 votes_);
-
 }

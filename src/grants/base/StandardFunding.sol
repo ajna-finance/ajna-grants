@@ -2,114 +2,20 @@
 
 pragma solidity 0.8.18;
 
-import { IERC20 }    from "@oz/token/ERC20/IERC20.sol";
-import { SafeCast }  from "@oz/utils/math/SafeCast.sol";
-import { SafeERC20 } from "@oz/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 }          from "@oz/token/ERC20/IERC20.sol";
+import { ReentrancyGuard } from "@oz/security/ReentrancyGuard.sol";
+import { SafeCast }        from "@oz/utils/math/SafeCast.sol";
+import { SafeERC20 }       from "@oz/token/ERC20/utils/SafeERC20.sol";
 
-import { Funding } from "./Funding.sol";
+import { Storage } from "./Storage.sol";
 
 import { IStandardFunding } from "../interfaces/IStandardFunding.sol";
 
 import { Maths } from "../libraries/Maths.sol";
 
-abstract contract StandardFunding is Funding, IStandardFunding {
+abstract contract StandardFunding is IStandardFunding, Storage, ReentrancyGuard {
 
     using SafeERC20 for IERC20;
-
-    /*****************/
-    /*** Constants ***/
-    /*****************/
-
-    /**
-     * @notice Maximum percentage of tokens that can be distributed by the treasury in a quarter.
-     * @dev Stored as a Wad percentage.
-     */
-    uint256 internal constant GLOBAL_BUDGET_CONSTRAINT = 0.03 * 1e18;
-
-    /**
-     * @notice Length of the challengephase of the distribution period in blocks.
-     * @dev    Roughly equivalent to the number of blocks in 7 days.
-     * @dev    The period in which funded proposal slates can be checked in updateSlate.
-     */
-    uint256 internal constant CHALLENGE_PERIOD_LENGTH = 50400;
-
-    /**
-     * @notice Length of the distribution period in blocks.
-     * @dev    Roughly equivalent to the number of blocks in 90 days.
-     */
-    uint48 internal constant DISTRIBUTION_PERIOD_LENGTH = 648000;
-
-    /**
-     * @notice Length of the funding phase of the distribution period in blocks.
-     * @dev    Roughly equivalent to the number of blocks in 10 days.
-     */
-    uint256 internal constant FUNDING_PERIOD_LENGTH = 72000;
-
-    /**
-     * @notice Keccak hash of a prefix string for standard funding mechanism
-     */
-    bytes32 internal constant DESCRIPTION_PREFIX_HASH_STANDARD = keccak256(bytes("Standard Funding: "));
-
-    /***********************/
-    /*** State Variables ***/
-    /***********************/
-
-    /**
-     * @notice ID of the current distribution period.
-     * @dev Used to access information on the status of an ongoing distribution.
-     * @dev Updated at the start of each quarter.
-     * @dev Monotonically increases by one per period.
-     */
-    uint24 internal _currentDistributionId = 0;
-
-    /**
-     * @notice Mapping of quarterly distributions from the grant fund.
-     * @dev distributionId => QuarterlyDistribution
-     */
-    mapping(uint24 => QuarterlyDistribution) internal _distributions;
-
-    /**
-     * @dev Mapping of all proposals that have ever been submitted to the grant fund for screening.
-     * @dev proposalId => Proposal
-     */
-    mapping(uint256 => Proposal) internal _proposals;
-
-    /**
-     * @dev Mapping of distributionId to a sorted array of 10 proposalIds with the most votes in the screening period.
-     * @dev distribution.id => proposalId[]
-     * @dev A new array is created for each distribution period
-     */
-    mapping(uint256 => uint256[]) internal _topTenProposals;
-
-    /**
-     * @notice Mapping of a hash of a proposal slate to a list of funded proposals.
-     * @dev slate hash => proposalId[]
-     */
-    mapping(bytes32 => uint256[]) internal _fundedProposalSlates;
-
-    /**
-     * @notice Mapping of quarterly distributions to voters to a Quadratic Voter info struct.
-     * @dev distributionId => voter address => QuadraticVoter 
-     */
-    mapping(uint256 => mapping(address => QuadraticVoter)) internal _quadraticVoters;
-
-    /**
-     * @notice Mapping of distributionId to whether surplus funds from distribution updated into treasury
-     * @dev distributionId => bool
-    */
-    mapping(uint256 => bool) internal _isSurplusFundsUpdated;
-
-    /**
-     * @notice Mapping of distributionId to user address to whether user has claimed his delegate reward
-     * @dev distributionId => address => bool
-    */
-    mapping(uint256 => mapping(address => bool)) public hasClaimedReward;
-
-    /**
-     * @notice Mapping of distributionId to user address to total votes cast on screening stage proposals.
-     * @dev distributionId => address => uint256
-    */
-    mapping(uint256 => mapping(address => uint256)) public screeningVotesCast;
 
     /**************************************************/
     /*** Distribution Management Functions External ***/
@@ -420,6 +326,171 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /***********************************/
 
     /**
+     * @notice Execute the calldata of a passed proposal.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param proposalId_ The ID of proposal to execute.
+     * @param targets_    The list of smart contract targets for the calldata execution. Should be the Ajna token address.
+     * @param values_     Unused. Should be 0 since all calldata is executed on the Ajna token's transfer method.
+     * @param calldatas_  The list of calldatas to execute.
+     */
+    function _execute(
+        uint256 proposalId_,
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory calldatas_
+    ) internal {
+        // use common event name to maintain consistency with tally
+        emit ProposalExecuted(proposalId_);
+
+        string memory errorMessage = "Governor: call reverted without message";
+
+        uint256 noOfTargets = targets_.length;
+        for (uint256 i = 0; i < noOfTargets;) {
+            (bool success, bytes memory returndata) = targets_[i].call{value: values_[i]}(calldatas_[i]);
+            Address.verifyCallResult(success, returndata, errorMessage);
+
+            unchecked { ++i; }
+        }
+    }
+
+    /**
+     * @notice Check an array of proposalIds for duplicate IDs.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param  proposalIds_ Array of proposal Ids to check.
+     * @return Boolean indicating the presence of a duplicate. True if it has a duplicate; false if not.
+     */
+    function _hasDuplicates(
+        uint256[] calldata proposalIds_
+    ) internal pure returns (bool) {
+        uint256 numProposals = proposalIds_.length;
+
+        for (uint256 i = 0; i < numProposals; ) {
+            for (uint256 j = i + 1; j < numProposals; ) {
+                if (proposalIds_[i] == proposalIds_[j]) return true;
+
+                unchecked { ++j; }
+            }
+
+            unchecked { ++i; }
+
+        }
+        return false;
+    }
+
+    /**
+     * @notice Create a proposalId from a hash of proposal's targets, values, and calldatas arrays, and a description hash.
+     * @dev    Consistent with proposalId generation methods used in OpenZeppelin Governor.
+     * @param targets_         The addresses of the contracts to call.
+     * @param values_          The amounts of ETH to send to each target.
+     * @param calldatas_       The calldata to send to each target.
+     * @param descriptionHash_ The hash of the proposal's description string. Generated by keccak256(bytes(description))).
+     * @return proposalId_     The hashed proposalId created from the provided params.
+     */
+    function _hashProposal(
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory calldatas_,
+        bytes32 descriptionHash_
+    ) internal pure returns (uint256 proposalId_) {
+        proposalId_ = uint256(keccak256(abi.encode(targets_, values_, calldatas_, descriptionHash_)));
+    }
+
+    /**
+     * @notice Calculates the sum of funding votes allocated to a list of proposals.
+     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length of at most 10.
+     * @param  proposalIdSubset_ Array of proposal Ids to sum.
+     * @return sum_ The sum of the funding votes across the given proposals.
+     */
+    function _sumProposalFundingVotes(
+        uint256[] memory proposalIdSubset_
+    ) internal view returns (uint128 sum_) {
+        uint256 noOfProposals = proposalIdSubset_.length;
+
+        for (uint i = 0; i < noOfProposals;) {
+            // since we are converting from int128 to uint128, we can safely assume that the value will not overflow
+            sum_ += uint128(_proposals[proposalIdSubset_[i]].fundingVotesReceived);
+
+            unchecked { ++i; }
+        }
+    }
+
+    /**
+     * @notice Get the current ProposalState of a given proposal.
+     * @dev    Used by GrantFund.state() for analytics compatibility purposes.
+     * @param  proposalId_ The ID of the proposal being checked.
+     * @return The proposals status in the ProposalState enum.
+     */
+    function _state(uint256 proposalId_) internal view returns (ProposalState) {
+        Proposal memory proposal = _proposals[proposalId_];
+
+        if (proposal.executed)                                                     return ProposalState.Executed;
+        else if (_distributions[proposal.distributionId].endBlock >= block.number) return ProposalState.Active;
+        else if (_isProposalFinalized(proposalId_))                      return ProposalState.Succeeded;
+        else                                                                       return ProposalState.Defeated;
+    }
+
+    /**
+     * @notice Verifies proposal's targets, values, and calldatas match specifications.
+     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
+     * @param targets_         The addresses of the contracts to call.
+     * @param values_          The amounts of ETH to send to each target.
+     * @param calldatas_       The calldata to send to each target.
+     * @return tokensRequested_ The amount of tokens requested in the calldata.
+     */
+    function _validateCallDatas(
+        address[] memory targets_,
+        uint256[] memory values_,
+        bytes[] memory calldatas_
+    ) internal view returns (uint128 tokensRequested_) {
+        uint256 noOfTargets = targets_.length;
+
+        // check params have matching lengths
+        if (
+            noOfTargets == 0 || noOfTargets != values_.length || noOfTargets != calldatas_.length
+        ) revert InvalidProposal();
+
+        for (uint256 i = 0; i < noOfTargets;) {
+
+            // check targets and values params are valid
+            if (targets_[i] != ajnaTokenAddress || values_[i] != 0) revert InvalidProposal();
+
+            // check calldata includes both required params
+            if (calldatas_[i].length != 68) revert InvalidProposal();
+
+            // check calldata function selector is transfer()
+            bytes memory selDataWithSig = calldatas_[i];
+
+            bytes4 selector;
+            // slither-disable-next-line assembly
+            assembly {
+                selector := mload(add(selDataWithSig, 0x20))
+            }
+            if (selector != bytes4(0xa9059cbb)) revert InvalidProposal();
+
+            // https://github.com/ethereum/solidity/issues/9439
+            // retrieve recipient and tokensRequested from incoming calldata, accounting for the function selector
+            uint256 tokensRequested;
+            address recipient;
+            bytes memory tokenDataWithSig = calldatas_[i];
+            // slither-disable-next-line assembly
+            assembly {
+                recipient := mload(add(tokenDataWithSig, 36)) // 36 = 4 (selector) + 32 (recipient address)
+                tokensRequested := mload(add(tokenDataWithSig, 68)) // 68 = 4 (selector) + 32 (recipient address) + 32 (tokens requested)
+            }
+
+            // check recipient in the calldata is valid and doesn't attempt to transfer tokens to a disallowed address
+            if (recipient == address(0) || recipient == ajnaTokenAddress || recipient == address(this)) revert InvalidProposal();
+
+            // update tokens requested for additional calldata
+            tokensRequested_ += SafeCast.toUint128(tokensRequested);
+
+            unchecked { ++i; }
+        }
+    }
+
+    /**
      * @notice Check the validity of a potential slate of proposals to execute, and sum the slate's fundingVotesReceived.
      * @dev    Only iterates through a maximum of 10 proposals that made it through both voting stages.
      * @dev    Counters incremented in an unchecked block due to being bounded by array length.
@@ -476,66 +547,6 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // check if slate of proposals exceeded budget constraint ( 90% of GBC )
         if (totalTokensRequested > (gbc * 9 / 10)) revert InvalidProposalSlate();
-    }
-
-    /**
-     * @notice Check an array of proposalIds for duplicate IDs.
-     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
-     * @dev    Counters incremented in an unchecked block due to being bounded by array length.
-     * @param  proposalIds_ Array of proposal Ids to check.
-     * @return Boolean indicating the presence of a duplicate. True if it has a duplicate; false if not.
-     */
-    function _hasDuplicates(
-        uint256[] calldata proposalIds_
-    ) internal pure returns (bool) {
-        uint256 numProposals = proposalIds_.length;
-
-        for (uint256 i = 0; i < numProposals; ) {
-            for (uint256 j = i + 1; j < numProposals; ) {
-                if (proposalIds_[i] == proposalIds_[j]) return true;
-
-                unchecked { ++j; }
-            }
-
-            unchecked { ++i; }
-
-        }
-        return false;
-    }
-
-    /**
-     * @notice Calculates the sum of funding votes allocated to a list of proposals.
-     * @dev    Only iterates through a maximum of 10 proposals that made it through the screening round.
-     * @dev    Counters incremented in an unchecked block due to being bounded by array length of at most 10.
-     * @param  proposalIdSubset_ Array of proposal Ids to sum.
-     * @return sum_ The sum of the funding votes across the given proposals.
-     */
-    function _sumProposalFundingVotes(
-        uint256[] memory proposalIdSubset_
-    ) internal view returns (uint128 sum_) {
-        uint256 noOfProposals = proposalIdSubset_.length;
-
-        for (uint i = 0; i < noOfProposals;) {
-            // since we are converting from int128 to uint128, we can safely assume that the value will not overflow
-            sum_ += uint128(_proposals[proposalIdSubset_[i]].fundingVotesReceived);
-
-            unchecked { ++i; }
-        }
-    }
-
-    /**
-     * @notice Get the current ProposalState of a given proposal.
-     * @dev    Used by GrantFund.state() for analytics compatibility purposes.
-     * @param  proposalId_ The ID of the proposal being checked.
-     * @return The proposals status in the ProposalState enum.
-     */
-    function _state(uint256 proposalId_) internal view returns (ProposalState) {
-        Proposal memory proposal = _proposals[proposalId_];
-
-        if (proposal.executed)                                                     return ProposalState.Executed;
-        else if (_distributions[proposal.distributionId].endBlock >= block.number) return ProposalState.Active;
-        else if (_isProposalFinalized(proposalId_))                      return ProposalState.Succeeded;
-        else                                                                       return ProposalState.Defeated;
     }
 
     /*********************************/
@@ -956,6 +967,33 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 screeningStageEndBlock_
             ), 2);
         }
+    }
+
+     /**
+     * @notice Retrieve the voting power of an account.
+     * @dev    Voting power is the minimum of the amount of votes available at a snapshot block 33 blocks prior to voting start, and at the vote starting block.
+     * @param account_        The voting account.
+     * @param snapshot_       One of the block numbers to retrieve the voting power at. 33 blocks prior to the block at which a proposal is available for voting.
+     * @param voteStartBlock_ The block number the proposal became available for voting.
+     * @return                The voting power of the account.
+     */
+    function _getVotesAtSnapshotBlocks(
+        address account_,
+        uint256 snapshot_,
+        uint256 voteStartBlock_
+    ) internal view returns (uint256) {
+        IVotes token = IVotes(ajnaTokenAddress);
+
+        // calculate the number of votes available at the snapshot block
+        uint256 votes1 = token.getPastVotes(account_, snapshot_);
+
+        // enable voting weight to be calculated during the voting period's start block
+        voteStartBlock_ = voteStartBlock_ != block.number ? voteStartBlock_ : block.number - 1;
+
+        // calculate the number of votes available at the stage's start block
+        uint256 votes2 = token.getPastVotes(account_, voteStartBlock_);
+
+        return Maths.min(votes2, votes1);
     }
 
     /*******************************/
