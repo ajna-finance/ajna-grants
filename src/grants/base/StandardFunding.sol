@@ -214,10 +214,10 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         }
 
         uint256 totalDelegateRewards;
-        // Increament totalTokenDistributed by delegate rewards if anyone has voted during funding voting
+        // Increment totalTokenDistributed by delegate rewards if anyone has voted during funding voting
         if (_distributions[distributionId_].fundingVotePowerCast != 0) totalDelegateRewards = (fundsAvailable / 10);
 
-        // readd non distributed tokens to the treasury
+        // re-add non distributed tokens to the treasury
         treasury += (fundsAvailable - totalTokenDistributed - totalDelegateRewards);
 
         _isSurplusFundsUpdated[distributionId_] = true;
