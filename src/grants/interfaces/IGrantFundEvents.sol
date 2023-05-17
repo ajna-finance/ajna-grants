@@ -28,7 +28,7 @@ interface IGrantFundEvents {
      *  @param  startBlock     Block number of the quarterly distributions start.
      *  @param  endBlock       Block number of the quarterly distributions end.
      */
-    event QuarterlyDistributionStarted(
+    event DistributionPeriodStarted(
         uint256 indexed distributionId,
         uint256 startBlock,
         uint256 endBlock

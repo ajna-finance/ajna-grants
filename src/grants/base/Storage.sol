@@ -63,9 +63,9 @@ abstract contract Storage is IGrantFundState {
 
     /**
      * @notice Mapping of quarterly distributions from the grant fund.
-     * @dev distributionId => QuarterlyDistribution
+     * @dev distributionId => DistributionPeriod
      */
-    mapping(uint24 => QuarterlyDistribution) internal _distributions;
+    mapping(uint24 => DistributionPeriod) internal _distributions;
 
     /**
      * @dev Mapping of all proposals that have ever been submitted to the grant fund for screening.

@@ -62,8 +62,8 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // set new value for currentDistributionId
         newDistributionId_ = _setNewDistributionId();
 
-        // create QuarterlyDistribution struct
-        QuarterlyDistribution storage newDistributionPeriod = _distributions[newDistributionId_];
+        // create DistributionPeriod struct
+        DistributionPeriod storage newDistributionPeriod = _distributions[newDistributionId_];
         newDistributionPeriod.id              = newDistributionId_;
         newDistributionPeriod.startBlock      = startBlock;
         newDistributionPeriod.endBlock        = endBlock;
@@ -73,7 +73,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // decrease the treasury by the amount that is held for allocation in the new distribution period
         treasury -= gbc;
 
-        emit QuarterlyDistributionStarted(
+        emit DistributionPeriodStarted(
             newDistributionId_,
             startBlock,
             endBlock
@@ -127,7 +127,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     function _updateTreasury(
         uint24 distributionId_
     ) private {
-        QuarterlyDistribution storage distribution = _distributions[distributionId_];
+        DistributionPeriod storage distribution = _distributions[distributionId_];
         bytes32 fundedSlateHash = distribution.fundedSlateHash;
         uint256 fundsAvailable  = distribution.fundsAvailable;
 
@@ -173,7 +173,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // Revert if delegatee didn't vote in screening stage
         if(screeningVotesCast[distributionId_][msg.sender] == 0) revert DelegateRewardInvalid();
 
-        QuarterlyDistribution memory currentDistribution = _distributions[distributionId_];
+        DistributionPeriod memory currentDistribution = _distributions[distributionId_];
 
         // Check if the distribution period is still active
         if(block.number <= currentDistribution.endBlock) revert DistributionPeriodStillActive();
@@ -206,7 +206,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      * @return rewards_             The delegate rewards accrued to the voter.
      */
     function _getDelegateReward(
-        QuarterlyDistribution memory currentDistribution_,
+        DistributionPeriod memory currentDistribution_,
         QuadraticVoter memory voter_
     ) internal pure returns (uint256 rewards_) {
         // calculate the total voting power available to the voter that was allocated in the funding stage
@@ -280,7 +280,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // check for duplicate proposals
         if (newProposal.proposalId != 0) revert ProposalAlreadyExists();
 
-        QuarterlyDistribution storage currentDistribution = _distributions[_currentDistributionId];
+        DistributionPeriod storage currentDistribution = _distributions[_currentDistributionId];
 
         // cannot add new proposal after end of screening period
         // screening period ends 72000 blocks before end of distribution period, ~ 80 days.
@@ -319,7 +319,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint256[] calldata proposalIds_,
         uint24 distributionId_
     ) external override returns (bool newTopSlate_) {
-        QuarterlyDistribution storage currentDistribution = _distributions[distributionId_];
+        DistributionPeriod storage currentDistribution = _distributions[distributionId_];
 
         // store number of proposals for reduced gas cost of iterations
         uint256 numProposalsInSlate = proposalIds_.length;
@@ -606,7 +606,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     ) external override returns (uint256 votesCast_) {
         uint24 currentDistributionId = _currentDistributionId;
 
-        QuarterlyDistribution storage currentDistribution = _distributions[currentDistributionId];
+        DistributionPeriod storage currentDistribution = _distributions[currentDistributionId];
         QuadraticVoter        storage voter               = _quadraticVoters[currentDistributionId][msg.sender];
 
         uint256 endBlock = currentDistribution.endBlock;
@@ -668,7 +668,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     function screeningVote(
         ScreeningVoteParams[] memory voteParams_
     ) external override returns (uint256 votesCast_) {
-        QuarterlyDistribution storage currentDistribution = _distributions[_currentDistributionId];
+        DistributionPeriod storage currentDistribution = _distributions[_currentDistributionId];
 
         // check screening stage is active
         if (
@@ -712,7 +712,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      * @return incrementalVotesUsed_ The amount of funding stage votes allocated to the proposal.
      */
     function _fundingVote(
-        QuarterlyDistribution storage currentDistribution_,
+        DistributionPeriod storage currentDistribution_,
         Proposal storage proposal_,
         QuadraticVoter storage voter_,
         FundingVoteParams memory voteParams_
@@ -1059,7 +1059,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint24 distributionId_,
         address voter_
     ) external view override returns (uint256 rewards_) {
-        QuarterlyDistribution memory currentDistribution = _distributions[distributionId_];
+        DistributionPeriod memory currentDistribution = _distributions[distributionId_];
         QuadraticVoter        memory voter               = _quadraticVoters[distributionId_][voter_];
 
         rewards_ = _getDelegateReward(currentDistribution, voter);
@@ -1151,7 +1151,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint24 distributionId_,
         address account_
     ) external view override returns (uint256 votes_) {
-        QuarterlyDistribution memory currentDistribution = _distributions[distributionId_];
+        DistributionPeriod memory currentDistribution = _distributions[distributionId_];
         QuadraticVoter        memory voter               = _quadraticVoters[currentDistribution.id][account_];
 
         uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.endBlock);

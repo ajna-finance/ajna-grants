@@ -45,7 +45,7 @@ abstract contract GrantFundTestHelper is Test {
         string description
     );
     event ProposalExecuted(uint256 proposalId);
-    event QuarterlyDistributionStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
+    event DistributionPeriodStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
     event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason);
 
     /***********************/
@@ -157,7 +157,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _startDistributionPeriod(GrantFund grantFund_) internal returns (uint24 distributionId) {
         vm.expectEmit(true, true, false, true);
-        emit QuarterlyDistributionStarted(grantFund_.getDistributionId() + 1, block.number, block.number + 648000);
+        emit DistributionPeriodStarted(grantFund_.getDistributionId() + 1, block.number, block.number + 648000);
         distributionId = grantFund_.startNewDistributionPeriod();
     }
 

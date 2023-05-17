@@ -106,7 +106,7 @@ interface IGrantFundActions is IGrantFundState {
     ) external view returns (ProposalState);
 
     /**
-     * @notice Check if a slate of proposals meets requirements, and maximizes votes. If so, update QuarterlyDistribution.
+     * @notice Check if a slate of proposals meets requirements, and maximizes votes. If so, update DistributionPeriod.
      * @param  proposalIds_    Array of proposal Ids to check.
      * @param  distributionId_ Id of the current quarterly distribution.
      * @return newTopSlate_    Boolean indicating whether the new proposal slate was set as the new top slate for distribution.
@@ -167,14 +167,14 @@ interface IGrantFundActions is IGrantFundState {
     function getDescriptionHash(string memory description_) external pure returns (bytes32);
 
     /**
-     * @notice Retrieve the current QuarterlyDistribution distributionId.
+     * @notice Retrieve the current DistributionPeriod distributionId.
      * @return The current distributionId.
      */
     function getDistributionId() external view returns (uint24);
 
     /**
-     * @notice Mapping of distributionId to {QuarterlyDistribution} struct.
-     * @param  distributionId_      The distributionId to retrieve the QuarterlyDistribution struct for.
+     * @notice Mapping of distributionId to {DistributionPeriod} struct.
+     * @param  distributionId_      The distributionId to retrieve the DistributionPeriod struct for.
      * @return distributionId       The retrieved struct's distributionId.
      * @return startBlock           The block number of the distribution period's start.
      * @return endBlock             The block number of the distribution period's end.

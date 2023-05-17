@@ -38,16 +38,15 @@ interface IGrantFundState {
     /*** Structs ***/
     /***************/
 
-    // TODO: rename to DistributionPeriod
     /**
      * @notice Contains proposals that made it through the screening process to the funding stage.
      */
-    struct QuarterlyDistribution {
-        uint24  id;                   // id of the current quarterly distribution
-        uint48  startBlock;           // block number of the quarterly distributions start
-        uint48  endBlock;             // block number of the quarterly distributions end
-        uint128 fundsAvailable;       // maximum fund (including delegate reward) that can be taken out that quarter
-        uint256 fundingVotePowerCast; // total number of voting power allocated in funding stage that quarter
+    struct DistributionPeriod {
+        uint24  id;                   // id of the current distribution period
+        uint48  startBlock;           // block number of the distribution period's start
+        uint48  endBlock;             // block number of the distribution period's end
+        uint128 fundsAvailable;       // maximum fund (including delegate reward) that can be taken out that period
+        uint256 fundingVotePowerCast; // total number of voting power allocated in funding stage that period
         bytes32 fundedSlateHash;      // hash of list of proposals to fund
     }
 
