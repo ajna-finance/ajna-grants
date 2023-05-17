@@ -169,7 +169,7 @@ abstract contract GrantFundTestHelper is Test {
     /*** Proposal Functions ***/
     /**************************/
 
-    function _createProposalStandard(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal returns (TestProposal memory) {
+    function _createProposal(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal returns (TestProposal memory) {
         // generate expected proposal state
         uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(keccak256(bytes("Standard Funding: ")), keccak256(bytes(description)))));
         uint256 startBlock = block.number.toUint64();
@@ -191,10 +191,10 @@ abstract contract GrantFundTestHelper is Test {
             endBlock,
             description
         );
-        uint256 proposalId = grantFund_.proposeStandard(targets_, values_, calldatas_, description);
+        uint256 proposalId = grantFund_.propose(targets_, values_, calldatas_, description);
         assertEq(proposalId, expectedProposalId);
 
-        return _createTestProposalStandard(distributionId, proposalId, targets_, values_, calldatas_, description);
+        return _createTestProposal(distributionId, proposalId, targets_, values_, calldatas_, description);
     }
 
     function _createNProposals(GrantFund grantFund_, IAjnaToken token_, TestProposalParams[] memory testProposalParams_) internal returns (TestProposal[] memory) {
@@ -224,14 +224,14 @@ abstract contract GrantFundTestHelper is Test {
                 testProposalParams_[i].tokensRequested
             );
 
-            TestProposal memory proposal = _createProposalStandard(grantFund_, testProposalParams_[i].recipient, ajnaTokenTargets, values, proposalCalldata, description);
+            TestProposal memory proposal = _createProposal(grantFund_, testProposalParams_[i].recipient, ajnaTokenTargets, values, proposalCalldata, description);
             testProposals[i] = proposal;
         }
         return testProposals;
     }
 
     // return a TestProposal struct containing the state of a created proposal
-    function _createTestProposalStandard(uint24 distributionId_, uint256 proposalId_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal view returns (TestProposal memory proposal_) {
+    function _createTestProposal(uint24 distributionId_, uint256 proposalId_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal view returns (TestProposal memory proposal_) {
         (GeneratedTestProposalParams[] memory params, uint256 totalTokensRequested) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
         proposal_ = TestProposal(proposalId_, distributionId_, description, totalTokensRequested, block.number, params);
     }
@@ -262,7 +262,7 @@ abstract contract GrantFundTestHelper is Test {
         emit Transfer(address(grantFund_), recipient, testProposal_.totalTokensRequested);
         vm.expectEmit(true, true, false, true);
         emit DelegateVotesChanged(recipient, voterStartingBalance, voterStartingBalance + testProposal_.totalTokensRequested);
-        grantFund_.executeStandard(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
+        grantFund_.execute(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
 
         // check ending token balances
         assertEq(token_.balanceOf(recipient), voterStartingBalance + testProposal_.totalTokensRequested);
@@ -281,7 +281,7 @@ abstract contract GrantFundTestHelper is Test {
 
         // execute proposal
         changePrank(recipient);
-        grantFund_.executeStandard(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
+        grantFund_.execute(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
     }
 
     function _getParamsFromGeneratedTestProposalParams(IAjnaToken token_, GeneratedTestProposalParams[] memory params_) internal pure returns(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, uint256 totalTokensRequested_) {
@@ -355,7 +355,7 @@ abstract contract GrantFundTestHelper is Test {
         for(uint i = 0; i < noOfProposals_; i++) {
             // generate proposal message 
             string memory description = string(abi.encodePacked("Proposal", Strings.toString(i)));
-            proposals_[i] = _createProposalStandard(grantFund_, proponent_, ajnaTokenTargets, values, proposalCalldata, description); 
+            proposals_[i] = _createProposal(grantFund_, proponent_, ajnaTokenTargets, values, proposalCalldata, description);
         }
         return proposals_;
     }

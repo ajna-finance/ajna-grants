@@ -39,7 +39,7 @@ contract GrantFund is IGrantFund, StandardFunding {
     function state(
         uint256 proposalId_
     ) external view override returns (ProposalState) {
-        return _getStandardProposalState(proposalId_);
+        return _state(proposalId_);
     }
 
     /**************************/

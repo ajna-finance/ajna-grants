@@ -46,7 +46,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
         bytes4[] memory selectors = new bytes4[](5);
         selectors[0] = _standardHandler.fundingVote.selector;
         selectors[1] = _standardHandler.updateSlate.selector;
-        selectors[2] = _standardHandler.executeStandard.selector;
+        selectors[2] = _standardHandler.execute.selector;
         selectors[3] = _standardHandler.claimDelegateReward.selector;
         selectors[4] = _standardHandler.roll.selector;
 
@@ -231,8 +231,8 @@ contract StandardFinalizeInvariant is StandardTestBase {
         console.log("------------------");
         console.log("Distribution Id:            ", distributionId_);
         console.log("Delegation Rewards Claimed: ", _standardHandler.numberOfCalls('SFH.claimDelegateReward.success'));
-        console.log("Proposal Execute attempt:   ", _standardHandler.numberOfCalls('SFH.executeStandard.attempt'));
-        console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.executeStandard.success'));
+        console.log("Proposal Execute attempt:   ", _standardHandler.numberOfCalls('SFH.execute.attempt'));
+        console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.execute.success'));
         console.log("Slate Created:              ", _standardHandler.numberOfCalls('SFH.updateSlate.prep'));
         console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
         console.log("Slate Update Count:         ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));

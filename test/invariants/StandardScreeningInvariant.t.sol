@@ -19,7 +19,7 @@ contract StandardScreeningInvariant is StandardTestBase {
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](3);
         selectors[0] = _standardHandler.startNewDistributionPeriod.selector;
-        selectors[1] = _standardHandler.proposeStandard.selector;
+        selectors[1] = _standardHandler.propose.selector;
         selectors[2] = _standardHandler.screeningVote.selector;
 
         // ensure utility functions are excluded from the invariant runs
@@ -133,7 +133,7 @@ contract StandardScreeningInvariant is StandardTestBase {
 
                 require(
                     _findProposalIndex(screeningVoteParams[j].proposalId, _standardHandler.getStandardFundingProposals(distributionId)) != -1,
-                    "invariant SS8: a proposal can only receive screening votes if it was created via proposeStandard()"
+                    "invariant SS8: a proposal can only receive screening votes if it was created via propose()"
                 );
             }
         }

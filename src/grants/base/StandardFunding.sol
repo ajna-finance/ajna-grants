@@ -72,7 +72,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @dev Mapping of all proposals that have ever been submitted to the grant fund for screening.
      * @dev proposalId => Proposal
      */
-    mapping(uint256 => Proposal) internal _standardFundingProposals;
+    mapping(uint256 => Proposal) internal _proposals;
 
     /**
      * @dev Mapping of distributionId to a sorted array of 10 proposalIds with the most votes in the screening period.
@@ -208,7 +208,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         for (uint i = 0; i < numFundedProposals; ) {
 
-            totalTokenDistributed += _standardFundingProposals[fundingProposalIds[i]].tokensRequested;
+            totalTokenDistributed += _proposals[fundingProposalIds[i]].tokensRequested;
 
             unchecked { ++i; }
         }
@@ -349,14 +349,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
-    function executeStandard(
+    function execute(
         address[] memory targets_,
         uint256[] memory values_,
         bytes[] memory calldatas_,
         bytes32 descriptionHash_
     ) external nonReentrant override returns (uint256 proposalId_) {
         proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, descriptionHash_)));
-        Proposal storage proposal = _standardFundingProposals[proposalId_];
+        Proposal storage proposal = _proposals[proposalId_];
 
         uint24 distributionId = proposal.distributionId;
 
@@ -364,7 +364,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         if (block.number <= _getChallengeStageEndBlock(_distributions[distributionId].endBlock)) revert ExecuteProposalInvalid();
 
         // check proposal is successful and hasn't already been executed
-        if (!_standardFundingVoteSucceeded(proposalId_) || proposal.executed) revert ProposalNotSuccessful();
+        if (!_isProposalFinalized(proposalId_) || proposal.executed) revert ProposalNotSuccessful();
 
         proposal.executed = true;
 
@@ -372,7 +372,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /// @inheritdoc IStandardFunding
-    function proposeStandard(
+    function propose(
         address[] memory targets_,
         uint256[] memory values_,
         bytes[] memory calldatas_,
@@ -383,7 +383,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, keccak256(bytes(description_)))));
 
-        Proposal storage newProposal = _standardFundingProposals[proposalId_];
+        Proposal storage newProposal = _proposals[proposalId_];
 
         // check for duplicate proposals
         if (newProposal.proposalId != 0) revert ProposalAlreadyExists();
@@ -455,7 +455,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         // check each proposal in the slate is valid
         for (uint256 i = 0; i < numProposalsInSlate_; ) {
-            Proposal memory proposal = _standardFundingProposals[proposalIds_[i]];
+            Proposal memory proposal = _proposals[proposalIds_[i]];
 
             // account for fundingVotesReceived possibly being negative
             // block proposals that recieve no positive funding votes from entering a finalized slate
@@ -517,7 +517,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
         for (uint i = 0; i < noOfProposals;) {
             // since we are converting from int128 to uint128, we can safely assume that the value will not overflow
-            sum_ += uint128(_standardFundingProposals[proposalIdSubset_[i]].fundingVotesReceived);
+            sum_ += uint128(_proposals[proposalIdSubset_[i]].fundingVotesReceived);
 
             unchecked { ++i; }
         }
@@ -529,12 +529,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
      * @param  proposalId_ The ID of the proposal being checked.
      * @return The proposals status in the ProposalState enum.
      */
-    function _getStandardProposalState(uint256 proposalId_) internal view returns (ProposalState) {
-        Proposal memory proposal = _standardFundingProposals[proposalId_];
+    function _state(uint256 proposalId_) internal view returns (ProposalState) {
+        Proposal memory proposal = _proposals[proposalId_];
 
         if (proposal.executed)                                                     return ProposalState.Executed;
         else if (_distributions[proposal.distributionId].endBlock >= block.number) return ProposalState.Active;
-        else if (_standardFundingVoteSucceeded(proposalId_))                      return ProposalState.Succeeded;
+        else if (_isProposalFinalized(proposalId_))                      return ProposalState.Succeeded;
         else                                                                       return ProposalState.Defeated;
     }
 
@@ -581,7 +581,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 numVotesCast = voteParams_.length;
 
         for (uint256 i = 0; i < numVotesCast; ) {
-            Proposal storage proposal = _standardFundingProposals[voteParams_[i].proposalId];
+            Proposal storage proposal = _proposals[voteParams_[i].proposalId];
 
             // check that the proposal is part of the current distribution period
             if (proposal.distributionId != currentDistributionId) revert InvalidVote();
@@ -622,7 +622,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 numVotesCast = voteParams_.length;
 
         for (uint256 i = 0; i < numVotesCast; ) {
-            Proposal storage proposal = _standardFundingProposals[voteParams_[i].proposalId];
+            Proposal storage proposal = _proposals[voteParams_[i].proposalId];
 
             // check that the proposal is part of the current distribution period
             if (proposal.distributionId != currentDistribution.id) revert InvalidVote();
@@ -777,7 +777,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
                 _insertionSortProposalsByVotes(currentTopTenProposals, uint256(indexInArray));
             }
             // proposal isn't already in the array
-            else if (_standardFundingProposals[currentTopTenProposals[screenedProposalsLength - 1]].votesReceived < proposal_.votesReceived) {
+            else if (_proposals[currentTopTenProposals[screenedProposalsLength - 1]].votesReceived < proposal_.votesReceived) {
                 // replace the least supported proposal with the new proposal
                 currentTopTenProposals.pop();
                 currentTopTenProposals.push(proposalId);
@@ -868,7 +868,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         while (
             targetProposalIndex_ != 0
             &&
-            _standardFundingProposals[proposals_[targetProposalIndex_]].votesReceived > _standardFundingProposals[proposals_[targetProposalIndex_ - 1]].votesReceived
+            _proposals[proposals_[targetProposalIndex_]].votesReceived > _proposals[proposals_[targetProposalIndex_ - 1]].votesReceived
         ) {
             // swap values if left item < right item
             uint256 temp = proposals_[targetProposalIndex_ - 1];
@@ -901,14 +901,14 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     }
 
     /**
-     * @notice Check to see if a proposal is in the current funded slate hash of proposals.
+     * @notice Check to see if a proposal is in it's distribution period's top funded slate of proposals.
      * @param  proposalId_ The proposalId to check.
      * @return             True if the proposal is in the it's distribution period's slate hash.
      */
-    function _standardFundingVoteSucceeded(
+    function _isProposalFinalized(
         uint256 proposalId_
     ) internal view returns (bool) {
-        uint24 distributionId = _standardFundingProposals[proposalId_].distributionId;
+        uint24 distributionId = _proposals[proposalId_].distributionId;
         return _findProposalIndex(proposalId_, _fundedProposalSlates[_distributions[distributionId].fundedSlateHash]) != -1;
     }
 
@@ -1019,12 +1019,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         uint256 proposalId_
     ) external view override returns (uint256, uint24, uint128, uint128, int128, bool) {
         return (
-            _standardFundingProposals[proposalId_].proposalId,
-            _standardFundingProposals[proposalId_].distributionId,
-            _standardFundingProposals[proposalId_].votesReceived,
-            _standardFundingProposals[proposalId_].tokensRequested,
-            _standardFundingProposals[proposalId_].fundingVotesReceived,
-            _standardFundingProposals[proposalId_].executed
+            _proposals[proposalId_].proposalId,
+            _proposals[proposalId_].distributionId,
+            _proposals[proposalId_].votesReceived,
+            _proposals[proposalId_].tokensRequested,
+            _proposals[proposalId_].fundingVotesReceived,
+            _proposals[proposalId_].executed
         );
     }
 

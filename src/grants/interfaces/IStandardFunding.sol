@@ -115,7 +115,7 @@ interface IStandardFunding {
      * @notice Contains information about proposals in a distribution period.
      */
     struct Proposal {
-        uint256 proposalId;           // OZ.Governor compliant proposalId. Hash of proposeStandard inputs
+        uint256 proposalId;           // OZ.Governor compliant proposalId. Hash of propose() inputs
         uint24  distributionId;       // Id of the distribution period in which the proposal was made
         bool    executed;             // whether the proposal has been executed
         uint128 votesReceived;        // accumulator of screening votes received by a proposal
@@ -166,7 +166,7 @@ interface IStandardFunding {
 
     /**
      * @notice distributes delegate reward based on delegatee Vote share.
-     * @dev Can be called by anyone who has voted in both screening and funding period.
+     * @dev Can be called by anyone who has voted in both screening and funding stages.
      * @param  distributionId_ Id of distribution from which delegatee wants to claim his reward.
      * @return rewardClaimed_  Amount of reward claimed by delegatee.
      */
@@ -180,15 +180,15 @@ interface IStandardFunding {
 
     /**
      * @notice Execute a proposal that has been approved by the community.
-     * @dev    Calls out to Governor.execute().
-     * @dev    Check for proposal being successfully funded or previously executed is handled by Governor.execute().
+     * @dev    Calls out to _execute().
+     * @dev    Only proposals in the finalized top slate slate at the end of the challenge period can be executed.
      * @param  targets_         List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
      * @param  values_          List of values to be sent with the proposal calldata. Should be 0 for all proposals.
      * @param  calldatas_       List of calldata to be executed. Should be the transfer() method.
      * @param  descriptionHash_ Hash of proposal's description string.
      * @return proposalId_      The id of the executed proposal.
      */
-     function executeStandard(
+     function execute(
         address[] memory targets_,
         uint256[] memory values_,
         bytes[] memory calldatas_,
@@ -204,7 +204,7 @@ interface IStandardFunding {
      * @param  description_ Proposal's description string.
      * @return proposalId_  The id of the newly created proposal.
      */
-    function proposeStandard(
+    function propose(
         address[] memory targets_,
         uint256[] memory values_,
         bytes[] memory calldatas_,

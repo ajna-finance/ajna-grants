@@ -95,8 +95,8 @@ contract StandardHandler is Handler {
         }
     }
 
-    function proposeStandard(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
-        numberOfCalls['SFH.proposeStandard']++;
+    function propose(uint256 actorIndex_) external useCurrentBlock useRandomActor(actorIndex_) {
+        numberOfCalls['SFH.propose']++;
 
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
@@ -115,7 +115,7 @@ contract StandardHandler is Handler {
             string memory description
         ) = generateProposalParams(address(_ajna), testProposalParams);
 
-        try _grantFund.proposeStandard(targets, values, calldatas, description) returns (uint256 proposalId) {
+        try _grantFund.propose(targets, values, calldatas, description) returns (uint256 proposalId) {
             standardFundingProposals[distributionId].push(proposalId);
 
             // record proposal information into TestProposal struct
@@ -313,8 +313,8 @@ contract StandardHandler is Handler {
         }
     }
 
-    function executeStandard(uint256 actorIndex_, uint256) external useCurrentBlock useRandomActor(actorIndex_) {
-        numberOfCalls['SFH.executeStandard']++;
+    function execute(uint256 actorIndex_, uint256) external useCurrentBlock useRandomActor(actorIndex_) {
+        numberOfCalls['SFH.execute']++;
 
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
@@ -331,11 +331,11 @@ contract StandardHandler is Handler {
             bytes[] memory calldatas,
         ) = _getParamsFromGeneratedTestProposalParams(_ajna, proposal.params);
 
-        numberOfCalls['SFH.executeStandard.attempt']++;
+        numberOfCalls['SFH.execute.attempt']++;
 
-        try _grantFund.executeStandard(targets, values, calldatas, keccak256(bytes(proposal.description))) returns (uint256 proposalId_) {
+        try _grantFund.execute(targets, values, calldatas, keccak256(bytes(proposal.description))) returns (uint256 proposalId_) {
             assertEq(proposalId_, proposal.proposalId);
-            numberOfCalls['SFH.executeStandard.success']++;
+            numberOfCalls['SFH.execute.success']++;
             proposalsExecuted.push(proposalId_);
         }
         catch (bytes memory _err){
@@ -487,7 +487,7 @@ contract StandardHandler is Handler {
         ) = generateProposalParams(address(_ajna), testProposalParams);
 
         // create proposal
-        proposalId_ = _grantFund.proposeStandard(targets, values, calldatas, description);
+        proposalId_ = _grantFund.propose(targets, values, calldatas, description);
 
         // add new proposal to list of all standard proposals
         standardFundingProposals[distributionId].push(proposalId_);
@@ -784,22 +784,22 @@ contract StandardHandler is Handler {
         console.log("\nCall Summary\n");
         console.log("--SFM----------");
         console.log("SFH.startNewDistributionPeriod ",  numberOfCalls["SFH.startNewDistributionPeriod"]);
-        console.log("SFH.proposeStandard            ",  numberOfCalls["SFH.proposeStandard"]);
+        console.log("SFH.propose                    ",  numberOfCalls["SFH.propose"]);
         console.log("SFH.screeningVote              ",  numberOfCalls["SFH.screeningVote"]);
         console.log("SFH.fundingVote                ",  numberOfCalls["SFH.fundingVote"]);
         console.log("SFH.updateSlate                ",  numberOfCalls["SFH.updateSlate"]);
-        console.log("SFH.executeStandard            ",  numberOfCalls["SFH.executeStandard"]);
+        console.log("SFH.execute                    ",  numberOfCalls["SFH.execute"]);
         console.log("SFH.claimDelegateReward        ",  numberOfCalls["SFH.claimDelegateReward"]);
         console.log("roll                           ",  numberOfCalls["roll"]);
         console.log("------------------");
         console.log(
             "Total Calls:",
             numberOfCalls["SFH.startNewDistributionPeriod"] +
-            numberOfCalls["SFH.proposeStandard"] +
+            numberOfCalls["SFH.propose"] +
             numberOfCalls["SFH.screeningVote"] +
             numberOfCalls["SFH.fundingVote"] +
             numberOfCalls["SFH.updateSlate"] +
-            numberOfCalls["SFH.executeStandard"] +
+            numberOfCalls["SFH.execute"] +
             numberOfCalls["SFH.claimDelegateReward"] +
             numberOfCalls["roll"]
         );

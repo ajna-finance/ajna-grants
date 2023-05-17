@@ -136,7 +136,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         string memory description = "Proposal for Ajna token transfer to tester address";
 
         // create and submit proposal
-        TestProposal memory proposal = _createProposalStandard(_grantFund, _tokenHolder1, ajnaTokenTargets, values, proposalCalldata, description);
+        TestProposal memory proposal = _createProposal(_grantFund, _tokenHolder1, ajnaTokenTargets, values, proposalCalldata, description);
 
         // token holder uses up their voting power in two separate votes on the same proposal
         _screeningVote(_grantFund, _tokenHolder1, proposal.proposalId, 12_500_000 * 1e18);
@@ -195,7 +195,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         string memory description = "Proposal for Ajna token transfer to tester address";
 
         // create and submit proposal
-        TestProposal memory proposal = _createProposalStandard(_grantFund, _tokenHolder1, ajnaTokenTargets, values, proposalCalldata, description);
+        TestProposal memory proposal = _createProposal(_grantFund, _tokenHolder1, ajnaTokenTargets, values, proposalCalldata, description);
 
         // screening stage votes
         _screeningVote(_grantFund, _tokenHolder1, proposal.proposalId, 1 * 1e18);
@@ -269,29 +269,29 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         invalidValuesLength[0] = 0;
         invalidValuesLength[1] = 0;
         vm.expectRevert(IFunding.InvalidProposal.selector);
-        _grantFund.proposeStandard(invalidTargetsLength, invalidValuesLength, proposalCalldata, description);
+        _grantFund.propose(invalidTargetsLength, invalidValuesLength, proposalCalldata, description);
 
         // Skips to funding period
         vm.roll(_startBlock + 576_002);
         // should revert to submit proposal
         vm.expectRevert(IStandardFunding.ScreeningPeriodEnded.selector);
-        _grantFund.proposeStandard(ajnaTokenTargets, values, proposalCalldata, description);
+        _grantFund.propose(ajnaTokenTargets, values, proposalCalldata, description);
 
         vm.roll(_startBlock + 10);
 
         // should revert if Eth transfer is not zero
         vm.expectRevert(IFunding.InvalidProposal.selector);
-        _grantFund.proposeStandard(ajnaTokenTargets, values, proposalCalldata, description);
+        _grantFund.propose(ajnaTokenTargets, values, proposalCalldata, description);
 
         // updating Eth value to transfer to 0
         values[0] = 0;
 
         // create and submit proposal
-        TestProposal memory proposal = _createProposalStandard(_grantFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
+        TestProposal memory proposal = _createProposal(_grantFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
         
         // should revert if same proposal is proposed again
         vm.expectRevert(IFunding.ProposalAlreadyExists.selector);
-        _grantFund.proposeStandard(ajnaTokenTargets, values, proposalCalldata, description);
+        _grantFund.propose(ajnaTokenTargets, values, proposalCalldata, description);
         
         vm.roll(_startBlock + 10);
 
@@ -343,7 +343,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // create proposal should revert since invalid burn operation was attempted
         vm.expectRevert(IFunding.InvalidProposal.selector);
-        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
+        _grantFund.propose(targets, values, proposalCalldata, description);
     }
 
     function testInvalidProposalCalldata() external {
@@ -379,7 +379,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // create proposal should revert since the proposer requested to transfer tokens to ajna token contract
         vm.expectRevert(IFunding.InvalidProposal.selector);
-        uint256 proposalId = _grantFund.proposeStandard(targets, values, calldatas, description);
+        uint256 proposalId = _grantFund.propose(targets, values, calldatas, description);
 
         // generate proposal calldata for an invalid transfer to the 0 address
         calldatas = new bytes[](1);
@@ -390,7 +390,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         );
 
         vm.expectRevert(IFunding.InvalidProposal.selector);
-        proposalId = _grantFund.proposeStandard(targets, values, calldatas, description);
+        proposalId = _grantFund.propose(targets, values, calldatas, description);
 
         // generate proposal calldata for an invalid transfer to the grant fund
         calldatas = new bytes[](1);
@@ -401,7 +401,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         );
 
         vm.expectRevert(IFunding.InvalidProposal.selector);
-        proposalId = _grantFund.proposeStandard(targets, values, calldatas, description);
+        proposalId = _grantFund.propose(targets, values, calldatas, description);
 
         // generate proposals calldata for an invalid transfer to a valid address with no tokens requested
         calldatas[0] = abi.encodeWithSignature(
@@ -410,7 +410,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         );
 
         vm.expectRevert(IFunding.InvalidProposal.selector);
-        proposalId = _grantFund.proposeStandard(targets, values, calldatas, description);
+        proposalId = _grantFund.propose(targets, values, calldatas, description);
     }
 
     function testInvalidProposalTarget() external {
@@ -438,12 +438,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // create proposal should revert since a non Ajna token contract target was used
         vm.expectRevert(IFunding.InvalidProposal.selector);
-        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
+        _grantFund.propose(targets, values, proposalCalldata, description);
 
         // create proposal withs no targets should revert
         targets = new address[](0);
         vm.expectRevert(IFunding.InvalidProposal.selector);
-        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
+        _grantFund.propose(targets, values, proposalCalldata, description);
     }
 
     function testInvalidProposalDescription() external {
@@ -471,7 +471,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // create proposal should revert since a non Ajna token contract target was used
         vm.expectRevert(IFunding.InvalidProposal.selector);
-        _grantFund.proposeStandard(targets, values, proposalCalldata, description);
+        _grantFund.propose(targets, values, proposalCalldata, description);
     }
 
     function testVotesCast() external {
@@ -1669,7 +1669,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             testAddress1,
             10 * 1e18
         );
-        TestProposal memory proposal = _createProposalStandard(_grantFund, testAddress1, ajnaTokenTargets, values, proposalCalldata, "Proposal for Ajna token transfer to tester address 1");
+        TestProposal memory proposal = _createProposal(_grantFund, testAddress1, ajnaTokenTargets, values, proposalCalldata, "Proposal for Ajna token transfer to tester address 1");
 
         proposalCalldata = new bytes[](1);
         proposalCalldata[0] = abi.encodeWithSignature(
@@ -1677,7 +1677,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             testAddress2,
             7 * 1e18
         );
-        TestProposal memory proposal2 = _createProposalStandard(_grantFund, testAddress2, ajnaTokenTargets, values, proposalCalldata, "Proposal 2 for Ajna token transfer to tester address 2");
+        TestProposal memory proposal2 = _createProposal(_grantFund, testAddress2, ajnaTokenTargets, values, proposalCalldata, "Proposal 2 for Ajna token transfer to tester address 2");
 
         proposalCalldata = new bytes[](1);
         proposalCalldata[0] = abi.encodeWithSignature(
@@ -1685,7 +1685,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             testAddress3,
             6 * 1e18
         );
-        TestProposal memory proposal3 = _createProposalStandard(_grantFund, testAddress3, ajnaTokenTargets, values, proposalCalldata, "Proposal 2 for Ajna token transfer to tester address 2");
+        TestProposal memory proposal3 = _createProposal(_grantFund, testAddress3, ajnaTokenTargets, values, proposalCalldata, "Proposal 2 for Ajna token transfer to tester address 2");
 
         vm.roll(_startBlock + 300);
 
