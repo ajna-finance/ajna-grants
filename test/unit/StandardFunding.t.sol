@@ -1016,8 +1016,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
         _grantFund.updateSlate(potentialProposalSlate, distributionId);
 
-        // should revert if user tries to claim rewards before the distribution period ends
-        vm.expectRevert(IStandardFunding.DistributionPeriodStillActive.selector);
+        // should revert if user tries to claim rewards and he has not voted in screening stage
+        vm.expectRevert(IStandardFunding.DelegateRewardInvalid.selector);
         _grantFund.claimDelegateReward(distributionId);
 
         /************************/
@@ -1236,6 +1236,184 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         changePrank(_tokenHolder11);
         vm.expectRevert(IStandardFunding.DelegateRewardInvalid.selector);
         _grantFund.claimDelegateReward(distributionId);
+    }
+
+    function testTreasuryUpdatedWithSurplusTokens() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _votersArr);
+
+        vm.roll(_startBlock + 150);
+
+        assertEq(_grantFund.getDistributionId(), 0);
+
+        /*********************************/
+        /*** First Distribution Period ***/
+        /*********************************/
+
+        // start first distribution
+        _startDistributionPeriod(_grantFund);
+
+        uint24 distributionId = _grantFund.getDistributionId();
+        assertEq(distributionId, 1);
+
+        // check funds available
+        uint256 treasuryAtId1 = _grantFund.treasury();
+        assertEq(treasuryAtId1, treasury * 97 / 100);
+        (, , , uint128 gbc_distribution1, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        assertEq(gbc_distribution1, 15_000_000 * 1e18);
+        assertEq(gbc_distribution1, _getDistributionFundsAvailable(gbc_distribution1, treasuryAtId1));
+
+        // create 1 proposal paying out tokens and token requested to be maximum (90% of distribution gbc)
+        TestProposalParams[] memory testProposalParams = new TestProposalParams[](1);
+        testProposalParams[0] = TestProposalParams(_tokenHolder1, gbc_distribution1 * 9 / 10);
+        TestProposal[] memory testProposals_distribution1 = _createNProposals(_grantFund, _token, testProposalParams);
+        assertEq(testProposals_distribution1.length, 1);
+
+        vm.roll(_startBlock + 200);
+
+        // screening period votes
+        _screeningVote(_grantFund, _tokenHolder1, testProposals_distribution1[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
+
+        // skip time to move from screening period to funding period
+        vm.roll(_startBlock + 600_000);
+
+        // check topTenProposals array is correct after screening period - only 1 should have advanced
+        GrantFund.Proposal[] memory screenedProposals_distribution1 = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
+        assertEq(screenedProposals_distribution1.length, 1);
+
+        // funding period votes
+        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution1[0].proposalId, voteYes, 25_000_000 * 1e18);
+
+        // skip to the Challenge period
+        vm.roll(_startBlock + 650_000);
+
+        // updateSlate
+        uint256[] memory potentialProposalSlate = new uint256[](1);
+        potentialProposalSlate[0] = screenedProposals_distribution1[0].proposalId;
+        _grantFund.updateSlate(potentialProposalSlate, distributionId);
+
+        // skip to the end of Challenge period
+        vm.roll(_startBlock + 700_000);
+
+        // check proposal status is succeeded
+        IFunding.ProposalState proposalState = _grantFund.state(testProposals_distribution1[0].proposalId);
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Succeeded));
+
+        // execute funded proposals
+        _executeProposal(_grantFund, _token, testProposals_distribution1[0]);
+
+        // check proposal status updates to executed
+        proposalState = _grantFund.state(testProposals_distribution1[0].proposalId);
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Executed));
+
+        // Claim delegate Rewards
+        _claimDelegateReward(
+            {
+                grantFund_:        _grantFund,
+                voter_:            _tokenHolder1,
+                distributionId_:   distributionId,
+                claimedReward_:    gbc_distribution1 / 10
+            }
+        );
+
+        // Ensure that treasury is equals to token balance in grantFund if all funds available in distribution
+        // are utilized after distribution ends, proposals are executed and delegate claims rewards
+        assertEq(_token.balanceOf(address(_grantFund)), _grantFund.treasury());
+
+        /**********************************/
+        /*** Second Distribution Period ***/
+        /**********************************/
+
+        // start second distribution after the slate has been finalized and the challenge stage is complete.
+        _startDistributionPeriod(_grantFund);
+
+        uint24 distributionId2 = _grantFund.getDistributionId();
+        assertEq(distributionId2, 2);
+
+        // Treasury after start for second distribution should be equals to
+        // 97% of treasury at distribution 1 if all the funds are used
+        uint256 treasuryAtId2 = _grantFund.treasury();
+        assertEq(treasuryAtId2, treasuryAtId1 * 97 / 100);
+        (, , , uint128 gbc_distribution2, , ) = _grantFund.getDistributionPeriodInfo(distributionId2);
+        assertEq(gbc_distribution2, 14_550_000 * 1e18);
+        
+        // create 1 proposal paying out tokens
+        testProposalParams = new TestProposalParams[](1);
+        testProposalParams[0] = TestProposalParams(_tokenHolder1, 10_000_000 * 1e18);
+        TestProposal[] memory testProposals_distribution2 = _createNProposals(_grantFund, _token, testProposalParams);
+        assertEq(testProposals_distribution2.length, 1);
+
+        vm.roll(_startBlock + 700_200);
+
+        // screening period votes
+        _screeningVote(_grantFund, _tokenHolder1, testProposals_distribution2[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
+
+        // skip time to move from screening period to funding period
+        vm.roll(_startBlock + 1_300_000);
+
+        // check topTenProposals array is correct after screening period - only 1 should have advanced
+        GrantFund.Proposal[] memory screenedProposals_distribution2 = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(2));
+        assertEq(screenedProposals_distribution2.length, 1);
+
+        // funding period votes
+        _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution2[0].proposalId, voteYes, 25_000_000 * 1e18);
+
+        // skip to the Challenge period
+        vm.roll(_startBlock + 1_350_000);
+
+        // updateSlate
+        potentialProposalSlate = new uint256[](1);
+        potentialProposalSlate[0] = screenedProposals_distribution2[0].proposalId;
+        _grantFund.updateSlate(potentialProposalSlate, distributionId2);
+
+        // skip to the end of Challenge period
+        vm.roll(_startBlock + 1_400_000);
+
+        // check proposal status is succeeded
+        proposalState = _grantFund.state(testProposals_distribution2[0].proposalId);
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Succeeded));
+
+        // execute funded proposals
+        _executeProposal(_grantFund, _token, testProposals_distribution2[0]);
+
+        // check proposal status updates to executed
+        proposalState = _grantFund.state(testProposals_distribution2[0].proposalId);
+        assertEq(uint8(proposalState), uint8(IFunding.ProposalState.Executed));
+
+        // Claim delegate Rewards
+        _claimDelegateReward(
+            {
+                grantFund_:        _grantFund,
+                voter_:            _tokenHolder1,
+                distributionId_:   distributionId2,
+                claimedReward_:    gbc_distribution2 / 10
+            }
+        );
+
+        // assert that token balance is greater than treasury as token distributed is less than total funds available
+        assertGt(_token.balanceOf(address(_grantFund)), _grantFund.treasury());
+
+        /**********************************/
+        /*** Third Distribution Period ***/
+        /**********************************/
+
+        // start second distribution after the slate has been finalized and the challenge stage is complete.
+        _startDistributionPeriod(_grantFund);
+
+        uint24 distributionId3 = _grantFund.getDistributionId();
+        assertEq(distributionId3, 3);
+
+        // Treasury after start for second distribution should be greater than
+        // 97% of treasury at distribution 1 as all the funds are not used
+        uint256 treasuryAtId3 = _grantFund.treasury();
+        assertGt(treasuryAtId3, treasuryAtId2 * 97 / 100);
+
+        // Ensure surplus amount is added into treasury after new distribution starts
+        uint256 surplus = getSurplusTokensInDistribution(_grantFund, distributionId2);
+        assertEq(treasuryAtId3, (treasuryAtId2 + surplus) * 97 / 100);
+        (, , , uint128 gbc_distribution3, , ) = _grantFund.getDistributionPeriodInfo(distributionId3);
+        assertEq(gbc_distribution3, 14_206_350 * 1e18);
+
     }
 
     /**
