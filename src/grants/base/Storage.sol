@@ -2,7 +2,9 @@
 
 pragma solidity 0.8.18;
 
-abstract contract Storage {
+import { IGrantFundState } from "../interfaces/IGrantFundState.sol";
+
+abstract contract Storage is IGrantFundState {
 
     /*****************/
     /*** Constants ***/
@@ -44,16 +46,12 @@ abstract contract Storage {
      */
     uint256 internal constant VOTING_POWER_SNAPSHOT_DELAY = 33;
 
-    /******************/
-    /*** Immutables ***/
-    /******************/
-
-    // address of the ajna token used in grant coordination
-    address public ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
-
     /***********************/
     /*** State Variables ***/
     /***********************/
+
+    // address of the ajna token used in grant coordination
+    address public ajnaTokenAddress = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
 
     /**
      * @notice ID of the current distribution period.
@@ -116,31 +114,4 @@ abstract contract Storage {
      * @notice Total funds available for distribution.
     */
     uint256 public treasury;
-
-    // TODO: move these into IStandardFunding?
-    /***************/
-    /*** Structs ***/
-    /***************/
-
-    /**
-     * @notice Enum listing available proposal types.
-     */
-    enum FundingMechanism {
-        Standard,
-        Extraordinary
-    }
-
-    /**
-     * @dev Enum listing a proposal's lifecycle.
-     */
-    enum ProposalState {
-        Pending,
-        Active,
-        Canceled,
-        Defeated,
-        Succeeded,
-        Queued,
-        Expired,
-        Executed
-    }
 }

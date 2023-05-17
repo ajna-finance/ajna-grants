@@ -3,10 +3,12 @@
 //slither-disable-next-line solc-version
 pragma solidity 0.8.18;
 
+import { IGrantFundState } from "./IGrantFundState.sol";
+
 /**
  * @title Grant Fund User Actions.
  */
-interface IGrantFundActions {
+interface IGrantFundActions is IGrantFundState {
 
     /*****************************************/
     /*** Distribution Management Functions ***/

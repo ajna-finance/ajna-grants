@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 
 import { console } from "@std/console.sol";
 
-import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
+import { IGrantFund } from "../../src/grants/interfaces/IGrantFund.sol";
 
 import { StandardTestBase } from "./base/StandardTestBase.sol";
 import { StandardHandler }  from "./handlers/StandardHandler.sol";
@@ -124,7 +124,7 @@ contract StandardScreeningInvariant is StandardTestBase {
             );
 
             // check the screening votes cast by the actor
-            ( , IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams, ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
+            ( , IGrantFund.ScreeningVoteParams[] memory screeningVoteParams, ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
             for (uint256 j = 0; j < screeningVoteParams.length; ++j) {
                 require(
                     screeningVoteParams[j].votes >= 0,

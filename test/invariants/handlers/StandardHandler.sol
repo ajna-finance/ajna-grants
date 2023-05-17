@@ -8,10 +8,9 @@ import { Math }     from "@oz/utils/math/Math.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings }  from "@oz/utils/Strings.sol";
 
-import { GrantFund }        from "../../../src/grants/GrantFund.sol";
-import { IFunding }         from "../../../src/grants/interfaces/IFunding.sol";
-import { IStandardFunding } from "../../../src/grants/interfaces/IStandardFunding.sol";
-import { Maths }            from "../../../src/grants/libraries/Maths.sol";
+import { GrantFund }       from "../../../src/grants/GrantFund.sol";
+import { IGrantFundState } from "../../../src/grants/interfaces/IGrantFundState.sol";
+import { Maths }           from "../../../src/grants/libraries/Maths.sol";
 
 import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
@@ -31,8 +30,8 @@ contract StandardHandler is Handler {
     uint256 public fundingVotesCast;
 
     struct VotingActor {
-        IStandardFunding.FundingVoteParams[] fundingVotes; // list of funding votes made by an actor
-        IStandardFunding.ScreeningVoteParams[] screeningVotes; // list of screening votes made by an actor
+        IGrantFundState.FundingVoteParams[] fundingVotes; // list of funding votes made by an actor
+        IGrantFundState.ScreeningVoteParams[] screeningVotes; // list of screening votes made by an actor
         uint256 delegationRewardsClaimed; // the amount of delegation rewards claimed by the actor
     }
 
@@ -147,13 +146,13 @@ contract StandardHandler is Handler {
         uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), _actor);
 
         // construct vote params
-        IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = new IStandardFunding.ScreeningVoteParams[](proposalsToVoteOn_);
+        IGrantFundState.ScreeningVoteParams[] memory screeningVoteParams = new IGrantFundState.ScreeningVoteParams[](proposalsToVoteOn_);
         for (uint256 i = 0; i < proposalsToVoteOn_; i++) {
             // get a random proposal
             uint256 proposalId = randomProposal();
 
             // generate screening vote params
-            screeningVoteParams[i] = IStandardFunding.ScreeningVoteParams({
+            screeningVoteParams[i] = IGrantFundState.ScreeningVoteParams({
                 proposalId: proposalId,
                 votes: constrictToRange(randomSeed(), 0, votingPower) // TODO: account for previously used voting power in a happy path scenario
             });
@@ -196,7 +195,7 @@ contract StandardHandler is Handler {
 
         // get the fundingVoteParams for the votes the actor is about to cast
         // take the chaotic path, and cast votes that will likely exceed the actor's voting power
-        IStandardFunding.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(_actor, distributionId, proposalsToVoteOn_, false);
+        IGrantFundState.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(_actor, distributionId, proposalsToVoteOn_, false);
 
         try _grantFund.fundingVote(fundingVoteParams) returns (uint256 votesCast) {
             numberOfCalls['SFH.fundingVote.success']++;
@@ -502,7 +501,7 @@ contract StandardHandler is Handler {
         uint24 distributionId_,
         uint256 numProposalsToVoteOn_,
         bool happyPath_
-    ) internal returns (IStandardFunding.FundingVoteParams[] memory fundingVoteParams_) {
+    ) internal returns (IGrantFundState.FundingVoteParams[] memory fundingVoteParams_) {
 
         (uint256 votingPower, uint256 remainingVotingPower, ) = _grantFund.getVoterInfo(distributionId_, actor_);
         uint256 votingPowerUsed = votingPower - remainingVotingPower;
@@ -511,7 +510,7 @@ contract StandardHandler is Handler {
             votingPowerUsed = 0;
         }
 
-        fundingVoteParams_ = new IStandardFunding.FundingVoteParams[](numProposalsToVoteOn_);
+        fundingVoteParams_ = new IGrantFundState.FundingVoteParams[](numProposalsToVoteOn_);
 
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId_);
 
@@ -537,7 +536,7 @@ contract StandardHandler is Handler {
 
                 // check for any previous votes on this proposal
                 int256 priorVoteIndex = -1;
-                IStandardFunding.FundingVoteParams[] memory priorVotes = votingActors[actor_][distributionId_].fundingVotes;
+                IGrantFundState.FundingVoteParams[] memory priorVotes = votingActors[actor_][distributionId_].fundingVotes;
                 for (uint256 j = 0; j < priorVotes.length; ++j) {
                     // if we have already voted on this proposal, then we need to update the votes used
                     if (priorVotes[j].proposalId == proposalId) {
@@ -566,7 +565,7 @@ contract StandardHandler is Handler {
                 }
 
                 // generate funding vote params
-                fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
+                fundingVoteParams_[i] = IGrantFundState.FundingVoteParams({
                     proposalId: proposalId,
                     votesUsed: votesToCast
                 });
@@ -579,7 +578,7 @@ contract StandardHandler is Handler {
                 if (randomSeed() % 2 == 0) {
                     numberOfCalls['SFH.negativeFundingVote']++;
                     // generate negative vote
-                    fundingVoteParams_[i] = IStandardFunding.FundingVoteParams({
+                    fundingVoteParams_[i] = IGrantFundState.FundingVoteParams({
                         proposalId: proposalId,
                         votesUsed: -1 * votesToCast
                     });
@@ -595,12 +594,12 @@ contract StandardHandler is Handler {
         uint24 distributionId_,
         uint256 numProposalsToVoteOn_,
         bool happyPath_
-    ) internal returns (IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams_) {
+    ) internal returns (IGrantFundState.ScreeningVoteParams[] memory screeningVoteParams_) {
         uint256 votingPower = _grantFund.getVotesScreening(distributionId_, actor_);
         uint256 totalVotesUsed = 0;
 
         // determine which proposals should be voted upon
-        screeningVoteParams_ = new IStandardFunding.ScreeningVoteParams[](numProposalsToVoteOn_);
+        screeningVoteParams_ = new IGrantFundState.ScreeningVoteParams[](numProposalsToVoteOn_);
         // TODO: if (happyPath_) {}
         for (uint256 i = 0; i < numProposalsToVoteOn_; ++i) {
             // get a random proposal
@@ -614,7 +613,7 @@ contract StandardHandler is Handler {
             totalVotesUsed += additionalVotesUsed;
 
             // generate screening vote params
-            screeningVoteParams_[i] = IStandardFunding.ScreeningVoteParams({
+            screeningVoteParams_[i] = IGrantFundState.ScreeningVoteParams({
                 proposalId: proposalId,
                 votes: additionalVotesUsed
             });
@@ -629,7 +628,7 @@ contract StandardHandler is Handler {
 
         // get the fundingVoteParams for the votes the actor is about to cast
         // take the happy path, and cast votes that wont exceed the actor's voting power
-        IStandardFunding.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(actor_, distributionId, numProposalsToVoteOn_, true);
+        IGrantFundState.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(actor_, distributionId, numProposalsToVoteOn_, true);
 
         // cast votes
         changePrank(actor_);
@@ -655,7 +654,7 @@ contract StandardHandler is Handler {
         // get random number of proposals to vote on
         uint256 numProposalsToVoteOn = constrictToRange(randomSeed(), 1, 10);
 
-        IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams = _screeningVoteParams(actor_, distributionId, numProposalsToVoteOn, true);
+        IGrantFundState.ScreeningVoteParams[] memory screeningVoteParams = _screeningVoteParams(actor_, distributionId, numProposalsToVoteOn, true);
 
         // cast votes
         changePrank(actor_);
@@ -710,8 +709,8 @@ contract StandardHandler is Handler {
 
             for (uint256 j = 0; j < topSlateProposalIds.length; j++) {
                 // determine if a proposal is executable but hasn't already been executed
-                IFunding.ProposalState state = _grantFund.state(topSlateProposalIds[j]);
-                if (state == IFunding.ProposalState.Succeeded) {
+                IGrantFundState.ProposalState state = _grantFund.state(topSlateProposalIds[j]);
+                if (state == IGrantFundState.ProposalState.Succeeded) {
                     proposalId_ = topSlateProposalIds[j];
                 }
             }
@@ -748,8 +747,8 @@ contract StandardHandler is Handler {
 
             // get actor info
             (
-                IStandardFunding.FundingVoteParams[] memory fundingVoteParams,
-                IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams,
+                IGrantFundState.FundingVoteParams[] memory fundingVoteParams,
+                IGrantFundState.ScreeningVoteParams[] memory screeningVoteParams,
                 uint256 delegationRewardsClaimed
             ) = getVotingActorsInfo(actor, distributionId_);
 
@@ -878,7 +877,7 @@ contract StandardHandler is Handler {
         return testProposals[proposalId_];
     }
 
-    function getVotingActorsInfo(address actor_, uint24 distributionId_) public view returns (IStandardFunding.FundingVoteParams[] memory, IStandardFunding.ScreeningVoteParams[] memory, uint256) {
+    function getVotingActorsInfo(address actor_, uint24 distributionId_) public view returns (IGrantFundState.FundingVoteParams[] memory, IGrantFundState.ScreeningVoteParams[] memory, uint256) {
         return (
             votingActors[actor_][distributionId_].fundingVotes,
             votingActors[actor_][distributionId_].screeningVotes,
@@ -895,7 +894,7 @@ contract StandardHandler is Handler {
     }
 
     function sumSquareOfVotesCast(
-        IStandardFunding.FundingVoteParams[] memory votesCast_
+        IGrantFundState.FundingVoteParams[] memory votesCast_
     ) public pure returns (uint256 votesCastSumSquared_) {
         uint256 numVotesCast = votesCast_.length;
 
@@ -913,13 +912,13 @@ contract StandardHandler is Handler {
         }
     }
 
-    function sumFundingVotes(IStandardFunding.FundingVoteParams[] memory fundingVotes_) public pure returns (uint256 sum_) {
+    function sumFundingVotes(IGrantFundState.FundingVoteParams[] memory fundingVotes_) public pure returns (uint256 sum_) {
         for (uint256 i = 0; i < fundingVotes_.length; ++i) {
             sum_ += Maths.abs(fundingVotes_[i].votesUsed);
         }
     }
 
-    function countNegativeFundingVotes(IStandardFunding.FundingVoteParams[] memory fundingVotes_) public pure returns (uint256 count_) {
+    function countNegativeFundingVotes(IGrantFundState.FundingVoteParams[] memory fundingVotes_) public pure returns (uint256 count_) {
         for (uint256 i = 0; i < fundingVotes_.length; ++i) {
             if (fundingVotes_[i].votesUsed < 0) {
                 count_++;

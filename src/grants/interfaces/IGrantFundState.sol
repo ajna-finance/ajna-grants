@@ -8,10 +8,37 @@ pragma solidity 0.8.18;
  */
 interface IGrantFundState {
 
+    /*************/
+    /*** Enums ***/
+    /*************/
+
+    /**
+     * @notice Enum listing available proposal types.
+     */
+    enum FundingMechanism {
+        Standard,
+        Extraordinary
+    }
+
+    /**
+     * @dev Enum listing a proposal's lifecycle.
+     */
+    enum ProposalState {
+        Pending,
+        Active,
+        Canceled,
+        Defeated,
+        Succeeded,
+        Queued,
+        Expired,
+        Executed
+    }
+
     /***************/
     /*** Structs ***/
     /***************/
 
+    // TODO: rename to DistributionPeriod
     /**
      * @notice Contains proposals that made it through the screening process to the funding stage.
      */

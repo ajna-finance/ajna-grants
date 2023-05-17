@@ -2,14 +2,17 @@
 
 pragma solidity 0.8.18;
 
+import { Address }         from "@oz/utils/Address.sol";
 import { IERC20 }          from "@oz/token/ERC20/IERC20.sol";
+import { IVotes }          from "@oz/governance/utils/IVotes.sol";
 import { ReentrancyGuard } from "@oz/security/ReentrancyGuard.sol";
 import { SafeCast }        from "@oz/utils/math/SafeCast.sol";
 import { SafeERC20 }       from "@oz/token/ERC20/utils/SafeERC20.sol";
 
 import { Storage } from "./base/Storage.sol";
 
-import { IGrantFund } from "./interfaces/IGrantFund.sol";
+import { IGrantFund }        from "./interfaces/IGrantFund.sol";
+import { IGrantFundActions } from "./interfaces/IGrantFundActions.sol";
 
 import { Maths } from "./libraries/Maths.sol";
 
@@ -29,7 +32,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /*** Distribution Management Functions External ***/
     /**************************************************/
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function startNewDistributionPeriod() external override returns (uint24 newDistributionId_) {
         uint24  currentDistributionId       = _currentDistributionId;
         uint256 currentDistributionEndBlock = _distributions[currentDistributionId].endBlock;
@@ -77,7 +80,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         );
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function fundTreasury(uint256 fundingAmount_) external override {
         IERC20 token = IERC20(ajnaTokenAddress);
 
@@ -163,7 +166,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /*** Delegation Rewards Functions ***/
     /************************************/
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function claimDelegateReward(
         uint24 distributionId_
     ) external override returns(uint256 rewardClaimed_) {
@@ -227,7 +230,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /*** Proposal Functions External ***/
     /***********************************/
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function hashProposal(
         address[] memory targets_,
         uint256[] memory values_,
@@ -237,7 +240,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         proposalId_ = _hashProposal(targets_, values_, calldatas_, descriptionHash_);
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function execute(
         address[] memory targets_,
         uint256[] memory values_,
@@ -260,7 +263,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         _execute(proposalId_, targets_, values_, calldatas_);
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function propose(
         address[] memory targets_,
         uint256[] memory values_,
@@ -304,14 +307,14 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         );
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function state(
         uint256 proposalId_
     ) external view override returns (ProposalState) {
         return _state(proposalId_);
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function updateSlate(
         uint256[] calldata proposalIds_,
         uint24 distributionId_
@@ -591,7 +594,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /*** Voting Functions External ***/
     /*********************************/
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function fundingVote(
         FundingVoteParams[] memory voteParams_
     ) external override returns (uint256 votesCast_) {
@@ -655,7 +658,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function screeningVote(
         ScreeningVoteParams[] memory voteParams_
     ) external override returns (uint256 votesCast_) {
@@ -1038,7 +1041,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /*** External View Functions ***/
     /*******************************/
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function getDelegateReward(
         uint24 distributionId_,
         address voter_
@@ -1049,12 +1052,12 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         rewards_ = _getDelegateReward(currentDistribution, voter);
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function getDistributionId() external view override returns (uint24) {
         return _currentDistributionId;
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function getDistributionPeriodInfo(
         uint24 distributionId_
     ) external view override returns (uint24, uint48, uint48, uint128, uint256, bytes32) {
@@ -1068,21 +1071,21 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         );
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function getFundedProposalSlate(
         bytes32 slateHash_
     ) external view override returns (uint256[] memory) {
         return _fundedProposalSlates[slateHash_];
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function getFundingPowerVotes(
         uint256 votingPower_
     ) external pure override returns (uint256) {
         return Maths.wsqrt(votingPower_);
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function getFundingVotesCast(
         uint24 distributionId_,
         address account_
@@ -1090,7 +1093,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         return _quadraticVoters[distributionId_][account_].votesCast;
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function getProposalInfo(
         uint256 proposalId_
     ) external view override returns (uint256, uint24, uint128, uint128, int128, bool) {
@@ -1104,21 +1107,21 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         );
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function getSlateHash(
         uint256[] calldata proposalIds_
     ) external pure override returns (bytes32) {
         return keccak256(abi.encode(proposalIds_));
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function getTopTenProposals(
         uint24 distributionId_
     ) external view override returns (uint256[] memory) {
         return _topTenProposals[distributionId_];
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function getVoterInfo(
         uint24 distributionId_,
         address account_
@@ -1130,7 +1133,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         );
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function getVotesFunding(
         uint24 distributionId_,
         address account_
@@ -1143,7 +1146,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         votes_ = _getVotesFunding(account_, voter.votingPower, voter.remainingVotingPower, screeningStageEndBlock);
     }
 
-    /// @inheritdoc IGrantFund
+    /// @inheritdoc IGrantFundActions
     function getVotesScreening(
         uint24 distributionId_,
         address account_

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-import { GrantFund }           from "../../src/grants/GrantFund.sol";
-import { IFunding }            from "../../src/grants/interfaces/IFunding.sol";
-import { IStandardFunding }    from "../../src/grants/interfaces/IStandardFunding.sol";
-import { Maths }               from "../../src/grants/libraries/Maths.sol";
+import { GrantFund }        from "../../src/grants/GrantFund.sol";
+import { IGrantFundErrors } from "../../src/grants/interfaces/IGrantFundErrors.sol";
+import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
 import { IAjnaToken }          from "../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../utils/GrantFundTestHelper.sol";
@@ -23,7 +22,7 @@ contract GrantFundTest is GrantFundTestHelper {
     uint256 internal _startBlock = 16354861;
 
     // Ajna token Holder at the Ajna contract creation on mainnet
-    address internal _tokenDeployer  = 0x666cf594fB18622e1ddB91468309a7E194ccb799;
+    address internal _tokenDeployer  = makeAddr("_tokenDeployer");
     address internal _tokenHolder1   = makeAddr("_tokenHolder1");
     address internal _tokenHolder2   = makeAddr("_tokenHolder2");
     address internal _tokenHolder3   = makeAddr("_tokenHolder3");
@@ -113,7 +112,7 @@ contract GrantFundTest is GrantFundTestHelper {
         string memory description = "Proposal for Ajna token transfer to tester address";
 
         // should revert when standard funding proposal created for an amount greater than that in the treasury
-        vm.expectRevert(IFunding.InvalidProposal.selector);
+        vm.expectRevert(IGrantFundErrors.InvalidProposal.selector);
         _grantFund.propose(targets, values, calldatas, description);
     }
 

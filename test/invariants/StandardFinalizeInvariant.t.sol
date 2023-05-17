@@ -5,8 +5,8 @@ pragma solidity 0.8.18;
 import { console }  from "@std/console.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
-import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
-import { Maths }            from "../../src/grants/libraries/Maths.sol";
+import { IGrantFund } from "../../src/grants/interfaces/IGrantFund.sol";
+import { Maths }      from "../../src/grants/libraries/Maths.sol";
 
 import { StandardTestBase } from "./base/StandardTestBase.sol";
 import { StandardHandler }  from "./handlers/StandardHandler.sol";
@@ -168,8 +168,8 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
             // get actor info from standard handler
             (
-                IStandardFunding.FundingVoteParams[] memory fundingVoteParams,
-                IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams,
+                IGrantFund.FundingVoteParams[] memory fundingVoteParams,
+                IGrantFund.ScreeningVoteParams[] memory screeningVoteParams,
                 uint256 delegationRewardsClaimed
             ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
 
