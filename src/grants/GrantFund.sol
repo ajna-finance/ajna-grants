@@ -247,7 +247,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         bytes[] memory calldatas_,
         bytes32 descriptionHash_
     ) external nonReentrant override returns (uint256 proposalId_) {
-        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, descriptionHash_)));
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, descriptionHash_);
         Proposal storage proposal = _proposals[proposalId_];
 
         uint24 distributionId = proposal.distributionId;
@@ -273,7 +273,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // check description string isn't empty
         if (bytes(description_).length == 0) revert InvalidProposal();
 
-        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, keccak256(bytes(description_)))));
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, _getDescriptionHash(description_));
 
         Proposal storage newProposal = _proposals[proposalId_];
 
@@ -419,6 +419,12 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         return false;
     }
 
+    function _getDescriptionHash(
+        string memory description_
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, keccak256(bytes(description_))));
+    }
+
     /**
      * @notice Create a proposalId from a hash of proposal's targets, values, and calldatas arrays, and a description hash.
      * @dev    Consistent with proposalId generation methods used in OpenZeppelin Governor.
@@ -466,10 +472,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     function _state(uint256 proposalId_) internal view returns (ProposalState) {
         Proposal memory proposal = _proposals[proposalId_];
 
-        if (proposal.executed)                                                     return ProposalState.Executed;
-        else if (_distributions[proposal.distributionId].endBlock >= block.number) return ProposalState.Active;
-        else if (_isProposalFinalized(proposalId_))                      return ProposalState.Succeeded;
-        else                                                                       return ProposalState.Defeated;
+        if (proposal.executed)                                                    return ProposalState.Executed;
+        else if (_distributions[proposal.distributionId].endBlock > block.number) return ProposalState.Active;
+        else if (_isProposalFinalized(proposalId_))                              return ProposalState.Succeeded;
+        else                                                                      return ProposalState.Defeated;
     }
 
     /**
@@ -1040,6 +1046,13 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /*******************************/
     /*** External View Functions ***/
     /*******************************/
+
+    /// @inheritdoc IGrantFundActions
+    function getDescriptionHash(
+        string memory description_
+    ) external pure override returns (bytes32) {
+        return _getDescriptionHash(description_);
+    }
 
     /// @inheritdoc IGrantFundActions
     function getDelegateReward(

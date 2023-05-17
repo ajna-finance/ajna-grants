@@ -247,6 +247,8 @@ abstract contract GrantFundTestHelper is Test {
         uint256 voterStartingBalance = token_.balanceOf(recipient);
         uint256 growthFundStartingBalance = token_.balanceOf(address(grantFund_));
 
+        bytes32 descriptionHash = grantFund_.getDescriptionHash(testProposal_.description);
+
         // get parameters from test proposal required for execution
         (
             address[] memory targets,
@@ -262,7 +264,7 @@ abstract contract GrantFundTestHelper is Test {
         emit Transfer(address(grantFund_), recipient, testProposal_.totalTokensRequested);
         vm.expectEmit(true, true, false, true);
         emit DelegateVotesChanged(recipient, voterStartingBalance, voterStartingBalance + testProposal_.totalTokensRequested);
-        grantFund_.execute(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
+        grantFund_.execute(targets, values, calldatas, descriptionHash);
 
         // check ending token balances
         assertEq(token_.balanceOf(recipient), voterStartingBalance + testProposal_.totalTokensRequested);
@@ -271,6 +273,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _executeProposalNoLog(GrantFund grantFund_, IAjnaToken token_, TestProposal memory testProposal_) internal {
         address recipient = testProposal_.params[0].recipient;
+        bytes32 descriptionHash = grantFund_.getDescriptionHash(testProposal_.description);
 
         // get parameters from test proposal required for execution
         (
@@ -281,7 +284,7 @@ abstract contract GrantFundTestHelper is Test {
 
         // execute proposal
         changePrank(recipient);
-        grantFund_.execute(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
+        grantFund_.execute(targets, values, calldatas, descriptionHash);
     }
 
     function _getParamsFromGeneratedTestProposalParams(IAjnaToken token_, GeneratedTestProposalParams[] memory params_) internal pure returns(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, uint256 totalTokensRequested_) {
@@ -630,6 +633,51 @@ abstract contract GrantFundTestHelper is Test {
 
     function assertInferiorSlateFalse(GrantFund grantFund_, uint256[] memory potentialSlate_, uint24 distributionId_) internal {
         assertFalse(grantFund_.updateSlate(potentialSlate_, distributionId_));
+    }
+
+    function assertExecuteProposalRevert(GrantFund grantFund_, IAjnaToken token_, TestProposal memory testProposal_, bytes4 selector_) internal {
+        address recipient = testProposal_.params[0].recipient;
+        bytes32 descriptionHash = grantFund_.getDescriptionHash(testProposal_.description);
+
+        // get parameters from test proposal required for execution
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+        ) = _getParamsFromGeneratedTestProposalParams(token_, testProposal_.params);
+
+        // execute proposal
+        changePrank(recipient);
+        vm.expectRevert(selector_);
+        grantFund_.execute(targets, values, calldatas, descriptionHash);
+    }
+
+    function assertProposalState(
+        GrantFund grantFund_,
+        TestProposal memory proposal_,
+        uint24 expectedDistributionId_,
+        uint256 expectedVotesReceived_,
+        uint256 expectedTokensRequested_,
+        int256 expectedFundingPowerCast_,
+        bool expectedExecuted_
+    ) internal returns (uint256) {
+        (
+            uint256 proposalId,
+            uint256 distributionId,
+            uint256 votesReceived,
+            uint256 tokensRequested,
+            int256 qvBudgetAllocated,
+            bool executed
+        ) = grantFund_.getProposalInfo(proposal_.proposalId);
+
+        assertEq(proposalId, proposal_.proposalId);
+        assertEq(distributionId, expectedDistributionId_);
+        assertEq(votesReceived, expectedVotesReceived_);
+        assertEq(tokensRequested, expectedTokensRequested_);
+        assertEq(qvBudgetAllocated, expectedFundingPowerCast_);
+        assertEq(executed, expectedExecuted_);
+
+        return proposalId;
     }
 
 }

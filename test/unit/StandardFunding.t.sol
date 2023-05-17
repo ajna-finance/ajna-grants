@@ -236,15 +236,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     }
 
     function testPropose() external {
-        // generate proposal targets
-        address[] memory ajnaTokenTargets = new address[](1);
-        ajnaTokenTargets[0] = address(_token);
-
-        // generate proposal values
-        uint256[] memory values = new uint256[](1);
-        // Eth to transfer is non zero
-        values[0] = 1;
-
         // generate proposal calldata
         bytes[] memory proposalCalldata = new bytes[](1);
         proposalCalldata[0] = abi.encodeWithSignature(
@@ -262,36 +253,39 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         changePrank(_tokenHolder2);
 
         // should revert if target array size is greater than calldata and values size
-        address[] memory invalidTargetsLength = new address[](2);
-        invalidTargetsLength[0] = address(_token);
-        invalidTargetsLength[1] = address(_token);
-        uint256[] memory invalidValuesLength = new uint256[](2);
-        invalidValuesLength[0] = 0;
-        invalidValuesLength[1] = 0;
+        address[] memory targets = new address[](2);
+        targets[0] = address(_token);
+        targets[1] = address(_token);
+        uint256[] memory values = new uint256[](2);
+        values[0] = 0;
+        values[1] = 0;
         vm.expectRevert(IGrantFundErrors.InvalidProposal.selector);
-        _grantFund.propose(invalidTargetsLength, invalidValuesLength, proposalCalldata, description);
+        _grantFund.propose(targets, values, proposalCalldata, description);
 
         // Skips to funding period
         vm.roll(_startBlock + 576_002);
-        // should revert to submit proposal
+        // should fail to submit proposal
         vm.expectRevert(IGrantFundErrors.ScreeningPeriodEnded.selector);
-        _grantFund.propose(ajnaTokenTargets, values, proposalCalldata, description);
+        _grantFund.propose(targets, values, proposalCalldata, description);
 
         vm.roll(_startBlock + 10);
 
         // should revert if Eth transfer is not zero
         vm.expectRevert(IGrantFundErrors.InvalidProposal.selector);
-        _grantFund.propose(ajnaTokenTargets, values, proposalCalldata, description);
+        _grantFund.propose(targets, values, proposalCalldata, description);
 
-        // updating Eth value to transfer to 0
-        values[0] = 0;
+        // generate valid proposal params
+        targets = new address[](1);
+        targets[0] = address(_token);
+        values = new uint256[](1);
+        values[0] = 0; // Eth to transfer is zero
 
         // create and submit proposal
-        TestProposal memory proposal = _createProposal(_grantFund, _tokenHolder2, ajnaTokenTargets, values, proposalCalldata, description);
+        TestProposal memory proposal = _createProposal(_grantFund, _tokenHolder2, targets, values, proposalCalldata, description);
         
         // should revert if same proposal is proposed again
         vm.expectRevert(IGrantFundErrors.ProposalAlreadyExists.selector);
-        _grantFund.propose(ajnaTokenTargets, values, proposalCalldata, description);
+        _grantFund.propose(targets, values, proposalCalldata, description);
         
         vm.roll(_startBlock + 10);
 
@@ -300,21 +294,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(uint8(proposalState), uint8(IGrantFundState.ProposalState.Active));
 
         // check proposal state
-        (
-            uint256 proposalId,
-            uint256 distributionId,
-            uint256 votesReceived,
-            uint256 tokensRequested,
-            int256 qvBudgetAllocated,
-            bool executed
-        ) = _grantFund.getProposalInfo(proposal.proposalId);
+        uint256 proposalId = assertProposalState(_grantFund, proposal, 1, 0, 1 * 1e18, 0, false);
 
-        assertEq(proposalId, proposal.proposalId);
-        assertEq(distributionId, 1);
-        assertEq(votesReceived, 0);
-        assertEq(tokensRequested, 1 * 1e18);
-        assertEq(qvBudgetAllocated, 0);
-        assertFalse(executed);
+        // check proposal description hash
+        bytes32 descriptionHash = _grantFund.getDescriptionHash(description);
+        uint256 hashedProposalId = _grantFund.hashProposal(targets, values, proposalCalldata, descriptionHash);
+        assertEq(proposalId, hashedProposalId);
     }
 
     function testInvalidProposalCalldataSelector() external {
@@ -1122,8 +1107,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(fundedProposalSlate[1].proposalId, screenedProposals[4].proposalId);
 
         // check can't execute proposals prior to the end of the challenge period
-        vm.expectRevert(IGrantFundErrors.ExecuteProposalInvalid.selector);
-        _executeProposalNoLog(_grantFund, _token, testProposals[0]);
+        assertExecuteProposalRevert(_grantFund, _token, testProposals[0], IGrantFundErrors.ExecuteProposalInvalid.selector);
 
         /********************************/
         /*** Execute Funded Proposals ***/
@@ -1141,12 +1125,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(uint8(_grantFund.state(testProposals[1].proposalId)), uint8(IGrantFundState.ProposalState.Defeated));
 
         // check that shouldn't be able to execute unfunded proposals
-        vm.expectRevert(IGrantFundErrors.ProposalNotSuccessful.selector);
-        _executeProposalNoLog(_grantFund, _token, testProposals[1]);
+        assertExecuteProposalRevert(_grantFund, _token, testProposals[1], IGrantFundErrors.ProposalNotSuccessful.selector);
 
         // check that shouldn't be able to execute a proposal twice
-        vm.expectRevert(IGrantFundErrors.ProposalNotSuccessful.selector);
-        _executeProposalNoLog(_grantFund, _token, testProposals[0]);
+        assertExecuteProposalRevert(_grantFund, _token, testProposals[0], IGrantFundErrors.ProposalNotSuccessful.selector);
 
         /******************************/
         /*** Claim Delegate Rewards ***/
