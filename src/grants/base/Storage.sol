@@ -3,8 +3,10 @@
 pragma solidity 0.8.18;
 
 import { IGrantFundState } from "../interfaces/IGrantFundState.sol";
+import { IGrantFund } from "../interfaces/IGrantFund.sol";
 
-abstract contract Storage is IGrantFundState {
+abstract contract Storage is IGrantFund {
+
 
     /*****************/
     /*** Constants ***/
