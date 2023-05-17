@@ -1016,8 +1016,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.expectRevert(IStandardFunding.InvalidProposalSlate.selector);
         _grantFund.updateSlate(potentialProposalSlate, distributionId);
 
-        // should revert if user tries to claim rewards before the distribution period ends
-        vm.expectRevert(IStandardFunding.DistributionPeriodStillActive.selector);
+        // should revert if user tries to claim rewards and he has not voted in screening stage
+        vm.expectRevert(IStandardFunding.DelegateRewardInvalid.selector);
         _grantFund.claimDelegateReward(distributionId);
 
         /************************/
