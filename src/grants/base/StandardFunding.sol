@@ -355,7 +355,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         bytes[] memory calldatas_,
         bytes32 descriptionHash_
     ) external nonReentrant override returns (uint256 proposalId_) {
-        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, descriptionHash_)));
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, descriptionHash_);
         Proposal storage proposal = _standardFundingProposals[proposalId_];
 
         uint24 distributionId = proposal.distributionId;
@@ -381,7 +381,7 @@ abstract contract StandardFunding is Funding, IStandardFunding {
         // check description string isn't empty
         if (bytes(description_).length == 0) revert InvalidProposal();
 
-        proposalId_ = _hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, keccak256(bytes(description_)))));
+        proposalId_ = _hashProposal(targets_, values_, calldatas_, _getDescriptionHashStandard(description_));
 
         Proposal storage newProposal = _standardFundingProposals[proposalId_];
 
@@ -521,6 +521,12 @@ abstract contract StandardFunding is Funding, IStandardFunding {
 
             unchecked { ++i; }
         }
+    }
+
+    function _getDescriptionHashStandard(
+        string memory description_
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, keccak256(bytes(description_))));
     }
 
     /**
@@ -961,6 +967,13 @@ abstract contract StandardFunding is Funding, IStandardFunding {
     /*******************************/
     /*** External View Functions ***/
     /*******************************/
+
+    /// @inheritdoc IStandardFunding
+    function getDescriptionHashStandard(
+        string memory description_
+    ) external pure override returns (bytes32) {
+        return _getDescriptionHashStandard(description_);
+    }
 
     /// @inheritdoc IStandardFunding
     function getDelegateReward(
