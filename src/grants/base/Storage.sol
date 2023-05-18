@@ -62,7 +62,7 @@ abstract contract Storage is IGrantFundState {
     uint24 internal _currentDistributionId = 0;
 
     /**
-     * @notice Mapping of quarterly distributions from the grant fund.
+     * @notice Mapping of distribution periods from the grant fund.
      * @dev distributionId => DistributionPeriod
      */
     mapping(uint24 => DistributionPeriod) internal _distributions;
@@ -87,7 +87,7 @@ abstract contract Storage is IGrantFundState {
     mapping(bytes32 => uint256[]) internal _fundedProposalSlates;
 
     /**
-     * @notice Mapping of quarterly distributions to voters to a Quadratic Voter info struct.
+     * @notice Mapping of distribution periods to voters to a Quadratic Voter info struct.
      * @dev distributionId => voter address => QuadraticVoter 
      */
     mapping(uint256 => mapping(address => QuadraticVoter)) internal _quadraticVoters;

@@ -802,7 +802,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     /**
      *  @notice Integration test of 7 proposals submitted, with 6 passing the screening stage. Five potential funding slates are tested.
-     *  @dev    Maximum quarterly distribution is 10_000_000.
+     *  @dev    Maximum length of a distribution period is 10_000_000.
      *  @dev    Funded slate is executed.
      *  @dev    Reverts:
      *              - IGrantFundErrors.InsufficientVotingPower

@@ -99,7 +99,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     /**
      * @notice Get the block number at which this distribution period's challenge stage ends.
-     * @param  endBlock_ The end block of quarterly distribution to get the challenge stage end block for.
+     * @param  endBlock_ The end block of a distribution period to get the challenge stage end block for.
      * @return The block number at which this distribution period's challenge stage ends.
     */
     function _getChallengeStageEndBlock(
@@ -110,7 +110,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     /**
      * @notice Get the block number at which this distribution period's screening stage ends.
-     * @param  endBlock_ The end block of quarterly distribution to get the screening stage end block for.
+     * @param  endBlock_ The end block of a distribution period to get the screening stage end block for.
      * @return The block number at which this distribution period's screening stage ends.
     */
     function _getScreeningStageEndBlock(

@@ -23,10 +23,10 @@ interface IGrantFundEvents {
     );
 
     /**
-     *  @notice Emitted at the beginning of a new quarterly distribution period.
+     *  @notice Emitted at the beginning of a new distribution period.
      *  @param  distributionId Id of the new distribution period.
-     *  @param  startBlock     Block number of the quarterly distributions start.
-     *  @param  endBlock       Block number of the quarterly distributions end.
+     *  @param  startBlock     Block number of the distribution period start.
+     *  @param  endBlock       Block number of the distribution period end.
      */
     event DistributionPeriodStarted(
         uint256 indexed distributionId,
