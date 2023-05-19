@@ -24,7 +24,7 @@
     - **SS6**: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list (typically the 10th of course, but it may be shorter than ten proposals).
     <!-- TODO: move these into separate 'Propose Standard:' section -->
     - **SS7**: A proposal should never receive more vote than the Ajna token supply.
-    - **SS8**: A proposal can only receive screening votes if it was created via `proposeStandard()`.
+    - **SS8**: A proposal can only receive screening votes if it was created via `propose()`.
     - **SS9**: A proposal can only be created during a distribution period's screening stage.
     - **SS10**: A proposal's proposalId must be unique.
     - **SS11**: A proposal's tokens requested must be <= GBC>.
@@ -47,7 +47,7 @@
     - **CS5**: Funded proposal slate's should never contain duplicate proposals.
     - **CS6**: Funded proposal slate's can only be updated during a distribution period's challenge stage.
 
-- #### Execute Standard:
+- #### Execute:
     - **ES1**: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round.
     - **ES2**: A proposal can only be executed after the challenge stage is complete.
     - **ES3**: A proposal can only be executed once.

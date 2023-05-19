@@ -99,7 +99,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     /**
      * @notice Get the block number at which this distribution period's challenge stage ends.
-     * @param  endBlock_ The end block of quarterly distribution to get the challenge stage end block for.
+     * @param  endBlock_ The end block of a distribution period to get the challenge stage end block for.
      * @return The block number at which this distribution period's challenge stage ends.
     */
     function _getChallengeStageEndBlock(
@@ -110,7 +110,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     /**
      * @notice Get the block number at which this distribution period's screening stage ends.
-     * @param  endBlock_ The end block of quarterly distribution to get the screening stage end block for.
+     * @param  endBlock_ The end block of a distribution period to get the screening stage end block for.
      * @return The block number at which this distribution period's screening stage ends.
     */
     function _getScreeningStageEndBlock(
@@ -422,7 +422,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     function _getDescriptionHash(
         string memory description_
     ) internal pure returns (bytes32) {
-        return keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, keccak256(bytes(description_))));
+        return keccak256(bytes(description_));
     }
 
     /**

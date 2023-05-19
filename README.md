@@ -83,7 +83,7 @@ Record the address of the token upon deployment.  See [AJNA_TOKEN.md](src/token/
 #### Grant Fund
 Deployment of the Grant Coordination Fund requires an argument to specify the address of the AJNA token. The deployment script also uses the token address to determine funding level.
 
-Before deploying, edit `src/grants/base/Funding.sol` to set the correct AJNA token address for the target chain.
+Before deploying, edit `src/grants/base/Storage.sol` to set the correct AJNA token address for the target chain.
 
 To deploy, run:
 ```

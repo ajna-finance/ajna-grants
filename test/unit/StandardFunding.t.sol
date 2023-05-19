@@ -802,7 +802,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     /**
      *  @notice Integration test of 7 proposals submitted, with 6 passing the screening stage. Five potential funding slates are tested.
-     *  @dev    Maximum quarterly distribution is 10_000_000.
+     *  @dev    Maximum length of a distribution period is 10_000_000.
      *  @dev    Funded slate is executed.
      *  @dev    Reverts:
      *              - IGrantFundErrors.InsufficientVotingPower
@@ -1045,7 +1045,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash, 0xdb759d0c238c273204a32cddf58fafe694f14ee3fd946599da558887864f5ba5);
+        assertEq(slateHash, 0xb36c09a99b14fc310feda1993f754e8f1736a38a3964fbe7df49a709ab7ba290);
         // check funded proposal slate matches expected state
         GrantFund.Proposal[] memory fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(slateHash));
         assertEq(fundedProposalSlate.length, 1);
@@ -1061,7 +1061,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertTrue(proposalSlateUpdated);
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash, 0xc0791749a5fd3c47b484429b4f83ecae279d6d969fb7e4523d0c9ac65ef1374d);
+        assertEq(slateHash, 0xec5d3ed74d17bd70f9a01e2761c6d9120e87633b09efdce6ea6042fa63daa176);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(slateHash));
         assertEq(fundedProposalSlate.length, 2);
@@ -1085,7 +1085,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertTrue(proposalSlateUpdated);
         // check slate hash
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash, 0xd8b6f16122e47d7ed6b0e827fdfcc5cb2acd84a702ce698d24922f534878f474);
+        assertEq(slateHash, 0x30c7490b37dc594c92bd64ee2eb0398256044d56e14d86d959c0a9a623c51d43);
         // check funded proposal slate matches expected state
         fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(slateHash));
         assertEq(fundedProposalSlate.length, 2);
@@ -1100,7 +1100,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check funded proposal slate wasn't updated
         (, , , , , slateHash) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(slateHash, 0xd8b6f16122e47d7ed6b0e827fdfcc5cb2acd84a702ce698d24922f534878f474);
+        assertEq(slateHash, 0x30c7490b37dc594c92bd64ee2eb0398256044d56e14d86d959c0a9a623c51d43);
         fundedProposalSlate = _getProposalListFromProposalIds(_grantFund, _grantFund.getFundedProposalSlate(slateHash));
         assertEq(fundedProposalSlate.length, 2);
         assertEq(fundedProposalSlate[0].proposalId, screenedProposals[0].proposalId);

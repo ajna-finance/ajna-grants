@@ -24,11 +24,6 @@ abstract contract Storage is IGrantFundState {
     uint256 internal constant CHALLENGE_PERIOD_LENGTH = 50400;
 
     /**
-     * @notice Keccak hash of a prefix string for standard funding mechanism
-     */
-    bytes32 internal constant DESCRIPTION_PREFIX_HASH_STANDARD = keccak256(bytes("Standard Funding: "));
-
-    /**
      * @notice Length of the distribution period in blocks.
      * @dev    Roughly equivalent to the number of blocks in 90 days.
      */
@@ -62,7 +57,7 @@ abstract contract Storage is IGrantFundState {
     uint24 internal _currentDistributionId = 0;
 
     /**
-     * @notice Mapping of quarterly distributions from the grant fund.
+     * @notice Mapping of distribution periods from the grant fund.
      * @dev distributionId => DistributionPeriod
      */
     mapping(uint24 => DistributionPeriod) internal _distributions;
@@ -87,7 +82,7 @@ abstract contract Storage is IGrantFundState {
     mapping(bytes32 => uint256[]) internal _fundedProposalSlates;
 
     /**
-     * @notice Mapping of quarterly distributions to voters to a Quadratic Voter info struct.
+     * @notice Mapping of distribution periods to voters to a Quadratic Voter info struct.
      * @dev distributionId => voter address => QuadraticVoter 
      */
     mapping(uint256 => mapping(address => QuadraticVoter)) internal _quadraticVoters;

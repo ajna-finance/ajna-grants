@@ -21,17 +21,6 @@ For more information, see the Ajna Protocol Whitepaper.
 
 <br>
 
-### **Extraordinary Funding Mechanism**
-
-By meeting a certain quorum of non-treasury tokens, tokenholders may take tokens from the treasury outside of the SFM. This mechanism can be used to distribute much larger amounts of Ajna tokens, with the purpose of supporting large scale projects for the Ajna ecosystem.
-
-This mechanism works by allowing up to the percentage over [50%] of non-treasury tokens, minimum threshold, that vote affirmatively to be removed from the treasury – the cap on this mechanism is therefore 100% minus the minimum threshold (50% in this case).
-
-For more information, see the Ajna Protocol Whitepaper.
-
-
-<br>
-
 ## Resources
 
 ### Governance Design Research:

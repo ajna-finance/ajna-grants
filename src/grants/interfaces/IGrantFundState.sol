@@ -16,8 +16,7 @@ interface IGrantFundState {
      * @notice Enum listing available proposal types.
      */
     enum FundingMechanism {
-        Standard,
-        Extraordinary
+        Standard
     }
 
     /**
