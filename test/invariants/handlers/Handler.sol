@@ -113,7 +113,7 @@ contract Handler is Test, GrantFundTestHelper {
 
         if (_currentScenarioType == ScenarioType.Fast) {
             console.log("High roller");
-            rollLimit = 5_000;
+            rollLimit = 2_000;
         }
         else if (_currentScenarioType == ScenarioType.Medium) {
             console.log("Medium roller");

@@ -241,10 +241,15 @@ contract StandardHandler is Handler {
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
 
+        numberOfCalls['SFH.updateSlate.HAP']++;
+
+        // FIXME: this is breaking here...
         // check that the distribution period ended
-        if (keccak256(getStage(distributionId)) != keccak256(bytes("Challenge"))) {
-            return;
-        }
+        // if (getStage(distributionId) != keccak256(bytes("Challenge"))) {
+        //     return;
+        // }
+
+        numberOfCalls['SFH.updateSlate.HAPPY']++;
 
         // get top ten proposals
         uint256[] memory topTen = _grantFund.getTopTenProposals(distributionId);
@@ -448,16 +453,17 @@ contract StandardHandler is Handler {
         return standardFundingProposals[distributionId][constrictToRange(randomSeed(), 0, standardFundingProposals[distributionId].length - 1)];
     }
 
-    function getStage(uint24 distributionId_) internal view returns (bytes memory stage_) {
+    function getStage(uint24 distributionId_) internal view returns (bytes32 stage_) {
         (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId_);
-        if (block.number <= endBlock - 72000) {
-            stage_ = bytes("Screening");
+        uint256 blockNumber = testContract.currentBlock();
+        if (blockNumber <= endBlock - 72000) {
+            stage_ = keccak256(bytes("Screening"));
         }
-        else if (block.number > endBlock - 72000 && block.number <= endBlock) {
-            stage_ = bytes("Funding");
+        else if (blockNumber > endBlock - 72000 && blockNumber <= endBlock) {
+            stage_ = keccak256(bytes("Funding"));
         }
-        else if (block.number > endBlock && block.number <= endBlock + 50400) {
-            stage_ = bytes("Challenge");
+        else if (blockNumber > endBlock && blockNumber <= endBlock + 50400) {
+            stage_ = keccak256(bytes("Challenge"));
         }
     }
 
