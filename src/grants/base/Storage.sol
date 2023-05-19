@@ -24,11 +24,6 @@ abstract contract Storage is IGrantFundState {
     uint256 internal constant CHALLENGE_PERIOD_LENGTH = 50400;
 
     /**
-     * @notice Keccak hash of a prefix string for standard funding mechanism
-     */
-    bytes32 internal constant DESCRIPTION_PREFIX_HASH_STANDARD = keccak256(bytes("Standard Funding: "));
-
-    /**
      * @notice Length of the distribution period in blocks.
      * @dev    Roughly equivalent to the number of blocks in 90 days.
      */
