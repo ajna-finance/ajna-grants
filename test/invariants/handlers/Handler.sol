@@ -12,8 +12,6 @@ import { GrantFund } from "../../../src/grants/GrantFund.sol";
 import { IAjnaToken }          from "../../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../../utils/GrantFundTestHelper.sol";
 
-import { IStandardFunding } from "../../../src/grants/interfaces/IStandardFunding.sol";
-
 import { ITestBase } from "../base/ITestBase.sol";
 
 contract Handler is Test, GrantFundTestHelper {

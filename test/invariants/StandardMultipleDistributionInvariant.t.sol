@@ -5,7 +5,6 @@ pragma solidity 0.8.18;
 import { console }  from "@std/console.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
-import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
 import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
 import { StandardTestBase } from "./base/StandardTestBase.sol";
@@ -21,11 +20,11 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](8);
         selectors[0] = _standardHandler.startNewDistributionPeriod.selector;
-        selectors[1] = _standardHandler.proposeStandard.selector;
+        selectors[1] = _standardHandler.propose.selector;
         selectors[2] = _standardHandler.screeningVote.selector;
         selectors[3] = _standardHandler.fundingVote.selector;
         selectors[4] = _standardHandler.updateSlate.selector;
-        selectors[5] = _standardHandler.executeStandard.selector;
+        selectors[5] = _standardHandler.execute.selector;
         selectors[6] = _standardHandler.claimDelegateReward.selector;
         selectors[7] = _standardHandler.roll.selector;
 
@@ -217,8 +216,8 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
 
         console.log("Delegation Rewards:         ", _standardHandler.numberOfCalls('delegationRewardSet'));
         console.log("Delegation Rewards Claimed: ", _standardHandler.numberOfCalls('SFH.claimDelegateReward.success'));
-        console.log("Proposal Execute attempt:   ", _standardHandler.numberOfCalls('SFH.executeStandard.attempt'));
-        console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.executeStandard.success'));
+        console.log("Proposal Execute attempt:   ", _standardHandler.numberOfCalls('SFH.execute.attempt'));
+        console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.execute.success'));
         console.log("Slate Update Prep:          ", _standardHandler.numberOfCalls('SFH.updateSlate.prep'));
         console.log("Slate Update length:        ", _standardHandler.numberOfCalls('updateSlate.length'));
         console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));

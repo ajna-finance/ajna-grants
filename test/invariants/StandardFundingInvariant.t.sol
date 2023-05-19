@@ -5,7 +5,7 @@ pragma solidity 0.8.18;
 import { console }  from "@std/console.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
-import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
+import { IGrantFund } from "../../src/grants/interfaces/IGrantFund.sol";
 
 import { StandardTestBase } from "./base/StandardTestBase.sol";
 import { StandardHandler }  from "./handlers/StandardHandler.sol";
@@ -87,12 +87,12 @@ contract StandardFundingInvariant is StandardTestBase {
             (uint128 votingPower, uint128 remainingVotingPower, uint256 numberOfProposalsVotedOn) = _grantFund.getVoterInfo(distributionId, actor);
 
             // get the voting info of the actor
-            (IStandardFunding.FundingVoteParams[] memory fundingVoteParams, , ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
+            (IGrantFund.FundingVoteParams[] memory fundingVoteParams, , ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
 
             uint128 sumOfSquares = SafeCast.toUint128(_standardHandler.sumSquareOfVotesCast(fundingVoteParams));
 
             // check voter votes cast are less than or equal to the sqrt of the voting power of the actor
-            IStandardFunding.FundingVoteParams[] memory fundingVotesCast = _grantFund.getFundingVotesCast(distributionId, actor);
+            IGrantFund.FundingVoteParams[] memory fundingVotesCast = _grantFund.getFundingVotesCast(distributionId, actor);
 
             require(
                 sumOfSquares <= votingPower,
