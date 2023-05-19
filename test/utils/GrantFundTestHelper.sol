@@ -171,7 +171,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _createProposal(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal returns (TestProposal memory) {
         // generate expected proposal state
-        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(keccak256(bytes("Standard Funding: ")), keccak256(bytes(description)))));
+        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, calldatas_, keccak256(bytes(description)));
         uint256 startBlock = block.number.toUint64();
         uint24 distributionId = grantFund_.getDistributionId();
 

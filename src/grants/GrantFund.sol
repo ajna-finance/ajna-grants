@@ -422,7 +422,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     function _getDescriptionHash(
         string memory description_
     ) internal pure returns (bytes32) {
-        return keccak256(abi.encode(DESCRIPTION_PREFIX_HASH_STANDARD, keccak256(bytes(description_))));
+        return keccak256(bytes(description_));
     }
 
     /**
