@@ -600,23 +600,24 @@ contract StandardHandler is Handler {
 
         // determine which proposals should be voted upon
         screeningVoteParams_ = new IGrantFundState.ScreeningVoteParams[](numProposalsToVoteOn_);
-        // TODO: if (happyPath_) {}
-        for (uint256 i = 0; i < numProposalsToVoteOn_; ++i) {
-            // get a random proposal
-            uint256 proposalId = randomProposal();
+        if (happyPath_) {
+            for (uint256 i = 0; i < numProposalsToVoteOn_; ++i) {
+                // get a random proposal
+                uint256 proposalId = randomProposal();
 
-            // account for already used voting power
-            uint256 additionalVotesUsed = 0;
-            if (votingPower != 0) {
-                additionalVotesUsed = randomAmount(votingPower - totalVotesUsed);
+                // account for already used voting power
+                uint256 additionalVotesUsed = 0;
+                if (votingPower != 0) {
+                    additionalVotesUsed = randomAmount(votingPower - totalVotesUsed);
+                }
+                totalVotesUsed += additionalVotesUsed;
+
+                // generate screening vote params
+                screeningVoteParams_[i] = IGrantFundState.ScreeningVoteParams({
+                    proposalId: proposalId,
+                    votes: additionalVotesUsed
+                });
             }
-            totalVotesUsed += additionalVotesUsed;
-
-            // generate screening vote params
-            screeningVoteParams_[i] = IGrantFundState.ScreeningVoteParams({
-                proposalId: proposalId,
-                votes: additionalVotesUsed
-            });
         }
     }
 
