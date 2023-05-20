@@ -782,7 +782,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(id, currentDistributionId);
         assertEq(fundingVotesCast, 0);
         assertEq(startBlock, block.number);
-        assertEq(endBlock, block.number + 648000);
+        assertEq(endBlock, block.number + 698400);
         
         vm.roll(_startBlock + 100);
         currentDistributionId = _grantFund.getDistributionId();
@@ -793,7 +793,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.startNewDistributionPeriod();
 
         // skip forward past the end of the distribution period to allow starting a new distribution
-        vm.roll(_startBlock + 650_000);
+        vm.roll(_startBlock + 700_000);
 
         _startDistributionPeriod(_grantFund);
         currentDistributionId = _grantFund.getDistributionId();

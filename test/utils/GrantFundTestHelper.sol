@@ -157,7 +157,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _startDistributionPeriod(GrantFund grantFund_) internal returns (uint24 distributionId) {
         vm.expectEmit(true, true, false, true);
-        emit DistributionPeriodStarted(grantFund_.getDistributionId() + 1, block.number, block.number + 648000);
+        emit DistributionPeriodStarted(grantFund_.getDistributionId() + 1, block.number, block.number + 698400);
         distributionId = grantFund_.startNewDistributionPeriod();
     }
 

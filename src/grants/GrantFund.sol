@@ -40,17 +40,11 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // check that there isn't currently an active distribution period
         if (block.number <= currentDistributionEndBlock) revert DistributionPeriodStillActive();
 
-        // update Treasury with unused funds from last two distributions
+        // update Treasury with unused funds from last distribution period
         {
-            // // Check if any last distribution exists and its challenge stage is over
-            // if (currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistributionEndBlock))) {
-            //     // Add unused funds from last distribution to treasury
-            //     _updateTreasury(currentDistributionId);
-            // }
-
-            // checks if any second last distribution exist and its unused funds are not added into treasury
-            if (currentDistributionId > 1 && !_isSurplusFundsUpdated[currentDistributionId]) {
-                // Add unused funds from second last distribution to treasury
+            // checks if any [revious distribtuion period exists and its unused funds weren't yet re-added into the treasury
+            if (currentDistributionId > 1 && !_isSurplusFundsUpdated[currentDistributionId - 1]) {
+                // Add unused funds to treasury
                 _updateTreasury(currentDistributionId);
             }
         }
