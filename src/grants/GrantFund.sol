@@ -42,16 +42,16 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         // update Treasury with unused funds from last two distributions
         {
-            // Check if any last distribution exists and its challenge stage is over
-            if (currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistributionEndBlock))) {
-                // Add unused funds from last distribution to treasury
-                _updateTreasury(currentDistributionId);
-            }
+            // // Check if any last distribution exists and its challenge stage is over
+            // if (currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistributionEndBlock))) {
+            //     // Add unused funds from last distribution to treasury
+            //     _updateTreasury(currentDistributionId);
+            // }
 
             // checks if any second last distribution exist and its unused funds are not added into treasury
-            if (currentDistributionId > 1 && !_isSurplusFundsUpdated[currentDistributionId - 1]) {
+            if (currentDistributionId > 1 && !_isSurplusFundsUpdated[currentDistributionId]) {
                 // Add unused funds from second last distribution to treasury
-                _updateTreasury(currentDistributionId - 1);
+                _updateTreasury(currentDistributionId);
             }
         }
 
@@ -102,21 +102,27 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      * @param  endBlock_ The end block of a distribution period to get the challenge stage end block for.
      * @return The block number at which this distribution period's challenge stage ends.
     */
-    function _getChallengeStageEndBlock(
+    function _getChallengeStageStartBlock(
         uint256 endBlock_
     ) internal pure returns (uint256) {
-        return endBlock_ + CHALLENGE_PERIOD_LENGTH;
+        return endBlock_ - CHALLENGE_PERIOD_LENGTH;
+    }
+
+    function _getFundingStageEndBlock(
+        uint256 startBlock_
+    ) internal pure returns(uint256) {
+        return startBlock_ + SCREENING_PERIOD_LENGTH + FUNDING_PERIOD_LENGTH;
     }
 
     /**
      * @notice Get the block number at which this distribution period's screening stage ends.
-     * @param  endBlock_ The end block of a distribution period to get the screening stage end block for.
+     * @param  startBlock The start block of a distribution period to get the screening stage end block for.
      * @return The block number at which this distribution period's screening stage ends.
     */
     function _getScreeningStageEndBlock(
-        uint256 endBlock_
+        uint256 startBlock
     ) internal pure returns (uint256) {
-        return endBlock_ - FUNDING_PERIOD_LENGTH;
+        return startBlock + SCREENING_PERIOD_LENGTH;
     }
 
     /**
@@ -253,7 +259,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint24 distributionId = proposal.distributionId;
 
         // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
-        if (block.number <= _getChallengeStageEndBlock(_distributions[distributionId].endBlock)) revert ExecuteProposalInvalid();
+        if (block.number <= _distributions[distributionId].endBlock) revert ExecuteProposalInvalid();
 
         // check proposal is successful and hasn't already been executed
         if (!_isProposalFinalized(proposalId_) || proposal.executed) revert ProposalNotSuccessful();
@@ -284,7 +290,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         // cannot add new proposal after end of screening period
         // screening period ends 72000 blocks before end of distribution period, ~ 80 days.
-        if (block.number > _getScreeningStageEndBlock(currentDistribution.endBlock)) revert ScreeningPeriodEnded();
+        if (block.number > _getScreeningStageEndBlock(currentDistribution.startBlock)) revert ScreeningPeriodEnded();
 
         // store new proposal information
         newProposal.proposalId      = proposalId_;
@@ -558,8 +564,8 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // check that the function is being called within the challenge period,
         // and that there is a proposal in the slate
         if (
-            block.number <= endBlock ||
-            block.number > _getChallengeStageEndBlock(endBlock) ||
+            block.number > endBlock ||
+            block.number < _getChallengeStageStartBlock(endBlock) ||
             numProposalsInSlate_ == 0
         ) {
             revert InvalidProposalSlate();
@@ -609,12 +615,12 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         DistributionPeriod storage currentDistribution = _distributions[currentDistributionId];
         QuadraticVoter        storage voter               = _quadraticVoters[currentDistributionId][msg.sender];
 
-        uint256 endBlock = currentDistribution.endBlock;
+        uint256 startBlock = currentDistribution.startBlock;
 
-        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(endBlock);
+        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(startBlock);
 
         // check that the funding stage is active
-        if (block.number <= screeningStageEndBlock || block.number > endBlock) revert InvalidVote();
+        if (block.number <= screeningStageEndBlock || block.number > _getFundingStageEndBlock(startBlock)) revert InvalidVote();
 
         uint128 votingPower = voter.votingPower;
 
@@ -669,12 +675,13 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         ScreeningVoteParams[] memory voteParams_
     ) external override returns (uint256 votesCast_) {
         DistributionPeriod storage currentDistribution = _distributions[_currentDistributionId];
+        uint256 startBlock = currentDistribution.startBlock;
 
         // check screening stage is active
         if (
-            block.number < currentDistribution.startBlock
+            block.number < startBlock
             ||
-            block.number > _getScreeningStageEndBlock(currentDistribution.endBlock)
+            block.number > _getScreeningStageEndBlock(startBlock)
         ) revert InvalidVote();
 
         uint256 numVotesCast = voteParams_.length;
@@ -1127,6 +1134,29 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         return keccak256(abi.encode(proposalIds_));
     }
 
+    function getStage() external view returns (string memory stage_) {
+        DistributionPeriod memory currentDistribution = _distributions[_currentDistributionId];
+        uint256 startBlock = currentDistribution.startBlock;
+        uint256 endBlock = currentDistribution.endBlock;
+        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(startBlock);
+        uint256 fundingStageEndBlock = _getFundingStageEndBlock(startBlock);
+
+        // TODO: check there is never overlap between stages on a block
+        if (block.number <= screeningStageEndBlock) {
+            stage_ = "Screening";
+        }
+        else if (block.number > screeningStageEndBlock && block.number <= fundingStageEndBlock) {
+            stage_ = "Funding";
+        }
+        else if (block.number > fundingStageEndBlock && block.number <= endBlock) {
+            stage_ = "Challenge";
+        }
+        else {
+            // a new distribution period needs to be started
+            stage_ = "Pending";
+        }
+    }
+
     /// @inheritdoc IGrantFundActions
     function getTopTenProposals(
         uint24 distributionId_
@@ -1154,7 +1184,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         DistributionPeriod memory currentDistribution = _distributions[distributionId_];
         QuadraticVoter        memory voter               = _quadraticVoters[currentDistribution.id][account_];
 
-        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.endBlock);
+        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.startBlock);
 
         votes_ = _getVotesFunding(account_, voter.votingPower, voter.remainingVotingPower, screeningStageEndBlock);
     }

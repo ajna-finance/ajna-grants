@@ -27,13 +27,19 @@ abstract contract Storage is IGrantFundState {
      * @notice Length of the distribution period in blocks.
      * @dev    Roughly equivalent to the number of blocks in 90 days.
      */
-    uint48 internal constant DISTRIBUTION_PERIOD_LENGTH = 648000;
+    uint48 internal constant DISTRIBUTION_PERIOD_LENGTH = 698400;
 
     /**
-     * @notice Length of the funding phase of the distribution period in blocks.
+     * @notice Length of the funding stage of the distribution period in blocks.
      * @dev    Roughly equivalent to the number of blocks in 10 days.
      */
     uint256 internal constant FUNDING_PERIOD_LENGTH = 72000;
+
+    /**
+     * @notice Length of the screening stage of the distribution period in blocks.
+     * @dev    Roughly equivalent to the number of blocks in 80 days.
+     */
+    uint256 internal constant SCREENING_PERIOD_LENGTH = 576000;
 
     /**
      * @notice Number of blocks prior to a given voting stage to check an accounts voting power.
