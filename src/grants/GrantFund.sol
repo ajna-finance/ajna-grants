@@ -92,9 +92,9 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /**************************************************/
 
     /**
-     * @notice Get the block number at which this distribution period's challenge stage ends.
-     * @param  endBlock_ The end block of a distribution period to get the challenge stage end block for.
-     * @return The block number at which this distribution period's challenge stage ends.
+     * @notice Get the block number at which this distribution period's challenge stage starts.
+     * @param  endBlock_ The end block of a distribution period to get the challenge stage start block for.
+     * @return The block number at which this distribution period's challenge stage starts.
     */
     function _getChallengeStageStartBlock(
         uint256 endBlock_
@@ -102,6 +102,11 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         return endBlock_ - CHALLENGE_PERIOD_LENGTH;
     }
 
+    /**
+     * @notice Get the block number at which this distribution period's funding stage ends.
+     * @param  startBlock_ The end block of a distribution period to get the funding stage end block for.
+     * @return The block number at which this distribution period's funding stage ends.
+    */
     function _getFundingStageEndBlock(
         uint256 startBlock_
     ) internal pure returns(uint256) {
@@ -1128,26 +1133,26 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         return keccak256(abi.encode(proposalIds_));
     }
 
-    function getStage() external view returns (string memory stage_) {
+    /// @inheritdoc IGrantFundActions
+    function getStage() external view returns (bytes32 stage_) {
         DistributionPeriod memory currentDistribution = _distributions[_currentDistributionId];
         uint256 startBlock = currentDistribution.startBlock;
         uint256 endBlock = currentDistribution.endBlock;
         uint256 screeningStageEndBlock = _getScreeningStageEndBlock(startBlock);
         uint256 fundingStageEndBlock = _getFundingStageEndBlock(startBlock);
 
-        // TODO: check there is never overlap between stages on a block
         if (block.number <= screeningStageEndBlock) {
-            stage_ = "Screening";
+            stage_ = keccak256(bytes("Screening"));
         }
         else if (block.number > screeningStageEndBlock && block.number <= fundingStageEndBlock) {
-            stage_ = "Funding";
+            stage_ = keccak256(bytes("Funding"));
         }
         else if (block.number > fundingStageEndBlock && block.number <= endBlock) {
-            stage_ = "Challenge";
+            stage_ = keccak256(bytes("Challenge"));
         }
         else {
             // a new distribution period needs to be started
-            stage_ = "Pending";
+            stage_ = keccak256(bytes("Pending"));
         }
     }
 
