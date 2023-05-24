@@ -25,7 +25,7 @@ abstract contract Storage is IGrantFundState {
 
     /**
      * @notice Length of the distribution period in blocks.
-     * @dev    Roughly equivalent to the number of blocks in 90 days.
+     * @dev    Roughly equivalent to the number of blocks in 97 days.
      */
     uint48 internal constant DISTRIBUTION_PERIOD_LENGTH = 698400;
 
