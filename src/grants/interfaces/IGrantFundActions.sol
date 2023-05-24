@@ -238,6 +238,13 @@ interface IGrantFundActions is IGrantFundState {
     ) external pure returns (bytes32);
 
     /**
+     * @notice Retrieve a bytes32 hash of the current distribution period stage.
+     * @dev    Used to check if the distribution period is in the screening, funding, or challenge stages.
+     * @return stage_ The hash of the current distribution period stage.
+     */
+    function getStage() external view returns (bytes32 stage_);
+
+    /**
      * @notice Retrieve the top ten proposals that have received the most votes in a given distribution period's screening round.
      * @dev    It may return less than 10 proposals if less than 10 have been submitted. 
      * @dev    Values are subject to change if the queried distribution period's screening round is ongoing.

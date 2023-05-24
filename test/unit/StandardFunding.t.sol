@@ -81,6 +81,50 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
     /*** Tests ***/
     /*************/
 
+    function testStage() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _votersArr);
+
+        vm.roll(_startBlock + 50);
+
+        // check stage is correctly set to Pending before a distribution period exists
+        assertEq(_grantFund.getStage(), keccak256(bytes("Pending")));
+
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+
+        // check stage is correctly set to Screening on the start block
+        assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
+
+        vm.roll(_startBlock + 100);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
+
+        // roll to screeningStageEndBlock and check its still the Screening stage
+        vm.roll(_startBlock + 50 + 576000);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
+
+        // roll to screeningStageEndBlock + 1 and check we've entered the Funding stage
+        vm.roll(_startBlock + 50 + 576000 + 1);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
+
+        // roll to fundingStageEndBlock and check its still the Funding stage
+        vm.roll(_startBlock + 50 + 576000 + 72000);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
+
+        // roll to fundingStageEndBlock + 1 and check we've entered the Challenge stage
+        vm.roll(_startBlock + 50 + 576000 + 72000 + 1);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
+
+        // roll to challengeStageEndBlock and check its still the Challenge stage
+        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(_grantFund.getDistributionId());
+        vm.roll(endBlock);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
+
+        // roll to endBlock + 1 and check the distribution period is no longer active
+        vm.roll(endBlock + 1);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Pending")));
+    }
+
     function testGetVotingPowerScreeningStage() external {
         // 14 tokenholders self delegate their tokens to enable voting on the proposals
         _selfDelegateVoters(_token, _votersArr);
@@ -782,7 +826,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(id, currentDistributionId);
         assertEq(fundingVotesCast, 0);
         assertEq(startBlock, block.number);
-        assertEq(endBlock, block.number + 648000);
+        assertEq(endBlock, block.number + 698400);
         
         vm.roll(_startBlock + 100);
         currentDistributionId = _grantFund.getDistributionId();
@@ -793,7 +837,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _grantFund.startNewDistributionPeriod();
 
         // skip forward past the end of the distribution period to allow starting a new distribution
-        vm.roll(_startBlock + 650_000);
+        vm.roll(_startBlock + 700_000);
 
         _startDistributionPeriod(_grantFund);
         currentDistributionId = _grantFund.getDistributionId();
