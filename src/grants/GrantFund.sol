@@ -49,7 +49,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         // set the distribution period to start at the current block
         uint48 startBlock = SafeCast.toUint48(block.number);
-        uint48 endBlock = startBlock + DISTRIBUTION_PERIOD_LENGTH;
+        uint48 endBlock   = startBlock + DISTRIBUTION_PERIOD_LENGTH;
 
         // set new value for currentDistributionId
         newDistributionId_ = _setNewDistributionId();
@@ -283,7 +283,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // check for duplicate proposals
         if (newProposal.proposalId != 0) revert ProposalAlreadyExists();
 
-        DistributionPeriod memory currentDistribution = _distributions[_currentDistributionId];
+        DistributionPeriod storage currentDistribution = _distributions[_currentDistributionId];
 
         // cannot add new proposal after end of screening period
         // screening period ends 72000 blocks before end of distribution period, ~ 80 days.
@@ -604,7 +604,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint24 currentDistributionId = _currentDistributionId;
 
         DistributionPeriod storage currentDistribution = _distributions[currentDistributionId];
-        QuadraticVoter        storage voter               = _quadraticVoters[currentDistributionId][msg.sender];
+        QuadraticVoter     storage voter               = _quadraticVoters[currentDistributionId][msg.sender];
 
         uint256 startBlock = currentDistribution.startBlock;
 
@@ -665,7 +665,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     function screeningVote(
         ScreeningVoteParams[] memory voteParams_
     ) external override returns (uint256 votesCast_) {
-        DistributionPeriod memory currentDistribution = _distributions[_currentDistributionId];
+        DistributionPeriod storage currentDistribution = _distributions[_currentDistributionId];
         uint256 startBlock = currentDistribution.startBlock;
 
         // check screening stage is active
@@ -715,7 +715,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         QuadraticVoter storage voter_,
         FundingVoteParams memory voteParams_
     ) internal returns (uint256 incrementalVotesUsed_) {
-        uint8  support = 1;
+        uint8   support = 1;
         uint256 proposalId = proposal_.proposalId;
 
         // determine if voter is voting for or against the proposal
@@ -735,9 +735,12 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         if (voteCastIndex != -1) {
             // since we are converting from int256 to uint256, we can safely assume that the value will not overflow
             FundingVoteParams storage existingVote = votesCast[uint256(voteCastIndex)];
+            int256 votesUsed = existingVote.votesUsed;
 
             // can't change the direction of a previous vote
-            if (support == 0 && existingVote.votesUsed > 0 || support == 1 && existingVote.votesUsed < 0) {
+            if (
+                (support == 0 && votesUsed > 0) || (support == 1 && votesUsed < 0)
+            ) {
                 // if the vote is in the opposite direction of a previous vote,
                 // and the proposal is already in the votesCast array, revert can't change direction
                 revert FundingVoteWrongDirection();
@@ -842,7 +845,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
 
         // record voters vote
-        screeningVotesCast[proposal_.distributionId][msg.sender] += votes_;
+        screeningVotesCast[distributionId][msg.sender] += votes_;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(
