@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 
 import { console } from "@std/console.sol";
 
-import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
+import { IGrantFund } from "../../src/grants/interfaces/IGrantFund.sol";
 
 import { StandardTestBase } from "./base/StandardTestBase.sol";
 import { StandardHandler }  from "./handlers/StandardHandler.sol";
@@ -19,7 +19,7 @@ contract StandardScreeningInvariant is StandardTestBase {
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](3);
         selectors[0] = _standardHandler.startNewDistributionPeriod.selector;
-        selectors[1] = _standardHandler.proposeStandard.selector;
+        selectors[1] = _standardHandler.propose.selector;
         selectors[2] = _standardHandler.screeningVote.selector;
 
         // ensure utility functions are excluded from the invariant runs
@@ -57,6 +57,7 @@ contract StandardScreeningInvariant is StandardTestBase {
                     "invariant SS4: Screening votes recieved for a proposal can only be positive"
                 );
 
+                // TODO: improve this check
                 require(
                     distributionIdCurr == distributionIdNext && distributionIdCurr == distributionId,
                     "invariant SS5: distribution id for a proposal should be the same as the current distribution id"
@@ -123,7 +124,7 @@ contract StandardScreeningInvariant is StandardTestBase {
             );
 
             // check the screening votes cast by the actor
-            ( , IStandardFunding.ScreeningVoteParams[] memory screeningVoteParams, ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
+            ( , IGrantFund.ScreeningVoteParams[] memory screeningVoteParams, ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
             for (uint256 j = 0; j < screeningVoteParams.length; ++j) {
                 require(
                     screeningVoteParams[j].votes >= 0,
@@ -132,7 +133,7 @@ contract StandardScreeningInvariant is StandardTestBase {
 
                 require(
                     _findProposalIndex(screeningVoteParams[j].proposalId, _standardHandler.getStandardFundingProposals(distributionId)) != -1,
-                    "invariant SS8: a proposal can only receive screening votes if it was created via proposeStandard()"
+                    "invariant SS8: a proposal can only receive screening votes if it was created via propose()"
                 );
             }
         }

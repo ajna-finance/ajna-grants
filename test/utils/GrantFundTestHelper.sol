@@ -6,12 +6,12 @@ import { Strings }  from "@oz/utils/Strings.sol"; // used for createNProposals
 import { Test }     from "@std/Test.sol";
 
 import { GrantFund }        from "../../src/grants/GrantFund.sol";
-import { IFunding }         from "../../src/grants/interfaces/IFunding.sol";
-import { IStandardFunding } from "../../src/grants/interfaces/IStandardFunding.sol";
+import { IGrantFund }       from "../../src/grants/interfaces/IGrantFund.sol";
+import { IGrantFundErrors } from "../../src/grants/interfaces/IGrantFundErrors.sol";
 import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
-import { IAjnaToken }       from "./IAjnaToken.sol";
-import { TestAjnaToken }    from "./harness/TestAjnaToken.sol";
+import { IAjnaToken }    from "./IAjnaToken.sol";
+import { TestAjnaToken } from "./harness/TestAjnaToken.sol";
 
 abstract contract GrantFundTestHelper is Test {
 
@@ -45,7 +45,7 @@ abstract contract GrantFundTestHelper is Test {
         string description
     );
     event ProposalExecuted(uint256 proposalId);
-    event QuarterlyDistributionStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
+    event DistributionPeriodStarted(uint256 indexed distributionId_, uint256 startBlock_, uint256 endBlock_);
     event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason);
 
     /***********************/
@@ -66,20 +66,6 @@ abstract contract GrantFundTestHelper is Test {
         string description;
         uint256 totalTokensRequested;
         uint256 blockAtCreation; // block number of test proposal creation
-        GeneratedTestProposalParams[] params;
-    }
-
-    struct TestProposalExtraordinary {
-        uint256 proposalId;
-        string description;
-        uint256 startBlock;
-        uint256 endBlock;
-        uint256 totalTokensRequested;
-        uint256 treasuryBalanceAtSubmission;
-        uint256 minimumThresholdPercentageAtSubmission;
-        uint256 treasuryBalanceAtExecution;
-        uint256 ajnaTotalSupplyAtExecution;
-        uint256 minimumThresholdPercentageAtExecution;
         GeneratedTestProposalParams[] params;
     }
 
@@ -171,7 +157,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _startDistributionPeriod(GrantFund grantFund_) internal returns (uint24 distributionId) {
         vm.expectEmit(true, true, false, true);
-        emit QuarterlyDistributionStarted(grantFund_.getDistributionId() + 1, block.number, block.number + 648000);
+        emit DistributionPeriodStarted(grantFund_.getDistributionId() + 1, block.number, block.number + 698400);
         distributionId = grantFund_.startNewDistributionPeriod();
     }
 
@@ -183,47 +169,9 @@ abstract contract GrantFundTestHelper is Test {
     /*** Proposal Functions ***/
     /**************************/
 
-    function _createProposalExtraordinary(
-        GrantFund grantFund_,
-        address proposer_,
-        uint256 endBlock,
-        address[] memory targets_,
-        uint256[] memory values_,
-        bytes[] memory calldatas_,
-        string memory description
-    ) internal returns (TestProposalExtraordinary memory) {
+    function _createProposal(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal returns (TestProposal memory) {
         // generate expected proposal state
-        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(keccak256(bytes("Extraordinary Funding: ")), keccak256(bytes(description)))));
-        uint256 startBlock = block.number;
-
-        // submit proposal
-        changePrank(proposer_);
-        vm.expectEmit(true, true, false, true);
-        emit ProposalCreated(
-            expectedProposalId,
-            proposer_,
-            targets_,
-            values_,
-            new string[](targets_.length),
-            calldatas_,
-            startBlock,
-            endBlock,
-            description
-        );
-        uint256 proposalId = grantFund_.proposeExtraordinary(endBlock, targets_, values_, calldatas_, description);
-        assertEq(proposalId, expectedProposalId);
-
-        (
-            GeneratedTestProposalParams[] memory params,
-            uint256 totalTokensRequested
-        ) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
-
-        return TestProposalExtraordinary(proposalId, description, block.number, endBlock, totalTokensRequested, grantFund_.treasury(), grantFund_.getMinimumThresholdPercentage(), 0, 0, 0, params);
-    }
-
-    function _createProposalStandard(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal returns (TestProposal memory) {
-        // generate expected proposal state
-        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, calldatas_, keccak256(abi.encode(keccak256(bytes("Standard Funding: ")), keccak256(bytes(description)))));
+        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, calldatas_, keccak256(bytes(description)));
         uint256 startBlock = block.number.toUint64();
         uint24 distributionId = grantFund_.getDistributionId();
 
@@ -243,10 +191,10 @@ abstract contract GrantFundTestHelper is Test {
             endBlock,
             description
         );
-        uint256 proposalId = grantFund_.proposeStandard(targets_, values_, calldatas_, description);
+        uint256 proposalId = grantFund_.propose(targets_, values_, calldatas_, description);
         assertEq(proposalId, expectedProposalId);
 
-        return _createTestProposalStandard(distributionId, proposalId, targets_, values_, calldatas_, description);
+        return _createTestProposal(distributionId, proposalId, targets_, values_, calldatas_, description);
     }
 
     function _createNProposals(GrantFund grantFund_, IAjnaToken token_, TestProposalParams[] memory testProposalParams_) internal returns (TestProposal[] memory) {
@@ -276,14 +224,14 @@ abstract contract GrantFundTestHelper is Test {
                 testProposalParams_[i].tokensRequested
             );
 
-            TestProposal memory proposal = _createProposalStandard(grantFund_, testProposalParams_[i].recipient, ajnaTokenTargets, values, proposalCalldata, description);
+            TestProposal memory proposal = _createProposal(grantFund_, testProposalParams_[i].recipient, ajnaTokenTargets, values, proposalCalldata, description);
             testProposals[i] = proposal;
         }
         return testProposals;
     }
 
     // return a TestProposal struct containing the state of a created proposal
-    function _createTestProposalStandard(uint24 distributionId_, uint256 proposalId_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal view returns (TestProposal memory proposal_) {
+    function _createTestProposal(uint24 distributionId_, uint256 proposalId_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal view returns (TestProposal memory proposal_) {
         (GeneratedTestProposalParams[] memory params, uint256 totalTokensRequested) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
         proposal_ = TestProposal(proposalId_, distributionId_, description, totalTokensRequested, block.number, params);
     }
@@ -298,6 +246,8 @@ abstract contract GrantFundTestHelper is Test {
         // calculate starting balances
         uint256 voterStartingBalance = token_.balanceOf(recipient);
         uint256 growthFundStartingBalance = token_.balanceOf(address(grantFund_));
+
+        bytes32 descriptionHash = grantFund_.getDescriptionHash(testProposal_.description);
 
         // get parameters from test proposal required for execution
         (
@@ -314,7 +264,7 @@ abstract contract GrantFundTestHelper is Test {
         emit Transfer(address(grantFund_), recipient, testProposal_.totalTokensRequested);
         vm.expectEmit(true, true, false, true);
         emit DelegateVotesChanged(recipient, voterStartingBalance, voterStartingBalance + testProposal_.totalTokensRequested);
-        grantFund_.executeStandard(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
+        grantFund_.execute(targets, values, calldatas, descriptionHash);
 
         // check ending token balances
         assertEq(token_.balanceOf(recipient), voterStartingBalance + testProposal_.totalTokensRequested);
@@ -323,6 +273,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _executeProposalNoLog(GrantFund grantFund_, IAjnaToken token_, TestProposal memory testProposal_) internal {
         address recipient = testProposal_.params[0].recipient;
+        bytes32 descriptionHash = grantFund_.getDescriptionHash(testProposal_.description);
 
         // get parameters from test proposal required for execution
         (
@@ -333,63 +284,7 @@ abstract contract GrantFundTestHelper is Test {
 
         // execute proposal
         changePrank(recipient);
-        grantFund_.executeStandard(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
-    }
-
-    function _executeExtraordinaryProposal(GrantFund grantFund_, IAjnaToken token_, TestProposalExtraordinary memory testProposal_) internal {
-        // calculate starting balances
-        uint256 growthFundStartingBalance = token_.balanceOf(address(grantFund_));
-        uint256 totalTokensRequested = 0;
-
-        // TODO: select a random recipient to execute the proposal
-        changePrank(testProposal_.params[0].recipient);
-
-        vm.expectEmit(true, true, false, true);
-        emit ProposalExecuted(testProposal_.proposalId);
-
-        uint256 numberOfParams = testProposal_.params.length;
-
-        address[] memory targets = new address[](numberOfParams);
-        uint256[] memory values = new uint256[](numberOfParams);
-        bytes[] memory calldatas = new bytes[](numberOfParams); 
-
-        // log out each successive transfer event, calculate total tokens requested, and create expected arrays for each parameter
-        for (uint256 i = 0; i < numberOfParams; ++i) {
-            GeneratedTestProposalParams memory param = testProposal_.params[i];
-            totalTokensRequested += param.tokensRequested;
-
-            uint256 currentVoterBalance = token_.balanceOf(param.recipient);
-
-            // create separate arrays for each parameter
-            targets[i] = address(token_);
-            values[i] = 0;
-            calldatas[i] = param.calldatas;
-
-            vm.expectEmit(true, true, false, true);
-            emit Transfer(address(grantFund_), param.recipient, param.tokensRequested);
-            vm.expectEmit(true, true, false, true);
-            emit DelegateVotesChanged(param.recipient, currentVoterBalance, currentVoterBalance + param.tokensRequested);
-        }
-
-        // execute proposal
-        grantFund_.executeExtraordinary(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
-
-        // check grant fund token balance change
-        assertEq(token_.balanceOf(address(grantFund_)), growthFundStartingBalance - totalTokensRequested);
-    }
-
-    function _executeExtraordinaryProposalNoLog(GrantFund grantFund_, IAjnaToken token_, TestProposalExtraordinary memory testProposal_) internal {
-        // TODO: select a random recipient to execute the proposal
-        changePrank(testProposal_.params[0].recipient);
-
-        (
-            address[] memory targets,
-            uint256[] memory values,
-            bytes[] memory calldatas,
-        ) = _getParamsFromGeneratedTestProposalParams(token_, testProposal_.params);
-
-        // execute proposal
-        grantFund_.executeExtraordinary(targets, values, calldatas, keccak256(bytes(testProposal_.description)));
+        grantFund_.execute(targets, values, calldatas, descriptionHash);
     }
 
     function _getParamsFromGeneratedTestProposalParams(IAjnaToken token_, GeneratedTestProposalParams[] memory params_) internal pure returns(address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, uint256 totalTokensRequested_) {
@@ -463,7 +358,7 @@ abstract contract GrantFundTestHelper is Test {
         for(uint i = 0; i < noOfProposals_; i++) {
             // generate proposal message 
             string memory description = string(abi.encodePacked("Proposal", Strings.toString(i)));
-            proposals_[i] = _createProposalStandard(grantFund_, proponent_, ajnaTokenTargets, values, proposalCalldata, description); 
+            proposals_[i] = _createProposal(grantFund_, proponent_, ajnaTokenTargets, values, proposalCalldata, description);
         }
         return proposals_;
     }
@@ -481,36 +376,6 @@ abstract contract GrantFundTestHelper is Test {
             ) = grantFund_.getProposalInfo(proposalIds_[i]);
         }
         return proposals;
-    }
-
-    // Submits N Extra Ordinary Proposals
-    function _getNExtraOridinaryProposals(uint256 noOfProposals_, GrantFund grantFund_, address proponent_, IAjnaToken token_, uint256 tokenRequested_) internal returns(TestProposalExtraordinary[] memory) {
-        TestProposalExtraordinary[] memory proposals_ = new TestProposalExtraordinary[](noOfProposals_);
-
-        // generate proposal targets
-        address[] memory ajnaTokenTargets = new address[](1);
-        ajnaTokenTargets[0] = address(token_);
-
-        // generate proposal values
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        // generate proposal calldata
-        bytes[] memory proposalCalldata = new bytes[](1);
-        proposalCalldata[0] = abi.encodeWithSignature(
-            "transfer(address,uint256)",
-            proponent_,
-            tokenRequested_
-        );
-
-        for(uint i = 0; i < noOfProposals_; i++) {
-            // generate proposal message 
-            string memory description = string(abi.encodePacked("Proposal", Strings.toString(i)));
-
-            // submit proposal with 1 month end time
-            proposals_[i] = _createProposalExtraordinary(grantFund_, proponent_, block.number + 216_000, ajnaTokenTargets, values, proposalCalldata, description);
-        }
-        return proposals_;
     }
 
     function generateProposalParams(address ajnaToken_, TestProposalParams[] memory testProposalParams_) internal view
@@ -580,23 +445,16 @@ abstract contract GrantFundTestHelper is Test {
     }
 
     function getSurplusTokensInDistribution(GrantFund grantFund_, uint24 distributionId_) public view returns (uint256 surplus_) {
-        (, , , uint128 fundsAvailable, , bytes32 topSlateHash) = grantFund_.getDistributionPeriodInfo(distributionId_);
+        (, , , uint128 fundsAvailable, uint256 fundingVotePowerCast, bytes32 topSlateHash) = grantFund_.getDistributionPeriodInfo(distributionId_);
         uint256 tokensRequested = getTokensRequestedInFundedSlate(grantFund_, topSlateHash);
-        surplus_ = fundsAvailable - tokensRequested;
+        uint256 totalDelegateRewards;
+        if (fundingVotePowerCast != 0) totalDelegateRewards = fundsAvailable / 10;
+        surplus_ = fundsAvailable - tokensRequested - totalDelegateRewards;
     }
 
     /************************/
     /*** Voting Functions ***/
     /************************/
-
-    function _extraordinaryVote(GrantFund grantFund_, address voter_, uint256 proposalId_, uint8 support_) internal {
-        uint256 votingWeight = grantFund_.getVotesExtraordinary(voter_, proposalId_);
-
-        changePrank(voter_);
-        vm.expectEmit(true, true, false, true);
-        emit VoteCast(voter_, proposalId_, support_, votingWeight, "");
-        grantFund_.voteExtraordinary(proposalId_);
-    }
 
     function _findProposalIndex(
         uint256 proposalId_,
@@ -618,7 +476,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _findProposalIndexOfVotesCast(
         uint256 proposalId_,
-        IStandardFunding.FundingVoteParams[] memory voteParams_
+        IGrantFund.FundingVoteParams[] memory voteParams_
     ) internal pure returns (int256 index_) {
         index_ = -1; // default value indicating proposalId not in the array
 
@@ -646,7 +504,7 @@ abstract contract GrantFundTestHelper is Test {
         }
 
         // construct vote params
-        IStandardFunding.FundingVoteParams[] memory params = new IStandardFunding.FundingVoteParams[](1);
+        IGrantFund.FundingVoteParams[] memory params = new IGrantFund.FundingVoteParams[](1);
         params[0].proposalId = proposalId_;
         params[0].votesUsed = votesAllocated_;
 
@@ -657,7 +515,7 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.fundingVote(params);
     }
 
-    function _fundingVoteMulti(GrantFund grantFund_, IStandardFunding.FundingVoteParams[] memory voteParams_, address voter_) internal {
+    function _fundingVoteMulti(GrantFund grantFund_, IGrantFund.FundingVoteParams[] memory voteParams_, address voter_) internal {
         for (uint256 i = 0; i < voteParams_.length; ++i) {
             uint8 support = voteParams_[i].votesUsed < 0 ? 0 : 1;
             vm.expectEmit(true, true, false, true);
@@ -669,7 +527,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _fundingVoteNoLog(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
         // construct vote params
-        IStandardFunding.FundingVoteParams[] memory params = new IStandardFunding.FundingVoteParams[](1);
+        IGrantFund.FundingVoteParams[] memory params = new IGrantFund.FundingVoteParams[](1);
         params[0].proposalId = proposalId_;
         params[0].votesUsed = votesAllocated_;
 
@@ -682,7 +540,7 @@ abstract contract GrantFundTestHelper is Test {
         uint8 support = 1; // can only vote yes in the screening stage
 
         // construct vote params
-        IStandardFunding.ScreeningVoteParams[] memory params = new IStandardFunding.ScreeningVoteParams[](1);
+        IGrantFund.ScreeningVoteParams[] memory params = new IGrantFund.ScreeningVoteParams[](1);
         params[0].proposalId = proposalId_;
         params[0].votes = votesAllocated_;
 
@@ -692,7 +550,7 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.screeningVote(params);
     }
 
-    function _screeningVote(GrantFund grantFund_, IStandardFunding.ScreeningVoteParams[] memory voteParams_, address voter_) internal {
+    function _screeningVote(GrantFund grantFund_, IGrantFund.ScreeningVoteParams[] memory voteParams_, address voter_) internal {
         for (uint256 i = 0; i < voteParams_.length; ++i) {
             vm.expectEmit(true, true, false, true);
             emit VoteCast(voter_, voteParams_[i].proposalId, 1, voteParams_[i].votes, "");
@@ -703,7 +561,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _screeningVoteNoLog(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
         // construct vote params
-        IStandardFunding.ScreeningVoteParams[] memory params = new IStandardFunding.ScreeningVoteParams[](1);
+        IGrantFund.ScreeningVoteParams[] memory params = new IGrantFund.ScreeningVoteParams[](1);
         params[0].proposalId = proposalId_;
         params[0].votes = votesAllocated_;
 
@@ -754,27 +612,72 @@ abstract contract GrantFundTestHelper is Test {
     /***************/
 
     function assertInsufficientVotingPowerRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
-        vm.expectRevert(IStandardFunding.InsufficientVotingPower.selector);
+        vm.expectRevert(IGrantFundErrors.InsufficientVotingPower.selector);
         _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 
     function assertInsufficientRemainingVotingPowerRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
-        vm.expectRevert(IStandardFunding.InsufficientRemainingVotingPower.selector);
+        vm.expectRevert(IGrantFundErrors.InsufficientRemainingVotingPower.selector);
         _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 
     function assertFundingVoteInvalidVoteRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
-        vm.expectRevert(IFunding.InvalidVote.selector);
+        vm.expectRevert(IGrantFundErrors.InvalidVote.selector);
         _fundingVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 
     function assertScreeningVoteInvalidVoteRevert(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
-        vm.expectRevert(IFunding.InvalidVote.selector);
+        vm.expectRevert(IGrantFundErrors.InvalidVote.selector);
         _screeningVoteNoLog(grantFund_, voter_, proposalId_, votesAllocated_);
     }
 
     function assertInferiorSlateFalse(GrantFund grantFund_, uint256[] memory potentialSlate_, uint24 distributionId_) internal {
         assertFalse(grantFund_.updateSlate(potentialSlate_, distributionId_));
+    }
+
+    function assertExecuteProposalRevert(GrantFund grantFund_, IAjnaToken token_, TestProposal memory testProposal_, bytes4 selector_) internal {
+        address recipient = testProposal_.params[0].recipient;
+        bytes32 descriptionHash = grantFund_.getDescriptionHash(testProposal_.description);
+
+        // get parameters from test proposal required for execution
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+        ) = _getParamsFromGeneratedTestProposalParams(token_, testProposal_.params);
+
+        // execute proposal
+        changePrank(recipient);
+        vm.expectRevert(selector_);
+        grantFund_.execute(targets, values, calldatas, descriptionHash);
+    }
+
+    function assertProposalState(
+        GrantFund grantFund_,
+        TestProposal memory proposal_,
+        uint24 expectedDistributionId_,
+        uint256 expectedVotesReceived_,
+        uint256 expectedTokensRequested_,
+        int256 expectedFundingPowerCast_,
+        bool expectedExecuted_
+    ) internal returns (uint256) {
+        (
+            uint256 proposalId,
+            uint256 distributionId,
+            uint256 votesReceived,
+            uint256 tokensRequested,
+            int256 qvBudgetAllocated,
+            bool executed
+        ) = grantFund_.getProposalInfo(proposal_.proposalId);
+
+        assertEq(proposalId, proposal_.proposalId);
+        assertEq(distributionId, expectedDistributionId_);
+        assertEq(votesReceived, expectedVotesReceived_);
+        assertEq(tokensRequested, expectedTokensRequested_);
+        assertEq(qvBudgetAllocated, expectedFundingPowerCast_);
+        assertEq(executed, expectedExecuted_);
+
+        return proposalId;
     }
 
 }
