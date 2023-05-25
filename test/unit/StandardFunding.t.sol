@@ -1961,6 +1961,95 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertGe(gbc / 10, totalDelegationReward);
     }
 
+    function testLinearRewards() external {
+        // 24 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _votersArr);
+
+        _token.mint(_tokenHolder1, 300_000_000 * 1e18);
+        changePrank(_tokenHolder1);
+        _token.delegate(_tokenHolder1);
+
+        vm.roll(_startBlock + 150);
+
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+
+        // fund treasury after distribution period started
+        changePrank(_tokenDeployer);
+        _token.approve(address(_grantFund), 50_000_000 * 1e18);
+        _grantFund.fundTreasury(50_000_000 * 1e18);
+
+        uint24 distributionId = _grantFund.getDistributionId();
+
+        (, , , uint128 gbc, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+
+        assertEq(gbc, 15_000_000 * 1e18);
+
+        TestProposalParams[] memory testProposalParams = new TestProposalParams[](1);
+        testProposalParams[0] = TestProposalParams(_tokenHolder1, 8_500_000 * 1e18);
+
+        // create 7 proposals paying out tokens
+        TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
+        assertEq(testProposals.length, 1);
+
+        vm.roll(_startBlock + 200);
+
+        // screening period votes
+        _screeningVote(_grantFund, _tokenHolder1, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
+        _screeningVote(_grantFund, _tokenHolder2, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder2));
+
+        /*********************/
+        /*** Funding Stage ***/
+        /*********************/
+
+        // skip time to move from screening period to funding period
+        vm.roll(_startBlock + 600_000);
+
+        // check topTenProposals array is correct after screening period - only six should have advanced
+        GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
+
+        // funding period votes for two competing slates, 1, or 2 and 3
+        _fundingVote(_grantFund, _tokenHolder1, screenedProposals[0].proposalId, voteYes, 325_000_000 * 1e18);
+        _fundingVote(_grantFund, _tokenHolder2, screenedProposals[0].proposalId, voteYes, 25_000_000 * 1e18);
+
+        /************************/
+        /*** Challenge Period ***/
+        /************************/
+
+        uint256[] memory potentialProposalSlate = new uint256[](1);
+        potentialProposalSlate[0] = screenedProposals[0].proposalId;
+
+        // skip to the end of the DistributionPeriod
+        vm.roll(_startBlock + 650_000);
+
+        vm.expectEmit(true, true, false, true);
+        emit FundedSlateUpdated(distributionId, _grantFund.getSlateHash(potentialProposalSlate));
+        bool proposalSlateUpdated = _grantFund.updateSlate(potentialProposalSlate, distributionId);
+        assertTrue(proposalSlateUpdated);
+
+        /********************************/
+        /*** Execute Funded Proposals ***/
+        /********************************/
+
+        // skip to the end of the Distribution's challenge period
+        vm.roll(_startBlock + 700_000);
+
+        // execute funded proposals
+        _executeProposal(_grantFund, _token, testProposals[0]);
+
+        /******************************/
+        /*** Claim Delegate Rewards ***/
+        /******************************/
+
+        assertEq(_grantFund.getDelegateReward(distributionId, _tokenHolder1) / 1e18, 1_491_176);
+        assertEq(_grantFund.getDelegateReward(distributionId, _tokenHolder2) / 1e18, 8_823);
+
+        // _tokenHolder1 reward is approx 1_491_176/(1_491_176 + 8_823) ~ 99.4117996%
+
+        // linear distribution
+        // _tokenHolder1 reward is approx 350/(350 + 50) = 87.5%
+    }
+
     // helper method that sort proposals based on votes on them
     function _insertionSortProposalsByVotes(uint256[] storage arr) internal {
         for (uint i = 1; i < arr.length; i++) {
