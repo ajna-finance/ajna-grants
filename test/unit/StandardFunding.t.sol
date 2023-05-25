@@ -1049,6 +1049,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // skip to the end of the DistributionPeriod
         vm.roll(_startBlock + 650_000);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
 
         // ensure updateSlate won't accept a slate containing a proposal that is not in topTenProposal (funding Stage)
         vm.expectRevert(IGrantFundErrors.InvalidProposalSlate.selector);
@@ -1433,7 +1434,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(treasuryAtId3, (treasuryAtId2 + surplus) * 97 / 100);
         (, , , uint128 gbc_distribution3, , ) = _grantFund.getDistributionPeriodInfo(distributionId3);
         assertEq(gbc_distribution3, 14_206_350 * 1e18);
-
     }
 
     /**
@@ -1485,6 +1485,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // funding period votes
         _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution1[0].proposalId, voteYes, 25_000_000 * 1e18);
+
+        // check can't claim delegate rewards before the funding stage ends
+        assertClaimDelegateRewardStillActiveRevert(_grantFund, _tokenHolder1, distributionId);
 
         // skip to the Challenge period
         vm.roll(_startBlock + 650_000);
