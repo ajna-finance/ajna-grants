@@ -813,6 +813,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(screenedProposals[0].votesReceived, 17_500_000 * 1e18);
         assertEq(screenedProposals[1].proposalId, testProposals[6].proposalId);
         assertEq(screenedProposals[1].votesReceived, 12_500_000 * 1e18);
+
+        // cast screening votes on a proposal not in the top 10, but not enough votes to break into the top 10,
+        // and verify the top ten is unchanged
+        _screeningVote(_grantFund, _tokenHolder3, testProposals[12].proposalId, 5_000 * 1e18);
+        _screeningVote(_grantFund, _tokenHolder5, testProposals[12].proposalId, 50_000 * 1e18);
+        assertEq(_findProposalIndex(testProposals[12].proposalId, _grantFund.getTopTenProposals(distributionId)), -1);
     }
 
     function testStartNewDistributionPeriod() external {
