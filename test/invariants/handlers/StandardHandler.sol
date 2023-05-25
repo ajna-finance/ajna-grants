@@ -7,6 +7,7 @@ import { Test }     from "forge-std/Test.sol";
 import { Math }     from "@oz/utils/math/Math.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings }  from "@oz/utils/Strings.sol";
+import { Math }     from "@oz/utils/math/Math.sol";
 
 import { GrantFund }       from "../../../src/grants/GrantFund.sol";
 import { IGrantFundState } from "../../../src/grants/interfaces/IGrantFundState.sol";

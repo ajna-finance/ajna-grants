@@ -70,7 +70,7 @@ Output should confirm the AJNA token address, provid the GrantFund address, and 
 
 Record the deployment address in your environment as `GRANTFUND_ADDRESS`.
 
-The Grant Fund is by default deployed without any Ajna tokens in it's treasury. To add tokens, someone must call `fundTreasury(uint256)` with the amount of Ajna tokens to transfer to the Grant Fund. **WARNING**: Ajna tokens transferred directly to the treasury won't be credited to the treasury balance if `fundTreasury` is circumvented.
+The Grant Fund is by default deployed without any Ajna tokens in it's treasury. To add tokens, someone must call `fundTreasury(uint256)` with the amount of Ajna tokens to transfer to the Grant Fund. **WARNING**: Ajna tokens transferred directly to the smart contract won't be credited to the treasury balance if `fundTreasury` is circumvented.
 
 To perform the transfer, set `TREASURY_ADDRESS` and `TREASURY_KEY` to the appropriate values and run the following:
 

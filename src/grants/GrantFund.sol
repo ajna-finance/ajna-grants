@@ -41,17 +41,15 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         if (block.number <= currentDistributionEndBlock) revert DistributionPeriodStillActive();
 
         // update Treasury with unused funds from last distribution period
-        {
-            // checks if any previous distribtuion period exists and its unused funds weren't yet re-added into the treasury
-            if (currentDistributionId > 1 && !_isSurplusFundsUpdated[currentDistributionId - 1]) {
-                // Add unused funds to treasury
-                _updateTreasury(currentDistributionId);
-            }
+        // checks if any previous distribtuion period exists and its unused funds weren't yet re-added into the treasury
+        if (currentDistributionId >= 1 && !_isSurplusFundsUpdated[currentDistributionId]) {
+            // Add unused funds to treasury
+            _updateTreasury(currentDistributionId);
         }
 
         // set the distribution period to start at the current block
         uint48 startBlock = SafeCast.toUint48(block.number);
-        uint48 endBlock = startBlock + DISTRIBUTION_PERIOD_LENGTH;
+        uint48 endBlock   = startBlock + DISTRIBUTION_PERIOD_LENGTH;
 
         // set new value for currentDistributionId
         newDistributionId_ = _setNewDistributionId();
@@ -149,7 +147,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
 
         uint256 totalDelegateRewards;
-        // Increment totalTokenDistributed by delegate rewards if anyone has voted during funding voting
+        // Increment totalDelegateRewards by delegate rewards if anyone has voted during funding voting
         if (_distributions[distributionId_].fundingVotePowerCast != 0) totalDelegateRewards = (fundsAvailable / 10);
 
         // re-add non distributed tokens to the treasury
@@ -347,12 +345,9 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         // if slate of proposals is new top slate, update state
         if (newTopSlate_) {
-            uint256[] storage existingSlate = _fundedProposalSlates[newSlateHash];
-
             for (uint256 i = 0; i < numProposalsInSlate; ) {
-
                 // update list of proposals to fund
-                existingSlate.push(proposalIds_[i]);
+                _fundedProposalSlates[newSlateHash].push(proposalIds_[i]);
 
                 unchecked { ++i; }
             }
@@ -609,7 +604,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint24 currentDistributionId = _currentDistributionId;
 
         DistributionPeriod storage currentDistribution = _distributions[currentDistributionId];
-        QuadraticVoter        storage voter               = _quadraticVoters[currentDistributionId][msg.sender];
+        QuadraticVoter     storage voter               = _quadraticVoters[currentDistributionId][msg.sender];
 
         uint256 startBlock = currentDistribution.startBlock;
 
@@ -695,7 +690,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
             // cast each successive vote
             votesCast_ += votes;
-            _screeningVote(msg.sender, proposal, votes);
+            _screeningVote(proposal, votes);
 
             unchecked { ++i; }
         }
@@ -720,7 +715,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         QuadraticVoter storage voter_,
         FundingVoteParams memory voteParams_
     ) internal returns (uint256 incrementalVotesUsed_) {
-        uint8  support = 1;
+        uint8   support = 1;
         uint256 proposalId = proposal_.proposalId;
 
         // determine if voter is voting for or against the proposal
@@ -740,9 +735,12 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         if (voteCastIndex != -1) {
             // since we are converting from int256 to uint256, we can safely assume that the value will not overflow
             FundingVoteParams storage existingVote = votesCast[uint256(voteCastIndex)];
+            int256 votesUsed = existingVote.votesUsed;
 
             // can't change the direction of a previous vote
-            if (support == 0 && existingVote.votesUsed > 0 || support == 1 && existingVote.votesUsed < 0) {
+            if (
+                (support == 0 && votesUsed > 0) || (support == 1 && votesUsed < 0)
+            ) {
                 // if the vote is in the opposite direction of a previous vote,
                 // and the proposal is already in the votesCast array, revert can't change direction
                 revert FundingVoteWrongDirection();
@@ -798,12 +796,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     /**
      * @notice Vote on a proposal in the screening stage of the Distribution Period.
-     * @param account_  The voting account.
      * @param proposal_ The current proposal being voted upon.
      * @param votes_    The amount of votes being cast.
      */
     function _screeningVote(
-        address account_,
         Proposal storage proposal_,
         uint256 votes_
     ) internal {
@@ -811,7 +807,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         // check that the voter has enough voting power to cast the vote
         if (
-            screeningVotesCast[distributionId][account_] + votes_ > _getVotesScreening(distributionId, account_)
+            screeningVotesCast[distributionId][msg.sender] + votes_ > _getVotesScreening(distributionId, msg.sender)
         ) revert InsufficientVotingPower();
 
         uint256[] storage currentTopTenProposals = _topTenProposals[distributionId];
@@ -849,11 +845,11 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
 
         // record voters vote
-        screeningVotesCast[proposal_.distributionId][account_] += votes_;
+        screeningVotesCast[distributionId][msg.sender] += votes_;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(
-            account_,
+            msg.sender,
             proposalId,
             1,
             votes_,
@@ -1092,13 +1088,6 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         bytes32 slateHash_
     ) external view override returns (uint256[] memory) {
         return _fundedProposalSlates[slateHash_];
-    }
-
-    /// @inheritdoc IGrantFundActions
-    function getFundingPowerVotes(
-        uint256 votingPower_
-    ) external pure override returns (uint256) {
-        return Maths.wsqrt(votingPower_);
     }
 
     /// @inheritdoc IGrantFundActions
