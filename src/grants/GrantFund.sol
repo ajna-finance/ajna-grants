@@ -265,7 +265,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         proposal.executed = true;
 
-        _execute(proposalId_, targets_, values_, calldatas_);
+        _execute(proposalId_, calldatas_);
     }
 
     /// @inheritdoc IGrantFundActions
@@ -372,24 +372,21 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      * @notice Execute the calldata of a passed proposal.
      * @dev    Counters incremented in an unchecked block due to being bounded by array length.
      * @param proposalId_ The ID of proposal to execute.
-     * @param targets_    The list of smart contract targets for the calldata execution. Should be the Ajna token address.
-     * @param values_     Unused. Should be 0 since all calldata is executed on the Ajna token's transfer method.
      * @param calldatas_  The list of calldatas to execute.
      */
     function _execute(
         uint256 proposalId_,
-        address[] memory targets_,
-        uint256[] memory values_,
         bytes[] memory calldatas_
     ) internal {
         // use common event name to maintain consistency with tally
         emit ProposalExecuted(proposalId_);
 
-        string memory errorMessage = "Governor: call reverted without message";
+        string memory errorMessage = "GrantFund: call reverted without message";
 
-        uint256 noOfTargets = targets_.length;
-        for (uint256 i = 0; i < noOfTargets;) {
-            (bool success, bytes memory returndata) = targets_[i].call{value: values_[i]}(calldatas_[i]);
+        uint256 noOfCalldatas = calldatas_.length;
+        for (uint256 i = 0; i < noOfCalldatas;) {
+            // proposals can only ever target the Ajna token contract, with 0 value
+            (bool success, bytes memory returndata) = ajnaTokenAddress.call{value: 0}(calldatas_[i]);
             Address.verifyCallResult(success, returndata, errorMessage);
 
             unchecked { ++i; }
