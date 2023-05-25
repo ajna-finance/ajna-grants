@@ -149,7 +149,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
 
         uint256 totalDelegateRewards;
-        // Increment totalTokenDistributed by delegate rewards if anyone has voted during funding voting
+        // Increment totalDelegateRewards by delegate rewards if anyone has voted during funding voting
         if (_distributions[distributionId_].fundingVotePowerCast != 0) totalDelegateRewards = (fundsAvailable / 10);
 
         // re-add non distributed tokens to the treasury
@@ -285,7 +285,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // check for duplicate proposals
         if (newProposal.proposalId != 0) revert ProposalAlreadyExists();
 
-        DistributionPeriod storage currentDistribution = _distributions[_currentDistributionId];
+        DistributionPeriod memory currentDistribution = _distributions[_currentDistributionId];
 
         // cannot add new proposal after end of screening period
         // screening period ends 72000 blocks before end of distribution period, ~ 80 days.
@@ -670,7 +670,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     function screeningVote(
         ScreeningVoteParams[] memory voteParams_
     ) external override returns (uint256 votesCast_) {
-        DistributionPeriod storage currentDistribution = _distributions[_currentDistributionId];
+        DistributionPeriod memory currentDistribution = _distributions[_currentDistributionId];
         uint256 startBlock = currentDistribution.startBlock;
 
         // check screening stage is active
