@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-import { GrantFund }           from "../../src/grants/GrantFund.sol";
-import { IFunding }            from "../../src/grants/interfaces/IFunding.sol";
-import { IStandardFunding }    from "../../src/grants/interfaces/IStandardFunding.sol";
-import { Maths }               from "../../src/grants/libraries/Maths.sol";
+import { GrantFund }        from "../../src/grants/GrantFund.sol";
+import { IGrantFundErrors } from "../../src/grants/interfaces/IGrantFundErrors.sol";
+import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
 import { IAjnaToken }          from "../utils/IAjnaToken.sol";
 import { GrantFundTestHelper } from "../utils/GrantFundTestHelper.sol";
@@ -23,7 +22,7 @@ contract GrantFundTest is GrantFundTestHelper {
     uint256 internal _startBlock = 16354861;
 
     // Ajna token Holder at the Ajna contract creation on mainnet
-    address internal _tokenDeployer  = 0x666cf594fB18622e1ddB91468309a7E194ccb799;
+    address internal _tokenDeployer  = makeAddr("_tokenDeployer");
     address internal _tokenHolder1   = makeAddr("_tokenHolder1");
     address internal _tokenHolder2   = makeAddr("_tokenHolder2");
     address internal _tokenHolder3   = makeAddr("_tokenHolder3");
@@ -52,40 +51,6 @@ contract GrantFundTest is GrantFundTestHelper {
         vm.expectEmit(true, true, false, true);
         emit FundTreasury(50_000_000 * 1e18, 50_000_000 * 1e18);
         _grantFund.fundTreasury(50_000_000 * 1e18);
-    }
-
-    function testTreasuryInsufficientBalanceExtraordinary() external {
-        // tiny amount of ajna tokens are added to the treasury
-        changePrank(_tokenHolder1);
-        _token.approve(address(_grantFund), 1);
-        vm.expectEmit(true, true, false, true);
-        emit FundTreasury(1, 1);
-        _grantFund.fundTreasury(1);
-
-        // voter self delegates
-        _token.delegate(_tokenHolder1);
-
-        vm.roll(_startBlock + 100);
-
-        // generate proposal targets
-        address[] memory targets = new address[](1);
-        targets[0] = address(_token);
-
-        // generate proposal values
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        // generate proposal calldata
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSignature(
-            "transfer(address,uint256)",
-            _tokenHolder1,
-            50_000_000 * 1e18
-        );
-
-        // should revert when extraordinary funding proposal created for an amount greater than that in the treasury
-        vm.expectRevert(IFunding.InvalidProposal.selector);
-        _grantFund.proposeExtraordinary(block.number + 100_000, targets, values, calldatas, "Extraordinary Proposal for Ajna token transfer to tester address");
     }
 
     function testTreasuryDistributionPeriodFunding() external {
@@ -147,8 +112,8 @@ contract GrantFundTest is GrantFundTestHelper {
         string memory description = "Proposal for Ajna token transfer to tester address";
 
         // should revert when standard funding proposal created for an amount greater than that in the treasury
-        vm.expectRevert(IFunding.InvalidProposal.selector);
-        _grantFund.proposeStandard(targets, values, calldatas, description);
+        vm.expectRevert(IGrantFundErrors.InvalidProposal.selector);
+        _grantFund.propose(targets, values, calldatas, description);
     }
 
 }
