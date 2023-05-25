@@ -1453,6 +1453,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // start first distribution
         _startDistributionPeriod(_grantFund);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
 
         uint24 distributionId = _grantFund.getDistributionId();
         assertEq(distributionId, 1);
@@ -1476,6 +1477,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // skip time to move from screening period to funding period
         vm.roll(_startBlock + 600_000);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
 
         // check topTenProposals array is correct after screening period - only 1 should have advanced
         GrantFund.Proposal[] memory screenedProposals_distribution1 = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
@@ -1486,6 +1488,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // skip to the Challenge period
         vm.roll(_startBlock + 650_000);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
 
         // updateSlate
         uint256[] memory potentialProposalSlate = new uint256[](1);
@@ -1494,6 +1497,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // skip to the end of Challenge period
         vm.roll(_startBlock + 700_000);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Pending")));
 
         // check proposal status isn't defeated
         IGrantFundState.ProposalState proposalState = _grantFund.state(testProposals_distribution1[0].proposalId);
@@ -1524,7 +1528,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         uint256 treasuryAtId2 = _grantFund.treasury();
         (, , , uint128 gbc_distribution2, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
         uint256 surplus = getSurplusTokensInDistribution(_grantFund, 1);
-        assertEq(gbc_distribution2, 14_745_000 * 1e18);
+        assertEq(gbc_distribution2, 14_700_000 * 1e18);
         assertEq(gbc_distribution2, _getDistributionFundsAvailable(surplus, treasuryAtId1));
 
         // create 1 proposal paying out tokens
@@ -1534,6 +1538,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(testProposals_distribution2.length, 1);
 
         vm.roll(_startBlock + 700_200);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
 
         // screening period votes
         _screeningVote(_grantFund, _tokenHolder1, testProposals_distribution2[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
@@ -1547,6 +1552,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // skip time to move from screening period to funding period
         vm.roll(_startBlock + 1_300_000);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
 
         // check topTenProposals array is correct after screening period - only 1 should have advanced
         GrantFund.Proposal[] memory screenedProposals_distribution2 = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(2));
@@ -1564,6 +1570,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // skip to the Challenge period
         vm.roll(_startBlock + 1_350_000);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
 
         // updateSlate
         potentialProposalSlate = new uint256[](1);
@@ -1574,8 +1581,13 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         /*** Third Distribution Period ***/
         /*********************************/
 
-        // start third distribution before completing challenge stage and executing proposals of the second distribution
-        // this ensures that _updateTreasury() won't be called for the second distributionId until the full slate of funded proposals are known
+        // attempt to start the third distribution before completing the challenge stage should fail
+        assertStartDistributionPeriodStillActiveRevert(_grantFund);
+
+        // skip to the end of Challenge period
+        vm.roll(_startBlock + 1_400_000);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Pending")));
+
         _startDistributionPeriod(_grantFund);
 
         distributionId = _grantFund.getDistributionId();
@@ -1584,11 +1596,9 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // check funds available
         uint256 treasuryAtId3 = _grantFund.treasury();
         (, , , uint128 gbc_distribution3, , ) = _grantFund.getDistributionPeriodInfo(3);
-        assertEq(gbc_distribution3, 14_302_650 * 1e18);
-        assertEq(gbc_distribution3, Maths.wmul(.03 * 1e18, treasuryAtId2));
-
-        // skip to the end of Challenge period
-        vm.roll(_startBlock + 1_400_000);
+        surplus = getSurplusTokensInDistribution(_grantFund, 2);
+        assertEq(gbc_distribution3, 14_409_900 * 1e18);
+        assertEq(gbc_distribution3, Maths.wmul(.03 * 1e18, surplus + treasuryAtId2));
 
         // execute funded proposals
         _executeProposal(_grantFund, _token, testProposals_distribution2[0]);
@@ -1600,12 +1610,14 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(testProposals_distribution3.length, 1);
 
         vm.roll(_startBlock + 1_400_200);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
 
         // screening period votes
         _screeningVote(_grantFund, _tokenHolder1, testProposals_distribution3[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
 
         // skip time to move from screening period to funding period
         vm.roll(_startBlock + 1_990_000);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
 
         // check topTenProposals array is correct after screening period - only 1 should have advanced
         GrantFund.Proposal[] memory screenedProposals_distribution3 = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(3));
@@ -1615,7 +1627,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution3[0].proposalId, voteYes, 25_000_000 * 1e18);
 
         // skip to the Challenge period
-        vm.roll(_startBlock + 2_000_000);
+        vm.roll(_startBlock + 2_050_000);
+        assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
 
         // updateSlate
         potentialProposalSlate = new uint256[](1);
@@ -1638,8 +1651,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check funds available
         (, , , uint128 gbc_distribution4, , ) = _grantFund.getDistributionPeriodInfo(4);
-        surplus = getSurplusTokensInDistribution(_grantFund, 3) + getSurplusTokensInDistribution(_grantFund, 2);
-        assertEq(gbc_distribution4, 14_289_000 * 1e18);
+        surplus = getSurplusTokensInDistribution(_grantFund, 3);
+        assertEq(gbc_distribution4, 14_156_670.3 * 1e18);
         assertEq(gbc_distribution4, Maths.wmul(.03 * 1e18, surplus + treasuryAtId3));
         assertEq(gbc_distribution4, _getDistributionFundsAvailable(surplus, treasuryAtId3));
     }

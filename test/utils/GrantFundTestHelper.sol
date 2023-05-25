@@ -680,4 +680,9 @@ abstract contract GrantFundTestHelper is Test {
         return proposalId;
     }
 
+    function assertStartDistributionPeriodStillActiveRevert(GrantFund grantFund_) internal {
+        vm.expectRevert(IGrantFundErrors.DistributionPeriodStillActive.selector);
+        grantFund_.startNewDistributionPeriod();
+    }
+
 }

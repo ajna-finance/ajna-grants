@@ -43,7 +43,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // update Treasury with unused funds from last distribution period
         {
             // checks if any previous distribtuion period exists and its unused funds weren't yet re-added into the treasury
-            if (currentDistributionId > 1 && !_isSurplusFundsUpdated[currentDistributionId - 1]) {
+            if (currentDistributionId >= 1 && !_isSurplusFundsUpdated[currentDistributionId]) {
                 // Add unused funds to treasury
                 _updateTreasury(currentDistributionId);
             }
