@@ -685,4 +685,10 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.startNewDistributionPeriod();
     }
 
+    function assertClaimDelegateRewardStillActiveRevert(GrantFund grantFund_, address voter_, uint24 distributionId_) internal {
+        changePrank(voter_);
+        vm.expectRevert(IGrantFundErrors.DistributionPeriodStillActive.selector);
+        grantFund_.claimDelegateReward(distributionId_);
+    }
+
 }

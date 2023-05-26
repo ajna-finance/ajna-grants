@@ -572,14 +572,14 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         for (uint256 i = 0; i < numProposalsInSlate_; ) {
             Proposal memory proposal = _proposals[proposalIds_[i]];
 
-            // account for fundingVotesReceived possibly being negative
-            // block proposals that recieve no positive funding votes from entering a finalized slate
-            if (proposal.fundingVotesReceived <= 0) revert InvalidProposalSlate();
-
             // check if Proposal is in the topTenProposals list
             if (
                 _findProposalIndex(proposalIds_[i], _topTenProposals[distributionId_]) == -1
             ) revert InvalidProposalSlate();
+
+            // account for fundingVotesReceived possibly being negative
+            // block proposals that recieve no positive funding votes from entering a finalized slate
+            if (proposal.fundingVotesReceived <= 0) revert InvalidProposalSlate();
 
             // update counters
             // since we are converting from int128 to uint128, we can safely assume that the value will not overflow
