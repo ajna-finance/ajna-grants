@@ -1006,12 +1006,15 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
         // voter hasn't yet called _castVote in this period
         else {
+            uint256 fundingStageStartBlock = screeningStageEndBlock_ + 1;
             votes_ = Maths.wpow(
-            _getVotesAtSnapshotBlocks(
-                account_,
-                screeningStageEndBlock_ - VOTING_POWER_SNAPSHOT_DELAY,
-                screeningStageEndBlock_
-            ), 2);
+                _getVotesAtSnapshotBlocks(
+                    account_,
+                    fundingStageStartBlock - VOTING_POWER_SNAPSHOT_DELAY,
+                    fundingStageStartBlock
+                ),
+                2
+            );
         }
     }
 
