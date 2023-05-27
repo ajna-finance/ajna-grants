@@ -158,7 +158,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _startDistributionPeriod(GrantFund grantFund_) internal returns (uint24 distributionId) {
         vm.expectEmit(true, true, false, true);
-        emit DistributionPeriodStarted(grantFund_.getDistributionId() + 1, block.number, block.number + 648000);
+        emit DistributionPeriodStarted(grantFund_.getDistributionId() + 1, block.number, block.number + 698400);
         distributionId = grantFund_.startNewDistributionPeriod();
     }
 
@@ -680,6 +680,17 @@ abstract contract GrantFundTestHelper is Test {
         assertEq(executed, expectedExecuted_);
 
         return proposalId;
+    }
+
+    function assertStartDistributionPeriodStillActiveRevert(GrantFund grantFund_) internal {
+        vm.expectRevert(IGrantFundErrors.DistributionPeriodStillActive.selector);
+        grantFund_.startNewDistributionPeriod();
+    }
+
+    function assertClaimDelegateRewardStillActiveRevert(GrantFund grantFund_, address voter_, uint24 distributionId_) internal {
+        changePrank(voter_);
+        vm.expectRevert(IGrantFundErrors.DistributionPeriodStillActive.selector);
+        grantFund_.claimDelegateReward(distributionId_);
     }
 
 }

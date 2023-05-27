@@ -196,17 +196,6 @@ interface IGrantFundActions is IGrantFundState {
     ) external view returns (uint256[] memory);
 
     /**
-     * @notice Get the number of discrete votes that can be cast on proposals given a specified voting power.
-     * @dev    This is calculated by taking the square root of the voting power, and adjusting for WAD decimals.
-     * @dev    This approach results in precision loss, and prospective users should be careful.
-     * @param  votingPower_ The provided voting power to calculate discrete votes for.
-     * @return The square root of the votingPower as a WAD.
-     */
-    function getFundingPowerVotes(
-        uint256 votingPower_
-    ) external pure returns (uint256);
-
-    /**
      * @notice Get the list of funding votes cast by an account in a given distribution period.
      * @param  distributionId_   The distributionId of the distribution period to check.
      * @param  account_          The address of the voter to check.
@@ -236,6 +225,13 @@ interface IGrantFundActions is IGrantFundState {
     function getSlateHash(
         uint256[] calldata proposalIds_
     ) external pure returns (bytes32);
+
+    /**
+     * @notice Retrieve a bytes32 hash of the current distribution period stage.
+     * @dev    Used to check if the distribution period is in the screening, funding, or challenge stages.
+     * @return stage_ The hash of the current distribution period stage.
+     */
+    function getStage() external view returns (bytes32 stage_);
 
     /**
      * @notice Retrieve the top ten proposals that have received the most votes in a given distribution period's screening round.

@@ -40,24 +40,16 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // check that there isn't currently an active distribution period
         if (block.number <= currentDistributionEndBlock) revert DistributionPeriodStillActive();
 
-        // update Treasury with unused funds from last two distributions
-        {
-            // Check if any last distribution exists and its challenge stage is over
-            if (currentDistributionId > 0 && (block.number > _getChallengeStageEndBlock(currentDistributionEndBlock))) {
-                // Add unused funds from last distribution to treasury
-                _updateTreasury(currentDistributionId);
-            }
-
-            // checks if any second last distribution exist and its unused funds are not added into treasury
-            if (currentDistributionId > 1 && !_isSurplusFundsUpdated[currentDistributionId - 1]) {
-                // Add unused funds from second last distribution to treasury
-                _updateTreasury(currentDistributionId - 1);
-            }
+        // update Treasury with unused funds from last distribution period
+        // checks if any previous distribtuion period exists and its unused funds weren't yet re-added into the treasury
+        if (currentDistributionId >= 1 && !_isSurplusFundsUpdated[currentDistributionId]) {
+            // Add unused funds to treasury
+            _updateTreasury(currentDistributionId);
         }
 
         // set the distribution period to start at the current block
         uint48 startBlock = SafeCast.toUint48(block.number);
-        uint48 endBlock = startBlock + DISTRIBUTION_PERIOD_LENGTH;
+        uint48 endBlock   = startBlock + DISTRIBUTION_PERIOD_LENGTH;
 
         // set new value for currentDistributionId
         newDistributionId_ = _setNewDistributionId();
@@ -98,25 +90,36 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /**************************************************/
 
     /**
-     * @notice Get the block number at which this distribution period's challenge stage ends.
-     * @param  endBlock_ The end block of a distribution period to get the challenge stage end block for.
-     * @return The block number at which this distribution period's challenge stage ends.
+     * @notice Get the block number at which this distribution period's challenge stage starts.
+     * @param  endBlock_ The end block of a distribution period to get the challenge stage start block for.
+     * @return The block number at which this distribution period's challenge stage starts.
     */
-    function _getChallengeStageEndBlock(
+    function _getChallengeStageStartBlock(
         uint256 endBlock_
     ) internal pure returns (uint256) {
-        return endBlock_ + CHALLENGE_PERIOD_LENGTH;
+        return endBlock_ - CHALLENGE_PERIOD_LENGTH;
+    }
+
+    /**
+     * @notice Get the block number at which this distribution period's funding stage ends.
+     * @param  startBlock_ The end block of a distribution period to get the funding stage end block for.
+     * @return The block number at which this distribution period's funding stage ends.
+    */
+    function _getFundingStageEndBlock(
+        uint256 startBlock_
+    ) internal pure returns(uint256) {
+        return startBlock_ + SCREENING_PERIOD_LENGTH + FUNDING_PERIOD_LENGTH;
     }
 
     /**
      * @notice Get the block number at which this distribution period's screening stage ends.
-     * @param  endBlock_ The end block of a distribution period to get the screening stage end block for.
+     * @param  startBlock The start block of a distribution period to get the screening stage end block for.
      * @return The block number at which this distribution period's screening stage ends.
     */
     function _getScreeningStageEndBlock(
-        uint256 endBlock_
+        uint256 startBlock
     ) internal pure returns (uint256) {
-        return endBlock_ - FUNDING_PERIOD_LENGTH;
+        return startBlock + SCREENING_PERIOD_LENGTH;
     }
 
     /**
@@ -144,7 +147,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
 
         uint256 totalDelegateRewards;
-        // Increment totalTokenDistributed by delegate rewards if anyone has voted during funding voting
+        // Increment totalDelegateRewards by delegate rewards if anyone has voted during funding voting
         if (_distributions[distributionId_].fundingVotePowerCast != 0) totalDelegateRewards = (fundsAvailable / 10);
 
         // re-add non distributed tokens to the treasury
@@ -253,14 +256,14 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint24 distributionId = proposal.distributionId;
 
         // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
-        if (block.number <= _getChallengeStageEndBlock(_distributions[distributionId].endBlock)) revert ExecuteProposalInvalid();
+        if (block.number <= _distributions[distributionId].endBlock) revert ExecuteProposalInvalid();
 
         // check proposal is successful and hasn't already been executed
         if (!_isProposalFinalized(proposalId_) || proposal.executed) revert ProposalNotSuccessful();
 
         proposal.executed = true;
 
-        _execute(proposalId_, targets_, values_, calldatas_);
+        _execute(proposalId_, calldatas_);
     }
 
     /// @inheritdoc IGrantFundActions
@@ -284,7 +287,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         // cannot add new proposal after end of screening period
         // screening period ends 72000 blocks before end of distribution period, ~ 80 days.
-        if (block.number > _getScreeningStageEndBlock(currentDistribution.endBlock)) revert ScreeningPeriodEnded();
+        if (block.number > _getScreeningStageEndBlock(currentDistribution.startBlock)) revert ScreeningPeriodEnded();
 
         // store new proposal information
         newProposal.proposalId      = proposalId_;
@@ -342,12 +345,9 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         // if slate of proposals is new top slate, update state
         if (newTopSlate_) {
-            uint256[] storage existingSlate = _fundedProposalSlates[newSlateHash];
-
             for (uint256 i = 0; i < numProposalsInSlate; ) {
-
                 // update list of proposals to fund
-                existingSlate.push(proposalIds_[i]);
+                _fundedProposalSlates[newSlateHash].push(proposalIds_[i]);
 
                 unchecked { ++i; }
             }
@@ -370,24 +370,21 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      * @notice Execute the calldata of a passed proposal.
      * @dev    Counters incremented in an unchecked block due to being bounded by array length.
      * @param proposalId_ The ID of proposal to execute.
-     * @param targets_    The list of smart contract targets for the calldata execution. Should be the Ajna token address.
-     * @param values_     Unused. Should be 0 since all calldata is executed on the Ajna token's transfer method.
      * @param calldatas_  The list of calldatas to execute.
      */
     function _execute(
         uint256 proposalId_,
-        address[] memory targets_,
-        uint256[] memory values_,
         bytes[] memory calldatas_
     ) internal {
         // use common event name to maintain consistency with tally
         emit ProposalExecuted(proposalId_);
 
-        string memory errorMessage = "Governor: call reverted without message";
+        string memory errorMessage = "GrantFund: call reverted without message";
 
-        uint256 noOfTargets = targets_.length;
-        for (uint256 i = 0; i < noOfTargets;) {
-            (bool success, bytes memory returndata) = targets_[i].call{value: values_[i]}(calldatas_[i]);
+        uint256 noOfCalldatas = calldatas_.length;
+        for (uint256 i = 0; i < noOfCalldatas;) {
+            // proposals can only ever target the Ajna token contract, with 0 value
+            (bool success, bytes memory returndata) = ajnaTokenAddress.call{value: 0}(calldatas_[i]);
             Address.verifyCallResult(success, returndata, errorMessage);
 
             unchecked { ++i; }
@@ -558,8 +555,8 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // check that the function is being called within the challenge period,
         // and that there is a proposal in the slate
         if (
-            block.number <= endBlock ||
-            block.number > _getChallengeStageEndBlock(endBlock) ||
+            block.number > endBlock ||
+            block.number < _getChallengeStageStartBlock(endBlock) ||
             numProposalsInSlate_ == 0
         ) {
             revert InvalidProposalSlate();
@@ -575,14 +572,14 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         for (uint256 i = 0; i < numProposalsInSlate_; ) {
             Proposal memory proposal = _proposals[proposalIds_[i]];
 
-            // account for fundingVotesReceived possibly being negative
-            // block proposals that recieve no positive funding votes from entering a finalized slate
-            if (proposal.fundingVotesReceived <= 0) revert InvalidProposalSlate();
-
             // check if Proposal is in the topTenProposals list
             if (
                 _findProposalIndex(proposalIds_[i], _topTenProposals[distributionId_]) == -1
             ) revert InvalidProposalSlate();
+
+            // account for fundingVotesReceived possibly being negative
+            // block proposals that recieve no positive funding votes from entering a finalized slate
+            if (proposal.fundingVotesReceived <= 0) revert InvalidProposalSlate();
 
             // update counters
             // since we are converting from int128 to uint128, we can safely assume that the value will not overflow
@@ -607,14 +604,14 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint24 currentDistributionId = _currentDistributionId;
 
         DistributionPeriod storage currentDistribution = _distributions[currentDistributionId];
-        QuadraticVoter        storage voter               = _quadraticVoters[currentDistributionId][msg.sender];
+        QuadraticVoter     storage voter               = _quadraticVoters[currentDistributionId][msg.sender];
 
-        uint256 endBlock = currentDistribution.endBlock;
+        uint256 startBlock = currentDistribution.startBlock;
 
-        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(endBlock);
+        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(startBlock);
 
         // check that the funding stage is active
-        if (block.number <= screeningStageEndBlock || block.number > endBlock) revert InvalidVote();
+        if (block.number <= screeningStageEndBlock || block.number > _getFundingStageEndBlock(startBlock)) revert InvalidVote();
 
         uint128 votingPower = voter.votingPower;
 
@@ -669,12 +666,13 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         ScreeningVoteParams[] memory voteParams_
     ) external override returns (uint256 votesCast_) {
         DistributionPeriod storage currentDistribution = _distributions[_currentDistributionId];
+        uint256 startBlock = currentDistribution.startBlock;
 
         // check screening stage is active
         if (
-            block.number < currentDistribution.startBlock
+            block.number < startBlock
             ||
-            block.number > _getScreeningStageEndBlock(currentDistribution.endBlock)
+            block.number > _getScreeningStageEndBlock(startBlock)
         ) revert InvalidVote();
 
         uint256 numVotesCast = voteParams_.length;
@@ -692,7 +690,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
             // cast each successive vote
             votesCast_ += votes;
-            _screeningVote(msg.sender, proposal, votes);
+            _screeningVote(proposal, votes);
 
             unchecked { ++i; }
         }
@@ -717,7 +715,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         QuadraticVoter storage voter_,
         FundingVoteParams memory voteParams_
     ) internal returns (uint256 incrementalVotesUsed_) {
-        uint8  support = 1;
+        uint8   support = 1;
         uint256 proposalId = proposal_.proposalId;
 
         // determine if voter is voting for or against the proposal
@@ -737,9 +735,12 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         if (voteCastIndex != -1) {
             // since we are converting from int256 to uint256, we can safely assume that the value will not overflow
             FundingVoteParams storage existingVote = votesCast[uint256(voteCastIndex)];
+            int256 votesUsed = existingVote.votesUsed;
 
             // can't change the direction of a previous vote
-            if (support == 0 && existingVote.votesUsed > 0 || support == 1 && existingVote.votesUsed < 0) {
+            if (
+                (support == 0 && votesUsed > 0) || (support == 1 && votesUsed < 0)
+            ) {
                 // if the vote is in the opposite direction of a previous vote,
                 // and the proposal is already in the votesCast array, revert can't change direction
                 revert FundingVoteWrongDirection();
@@ -795,12 +796,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     /**
      * @notice Vote on a proposal in the screening stage of the Distribution Period.
-     * @param account_  The voting account.
      * @param proposal_ The current proposal being voted upon.
      * @param votes_    The amount of votes being cast.
      */
     function _screeningVote(
-        address account_,
         Proposal storage proposal_,
         uint256 votes_
     ) internal {
@@ -808,7 +807,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         // check that the voter has enough voting power to cast the vote
         if (
-            screeningVotesCast[distributionId][account_] + votes_ > _getVotesScreening(distributionId, account_)
+            screeningVotesCast[distributionId][msg.sender] + votes_ > _getVotesScreening(distributionId, msg.sender)
         ) revert InsufficientVotingPower();
 
         uint256[] storage currentTopTenProposals = _topTenProposals[distributionId];
@@ -846,11 +845,11 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
 
         // record voters vote
-        screeningVotesCast[proposal_.distributionId][account_] += votes_;
+        screeningVotesCast[distributionId][msg.sender] += votes_;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(
-            account_,
+            msg.sender,
             proposalId,
             1,
             votes_,
@@ -1007,12 +1006,15 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
         // voter hasn't yet called _castVote in this period
         else {
+            uint256 fundingStageStartBlock = screeningStageEndBlock_ + 1;
             votes_ = Maths.wpow(
-            _getVotesAtSnapshotBlocks(
-                account_,
-                screeningStageEndBlock_ - VOTING_POWER_SNAPSHOT_DELAY,
-                screeningStageEndBlock_
-            ), 2);
+                _getVotesAtSnapshotBlocks(
+                    account_,
+                    fundingStageStartBlock - VOTING_POWER_SNAPSHOT_DELAY,
+                    fundingStageStartBlock
+                ),
+                2
+            );
         }
     }
 
@@ -1092,13 +1094,6 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     }
 
     /// @inheritdoc IGrantFundActions
-    function getFundingPowerVotes(
-        uint256 votingPower_
-    ) external pure override returns (uint256) {
-        return Maths.wsqrt(votingPower_);
-    }
-
-    /// @inheritdoc IGrantFundActions
     function getFundingVotesCast(
         uint24 distributionId_,
         address account_
@@ -1128,6 +1123,29 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     }
 
     /// @inheritdoc IGrantFundActions
+    function getStage() external view returns (bytes32 stage_) {
+        DistributionPeriod memory currentDistribution = _distributions[_currentDistributionId];
+        uint256 startBlock = currentDistribution.startBlock;
+        uint256 endBlock = currentDistribution.endBlock;
+        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(startBlock);
+        uint256 fundingStageEndBlock = _getFundingStageEndBlock(startBlock);
+
+        if (block.number <= screeningStageEndBlock) {
+            stage_ = keccak256(bytes("Screening"));
+        }
+        else if (block.number > screeningStageEndBlock && block.number <= fundingStageEndBlock) {
+            stage_ = keccak256(bytes("Funding"));
+        }
+        else if (block.number > fundingStageEndBlock && block.number <= endBlock) {
+            stage_ = keccak256(bytes("Challenge"));
+        }
+        else {
+            // a new distribution period needs to be started
+            stage_ = keccak256(bytes("Pending"));
+        }
+    }
+
+    /// @inheritdoc IGrantFundActions
     function getTopTenProposals(
         uint24 distributionId_
     ) external view override returns (uint256[] memory) {
@@ -1154,7 +1172,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         DistributionPeriod memory currentDistribution = _distributions[distributionId_];
         QuadraticVoter        memory voter               = _quadraticVoters[currentDistribution.id][account_];
 
-        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.endBlock);
+        uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.startBlock);
 
         votes_ = _getVotesFunding(account_, voter.votingPower, voter.remainingVotingPower, screeningStageEndBlock);
     }
