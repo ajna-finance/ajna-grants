@@ -197,7 +197,7 @@ contract StandardHandler is Handler {
         // bind proposalsToVoteOn_ to the number of proposals
         proposalsToVoteOn_ = constrictToRange(proposalsToVoteOn_, 1, standardFundingProposals[distributionId].length);
 
-        // TODO: switch this to true ? potentially also move flip coin up
+        // TODO: switch this to true or false? potentially also move flip coin up
         // get the fundingVoteParams for the votes the actor is about to cast
         // take the chaotic path, and cast votes that will likely exceed the actor's voting power
         IGrantFundState.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(_actor, distributionId, proposalsToVoteOn_, true);
@@ -248,7 +248,6 @@ contract StandardHandler is Handler {
 
         numberOfCalls['SFH.updateSlate.HAP']++;
 
-        // FIXME: this is breaking here...
         // check that the distribution period ended
         if (_grantFund.getStage() != keccak256(bytes("Challenge"))) {
             return;
@@ -426,6 +425,7 @@ contract StandardHandler is Handler {
         distributionIdSurplusAdded[distributionId_] = true;
     }
 
+    // updates invariant test treasury state
     function updateTreasury(uint24 distributionId_, uint256 fundsAvailable_, bytes32 slateHash_) public returns (uint256 surplus_) {
         surplus_ += fundsAvailable_ - getTokensRequestedInFundedSlateInvariant(slateHash_);
         setDistributionTreasuryUpdated(distributionId_);
@@ -455,7 +455,6 @@ contract StandardHandler is Handler {
         }
     }
 
-    // FIXME: WRONG - why are there 0 values in the array?
     function randomProposal() internal returns (uint256) {
         uint24 distributionId = _grantFund.getDistributionId();
         if (standardFundingProposals[distributionId].length == 0) return 0;
@@ -504,7 +503,6 @@ contract StandardHandler is Handler {
         bool happyPath_
     ) internal returns (IGrantFundState.FundingVoteParams[] memory fundingVoteParams_) {
 
-        // FIXME: voting power isn't being calculated correctly
         (uint256 votingPower, uint256 remainingVotingPower, ) = _grantFund.getVoterInfo(distributionId_, actor_);
         uint256 votingPowerUsed = votingPower - remainingVotingPower;
         if (votingPower == 0) {
@@ -522,7 +520,6 @@ contract StandardHandler is Handler {
             // get a random proposal
             uint256 proposalId = randomProposal();
 
-            // TODO: why voting power 0
             // get the random number of votes to cast
             // Take the square root of the voting power to determine how many votes are actually available for casting
             int256 votesToCast = int256(constrictToRange(randomSeed(), 1, Math.sqrt(votingPower)));

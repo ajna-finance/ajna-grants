@@ -122,77 +122,58 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         }
     }
 
-    // function invariant_DP6() external {
-    //     uint24 distributionId = _grantFund.getDistributionId();
+    function invariant_DP6() external {
+        uint24 distributionId = _grantFund.getDistributionId();
 
-    //     for (uint24 i = 0; i <= distributionId; ) {
-    //         if (i == 0) {
-    //             ++i;
-    //             continue;
-    //         }
+        for (uint24 i = 0; i <= distributionId; ) {
+            if (i == 0) {
+                ++i;
+                continue;
+            }
 
-    //         (
-    //             ,
-    //             ,
-    //             ,
-    //             uint128 fundsAvailable,
-    //             ,
-    //         ) = _grantFund.getDistributionPeriodInfo(i);
-    //         StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(i);
+            (
+                ,
+                ,
+                ,
+                uint128 fundsAvailable,
+                ,
+            ) = _grantFund.getDistributionPeriodInfo(i);
+            StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(i);
 
-    //         // check prior distributions for surplus to return to treasury
-    //         (
-    //             ,
-    //             ,
-    //             uint256 endBlockPrev,
-    //             uint128 fundsAvailablePrev,
-    //             ,
-    //             bytes32 topSlateHashPrev
-    //         ) = _grantFund.getDistributionPeriodInfo(i - 1);
+            // check prior distributions for surplus to return to treasury
+            uint24 prevDistributionId = i - 1;
+            (
+                ,
+                ,
+                uint256 endBlockPrev,
+                uint128 fundsAvailablePrev,
+                ,
+                bytes32 topSlateHashPrev
+            ) = _grantFund.getDistributionPeriodInfo(prevDistributionId);
 
-    //         StandardHandler.DistributionState memory prevState = _standardHandler.getDistributionState(i - 1);
-    //         uint256 expectedTreasury = prevState.treasuryAtStartBlock;
-    //         uint256 surplus = 0;
+            // calculate the expected treasury amount at the start of the current distribution period <i>
+            StandardHandler.DistributionState memory prevState = _standardHandler.getDistributionState(prevDistributionId);
+            uint256 expectedTreasury = prevState.treasuryAtStartBlock;
+            uint256 surplus = _standardHandler.updateTreasury(prevDistributionId, fundsAvailablePrev, topSlateHashPrev);
+            expectedTreasury += surplus;
 
-    //         // if new distribution started before end of distribution period then surplus won't be added automatically to the treasury.
-    //         // only add the surplus if the distribution period started after the end of the prior challenge period
-    //         if (i > 1 && _standardHandler.getDistributionStartBlock(i) > endBlockPrev + 50400) {
-    //             console.log("path 1");
-    //             surplus += _standardHandler.updateTreasury(i - 1, fundsAvailablePrev, topSlateHashPrev);
-    //             _standardHandler.setDistributionTreasuryUpdated(i -1);
-    //         }
-    //         // check two distribution periods back for surplus to return to treasury
-    //         if (i > 2 && !_standardHandler.distributionIdSurplusAdded(i - 2)) {
-    //             (
-    //                 ,
-    //                 ,
-    //                 ,
-    //                 uint128 fundsAvailableBeforePrev,
-    //                 ,
-    //                 bytes32 topSlateHashBeforePrev
-    //             ) = _grantFund.getDistributionPeriodInfo(i - 2);
-    //             surplus += _standardHandler.updateTreasury(i - 2, fundsAvailableBeforePrev, topSlateHashBeforePrev);
-    //             _standardHandler.setDistributionTreasuryUpdated(i -2);
-    //         }
+            if (i == 1) {
+                require(
+                    fundsAvailable == Maths.wmul(.03 * 1e18, state.treasuryBeforeStart),
+                    "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
+                );
+            }
+            else {
+                // TODO: also check == state.treasuryBeforeStart
+                require(
+                    fundsAvailable == Maths.wmul(.03 * 1e18, expectedTreasury),
+                    "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
+                );
+            }
 
-    //         expectedTreasury += surplus;
-
-    //         if (i == 1) {
-    //             require(
-    //                 fundsAvailable == Maths.wmul(.03 * 1e18, state.treasuryBeforeStart),
-    //                 "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
-    //             );
-    //         }
-    //         else {
-    //             require(
-    //                 fundsAvailable == Maths.wmul(.03 * 1e18, expectedTreasury),
-    //                 "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
-    //             );
-    //         }
-
-    //         ++i;
-    //     }
-    // }
+            ++i;
+        }
+    }
 
     function invariant_T1_T2() external view {
         require(
