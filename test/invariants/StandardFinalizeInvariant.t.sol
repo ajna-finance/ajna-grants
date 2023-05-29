@@ -106,7 +106,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
             StandardHandler.Slate memory slate = state.topSlates[i];
 
             require(
-                slate.updateBlock >= endBlock && slate.updateBlock <= endBlock + 50400,
+                slate.updateBlock <= endBlock && slate.updateBlock >= _grantFund.getChallengeStageStartBlock(endBlock),
                 "invariant CS6: Funded proposal slate's can only be updated during a distribution period's challenge stage"
             );
         }
@@ -142,8 +142,9 @@ contract StandardFinalizeInvariant is StandardTestBase {
             assertEq(distributionId, proposalDistributionId);
             if (executed) {
                 (, , uint48 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(proposalDistributionId);
+                // TODO: store and check proposal execution time
                 require(
-                    currentBlock > endBlock + 50400,
+                    currentBlock > endBlock,
                     "invariant ES2: A proposal can only be executed after the challenge stage is complete."
                 );
             }
