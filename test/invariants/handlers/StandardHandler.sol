@@ -186,17 +186,21 @@ contract StandardHandler is Handler {
         // check where block is in the distribution period
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        if (block.number < endBlock - 72000) {
+
+        if (_grantFund.getStage() != keccak256(bytes("Funding"))) {
             return;
         }
 
-        // bind proposalsToVoteOn_ to the number of proposals
-        proposalsToVoteOn_ = constrictToRange(proposalsToVoteOn_, 0, standardFundingProposals[distributionId].length);
+        // if actors voting power is 0, return
+        if (_grantFund.getVotesFunding(distributionId, _actor) == 0) return;
 
+        // bind proposalsToVoteOn_ to the number of proposals
+        proposalsToVoteOn_ = constrictToRange(proposalsToVoteOn_, 1, standardFundingProposals[distributionId].length);
+
+        // TODO: switch this to true ? potentially also move flip coin up
         // get the fundingVoteParams for the votes the actor is about to cast
         // take the chaotic path, and cast votes that will likely exceed the actor's voting power
-        IGrantFundState.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(_actor, distributionId, proposalsToVoteOn_, false);
+        IGrantFundState.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(_actor, distributionId, proposalsToVoteOn_, true);
 
         try _grantFund.fundingVote(fundingVoteParams) returns (uint256 votesCast) {
             numberOfCalls['SFH.fundingVote.success']++;
@@ -246,14 +250,16 @@ contract StandardHandler is Handler {
 
         // FIXME: this is breaking here...
         // check that the distribution period ended
-        // if (getStage(distributionId) != keccak256(bytes("Challenge"))) {
-        //     return;
-        // }
+        if (_grantFund.getStage() != keccak256(bytes("Challenge"))) {
+            return;
+        }
 
         numberOfCalls['SFH.updateSlate.HAPPY']++;
 
         // get top ten proposals
         uint256[] memory topTen = _grantFund.getTopTenProposals(distributionId);
+
+        numberOfCalls['SFH.updateSlate.TopTenLen'] = topTen.length;
 
         // construct potential slate of proposals
         uint256 potentialSlateLength = 1;
@@ -377,7 +383,7 @@ contract StandardHandler is Handler {
             bytes32 err = keccak256(_err);
             require(
                 err == keccak256(abi.encodeWithSignature("DelegateRewardInvalid()"))   ||
-                err == keccak256(abi.encodeWithSignature("ChallengePeriodNotEnded()")) ||
+                err == keccak256(abi.encodeWithSignature("DistributionPeriodStillActive()")) ||
                 err == keccak256(abi.encodeWithSignature("RewardAlreadyClaimed()")),
                 UNEXPECTED_REVERT
             );
@@ -449,23 +455,11 @@ contract StandardHandler is Handler {
         }
     }
 
+    // FIXME: WRONG - why are there 0 values in the array?
     function randomProposal() internal returns (uint256) {
         uint24 distributionId = _grantFund.getDistributionId();
+        if (standardFundingProposals[distributionId].length == 0) return 0;
         return standardFundingProposals[distributionId][constrictToRange(randomSeed(), 0, standardFundingProposals[distributionId].length - 1)];
-    }
-
-    function getStage(uint24 distributionId_) internal view returns (bytes32 stage_) {
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId_);
-        uint256 blockNumber = testContract.currentBlock();
-        if (blockNumber <= endBlock - 72000) {
-            stage_ = keccak256(bytes("Screening"));
-        }
-        else if (blockNumber > endBlock - 72000 && blockNumber <= endBlock) {
-            stage_ = keccak256(bytes("Funding"));
-        }
-        else if (blockNumber > endBlock && blockNumber <= endBlock + 50400) {
-            stage_ = keccak256(bytes("Challenge"));
-        }
     }
 
     function _createProposals(uint256 numProposals_) internal returns (uint256[] memory proposalIds_) {
@@ -510,6 +504,7 @@ contract StandardHandler is Handler {
         bool happyPath_
     ) internal returns (IGrantFundState.FundingVoteParams[] memory fundingVoteParams_) {
 
+        // FIXME: voting power isn't being calculated correctly
         (uint256 votingPower, uint256 remainingVotingPower, ) = _grantFund.getVoterInfo(distributionId_, actor_);
         uint256 votingPowerUsed = votingPower - remainingVotingPower;
         if (votingPower == 0) {
@@ -527,9 +522,10 @@ contract StandardHandler is Handler {
             // get a random proposal
             uint256 proposalId = randomProposal();
 
+            // TODO: why voting power 0
             // get the random number of votes to cast
             // Take the square root of the voting power to determine how many votes are actually available for casting
-            int256 votesToCast = int256(constrictToRange(randomSeed(), 0, Math.sqrt(votingPower)));
+            int256 votesToCast = int256(constrictToRange(randomSeed(), 1, Math.sqrt(votingPower)));
 
             // if we should account for previous votes, then we need to make sure that the votes used are less than the available votes
             // flag is useful for generating vote params for a happy path required for test setup, as well as the chaotic path.
@@ -581,6 +577,7 @@ contract StandardHandler is Handler {
                 ++i;
             }
             else {
+                // TODO: move flip coin into happy path
                 // flip a coin to see if should instead use a negative vote
                 if (randomSeed() % 2 == 0) {
                     numberOfCalls['SFH.negativeFundingVote']++;

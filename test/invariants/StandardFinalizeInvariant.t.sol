@@ -28,8 +28,8 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
         // skip time into the funding stage
         uint24 distributionId = _grantFund.getDistributionId();
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        uint256 fundingStageStartBlock = endBlock - 72000;
+        (, uint256 startBlock, uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        uint256 fundingStageStartBlock = _grantFund.getScreeningStageEndBlock(startBlock) + 1;
         vm.roll(fundingStageStartBlock + 100);
         currentBlock = fundingStageStartBlock + 100;
 
@@ -39,8 +39,9 @@ contract StandardFinalizeInvariant is StandardTestBase {
         _standardHandler.setCurrentScenarioType(Handler.ScenarioType.Medium);
 
         // skip time into the challenge stage
-        vm.roll(endBlock + 100);
-        currentBlock = endBlock + 100;
+        uint256 challengeStageStartBlock = _grantFund.getChallengeStageStartBlock(endBlock);
+        vm.roll(challengeStageStartBlock + 100);
+        currentBlock = challengeStageStartBlock + 100;
 
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](5);
@@ -233,6 +234,16 @@ contract StandardFinalizeInvariant is StandardTestBase {
         console.log("Delegation Rewards Claimed: ", _standardHandler.numberOfCalls('SFH.claimDelegateReward.success'));
         console.log("Proposal Execute attempt:   ", _standardHandler.numberOfCalls('SFH.execute.attempt'));
         console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.execute.success'));
+
+        console.log("Slate Update Hap:           ", _standardHandler.numberOfCalls('SFH.updateSlate.HAP'));
+        console.log("Slate Update Happy:         ", _standardHandler.numberOfCalls('SFH.updateSlate.HAPPY'));
+        console.log("Slate Update Prep:          ", _standardHandler.numberOfCalls('SFH.updateSlate.prep'));
+        console.log("Slate Update length:        ", _standardHandler.numberOfCalls('updateSlate.length'));
+        console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
+        console.log("Slate Update Success:       ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
+        console.log("Slate Update Top ten length ", _standardHandler.numberOfCalls('SFH.updateSlate.TopTenLen'));
+
+
         console.log("Slate Created:              ", _standardHandler.numberOfCalls('SFH.updateSlate.prep'));
         console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
         console.log("Slate Update Count:         ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
@@ -241,6 +252,8 @@ contract StandardFinalizeInvariant is StandardTestBase {
         console.log("Top Ten Proposal Count:     ", topTenScreenedProposalIds.length);
         console.log("Funds Available:            ", fundsAvailable);
         console.log("Top slate funds requested:  ", _standardHandler.getTokensRequestedInFundedSlateInvariant(topSlateHash));
+        (, , , , uint256 fundingPowerCast, ) = _grantFund.getDistributionPeriodInfo(distributionId_);
+        console.log("Total Funding Power Cast    ", fundingPowerCast);
         console.log("------------------");
     }
 
