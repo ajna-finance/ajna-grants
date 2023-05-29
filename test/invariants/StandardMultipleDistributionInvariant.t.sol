@@ -42,84 +42,84 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
     }
 
     function invariant_DP1_DP2_DP3_DP4_DP5() external {
-        // uint24 distributionId = _grantFund.getDistributionId();
-        // console.log("distributionId??", distributionId);
-        // (
-        //     ,
-        //     uint256 startBlockCurrent,
-        //     uint256 endBlockCurrent,
-        //     ,
-        //     ,
-        // ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        uint24 distributionId = _grantFund.getDistributionId();
+        console.log("distributionId??", distributionId);
+        (
+            ,
+            uint256 startBlockCurrent,
+            uint256 endBlockCurrent,
+            ,
+            ,
+        ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
-        // uint256 totalFundsAvailable = 0;
+        uint256 totalFundsAvailable = 0;
 
-        // uint24 i = distributionId;
-        // while (i > 0) {
-        //     (
-        //         ,
-        //         uint256 startBlockPrev,
-        //         uint256 endBlockPrev,
-        //         uint128 fundsAvailablePrev,
-        //         ,
-        //     ) = _grantFund.getDistributionPeriodInfo(i);
-        //     StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(i);
-        //     uint256 currentTreasury = state.treasuryBeforeStart;
+        uint24 i = distributionId;
+        while (i > 0) {
+            (
+                ,
+                uint256 startBlockPrev,
+                uint256 endBlockPrev,
+                uint128 fundsAvailablePrev,
+                ,
+            ) = _grantFund.getDistributionPeriodInfo(i);
+            StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(i);
+            uint256 currentTreasury = state.treasuryBeforeStart;
 
-        //     totalFundsAvailable += fundsAvailablePrev;
-        //     require(
-        //         totalFundsAvailable < currentTreasury,
-        //         "invariant DP5: The treasury balance should be greater than the sum of the funds available in all distribution periods"
-        //     );
+            totalFundsAvailable += fundsAvailablePrev;
+            require(
+                totalFundsAvailable < currentTreasury,
+                "invariant DP5: The treasury balance should be greater than the sum of the funds available in all distribution periods"
+            );
 
-        //     require(
-        //         fundsAvailablePrev == Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock + fundsAvailablePrev),
-        //         "invariant DP3: A distribution's fundsAvailablePrev should be equal to 3% of the treasurie's balance at the block `startNewDistributionPeriod()` is called"
-        //     );
+            require(
+                fundsAvailablePrev == Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock + fundsAvailablePrev),
+                "invariant DP3: A distribution's fundsAvailablePrev should be equal to 3% of the treasurie's balance at the block `startNewDistributionPeriod()` is called"
+            );
 
-        //     require(
-        //         endBlockPrev > startBlockPrev,
-        //         "invariant DP4: A distribution's endBlock should be greater than its startBlock"
-        //     );
+            require(
+                endBlockPrev > startBlockPrev,
+                "invariant DP4: A distribution's endBlock should be greater than its startBlock"
+            );
 
-        //     uint256 totalTokensRequestedByProposals = 0;
+            uint256 totalTokensRequestedByProposals = 0;
 
-        //     // check the top funded proposal slate
-        //     uint256[] memory proposalSlate = _grantFund.getFundedProposalSlate(state.currentTopSlate);
-        //     for (uint j = 0; j < proposalSlate.length; ++j) {
-        //         (
-        //             ,
-        //             uint24 proposalDistributionId,
-        //             ,
-        //             uint128 tokensRequested,
-        //             ,
-        //             bool executed
-        //         ) = _grantFund.getProposalInfo(proposalSlate[j]);
-        //         assertEq(proposalDistributionId, i);
+            // check the top funded proposal slate
+            uint256[] memory proposalSlate = _grantFund.getFundedProposalSlate(state.currentTopSlate);
+            for (uint j = 0; j < proposalSlate.length; ++j) {
+                (
+                    ,
+                    uint24 proposalDistributionId,
+                    ,
+                    uint128 tokensRequested,
+                    ,
+                    bool executed
+                ) = _grantFund.getProposalInfo(proposalSlate[j]);
+                assertEq(proposalDistributionId, i);
 
-        //         if (executed) {
-        //             // invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage
-        //             assertLt(tokensRequested, fundsAvailablePrev);
-        //         }
-        //         totalTokensRequestedByProposals += tokensRequested;
-        //     }
-        //     assertTrue(totalTokensRequestedByProposals <= fundsAvailablePrev);
+                if (executed) {
+                    // invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage
+                    assertLt(tokensRequested, fundsAvailablePrev);
+                }
+                totalTokensRequestedByProposals += tokensRequested;
+            }
+            assertTrue(totalTokensRequestedByProposals <= fundsAvailablePrev);
 
-        //     // check invariants against each previous distribution periods
-        //     if (i != distributionId) {
-        //         // check each distribution period's end block and ensure that only 1 has an endblock not in the past.
-        //         require(
-        //             endBlockPrev < startBlockCurrent && endBlockPrev < currentBlock,
-        //             "invariant DP1: Only one distribution period should be active at a time"
-        //         );
+            // check invariants against each previous distribution periods
+            if (i != distributionId) {
+                // check each distribution period's end block and ensure that only 1 has an endblock not in the past.
+                require(
+                    endBlockPrev < startBlockCurrent && endBlockPrev < currentBlock,
+                    "invariant DP1: Only one distribution period should be active at a time"
+                );
 
-        //         // decrement blocks to ensure that the next distribution period's end block is less than the current block
-        //         startBlockCurrent = startBlockPrev;
-        //         endBlockCurrent = endBlockPrev;
-        //     }
+                // decrement blocks to ensure that the next distribution period's end block is less than the current block
+                startBlockCurrent = startBlockPrev;
+                endBlockCurrent = endBlockPrev;
+            }
 
-        //     --i;
-        // }
+            --i;
+        }
     }
 
     // function invariant_DP6() external {
