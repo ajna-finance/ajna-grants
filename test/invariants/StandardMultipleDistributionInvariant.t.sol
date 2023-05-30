@@ -145,15 +145,14 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
             (
                 ,
                 ,
-                uint256 endBlockPrev,
+                ,
                 uint128 fundsAvailablePrev,
                 ,
                 bytes32 topSlateHashPrev
             ) = _grantFund.getDistributionPeriodInfo(prevDistributionId);
 
             // calculate the expected treasury amount at the start of the current distribution period <i>
-            StandardHandler.DistributionState memory prevState = _standardHandler.getDistributionState(prevDistributionId);
-            uint256 expectedTreasury = prevState.treasuryAtStartBlock;
+            uint256 expectedTreasury = state.treasuryBeforeStart;
             uint256 surplus = _standardHandler.updateTreasury(prevDistributionId, fundsAvailablePrev, topSlateHashPrev);
             expectedTreasury += surplus;
 
@@ -164,7 +163,6 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
                 );
             }
             else {
-                // TODO: also check == state.treasuryBeforeStart
                 require(
                     fundsAvailable == Maths.wmul(.03 * 1e18, expectedTreasury),
                     "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
@@ -199,13 +197,10 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         console.log("Delegation Rewards Claimed: ", _standardHandler.numberOfCalls('SFH.claimDelegateReward.success'));
         console.log("Proposal Execute attempt:   ", _standardHandler.numberOfCalls('SFH.execute.attempt'));
         console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.execute.success'));
-        console.log("Slate Update Hap:           ", _standardHandler.numberOfCalls('SFH.updateSlate.HAP'));
-        console.log("Slate Update Happy:         ", _standardHandler.numberOfCalls('SFH.updateSlate.HAPPY'));
         console.log("Slate Update Prep:          ", _standardHandler.numberOfCalls('SFH.updateSlate.prep'));
         console.log("Slate Update length:        ", _standardHandler.numberOfCalls('updateSlate.length'));
         console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
         console.log("Slate Update Success:       ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
-        console.log("Slate Update Top ten length ", _standardHandler.numberOfCalls('SFH.updateSlate.TopTenLen'));
         console.log("Slate Proposals:            ", _standardHandler.numberOfCalls('proposalsInSlates'));
         console.log("unused proposal:            ", _standardHandler.numberOfCalls('unused.proposal'));
         console.log("unexecuted proposal:        ", _standardHandler.numberOfCalls('unexecuted.proposal'));

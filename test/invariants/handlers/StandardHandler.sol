@@ -42,6 +42,7 @@ contract StandardHandler is Handler {
         bytes32 currentTopSlate; // slate hash of the current top proposal slate
         Slate[] topSlates; // assume that the last element in the list is the top slate
         bool treasuryUpdated; // whether the distribution period's surplus tokens have been readded to the treasury
+        uint256 totalRewardsClaimed; // total delegation rewards claimed in a distribution period
     }
 
     struct Slate {
@@ -246,19 +247,13 @@ contract StandardHandler is Handler {
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
 
-        numberOfCalls['SFH.updateSlate.HAP']++;
-
         // check that the distribution period ended
         if (_grantFund.getStage() != keccak256(bytes("Challenge"))) {
             return;
         }
 
-        numberOfCalls['SFH.updateSlate.HAPPY']++;
-
         // get top ten proposals
         uint256[] memory topTen = _grantFund.getTopTenProposals(distributionId);
-
-        numberOfCalls['SFH.updateSlate.TopTenLen'] = topTen.length;
 
         // construct potential slate of proposals
         uint256 potentialSlateLength = 1;
@@ -377,6 +372,7 @@ contract StandardHandler is Handler {
 
             // record the newly claimed rewards
             votingActors[_actor][distributionIdToClaim].delegationRewardsClaimed = rewardClaimed_;
+            distributionStates[distributionIdToClaim].totalRewardsClaimed += rewardClaimed_;
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -427,7 +423,8 @@ contract StandardHandler is Handler {
 
     // updates invariant test treasury state
     function updateTreasury(uint24 distributionId_, uint256 fundsAvailable_, bytes32 slateHash_) public returns (uint256 surplus_) {
-        surplus_ += fundsAvailable_ - getTokensRequestedInFundedSlateInvariant(slateHash_);
+        uint256 totalDelegateRewards = (fundsAvailable_ / 10);
+        surplus_ += fundsAvailable_ - (totalDelegateRewards + getTokensRequestedInFundedSlateInvariant(slateHash_));
         setDistributionTreasuryUpdated(distributionId_);
     }
 

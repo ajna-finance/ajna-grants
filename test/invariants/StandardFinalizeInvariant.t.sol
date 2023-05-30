@@ -235,16 +235,6 @@ contract StandardFinalizeInvariant is StandardTestBase {
         console.log("Delegation Rewards Claimed: ", _standardHandler.numberOfCalls('SFH.claimDelegateReward.success'));
         console.log("Proposal Execute attempt:   ", _standardHandler.numberOfCalls('SFH.execute.attempt'));
         console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.execute.success'));
-
-        console.log("Slate Update Hap:           ", _standardHandler.numberOfCalls('SFH.updateSlate.HAP'));
-        console.log("Slate Update Happy:         ", _standardHandler.numberOfCalls('SFH.updateSlate.HAPPY'));
-        console.log("Slate Update Prep:          ", _standardHandler.numberOfCalls('SFH.updateSlate.prep'));
-        console.log("Slate Update length:        ", _standardHandler.numberOfCalls('updateSlate.length'));
-        console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
-        console.log("Slate Update Success:       ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
-        console.log("Slate Update Top ten length ", _standardHandler.numberOfCalls('SFH.updateSlate.TopTenLen'));
-
-
         console.log("Slate Created:              ", _standardHandler.numberOfCalls('SFH.updateSlate.prep'));
         console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
         console.log("Slate Update Count:         ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
