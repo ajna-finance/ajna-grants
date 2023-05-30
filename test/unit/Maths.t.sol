@@ -54,17 +54,15 @@ contract MathsTest is Test {
     }
 
     function testSqrt() external {
-        // wsqrt
-        assertEq(Maths.wsqrt(100 * 1e18), 10 * 1e18);
-        assertEq(Maths.wsqrt(25 * 1e18), 5 * 1e18);
-        assertEq(Maths.wsqrt(11_000.143012091382543917 * 1e18), 104.881566598000000000 * 1e18);
-
-        assertEq(Maths.wsqrt(2 * 1e18), 1.414213562000000000 * 1e18);
-        assertEq(Maths.wsqrt(2), 1 * 1e9);
-        assertEq(Maths.wsqrt(5699), 75.49172140042907 * 1e14);
-
         // sqrt
-        assertEq(Math.sqrt(5699), 75.49172140042907 * 1e14);
+        assertEq(Math.sqrt(100 * 1e18) * 1e9, 10 * 1e18);
+        assertEq(Math.sqrt(25 * 1e18) * 1e9, 5 * 1e18);
+        assertEq(Math.sqrt(11_000.143012091382543917 * 1e18) * 1e9, 104.881566598000000000 * 1e18);
+
+        assertEq(Math.sqrt(2 * 1e18) * 1e9, 1.414213562000000000 * 1e18);
+        assertEq(Math.sqrt(2) * 1e9, 1 * 1e9);
+        assertEq(Math.sqrt(5699) * 1e9, 75 * 1e9);
+        assertEq(Math.sqrt(5699), 75);
     }
 
 }

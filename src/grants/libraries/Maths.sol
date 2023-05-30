@@ -36,25 +36,4 @@ library Maths {
         }
     }
 
-    /**
-     * @notice Returns the square root of a WAD, as a WAD.
-     * @dev Utilizes the babylonian method: https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method.
-     * @param y The WAD to take the square root of.
-     * @return z The square root of the WAD, as a WAD.
-     */
-    function wsqrt(uint256 y) internal pure returns (uint256 z) {
-        if (y > 3) {
-            z = y;
-            uint256 x = y / 2 + 1;
-            while (x < z) {
-                z = x;
-                x = (y / x + x) / 2;
-            }
-        } else if (y != 0) {
-            z = 1;
-        }
-        // convert z to a WAD
-        z = z * 10**9;
-    }
-
 }
