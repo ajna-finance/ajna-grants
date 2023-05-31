@@ -215,7 +215,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     ) internal pure returns (uint256 rewards_) {
         // calculate the total voting power available to the voter that was allocated in the funding stage
         uint256 votingPowerAllocatedByDelegatee = voter_.votingPower - voter_.remainingVotingPower;
-        uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee) * 1e9;
+        uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);
 
         // if none of the voter's voting power was allocated, they receive no rewards
         if (rootVotingPowerAllocatedByDelegatee != 0) {

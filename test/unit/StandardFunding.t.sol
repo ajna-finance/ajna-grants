@@ -1211,7 +1211,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder3);
-        assertEq(delegateRewards, 325_981.170713055733709031 * 1e18);
+        assertEq(delegateRewards, 325_981.170713055741005092 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1221,7 +1221,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder4);
-        assertEq(delegateRewards, 323_742.533886183074276085 * 1e18);
+        assertEq(delegateRewards, 323_742.533886183078907207 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
