@@ -1829,7 +1829,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertTrue(_grantFund.updateSlate(proposalSlate, distributionId));
     }
 
- function testLowRewards() external {
+    // CA-333
+    function testLowRewards() external {
         _selfDelegateVoters(_token, _votersArr);
 
         address lowRewardAddress = makeAddr("lowRewardAddress");
