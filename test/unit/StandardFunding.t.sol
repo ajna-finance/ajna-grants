@@ -13,8 +13,6 @@ import { GrantFundTestHelper } from "../utils/GrantFundTestHelper.sol";
 import { IAjnaToken }          from "../utils/IAjnaToken.sol";
 import { TestAjnaToken }       from "../utils/harness/TestAjnaToken.sol";
 
-import { console } from "@std/console.sol";
-
 contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     /*************/

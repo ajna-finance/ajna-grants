@@ -22,7 +22,7 @@
     - **SS4**: Screening vote's cast can only be positive.
     - **SS5**: Screening votes can only be cast on a proposal in it's distribution period's screening stage.
     - **SS6**: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list (typically the 10th of course, but it may be shorter than ten proposals).
-    <!-- TODO: move these into separate 'Propose Standard:' section -->
+    <!-- TODO: move these into separate 'Proposal invariants:' section -->
     - **SS7**: A proposal should never receive more vote than the Ajna token supply.
     - **SS8**: A proposal can only receive screening votes if it was created via `propose()`.
     - **SS9**: A proposal can only be created during a distribution period's screening stage.
@@ -59,6 +59,9 @@
     - **DR2**: Delegation rewards are 0 if voter didn't vote in both stages.
     - **DR3**: Delegation rewards are proportional to voters funding power allocated in the funding stage.
     - **DR4**: Delegation rewards can only be claimed for a distribution period after it ended.
+    - **DR5**: Every voter eligible for rewards should be able to claim delegate rewards within 99.99% of calculated.
 
+
+<!-- TODO: rename this to proposal invariants -->
 ## Global Invariants:
    - **G1**: A proposal should never enter an unused state (canceled, queued, expired).
