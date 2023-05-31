@@ -42,6 +42,7 @@ contract StandardHandler is Handler {
         bytes32 currentTopSlate; // slate hash of the current top proposal slate
         Slate[] topSlates; // assume that the last element in the list is the top slate
         bool treasuryUpdated; // whether the distribution period's surplus tokens have been readded to the treasury
+        uint256 totalRewardsClaimed; // total delegation rewards claimed in a distribution period
     }
 
     struct Slate {
@@ -186,17 +187,21 @@ contract StandardHandler is Handler {
         // check where block is in the distribution period
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        if (block.number < endBlock - 72000) {
+
+        if (_grantFund.getStage() != keccak256(bytes("Funding"))) {
             return;
         }
 
-        // bind proposalsToVoteOn_ to the number of proposals
-        proposalsToVoteOn_ = constrictToRange(proposalsToVoteOn_, 0, standardFundingProposals[distributionId].length);
+        // if actors voting power is 0, return
+        if (_grantFund.getVotesFunding(distributionId, _actor) == 0) return;
 
+        // bind proposalsToVoteOn_ to the number of proposals
+        proposalsToVoteOn_ = constrictToRange(proposalsToVoteOn_, 1, standardFundingProposals[distributionId].length);
+
+        // TODO: switch this to true or false? potentially also move flip coin up
         // get the fundingVoteParams for the votes the actor is about to cast
         // take the chaotic path, and cast votes that will likely exceed the actor's voting power
-        IGrantFundState.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(_actor, distributionId, proposalsToVoteOn_, false);
+        IGrantFundState.FundingVoteParams[] memory fundingVoteParams = _fundingVoteParams(_actor, distributionId, proposalsToVoteOn_, true);
 
         try _grantFund.fundingVote(fundingVoteParams) returns (uint256 votesCast) {
             numberOfCalls['SFH.fundingVote.success']++;
@@ -243,7 +248,7 @@ contract StandardHandler is Handler {
         if (distributionId == 0) return;
 
         // check that the distribution period ended
-        if (keccak256(getStage(distributionId)) != keccak256(bytes("Challenge"))) {
+        if (_grantFund.getStage() != keccak256(bytes("Challenge"))) {
             return;
         }
 
@@ -367,12 +372,13 @@ contract StandardHandler is Handler {
 
             // record the newly claimed rewards
             votingActors[_actor][distributionIdToClaim].delegationRewardsClaimed = rewardClaimed_;
+            distributionStates[distributionIdToClaim].totalRewardsClaimed += rewardClaimed_;
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
             require(
                 err == keccak256(abi.encodeWithSignature("DelegateRewardInvalid()"))   ||
-                err == keccak256(abi.encodeWithSignature("ChallengePeriodNotEnded()")) ||
+                err == keccak256(abi.encodeWithSignature("DistributionPeriodStillActive()")) ||
                 err == keccak256(abi.encodeWithSignature("RewardAlreadyClaimed()")),
                 UNEXPECTED_REVERT
             );
@@ -415,8 +421,10 @@ contract StandardHandler is Handler {
         distributionIdSurplusAdded[distributionId_] = true;
     }
 
+    // updates invariant test treasury state
     function updateTreasury(uint24 distributionId_, uint256 fundsAvailable_, bytes32 slateHash_) public returns (uint256 surplus_) {
-        surplus_ += fundsAvailable_ - getTokensRequestedInFundedSlateInvariant(slateHash_);
+        uint256 totalDelegateRewards = (fundsAvailable_ / 10);
+        surplus_ += fundsAvailable_ - (totalDelegateRewards + getTokensRequestedInFundedSlateInvariant(slateHash_));
         setDistributionTreasuryUpdated(distributionId_);
     }
 
@@ -446,20 +454,8 @@ contract StandardHandler is Handler {
 
     function randomProposal() internal returns (uint256) {
         uint24 distributionId = _grantFund.getDistributionId();
+        if (standardFundingProposals[distributionId].length == 0) return 0;
         return standardFundingProposals[distributionId][constrictToRange(randomSeed(), 0, standardFundingProposals[distributionId].length - 1)];
-    }
-
-    function getStage(uint24 distributionId_) internal view returns (bytes memory stage_) {
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId_);
-        if (block.number <= endBlock - 72000) {
-            stage_ = bytes("Screening");
-        }
-        else if (block.number > endBlock - 72000 && block.number <= endBlock) {
-            stage_ = bytes("Funding");
-        }
-        else if (block.number > endBlock && block.number <= endBlock + 50400) {
-            stage_ = bytes("Challenge");
-        }
     }
 
     function _createProposals(uint256 numProposals_) internal returns (uint256[] memory proposalIds_) {
@@ -523,7 +519,7 @@ contract StandardHandler is Handler {
 
             // get the random number of votes to cast
             // Take the square root of the voting power to determine how many votes are actually available for casting
-            int256 votesToCast = int256(constrictToRange(randomSeed(), 0, Math.sqrt(votingPower)));
+            int256 votesToCast = int256(constrictToRange(randomSeed(), 1, Math.sqrt(votingPower)));
 
             // if we should account for previous votes, then we need to make sure that the votes used are less than the available votes
             // flag is useful for generating vote params for a happy path required for test setup, as well as the chaotic path.
@@ -575,6 +571,7 @@ contract StandardHandler is Handler {
                 ++i;
             }
             else {
+                // TODO: move flip coin into happy path
                 // flip a coin to see if should instead use a negative vote
                 if (randomSeed() % 2 == 0) {
                     numberOfCalls['SFH.negativeFundingVote']++;
