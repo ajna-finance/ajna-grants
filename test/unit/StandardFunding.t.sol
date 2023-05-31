@@ -2025,7 +2025,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
             // calculate delegate reward for each voter
             uint256 rootVotingPower = Math.sqrt((votingPower - remainingVotingPower) * 1e18);
-            uint256 reward = Maths.wdiv(Maths.wmul(gbc, rootVotingPower), fundingVotePowerCast) / 10;
+            // uint256 reward = Maths.wdiv(Maths.wmul(gbc, rootVotingPower), fundingVotePowerCast) / 10;
+            uint256 reward = Math.mulDiv(gbc, rootVotingPower, 10 * fundingVotePowerCast);
             totalDelegationReward += reward; 
 
             // check whether reward calculated is correct
