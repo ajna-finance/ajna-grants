@@ -29,10 +29,10 @@ contract StandardFundingInvariant is StandardTestBase {
 
         // skip time into the funding stage
         uint24 distributionId = _grantFund.getDistributionId();
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        uint256 fundingStageStartBlock = endBlock - 72000;
+        (, uint256 startBlock, , , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        uint256 fundingStageStartBlock = _grantFund.getScreeningStageEndBlock(startBlock) + 1;
         vm.roll(fundingStageStartBlock + 100);
-        currentBlock = block.number;
+        currentBlock = fundingStageStartBlock + 100;
 
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](2);

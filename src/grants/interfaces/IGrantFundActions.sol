@@ -148,6 +148,13 @@ interface IGrantFundActions is IGrantFundState {
     /**********************/
 
     /**
+     * @notice Get the block number at which this distribution period's challenge stage starts.
+     * @param  endBlock_ The end block of a distribution period to get the challenge stage start block for.
+     * @return The block number at which this distribution period's challenge stage starts.
+    */
+    function getChallengeStageStartBlock(uint256 endBlock_) external pure returns (uint256);
+
+    /**
      * @notice Retrieve the delegate reward accrued to a voter in a given distribution period.
      * @param  distributionId_ The  to calculate rewards for.
      * @param  voter_          The address of the voter to calculate rewards for.
@@ -196,6 +203,13 @@ interface IGrantFundActions is IGrantFundState {
     ) external view returns (uint256[] memory);
 
     /**
+     * @notice Get the block number at which this distribution period's funding stage ends.
+     * @param  startBlock_ The end block of a distribution period to get the funding stage end block for.
+     * @return The block number at which this distribution period's funding stage ends.
+    */
+    function getFundingStageEndBlock(uint256 startBlock_) external pure returns (uint256);
+
+    /**
      * @notice Get the list of funding votes cast by an account in a given distribution period.
      * @param  distributionId_   The distributionId of the distribution period to check.
      * @param  account_          The address of the voter to check.
@@ -216,6 +230,13 @@ interface IGrantFundActions is IGrantFundState {
     function getProposalInfo(
         uint256 proposalId_
     ) external view returns (uint256, uint24, uint128, uint128, int128, bool);
+
+    /**
+     * @notice Get the block number at which this distribution period's screening stage ends.
+     * @param  startBlock_ The start block of a distribution period to get the screening stage end block for.
+     * @return The block number at which this distribution period's screening stage ends.
+    */
+    function getScreeningStageEndBlock(uint256 startBlock_) external pure returns (uint256);
 
     /**
      * @notice Generate a unique hash of a list of proposal Ids for usage as a key for comparing proposal slates.

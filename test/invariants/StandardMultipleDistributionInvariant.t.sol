@@ -141,40 +141,19 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
             StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(i);
 
             // check prior distributions for surplus to return to treasury
+            uint24 prevDistributionId = i - 1;
             (
                 ,
                 ,
-                uint256 endBlockPrev,
+                ,
                 uint128 fundsAvailablePrev,
                 ,
                 bytes32 topSlateHashPrev
-            ) = _grantFund.getDistributionPeriodInfo(i - 1);
+            ) = _grantFund.getDistributionPeriodInfo(prevDistributionId);
 
-            StandardHandler.DistributionState memory prevState = _standardHandler.getDistributionState(i - 1);
-            uint256 expectedTreasury = prevState.treasuryAtStartBlock;
-            uint256 surplus = 0;
-
-            // if new distribution started before end of distribution period then surplus won't be added automatically to the treasury.
-            // only add the surplus if the distribution period started after the end of the prior challenge period
-            if (i > 1 && _standardHandler.getDistributionStartBlock(i) > endBlockPrev + 50400) {
-                console.log("path 1");
-                surplus += _standardHandler.updateTreasury(i - 1, fundsAvailablePrev, topSlateHashPrev);
-                _standardHandler.setDistributionTreasuryUpdated(i -1);
-            }
-            // check two distribution periods back for surplus to return to treasury
-            if (i > 2 && !_standardHandler.distributionIdSurplusAdded(i - 2)) {
-                (
-                    ,
-                    ,
-                    ,
-                    uint128 fundsAvailableBeforePrev,
-                    ,
-                    bytes32 topSlateHashBeforePrev
-                ) = _grantFund.getDistributionPeriodInfo(i - 2);
-                surplus += _standardHandler.updateTreasury(i - 2, fundsAvailableBeforePrev, topSlateHashBeforePrev);
-                _standardHandler.setDistributionTreasuryUpdated(i -2);
-            }
-
+            // calculate the expected treasury amount at the start of the current distribution period <i>
+            uint256 expectedTreasury = state.treasuryBeforeStart;
+            uint256 surplus = _standardHandler.updateTreasury(prevDistributionId, fundsAvailablePrev, topSlateHashPrev);
             expectedTreasury += surplus;
 
             if (i == 1) {
@@ -225,6 +204,13 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         console.log("Slate Proposals:            ", _standardHandler.numberOfCalls('proposalsInSlates'));
         console.log("unused proposal:            ", _standardHandler.numberOfCalls('unused.proposal'));
         console.log("unexecuted proposal:        ", _standardHandler.numberOfCalls('unexecuted.proposal'));
+        console.log("funding stage starts:       ", _standardHandler.numberOfCalls("SFH.FundingStage"));
+        console.log("funding stage success votes ", _standardHandler.numberOfCalls("SFH.fundingVote.success"));
+
+
+        (, , , , uint256 fundingPowerCast, ) = _grantFund.getDistributionPeriodInfo(2);
+        console.log("Total Funding Power Cast    ", fundingPowerCast);
+
 
         if (_standardHandler.numberOfCalls('unexecuted.proposal') != 0) {
             console.log("state of unexecuted:        ", uint8(_grantFund.state(_standardHandler.numberOfCalls('unexecuted.proposal'))));
