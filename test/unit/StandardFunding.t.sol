@@ -1191,7 +1191,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // Claim delegate reward for all delegatees
         // delegates who didn't vote with their full power receive fewer rewards
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder1);
-        assertEq(delegateRewards, 327_029.344384908150774955 * 1e18);
+        assertEq(delegateRewards, 327_029.344384908148174595 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1201,7 +1201,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder2);
-        assertEq(delegateRewards, 327_029.344384908150774955 * 1e18);
+        assertEq(delegateRewards, 327_029.344384908148174595 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1211,7 +1211,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder3);
-        assertEq(delegateRewards, 325_981.170713055741005092 * 1e18);
+        assertEq(delegateRewards, 325_981.170713055738413067 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1221,7 +1221,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder4);
-        assertEq(delegateRewards, 323_742.533886183078907207 * 1e18);
+        assertEq(delegateRewards, 323_742.533886183076332983 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1231,7 +1231,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder5);
-        assertEq(delegateRewards, 196_217.606630944890464973 * 1e18);
+        assertEq(delegateRewards, 196_217.606630944888904757 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1964,9 +1964,11 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // claim delegate reward for each voter
         for(uint i = 0; i < noOfVoters; i++) {
+            (uint256 votingPower, uint256 remainingVotingPower, ) = _grantFund.getVoterInfo(distributionId, voters[i]);
+
             // calculate delegate reward for each voter
-            // FIXME: this is breaking due to rounding issues in the sqrt calculation.
-            uint256 reward = Maths.wdiv(Maths.wmul(gbc, votes[i]), fundingVotePowerCast) / 10;
+            uint256 rootVotingPower = Math.sqrt((votingPower - remainingVotingPower) * 1e18);
+            uint256 reward = Maths.wdiv(Maths.wmul(gbc, rootVotingPower), fundingVotePowerCast) / 10;
             totalDelegationReward += reward; 
 
             // check whether reward calculated is correct

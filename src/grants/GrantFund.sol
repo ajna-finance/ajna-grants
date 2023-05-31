@@ -773,7 +773,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // since we are moving from uint128 to uint256, we can safely assume that the value will not overflow.
         // multiply by 1e9 to maintain precision.
         uint256 incrementalRootVotingPowerUsed =
-            (Math.sqrt(uint256(cumulativeVotePowerUsed)) - Math.sqrt(uint256(voterPowerUsedPreVote))) * 1e9;
+            Math.sqrt(uint256(cumulativeVotePowerUsed) * 1e18) - Math.sqrt(uint256(voterPowerUsedPreVote) * 1e18);
 
         // update accumulator for total root voting power used in the funding stage in order to calculate delegate rewards
         // check that the voter voted in the screening round before updating the accumulator
