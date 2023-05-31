@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 import { SafeCast }  from "@oz/utils/math/SafeCast.sol";
 import { Math }      from "@oz/utils/math/Math.sol";
+import { console }   from "@std/console.sol";
 
 import { GrantFund }        from "../../src/grants/GrantFund.sol";
 import { IGrantFundErrors } from "../../src/grants/interfaces/IGrantFundErrors.sol";
@@ -1826,6 +1827,63 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         proposalSlate[0] = proposal2.proposalId;
         proposalSlate[1] = proposal3.proposalId;
         assertTrue(_grantFund.updateSlate(proposalSlate, distributionId));
+    }
+
+ function testLowRewards() external {
+        _selfDelegateVoters(_token, _votersArr);
+
+        address lowRewardAddress = makeAddr("lowRewardAddress");
+
+        changePrank(_tokenDeployer);
+
+        _token.transfer(lowRewardAddress, 1_000_000 * 1e18);
+
+        changePrank(lowRewardAddress);
+        _token.delegate(lowRewardAddress);
+
+        vm.roll(_startBlock + 150);
+
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+
+        uint24 distributionId = _grantFund.getDistributionId();
+
+        TestProposalParams[] memory testProposalParams = new TestProposalParams[](1);
+        testProposalParams[0] = TestProposalParams(_tokenHolder1, 500_000 * 1e18);
+
+        TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
+
+        vm.roll(_startBlock + 200);
+
+        _screeningVote(_grantFund, lowRewardAddress, testProposals[0].proposalId, _getScreeningVotes(_grantFund, lowRewardAddress));
+
+        _screeningVote(_grantFund, _tokenHolder1, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
+        // skip time to move from screening period to funding period
+        vm.roll(_startBlock + 600_000);
+
+        // check topTenProposals array is correct after screening period - only six should have advanced
+        GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
+
+        _fundingVote(_grantFund, _tokenHolder1, screenedProposals[0].proposalId, voteYes, 20_000_000 * 1e18);
+        _fundingVote(_grantFund, lowRewardAddress, screenedProposals[0].proposalId, voteYes, 0.0001e18);
+        screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
+
+        vm.roll(_startBlock + 650_000);
+
+        uint256[] memory potentialProposalSlate = new uint256[](1);
+        potentialProposalSlate[0] = screenedProposals[0].proposalId;
+        _grantFund.updateSlate(potentialProposalSlate, distributionId);
+
+        // skip to the end of the distribution's challenge period
+        vm.roll(_startBlock + 700_000);
+
+        // execute funded proposals
+        _executeProposal(_grantFund, _token, testProposals[0]);
+
+        assertGt(_grantFund.getDelegateReward(distributionId, lowRewardAddress), 0);
+
+        console.log(_grantFund.getDelegateReward(distributionId, lowRewardAddress));
+        console.log(_grantFund.getDelegateReward(distributionId, _tokenHolder1));
     }
 
     function testFuzzTopTenProposalandDelegateReward(uint256 noOfVoters_, uint256 noOfProposals_) external {
