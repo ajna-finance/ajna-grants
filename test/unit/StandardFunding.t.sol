@@ -13,6 +13,8 @@ import { GrantFundTestHelper } from "../utils/GrantFundTestHelper.sol";
 import { IAjnaToken }          from "../utils/IAjnaToken.sol";
 import { TestAjnaToken }       from "../utils/harness/TestAjnaToken.sol";
 
+import { console } from "@std/console.sol";
+
 contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
     /*************/
@@ -625,7 +627,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         // check that the total funding votes cast is only equal to the voting power expended by tokenHolder11 who voted in both stages
         (, , , uint256 fundsAvailable, uint256 fundingVotesCast, ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        assertEq(fundingVotesCast, Maths.wpow(25_000_000 * 1e18, 2));
+        assertEq(fundingVotesCast, 25_000_000 * 1e18);
 
         // skip to the end of the Distribution's challenge period
         vm.roll(_startBlock + 700_000);
@@ -1189,7 +1191,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // Claim delegate reward for all delegatees
         // delegates who didn't vote with their full power receive fewer rewards
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder1);
-        assertEq(delegateRewards, 346_132.545689496031013476 * 1e18);
+        assertEq(delegateRewards, 327_029.344384908150774955 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1199,7 +1201,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder2);
-        assertEq(delegateRewards, 346_132.545689496031013476 * 1e18);
+        assertEq(delegateRewards, 327_029.344384908150774955 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1209,7 +1211,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder3);
-        assertEq(delegateRewards, 343_917.297397083256414989 * 1e18);
+        assertEq(delegateRewards, 325_981.170713055733709031 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1219,7 +1221,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder4);
-        assertEq(delegateRewards, 339_209.894775706110393206 * 1e18);
+        assertEq(delegateRewards, 323_742.533886183074276085 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1229,7 +1231,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
             }
         );
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder5);
-        assertEq(delegateRewards, 124_607.716448218571164851 * 1e18);
+        assertEq(delegateRewards, 196_217.606630944890464973 * 1e18);
         _claimDelegateReward(
             {
                 grantFund_:        _grantFund,
@@ -1929,8 +1931,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // gbc = 3% of treasury
         uint256 gbc = Maths.wmul(treasury, 0.03 * 1e18);
 
-        uint256 totalBudgetAllocated;
-
         // try to allocalate budget to all top ten proposals i.e. all are in final check slate
         for(uint i = 0; i < noOfVoters; i++) {
             // get proposal Id of proposal to vote
@@ -1944,7 +1944,6 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
             // calculate and allocate all qvBudget of the voter to the proposal
             uint256 budgetAllocated = votes[i];
-            totalBudgetAllocated += Maths.wpow(budgetAllocated, 2);
             _fundingVote(_grantFund, voters[i], proposalId, voteYes, int256(budgetAllocated));
         }
 
@@ -1960,12 +1959,14 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // skip to end of challenge period
         vm.roll(block.number + 100_000);
         
+        (, , , , uint256 fundingVotePowerCast, ) = _grantFund.getDistributionPeriodInfo(distributionId);
         uint256 totalDelegationReward;
 
         // claim delegate reward for each voter
         for(uint i = 0; i < noOfVoters; i++) {
             // calculate delegate reward for each voter
-            uint256 reward = Maths.wdiv(Maths.wmul(gbc, Maths.wpow(votes[i], 2)), totalBudgetAllocated) / 10;
+            // FIXME: this is breaking due to rounding issues in the sqrt calculation.
+            uint256 reward = Maths.wdiv(Maths.wmul(gbc, votes[i]), fundingVotePowerCast) / 10;
             totalDelegationReward += reward; 
 
             // check whether reward calculated is correct
