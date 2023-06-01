@@ -215,6 +215,8 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     ) internal pure returns (uint256 rewards_) {
         // calculate the total voting power available to the voter that was allocated in the funding stage
         uint256 votingPowerAllocatedByDelegatee = voter_.votingPower - voter_.remainingVotingPower;
+        // take the sqrt of the voting power allocated to compare against the root of all voting power allocated
+        // multiply by 1e18 to maintain WAD precision
         uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);
 
         // if none of the voter's voting power was allocated, they receive no rewards
@@ -769,7 +771,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         // calculate the total sqrt voting power used in the funding stage, in order to calculate delegate rewards.
         // since we are moving from uint128 to uint256, we can safely assume that the value will not overflow.
-        // multiply by 1e9 to maintain precision.
+        // multiply by 1e18 to maintain WAD precision.
         uint256 incrementalRootVotingPowerUsed =
             Math.sqrt(uint256(cumulativeVotePowerUsed) * 1e18) - Math.sqrt(uint256(voterPowerUsedPreVote) * 1e18);
 

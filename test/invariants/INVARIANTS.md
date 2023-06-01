@@ -57,9 +57,9 @@
 - #### Delegation Rewards:
     - **DR1**: Cumulative delegation rewards should be <= 10% of a distribution periods GBC.
     - **DR2**: Delegation rewards are 0 if voter didn't vote in both stages.
-    - **DR3**: Delegation rewards are proportional to voters funding power allocated in the funding stage.
+    - **DR3**: Delegation rewards are proportional to voters funding power allocated in the funding stage, as compared to all funding power allocated.
     - **DR4**: Delegation rewards can only be claimed for a distribution period after it ended.
-    - **DR5**: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards.
+    - **DR5**: Cumulative rewards claimed should be within 99.99% of all available delegation rewards.
 
 
 <!-- TODO: rename this to proposal invariants -->
