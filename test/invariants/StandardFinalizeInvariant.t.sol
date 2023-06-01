@@ -29,8 +29,8 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
         // skip time into the funding stage
         uint24 distributionId = _grantFund.getDistributionId();
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        uint256 fundingStageStartBlock = endBlock - 72000;
+        (, uint256 startBlock, uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        uint256 fundingStageStartBlock = _grantFund.getScreeningStageEndBlock(startBlock) + 1;
         vm.roll(fundingStageStartBlock + 100);
         currentBlock = fundingStageStartBlock + 100;
 
@@ -40,8 +40,9 @@ contract StandardFinalizeInvariant is StandardTestBase {
         _standardHandler.setCurrentScenarioType(Handler.ScenarioType.Medium);
 
         // skip time into the challenge stage
-        vm.roll(endBlock + 100);
-        currentBlock = endBlock + 100;
+        uint256 challengeStageStartBlock = _grantFund.getChallengeStageStartBlock(endBlock);
+        vm.roll(challengeStageStartBlock + 100);
+        currentBlock = challengeStageStartBlock + 100;
 
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](5);
@@ -106,7 +107,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
             StandardHandler.Slate memory slate = state.topSlates[i];
 
             require(
-                slate.updateBlock >= endBlock && slate.updateBlock <= endBlock + 50400,
+                slate.updateBlock <= endBlock && slate.updateBlock >= _grantFund.getChallengeStageStartBlock(endBlock),
                 "invariant CS6: Funded proposal slate's can only be updated during a distribution period's challenge stage"
             );
         }
@@ -142,8 +143,9 @@ contract StandardFinalizeInvariant is StandardTestBase {
             assertEq(distributionId, proposalDistributionId);
             if (executed) {
                 (, , uint48 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(proposalDistributionId);
+                // TODO: store and check proposal execution time
                 require(
-                    currentBlock > endBlock + 50400,
+                    currentBlock > endBlock,
                     "invariant ES2: A proposal can only be executed after the challenge stage is complete."
                 );
             }
@@ -242,6 +244,8 @@ contract StandardFinalizeInvariant is StandardTestBase {
         console.log("Top Ten Proposal Count:     ", topTenScreenedProposalIds.length);
         console.log("Funds Available:            ", fundsAvailable);
         console.log("Top slate funds requested:  ", _standardHandler.getTokensRequestedInFundedSlateInvariant(topSlateHash));
+        (, , , , uint256 fundingPowerCast, ) = _grantFund.getDistributionPeriodInfo(distributionId_);
+        console.log("Total Funding Power Cast    ", fundingPowerCast);
         console.log("------------------");
     }
 

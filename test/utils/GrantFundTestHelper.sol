@@ -8,6 +8,7 @@ import { Test }     from "@std/Test.sol";
 import { GrantFund }        from "../../src/grants/GrantFund.sol";
 import { IGrantFund }       from "../../src/grants/interfaces/IGrantFund.sol";
 import { IGrantFundErrors } from "../../src/grants/interfaces/IGrantFundErrors.sol";
+import { IGrantFundState }  from "../../src/grants/interfaces/IGrantFundState.sol";
 import { Maths }            from "../../src/grants/libraries/Maths.sol";
 
 import { IAjnaToken }    from "./IAjnaToken.sol";
@@ -171,7 +172,8 @@ abstract contract GrantFundTestHelper is Test {
 
     function _createProposal(GrantFund grantFund_, address proposer_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal returns (TestProposal memory) {
         // generate expected proposal state
-        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, calldatas_, keccak256(bytes(description)));
+        bytes32 descriptionHash = grantFund_.getDescriptionHash(description);
+        uint256 expectedProposalId = grantFund_.hashProposal(targets_, values_, calldatas_, descriptionHash);
         uint256 startBlock = block.number.toUint64();
         uint24 distributionId = grantFund_.getDistributionId();
 
@@ -476,7 +478,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _findProposalIndexOfVotesCast(
         uint256 proposalId_,
-        IGrantFund.FundingVoteParams[] memory voteParams_
+        IGrantFundState.FundingVoteParams[] memory voteParams_
     ) internal pure returns (int256 index_) {
         index_ = -1; // default value indicating proposalId not in the array
 
@@ -504,7 +506,7 @@ abstract contract GrantFundTestHelper is Test {
         }
 
         // construct vote params
-        IGrantFund.FundingVoteParams[] memory params = new IGrantFund.FundingVoteParams[](1);
+        IGrantFundState.FundingVoteParams[] memory params = new IGrantFundState.FundingVoteParams[](1);
         params[0].proposalId = proposalId_;
         params[0].votesUsed = votesAllocated_;
 
@@ -515,7 +517,7 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.fundingVote(params);
     }
 
-    function _fundingVoteMulti(GrantFund grantFund_, IGrantFund.FundingVoteParams[] memory voteParams_, address voter_) internal {
+    function _fundingVoteMulti(GrantFund grantFund_, IGrantFundState.FundingVoteParams[] memory voteParams_, address voter_) internal {
         for (uint256 i = 0; i < voteParams_.length; ++i) {
             uint8 support = voteParams_[i].votesUsed < 0 ? 0 : 1;
             vm.expectEmit(true, true, false, true);
@@ -527,7 +529,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _fundingVoteNoLog(GrantFund grantFund_, address voter_, uint256 proposalId_, int256 votesAllocated_) internal {
         // construct vote params
-        IGrantFund.FundingVoteParams[] memory params = new IGrantFund.FundingVoteParams[](1);
+        IGrantFundState.FundingVoteParams[] memory params = new IGrantFundState.FundingVoteParams[](1);
         params[0].proposalId = proposalId_;
         params[0].votesUsed = votesAllocated_;
 
@@ -540,7 +542,7 @@ abstract contract GrantFundTestHelper is Test {
         uint8 support = 1; // can only vote yes in the screening stage
 
         // construct vote params
-        IGrantFund.ScreeningVoteParams[] memory params = new IGrantFund.ScreeningVoteParams[](1);
+        IGrantFundState.ScreeningVoteParams[] memory params = new IGrantFundState.ScreeningVoteParams[](1);
         params[0].proposalId = proposalId_;
         params[0].votes = votesAllocated_;
 
@@ -550,7 +552,7 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.screeningVote(params);
     }
 
-    function _screeningVote(GrantFund grantFund_, IGrantFund.ScreeningVoteParams[] memory voteParams_, address voter_) internal {
+    function _screeningVote(GrantFund grantFund_, IGrantFundState.ScreeningVoteParams[] memory voteParams_, address voter_) internal {
         for (uint256 i = 0; i < voteParams_.length; ++i) {
             vm.expectEmit(true, true, false, true);
             emit VoteCast(voter_, voteParams_[i].proposalId, 1, voteParams_[i].votes, "");
@@ -561,7 +563,7 @@ abstract contract GrantFundTestHelper is Test {
 
     function _screeningVoteNoLog(GrantFund grantFund_, address voter_, uint256 proposalId_, uint256 votesAllocated_) internal {
         // construct vote params
-        IGrantFund.ScreeningVoteParams[] memory params = new IGrantFund.ScreeningVoteParams[](1);
+        IGrantFundState.ScreeningVoteParams[] memory params = new IGrantFundState.ScreeningVoteParams[](1);
         params[0].proposalId = proposalId_;
         params[0].votes = votesAllocated_;
 

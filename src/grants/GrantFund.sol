@@ -114,13 +114,13 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     /**
      * @notice Get the block number at which this distribution period's screening stage ends.
-     * @param  startBlock The start block of a distribution period to get the screening stage end block for.
+     * @param  startBlock_ The start block of a distribution period to get the screening stage end block for.
      * @return The block number at which this distribution period's screening stage ends.
     */
     function _getScreeningStageEndBlock(
-        uint256 startBlock
+        uint256 startBlock_
     ) internal pure returns (uint256) {
-        return startBlock + SCREENING_PERIOD_LENGTH;
+        return startBlock_ + SCREENING_PERIOD_LENGTH;
     }
 
     /**
@@ -1052,6 +1052,11 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /*******************************/
 
     /// @inheritdoc IGrantFundActions
+    function getChallengeStageStartBlock(uint256 endBlock_) external pure override returns (uint256) {
+        return _getChallengeStageStartBlock(endBlock_);
+    }
+
+    /// @inheritdoc IGrantFundActions
     function getDescriptionHash(
         string memory description_
     ) external pure override returns (bytes32) {
@@ -1096,6 +1101,11 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     }
 
     /// @inheritdoc IGrantFundActions
+    function getFundingStageEndBlock(uint256 startBlock_) external pure override returns (uint256) {
+        return _getFundingStageEndBlock(startBlock_);
+    }
+
+    /// @inheritdoc IGrantFundActions
     function getFundingVotesCast(
         uint24 distributionId_,
         address account_
@@ -1115,6 +1125,11 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
             _proposals[proposalId_].fundingVotesReceived,
             _proposals[proposalId_].executed
         );
+    }
+
+    /// @inheritdoc IGrantFundActions
+    function getScreeningStageEndBlock(uint256 startBlock_) external pure override returns (uint256) {
+        return _getScreeningStageEndBlock(startBlock_);
     }
 
     /// @inheritdoc IGrantFundActions
