@@ -157,7 +157,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
         );
     }
 
-    function invariant_DR1_DR2_DR3() external {
+    function invariant_DR1_DR2_DR3_DR5() external {
         uint24 distributionId = _grantFund.getDistributionId();
         (, , , uint128 fundsAvailable, uint256 fundingVotePowerCast, ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
@@ -206,10 +206,17 @@ contract StandardFinalizeInvariant is StandardTestBase {
             }
         }
 
-        // invariant DR1: Cumulative delegation rewards should be 10% of a distribution periods GBC.
-        assertTrue(totalRewardsClaimed <= fundsAvailable * 1 / 10);
-        // assertTrue(totalRewardsClaimed >= Maths.wmul(fundsAvailable * 1 / 10, 0.99 * 1e18)); // INVARIANT DR5
+        require(
+            totalRewardsClaimed <= fundsAvailable * 1 / 10,
+            "invariant DR1: Cumulative delegation rewards should be <= 10% of a distribution periods GBC"
+        );
+
+        // check state after all possible delegation rewards have been claimed
         if (_standardHandler.numberOfCalls('SFH.claimDelegateReward.success') == _standardHandler.getActorsCount()) {
+            require(
+                totalRewardsClaimed >= Maths.wmul(fundsAvailable * 1 / 10, 0.9999 * 1e18),
+                "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"
+            );
             assertEq(totalRewardsClaimed, fundsAvailable * 1 / 10);
         }
     }
