@@ -3,6 +3,7 @@
 pragma solidity 0.8.18;
 
 import { console }  from "@std/console.sol";
+import { Math } from "@oz/utils/math/Math.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
 import { IGrantFund } from "../../src/grants/interfaces/IGrantFund.sol";
@@ -180,6 +181,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
                 assertTrue(delegationRewardsClaimed >= 0);
 
                 uint256 votingPowerAllocatedByDelegatee = votingPower - remainingVotingPower;
+                uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);
 
                 require(
                     fundingVoteParams.length > 0 && screeningVoteParams.length > 0,
@@ -188,13 +190,11 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
                 uint256 rewards;
                 if (votingPowerAllocatedByDelegatee > 0) {
-                    rewards = Maths.wdiv(
-                        Maths.wmul(
-                            fundsAvailable,
-                            votingPowerAllocatedByDelegatee
-                        ),
-                        fundingVotePowerCast
-                    ) / 10;
+                    rewards = Math.mulDiv(
+                        fundsAvailable,
+                        rootVotingPowerAllocatedByDelegatee,
+                        10 * fundingVotePowerCast
+                    );
                 }
 
                 require(
@@ -206,6 +206,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
         // invariant DR1: Cumulative delegation rewards should be 10% of a distribution periods GBC.
         assertTrue(totalRewardsClaimed <= fundsAvailable * 1 / 10);
+        // assertTrue(totalRewardsClaimed >= Maths.wmul(fundsAvailable * 1 / 10, 0.99 * 1e18)); // INVARIANT DR5
         if (_standardHandler.numberOfCalls('SFH.claimDelegateReward.success') == _standardHandler.getActorsCount()) {
             assertEq(totalRewardsClaimed, fundsAvailable * 1 / 10);
         }

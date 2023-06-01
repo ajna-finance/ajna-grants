@@ -59,7 +59,7 @@
     - **DR2**: Delegation rewards are 0 if voter didn't vote in both stages.
     - **DR3**: Delegation rewards are proportional to voters funding power allocated in the funding stage.
     - **DR4**: Delegation rewards can only be claimed for a distribution period after it ended.
-    - **DR5**: Every voter eligible for rewards should be able to claim delegate rewards within 99.99% of calculated.
+    - **DR5**: Every voter eligible for rewards should be able to claim delegate rewards within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards.
 
 
 <!-- TODO: rename this to proposal invariants -->
