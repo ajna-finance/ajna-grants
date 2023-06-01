@@ -101,19 +101,19 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
 
         // roll to screeningStageEndBlock and check its still the Screening stage
-        vm.roll(_startBlock + 50 + 576000);
+        vm.roll(_startBlock + 50 + 525_600);
         assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
 
         // roll to screeningStageEndBlock + 1 and check we've entered the Funding stage
-        vm.roll(_startBlock + 50 + 576000 + 1);
+        vm.roll(_startBlock + 50 + 525_600 + 1);
         assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
 
         // roll to fundingStageEndBlock and check its still the Funding stage
-        vm.roll(_startBlock + 50 + 576000 + 72000);
+        vm.roll(_startBlock + 50 + 525_600 + 72000);
         assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
 
         // roll to fundingStageEndBlock + 1 and check we've entered the Challenge stage
-        vm.roll(_startBlock + 50 + 576000 + 72000 + 1);
+        vm.roll(_startBlock + 50 + 525_600 + 72000 + 1);
         assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
 
         // roll to challengeStageEndBlock and check its still the Challenge stage
@@ -246,7 +246,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVote(_grantFund, _tokenHolder1, proposal.proposalId, 1 * 1e18);
 
         // skip forward to the funding stage
-        vm.roll(_startBlock + 600_000);
+        vm.roll(_startBlock + 550_000);
 
         // check initial voting power
         uint256 votingPower = _getFundingVotes(_grantFund, _tokenHolder1);
@@ -552,7 +552,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         changePrank(_tokenHolder1);
 
         // skip to funding period
-        vm.roll(_startBlock + 600_000);
+        vm.roll(_startBlock + 550_000);
 
         // should be false if user has not voted in funding stage but voted in screening stage
         IGrantFundState.FundingVoteParams[] memory fundingVoteParams = _grantFund.getFundingVotesCast(distributionId, _tokenHolder1);
@@ -611,7 +611,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(screenedProposals.length, 5);
 
         // skip time to move from screening period to funding period
-        vm.roll(_startBlock + 600_000);
+        vm.roll(_startBlock + 550_000);
 
         // 5 different voters cast funding votes only
         _fundingVote(_grantFund, _tokenHolder6, screenedProposals[0].proposalId, voteYes, 25_000_000 * 1e18);
@@ -833,7 +833,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(id, currentDistributionId);
         assertEq(fundingVotesCast, 0);
         assertEq(startBlock, block.number);
-        assertEq(endBlock, block.number + 698400);
+        assertEq(endBlock, block.number + 648_000);
         
         vm.roll(_startBlock + 100);
         currentDistributionId = _grantFund.getDistributionId();
@@ -910,7 +910,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         /*********************/
 
         // skip time to move from screening stage to funding stage
-        vm.roll(_startBlock + 600_000);
+        vm.roll(_startBlock + 550_000);
 
         // check can't cast screening votes in the funding stage
         assertScreeningVoteInvalidVoteRevert(_grantFund, _tokenHolder11, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder11));
@@ -1053,8 +1053,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         /*** Challenge Period ***/
         /************************/
 
-        // skip to the end of the DistributionPeriod
-        vm.roll(_startBlock + 650_000);
+        // skip to the challenge stage
+        vm.roll(_startBlock + 600_000);
         assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
 
         // ensure updateSlate won't accept a slate containing a proposal that is not in topTenProposal (funding Stage)
@@ -1302,7 +1302,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVote(_grantFund, _tokenHolder1, testProposals_distribution1[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
 
         // skip time to move from screening period to funding period
-        vm.roll(_startBlock + 600_000);
+        vm.roll(_startBlock + 550_000);
 
         // check topTenProposals array is correct after screening period - only 1 should have advanced
         GrantFund.Proposal[] memory screenedProposals_distribution1 = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
@@ -1312,7 +1312,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution1[0].proposalId, voteYes, 25_000_000 * 1e18);
 
         // skip to the Challenge period
-        vm.roll(_startBlock + 650_000);
+        vm.roll(_startBlock + 600_000);
 
         // updateSlate
         uint256[] memory potentialProposalSlate = new uint256[](1);
@@ -1376,7 +1376,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVote(_grantFund, _tokenHolder1, testProposals_distribution2[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
 
         // skip time to move from screening period to funding period
-        vm.roll(_startBlock + 1_300_000);
+        vm.roll(_startBlock + 1_250_000);
 
         // check topTenProposals array is correct after screening period - only 1 should have advanced
         GrantFund.Proposal[] memory screenedProposals_distribution2 = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(2));
@@ -1386,7 +1386,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution2[0].proposalId, voteYes, 25_000_000 * 1e18);
 
         // skip to the Challenge period
-        vm.roll(_startBlock + 1_350_000);
+        vm.roll(_startBlock + 1_300_000);
 
         // updateSlate
         potentialProposalSlate = new uint256[](1);
@@ -1482,7 +1482,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVote(_grantFund, _tokenHolder1, testProposals_distribution1[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
 
         // skip time to move from screening period to funding period
-        vm.roll(_startBlock + 600_000);
+        vm.roll(_startBlock + 550_000);
         assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
 
         // check topTenProposals array is correct after screening period - only 1 should have advanced
@@ -1496,7 +1496,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertClaimDelegateRewardStillActiveRevert(_grantFund, _tokenHolder1, distributionId);
 
         // skip to the Challenge period
-        vm.roll(_startBlock + 650_000);
+        vm.roll(_startBlock + 600_000);
         assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
 
         // updateSlate
@@ -1560,7 +1560,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVoteNoLog(_grantFund, _tokenHolder5, testProposals_distribution1[0].proposalId, 20_000_000 * 1e18);
 
         // skip time to move from screening period to funding period
-        vm.roll(_startBlock + 1_300_000);
+        vm.roll(_startBlock + 1_250_000);
         assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
 
         // check topTenProposals array is correct after screening period - only 1 should have advanced
@@ -1578,7 +1578,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _fundingVoteNoLog(_grantFund, _tokenHolder5, screenedProposals_distribution1[0].proposalId, 21_000_000 * 1e18);
 
         // skip to the Challenge period
-        vm.roll(_startBlock + 1_350_000);
+        vm.roll(_startBlock + 1_300_000);
         assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
 
         // updateSlate
@@ -1625,7 +1625,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVote(_grantFund, _tokenHolder1, testProposals_distribution3[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
 
         // skip time to move from screening period to funding period
-        vm.roll(_startBlock + 1_990_000);
+        vm.roll(_startBlock + 1_950_000);
         assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
 
         // check topTenProposals array is correct after screening period - only 1 should have advanced
@@ -1636,7 +1636,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _fundingVote(_grantFund, _tokenHolder1, screenedProposals_distribution3[0].proposalId, voteYes, 25_000_000 * 1e18);
 
         // skip to the Challenge period
-        vm.roll(_startBlock + 2_050_000);
+        vm.roll(_startBlock + 2_000_000);
         assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
 
         // updateSlate
@@ -1743,7 +1743,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVote(_grantFund, testAddress3, proposal3.proposalId, 3 * 1e18);
 
         // skip forward to the funding stage
-        vm.roll(_startBlock + 600_000);
+        vm.roll(_startBlock + 550_000);
 
         GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
         assertEq(screenedProposals.length, 3);
@@ -1810,7 +1810,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(votingPower, 1 * 1e18);
 
         // skip to the DistributionPeriod
-        vm.roll(_startBlock + 650_000);
+        vm.roll(_startBlock + 600_000);
 
         // verify that even without using their full voting power,
         // several smaller token holders are able to outvote a larger token holder
@@ -1924,7 +1924,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         /******************************/
 
         // skip to funding stage
-        vm.roll(block.number + 600_000);
+        vm.roll(block.number + 550_000);
 
         // gbc = 3% of treasury
         uint256 gbc = Maths.wmul(treasury, 0.03 * 1e18);
