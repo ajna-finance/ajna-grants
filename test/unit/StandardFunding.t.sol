@@ -3,7 +3,6 @@ pragma solidity 0.8.18;
 
 import { SafeCast }  from "@oz/utils/math/SafeCast.sol";
 import { Math }      from "@oz/utils/math/Math.sol";
-import { console }   from "@std/console.sol";
 
 import { GrantFund }        from "../../src/grants/GrantFund.sol";
 import { IGrantFundErrors } from "../../src/grants/interfaces/IGrantFundErrors.sol";
@@ -1882,9 +1881,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _executeProposal(_grantFund, _token, testProposals[0]);
 
         assertGt(_grantFund.getDelegateReward(distributionId, lowRewardAddress), 0);
-
-        console.log(_grantFund.getDelegateReward(distributionId, lowRewardAddress));
-        console.log(_grantFund.getDelegateReward(distributionId, _tokenHolder1));
+        assertGt(_grantFund.getDelegateReward(distributionId, _tokenHolder1), 1_499_999 * 1e18);
+        assertLt(_grantFund.getDelegateReward(distributionId, _tokenHolder1), 1_500_000 * 1e18);
     }
 
     function testFuzzTopTenProposalandDelegateReward(uint256 noOfVoters_, uint256 noOfProposals_) external {
