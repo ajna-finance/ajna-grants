@@ -280,6 +280,36 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _fundingVoteNoLog(_grantFund, _tokenHolder1, proposal.proposalId, 16_000_000 * 1e18);
     }
 
+    function testVotingPowerAtDistributionStart() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _votersArr);
+
+        // roll 32 blocks forward to the block before the distribution period starts
+        vm.roll(_startBlock + 32);
+
+        // _tokenHolder1 transfers their tokens away
+        address nonVotingAddress = makeAddr("nonVotingAddress");
+        changePrank(_tokenHolder1);
+        _token.transfer(nonVotingAddress, 25_000_000 * 1e18);
+
+        vm.roll(_startBlock + 33);
+
+        // nonVotingAddress returns the funds one block later
+        changePrank(nonVotingAddress);
+        _token.transfer(_tokenHolder1, 25_000_000 * 1e18);
+
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+
+        // check voting power of _tokenHolder1 is 0
+        uint256 votingPower = _getScreeningVotes(_grantFund, _tokenHolder1);
+        assertEq(votingPower, 0);
+        votingPower = _getScreeningVotes(_grantFund, nonVotingAddress);
+        assertEq(votingPower, 0);
+        votingPower = _getScreeningVotes(_grantFund, _tokenHolder2);
+        assertEq(votingPower, 25_000_000 * 1e18);
+    }
+
     function testPropose() external {
         // generate proposal calldata
         bytes[] memory proposalCalldata = new bytes[](1);
