@@ -504,8 +504,8 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
             // check calldata includes both required params
             if (calldatas_[i].length != 68) revert InvalidProposal();
 
-            // check calldata function selector is transfer()
-            bytes memory selDataWithSig = calldatas_[i];
+            // access individual calldata bytes
+            bytes memory data = calldatas_[i];
 
             bytes4 selector;
             // retrieve the selector from the calldata
@@ -520,11 +520,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
             // retrieve recipient and tokensRequested from incoming calldata, accounting for the function selector
             uint256 tokensRequested;
             address recipient;
-            bytes memory tokenDataWithSig = calldatas_[i];
             // slither-disable-next-line assembly
             assembly {
-                recipient := mload(add(tokenDataWithSig, 36)) // 36 = 4 (selector) + 32 (recipient address)
-                tokensRequested := mload(add(tokenDataWithSig, 68)) // 68 = 4 (selector) + 32 (recipient address) + 32 (tokens requested)
+                recipient := mload(add(selDataWithSig, 36)) // 36 = 4 (selector) + 32 (recipient address)
+                tokensRequested := mload(add(selDataWithSig, 68)) // 68 = 4 (selector) + 32 (recipient address) + 32 (tokens requested)
             }
 
             // check recipient in the calldata is valid and doesn't attempt to transfer tokens to a disallowed address
