@@ -508,10 +508,12 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
             bytes memory selDataWithSig = calldatas_[i];
 
             bytes4 selector;
+            // retrieve the selector from the calldata
             // slither-disable-next-line assembly
             assembly {
                 selector := mload(add(selDataWithSig, 0x20))
             }
+            // check the selector matches transfer(address,uint256)
             if (selector != bytes4(0xa9059cbb)) revert InvalidProposal();
 
             // https://github.com/ethereum/solidity/issues/9439
