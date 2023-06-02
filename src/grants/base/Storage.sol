@@ -21,25 +21,25 @@ abstract contract Storage is IGrantFundState {
      * @dev    Roughly equivalent to the number of blocks in 7 days.
      * @dev    The period in which funded proposal slates can be checked in updateSlate.
      */
-    uint256 internal constant CHALLENGE_PERIOD_LENGTH = 50400;
+    uint256 internal constant CHALLENGE_PERIOD_LENGTH = 50_400;
 
     /**
      * @notice Length of the distribution period in blocks.
-     * @dev    Roughly equivalent to the number of blocks in 97 days.
+     * @dev    Roughly equivalent to the number of blocks in 90 days.
      */
-    uint48 internal constant DISTRIBUTION_PERIOD_LENGTH = 698400;
+    uint48 internal constant DISTRIBUTION_PERIOD_LENGTH = 648_000;
 
     /**
      * @notice Length of the funding stage of the distribution period in blocks.
      * @dev    Roughly equivalent to the number of blocks in 10 days.
      */
-    uint256 internal constant FUNDING_PERIOD_LENGTH = 72000;
+    uint256 internal constant FUNDING_PERIOD_LENGTH = 72_000;
 
     /**
      * @notice Length of the screening stage of the distribution period in blocks.
-     * @dev    Roughly equivalent to the number of blocks in 80 days.
+     * @dev    Roughly equivalent to the number of blocks in 73 days.
      */
-    uint256 internal constant SCREENING_PERIOD_LENGTH = 576000;
+    uint256 internal constant SCREENING_PERIOD_LENGTH = 525_600;
 
     /**
      * @notice Number of blocks prior to a given voting stage to check an accounts voting power.
