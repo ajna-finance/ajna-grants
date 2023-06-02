@@ -873,12 +873,12 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint256[] memory array_
     ) internal pure returns (int256 index_) {
         index_ = -1; // default value indicating proposalId not in the array
-        int256 arrayLength = int256(array_.length);
+        uint256 arrayLength = array_.length;
 
-        for (int256 i = 0; i < arrayLength;) {
+        for (uint256 i = 0; i < arrayLength;) {
             // slither-disable-next-line incorrect-equality
-            if (array_[uint256(i)] == proposalId_) {
-                index_ = i;
+            if (array_[i] == proposalId_) {
+                index_ = int256(i);
                 break;
             }
 
@@ -901,11 +901,11 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         index_ = -1; // default value indicating proposalId not in the array
 
         // since we are converting from uint256 to int256, we can safely assume that the value will not overflow
-        int256 numVotesCast = int256(voteParams_.length);
-        for (int256 i = 0; i < numVotesCast; ) {
+        uint256 numVotesCast = voteParams_.length;
+        for (uint256 i = 0; i < numVotesCast; ) {
             // slither-disable-next-line incorrect-equality
-            if (voteParams_[uint256(i)].proposalId == proposalId_) {
-                index_ = i;
+            if (voteParams_[i].proposalId == proposalId_) {
+                index_ = int256(i);
                 break;
             }
 
