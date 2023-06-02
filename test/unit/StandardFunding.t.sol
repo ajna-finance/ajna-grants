@@ -1859,7 +1859,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         _screeningVote(_grantFund, _tokenHolder1, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
         // skip time to move from screening period to funding period
-        vm.roll(_startBlock + 600_000);
+        vm.roll(_startBlock + 550_000);
 
         // check topTenProposals array is correct after screening period - only six should have advanced
         GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
@@ -1868,7 +1868,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _fundingVote(_grantFund, lowRewardAddress, screenedProposals[0].proposalId, voteYes, 0.0001e18);
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
 
-        vm.roll(_startBlock + 650_000);
+        vm.roll(_startBlock + 600_000);
 
         uint256[] memory potentialProposalSlate = new uint256[](1);
         potentialProposalSlate[0] = screenedProposals[0].proposalId;
