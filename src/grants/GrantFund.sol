@@ -71,7 +71,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint48 endBlock   = startBlock + DISTRIBUTION_PERIOD_LENGTH;
 
         // set new value for currentDistributionId
-        newDistributionId_ = _setNewDistributionId();
+        newDistributionId_ = _setNewDistributionId(currentDistributionId);
 
         // create DistributionPeriod struct
         DistributionPeriod storage newDistributionPeriod = _distributions[newDistributionId_];
@@ -180,8 +180,9 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      * @dev    Increments the previous Id nonce by 1.
      * @return newId_ The new distribution period Id.
      */
-    function _setNewDistributionId() private returns (uint24 newId_) {
-        newId_ = ++_currentDistributionId;
+    function _setNewDistributionId(uint24 currentDistributionId_) private returns (uint24 newId_) {
+        newId_ = ++currentDistributionId_;
+        _currentDistributionId = newId_;
     }
 
     /************************************/
@@ -312,10 +313,11 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // store new proposal information
         newProposal.proposalId      = proposalId_;
         newProposal.distributionId  = currentDistribution.id;
-        newProposal.tokensRequested = _validateCallDatas(targets_, values_, calldatas_); // check proposal parameters are valid and update tokensRequested
+        uint128 tokensRequested = _validateCallDatas(targets_, values_, calldatas_); // check proposal parameters are valid and update tokensRequested
+        newProposal.tokensRequested = tokensRequested;
 
         // revert if proposal requested more tokens than are available in the distribution period
-        if (newProposal.tokensRequested > (currentDistribution.fundsAvailable * 9 / 10)) revert InvalidProposal();
+        if (tokensRequested > (currentDistribution.fundsAvailable * 9 / 10)) revert InvalidProposal();
 
         emit ProposalCreated(
             proposalId_,
@@ -396,6 +398,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint256 proposalId_,
         bytes[] memory calldatas_
     ) internal {
+        // TODO: move this to EOF
         // use common event name to maintain consistency with tally
         emit ProposalExecuted(proposalId_);
 
@@ -734,7 +737,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         DistributionPeriod storage currentDistribution_,
         Proposal storage proposal_,
         QuadraticVoter storage voter_,
-        FundingVoteParams memory voteParams_
+        FundingVoteParams calldata voteParams_
     ) internal returns (uint256 incrementalVotesUsed_) {
         uint8   support = 1;
         uint256 proposalId = proposal_.proposalId;
@@ -828,8 +831,9 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint24 distributionId = proposal_.distributionId;
 
         // check that the voter has enough voting power to cast the vote
+        uint256 pastScreeningVotesCast = screeningVotesCast[distributionId][msg.sender];
         if (
-            screeningVotesCast[distributionId][msg.sender] + votes_ > _getVotesScreening(distributionId, msg.sender)
+            pastScreeningVotesCast + votes_ > _getVotesScreening(distributionId, msg.sender)
         ) revert InsufficientVotingPower();
 
         uint256[] storage currentTopTenProposals = _topTenProposals[distributionId];
@@ -867,7 +871,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
 
         // record voters vote
-        screeningVotesCast[distributionId][msg.sender] += votes_;
+        screeningVotesCast[distributionId][msg.sender] = pastScreeningVotesCast + votes_;
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(
