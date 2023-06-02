@@ -16,6 +16,20 @@ import { IGrantFundActions } from "./interfaces/IGrantFundActions.sol";
 
 import { Maths } from "./libraries/Maths.sol";
 
+
+/**
+ *  @title  GrantFund Contract
+ *  @notice Entrypoint of GrantFund actions for grant fund actors:
+ *          - `Proposers`: Create proposals for transfer of ajna tokens to a list of recipients.
+ *          - `Voters`: Vote in the Screening and Funding stages of the distribution period on proposals. Claim delegate rewards if eligible.
+ *          - `Slate Updaters`: Submit a list of proposals to be finalized for execution during the Challenge Stage of a distribution period.
+ *          - `Distribution Starters`: Calls `startNewDistributionPeriod` to start a new distribution period.
+ *          - `Treasury Funders`: Calls `fundTreasury` to fund the treasury with ajna tokens.
+ *          - `Executors`: Execute finalized proposals after a distribution period has ended.
+ *  @dev    Contract inherits from `Storage` abstract contract to contain state variables.
+ *  @dev    Events and proposal function interfaces are compliant with OpenZeppelin Governor.
+ *  @dev    Calls logic from internal `Maths` library.
+ */
 contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     using SafeERC20 for IERC20;
