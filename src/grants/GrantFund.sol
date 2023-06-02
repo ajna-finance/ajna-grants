@@ -162,7 +162,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      * @return newId_ The new distribution period Id.
      */
     function _setNewDistributionId() private returns (uint24 newId_) {
-        newId_ = _currentDistributionId += 1;
+        newId_ = ++_currentDistributionId;
     }
 
     /************************************/
@@ -602,7 +602,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     /// @inheritdoc IGrantFundActions
     function fundingVote(
-        FundingVoteParams[] memory voteParams_
+        FundingVoteParams[] calldata voteParams_
     ) external override returns (uint256 votesCast_) {
         uint24 currentDistributionId = _currentDistributionId;
 
@@ -666,7 +666,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     /// @inheritdoc IGrantFundActions
     function screeningVote(
-        ScreeningVoteParams[] memory voteParams_
+        ScreeningVoteParams[] calldata voteParams_
     ) external override returns (uint256 votesCast_) {
         DistributionPeriod storage currentDistribution = _distributions[_currentDistributionId];
         uint256 startBlock = currentDistribution.startBlock;
