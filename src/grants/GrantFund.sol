@@ -17,6 +17,20 @@ import { IGrantFundActions } from "./interfaces/IGrantFundActions.sol";
 
 import { Maths } from "./libraries/Maths.sol";
 
+
+/**
+ *  @title  GrantFund Contract
+ *  @notice Entrypoint of GrantFund actions for grant fund actors:
+ *          - `Proposers`: Create proposals for transfer of ajna tokens to a list of recipients.
+ *          - `Voters`: Vote in the Screening and Funding stages of the distribution period on proposals. Claim delegate rewards if eligible.
+ *          - `Slate Updaters`: Submit a list of proposals to be finalized for execution during the Challenge Stage of a distribution period.
+ *          - `Distribution Starters`: Calls `startNewDistributionPeriod` to start a new distribution period.
+ *          - `Treasury Funders`: Calls `fundTreasury` to fund the treasury with ajna tokens.
+ *          - `Executors`: Execute finalized proposals after a distribution period has ended.
+ *  @dev    Contract inherits from `Storage` abstract contract to contain state variables.
+ *  @dev    Events and proposal function interfaces are compliant with OpenZeppelin Governor.
+ *  @dev    Calls logic from internal `Maths` library.
+ */
 contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     using SafeERC20 for IERC20;
@@ -25,6 +39,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /*** Constructor ***/
     /*******************/
 
+    /**
+     *  @notice Deploys the GrantFund contract.
+     *  @param ajnaToken_ Address of the token which will be distributed to executed proposals, and eligible delegation rewards claimers.
+     */
     constructor(address ajnaToken_) {
         ajnaTokenAddress = ajnaToken_;
     }
@@ -140,7 +158,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint256 totalTokenDistributed;
         uint256 numFundedProposals = fundingProposalIds.length;
 
-        for (uint i = 0; i < numFundedProposals; ) {
+        for (uint256 i = 0; i < numFundedProposals; ) {
 
             totalTokenDistributed += _proposals[fundingProposalIds[i]].tokensRequested;
 
@@ -163,7 +181,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      * @return newId_ The new distribution period Id.
      */
     function _setNewDistributionId() private returns (uint24 newId_) {
-        newId_ = _currentDistributionId += 1;
+        newId_ = ++_currentDistributionId;
     }
 
     /************************************/
@@ -173,17 +191,17 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /// @inheritdoc IGrantFundActions
     function claimDelegateReward(
         uint24 distributionId_
-    ) external override returns(uint256 rewardClaimed_) {
+    ) external override returns (uint256 rewardClaimed_) {
         // Revert if delegatee didn't vote in screening stage
-        if(screeningVotesCast[distributionId_][msg.sender] == 0) revert DelegateRewardInvalid();
+        if (screeningVotesCast[distributionId_][msg.sender] == 0) revert DelegateRewardInvalid();
 
         DistributionPeriod memory currentDistribution = _distributions[distributionId_];
 
         // Check if the distribution period is still active
-        if(block.number <= currentDistribution.endBlock) revert DistributionPeriodStillActive();
+        if (block.number <= currentDistribution.endBlock) revert DistributionPeriodStillActive();
 
         // check rewards haven't already been claimed
-        if(hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
+        if (hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
 
         QuadraticVoter memory voter = _quadraticVoters[distributionId_][msg.sender];
 
@@ -454,7 +472,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     ) internal view returns (uint128 sum_) {
         uint256 noOfProposals = proposalIdSubset_.length;
 
-        for (uint i = 0; i < noOfProposals;) {
+        for (uint256 i = 0; i < noOfProposals;) {
             // since we are converting from int128 to uint128, we can safely assume that the value will not overflow
             sum_ += uint128(_proposals[proposalIdSubset_[i]].fundingVotesReceived);
 
@@ -505,25 +523,26 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
             // check calldata includes both required params
             if (calldatas_[i].length != 68) revert InvalidProposal();
 
-            // check calldata function selector is transfer()
-            bytes memory selDataWithSig = calldatas_[i];
+            // access individual calldata bytes
+            bytes memory data = calldatas_[i];
 
+            // retrieve the selector from the calldata
             bytes4 selector;
             // slither-disable-next-line assembly
             assembly {
-                selector := mload(add(selDataWithSig, 0x20))
+                selector := mload(add(data, 0x20))
             }
+            // check the selector matches transfer(address,uint256)
             if (selector != bytes4(0xa9059cbb)) revert InvalidProposal();
 
             // https://github.com/ethereum/solidity/issues/9439
             // retrieve recipient and tokensRequested from incoming calldata, accounting for the function selector
             uint256 tokensRequested;
             address recipient;
-            bytes memory tokenDataWithSig = calldatas_[i];
             // slither-disable-next-line assembly
             assembly {
-                recipient := mload(add(tokenDataWithSig, 36)) // 36 = 4 (selector) + 32 (recipient address)
-                tokensRequested := mload(add(tokenDataWithSig, 68)) // 68 = 4 (selector) + 32 (recipient address) + 32 (tokens requested)
+                recipient := mload(add(data, 36)) // 36 = 4 (selector) + 32 (recipient address)
+                tokensRequested := mload(add(data, 68)) // 68 = 4 (selector) + 32 (recipient address) + 32 (tokens requested)
             }
 
             // check recipient in the calldata is valid and doesn't attempt to transfer tokens to a disallowed address
@@ -601,7 +620,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     /// @inheritdoc IGrantFundActions
     function fundingVote(
-        FundingVoteParams[] memory voteParams_
+        FundingVoteParams[] calldata voteParams_
     ) external override returns (uint256 votesCast_) {
         uint24 currentDistributionId = _currentDistributionId;
 
@@ -665,7 +684,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     /// @inheritdoc IGrantFundActions
     function screeningVote(
-        ScreeningVoteParams[] memory voteParams_
+        ScreeningVoteParams[] calldata voteParams_
     ) external override returns (uint256 votesCast_) {
         DistributionPeriod storage currentDistribution = _distributions[_currentDistributionId];
         uint256 startBlock = currentDistribution.startBlock;
@@ -758,9 +777,8 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
 
         // calculate the cumulative cost of all votes made by the voter
-        // and check that attempted votes cast doesn't overflow uint128
+        // and ensure that attempted votes cast doesn't overflow uint128
         uint256 sumOfTheSquareOfVotesCast = _sumSquareOfVotesCast(votesCast);
-        if (sumOfTheSquareOfVotesCast > type(uint128).max) revert InsufficientVotingPower();
         uint128 cumulativeVotePowerUsed = SafeCast.toUint128(sumOfTheSquareOfVotesCast);
 
         // check that the voter has enough voting power remaining to cast the vote
@@ -874,12 +892,12 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint256[] memory array_
     ) internal pure returns (int256 index_) {
         index_ = -1; // default value indicating proposalId not in the array
-        int256 arrayLength = int256(array_.length);
+        uint256 arrayLength = array_.length;
 
-        for (int256 i = 0; i < arrayLength;) {
+        for (uint256 i = 0; i < arrayLength;) {
             // slither-disable-next-line incorrect-equality
-            if (array_[uint256(i)] == proposalId_) {
-                index_ = i;
+            if (array_[i] == proposalId_) {
+                index_ = int256(i);
                 break;
             }
 
@@ -902,11 +920,11 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         index_ = -1; // default value indicating proposalId not in the array
 
         // since we are converting from uint256 to int256, we can safely assume that the value will not overflow
-        int256 numVotesCast = int256(voteParams_.length);
-        for (int256 i = 0; i < numVotesCast; ) {
+        uint256 numVotesCast = voteParams_.length;
+        for (uint256 i = 0; i < numVotesCast; ) {
             // slither-disable-next-line incorrect-equality
-            if (voteParams_[uint256(i)].proposalId == proposalId_) {
-                index_ = i;
+            if (voteParams_[i].proposalId == proposalId_) {
+                index_ = int256(i);
                 break;
             }
 

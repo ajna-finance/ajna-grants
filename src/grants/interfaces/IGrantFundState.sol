@@ -13,14 +13,17 @@ interface IGrantFundState {
     /*************/
 
     /**
-     * @notice Enum listing available proposal types.
-     */
-    enum FundingMechanism {
-        Standard
-    }
-
-    /**
-     * @dev Enum listing a proposal's lifecycle.
+     * @notice Enum listing a proposal's lifecycle.
+     * @dev Compatibile with interface used by Compound Governor Bravo and OpenZeppelin Governor.
+     * @dev Returned in `state()` function.
+     * @param Pending   N/A for Ajna. Maintained for compatibility purposes.
+     * @param Active    Block number is still within a proposal's distribution period, and the proposal hasn't yet been finalized.
+     * @param Canceled  N/A for Ajna. Maintained for compatibility purposes.
+     * @param Defeated  Proposal wasn't finalized.
+     * @param Succeeded Proposal was succesfully voted on and finalized, and can be executed at will.
+     * @param Queued    N/A for Ajna. Maintained for compatibility purposes.
+     * @param Expired   N/A for Ajna. Maintained for compatibility purposes.
+     * @param Executed  Proposal was executed.
      */
     enum ProposalState {
         Pending,
@@ -39,30 +42,45 @@ interface IGrantFundState {
 
     /**
      * @notice Contains proposals that made it through the screening process to the funding stage.
+     * @param id                   Id of the current distribution period.
+     * @param startBlock           Block number of the distribution period's start.
+     * @param endBlock             Block number of the distribution period's end.
+     * @param fundsAvailable       Maximum fund (including delegate reward) that can be taken out that period.
+     * @param fundingVotePowerCast Total number of voting power allocated in funding stage that period.
+     * @param fundedSlateHash      Hash of leading slate of proposals to fund.
      */
     struct DistributionPeriod {
-        uint24  id;                   // id of the current distribution period
-        uint48  startBlock;           // block number of the distribution period's start
-        uint48  endBlock;             // block number of the distribution period's end
-        uint128 fundsAvailable;       // maximum fund (including delegate reward) that can be taken out that period
-        uint256 fundingVotePowerCast; // total number of voting power allocated in funding stage that period
-        bytes32 fundedSlateHash;      // hash of list of proposals to fund
+        uint24  id;
+        uint48  startBlock;
+        uint48  endBlock;
+        uint128 fundsAvailable;
+        uint256 fundingVotePowerCast;
+        bytes32 fundedSlateHash;
     }
 
     /**
      * @notice Contains information about proposals in a distribution period.
+     * @param proposalId           OZ.Governor compliant proposalId. Hash of propose() inputs.
+     * @param distributionId       Id of the distribution period in which the proposal was made.
+     * @param executed             Whether the proposal has been executed.
+     * @param votesReceived        Accumulator of screening votes received by a proposal.
+     * @param tokensRequested      Number of Ajna tokens requested by the proposal.
+     * @param fundingVotesReceived Accumulator of funding votes allocated to the proposal.
      */
     struct Proposal {
-        uint256 proposalId;           // OZ.Governor compliant proposalId. Hash of propose() inputs
-        uint24  distributionId;       // Id of the distribution period in which the proposal was made
-        bool    executed;             // whether the proposal has been executed
-        uint128 votesReceived;        // accumulator of screening votes received by a proposal
-        uint128 tokensRequested;      // number of Ajna tokens requested in the proposal
-        int128  fundingVotesReceived; // accumulator of funding votes allocated to the proposal.
+        uint256 proposalId;
+        uint24  distributionId;
+        bool    executed;
+        uint128 votesReceived;
+        uint128 tokensRequested;
+        int128  fundingVotesReceived;
     }
 
     /**
      * @notice Contains information about voters during a vote made by a QuadraticVoter in the Funding stage of a distribution period.
+     * @dev    Used in fundingVote().
+     * @param proposalId Id of the proposal being voted on.
+     * @param votesUsed  Number of votes allocated to the proposal.
      */
     struct FundingVoteParams {
         uint256 proposalId;
@@ -71,20 +89,26 @@ interface IGrantFundState {
 
     /**
      * @notice Contains information about voters during a vote made during the Screening stage of a distribution period.
-     * @dev    Used in screeningVoteMulti().
+     * @dev    Used in screeningVote().
+     * @param proposalId Id of the proposal being voted on.
+     * @param votes      Number of votes allocated to the proposal.
      */
     struct ScreeningVoteParams {
-        uint256 proposalId; // the proposal being voted on
-        uint256 votes;      // the number of votes to allocate to the proposal
+        uint256 proposalId;
+        uint256 votes;
     }
 
     /**
      * @notice Contains information about voters during a distribution period's funding stage.
+     * @dev    Used in `fundingVote()`, and `claimDelegateReward()`.
+     * @param votingPower           Amount of votes originally available to the voter, equal to the sum of the square of their initial votes.
+     * @param remainingVotingPower  Remaining voting power in the given period.
+     * @param votesCast             Array of votes cast by the voter.
      */
     struct QuadraticVoter {
-        uint128 votingPower;           // amount of votes originally available to the voter, equal to the sum of the square of their initial votes
-        uint128 remainingVotingPower;  // remaining voting power in the given period
-        FundingVoteParams[] votesCast; // array of votes cast by the voter
+        uint128 votingPower;
+        uint128 remainingVotingPower;
+        FundingVoteParams[] votesCast;
     }
 
 }

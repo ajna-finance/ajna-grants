@@ -35,7 +35,7 @@ interface IGrantFundEvents {
     );
 
     /**
-     *  @notice Emitted when delegatee claims his rewards.
+     *  @notice Emitted when delegatee claims their rewards.
      *  @param  delegateeAddress Address of delegatee.
      *  @param  distributionId   Id of distribution period.
      *  @param  rewardClaimed    Amount of Reward Claimed.
@@ -54,14 +54,26 @@ interface IGrantFundEvents {
     event FundTreasury(uint256 amount, uint256 treasuryBalance);
 
     /**
-     * @dev Emitted when a proposal is executed.
+     * @notice Emitted when a proposal is executed.
      * @dev Compatibile with interface used by Compound Governor Bravo and OpenZeppelin Governor.
+     * @param proposalId Id of the proposal executed.
      */
     event ProposalExecuted(uint256 proposalId);
 
     /**
-     * @dev Emitted when a proposal is created.
+     * @notice Emitted when a proposal is created.
      * @dev Compatibile with interface used by Compound Governor Bravo and OpenZeppelin Governor.
+     * @param proposalId  Id of the proposal created.
+     * @param proposer    Address of the proposer.
+     * @param targets     List of addresses of the contracts called by proposal's associated transactions.
+     * @param values      List of values in wei for each proposal's associated transaction.
+     * @param signatures  List of function signatures (can be empty) of the proposal's associated transactions.
+     * @param calldatas   List of calldatas: calldata format is [functionId (4 bytes)][packed arguments (32 bytes per argument)].
+     *                    Calldata is always transfer(address,uint256) for Ajna distribution proposals.
+     * @param startBlock  Block number when the distribution period and screening stage begins:
+     *                    holders must delegate their votes for the period 34 prior to this block to vote in the screening stage.
+     * @param endBlock    Block number when the distribution period ends.
+     * @param description Description of the proposal.
      */
     event ProposalCreated(
         uint256 proposalId,
@@ -76,8 +88,13 @@ interface IGrantFundEvents {
     );
 
     /**
-     * @dev Emitted when votes are cast on a proposal.
+     * @notice Emitted when votes are cast on a proposal.
      * @dev Compatibile with interface used by Compound Governor Bravo and OpenZeppelin Governor.
+     * @param voter      Address of the voter.
+     * @param proposalId Id of the proposal voted on.
+     * @param support    Indicates if the voter supports the proposal (0=against, 1=for).
+     * @param weight     Amount of votes cast on the proposal.
+     * @param reason     Reason given by the voter for or against the proposal.
      */
     event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason);
 }
