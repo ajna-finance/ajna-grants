@@ -996,7 +996,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
 
         changePrank(_tokenHolder5);
-        vm.expectRevert(IGrantFundErrors.InsufficientVotingPower.selector);
+        vm.expectRevert("SafeCast: value doesn't fit in 128 bits");
         _fundingVoteNoLog(_grantFund, _tokenHolder5, screenedProposals[3].proposalId, -2_600_000_000_000_000 * 1e18);
 
         // check tokenHolder5 partial vote budget calculations

@@ -758,9 +758,8 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
 
         // calculate the cumulative cost of all votes made by the voter
-        // and check that attempted votes cast doesn't overflow uint128
+        // and ensure that attempted votes cast doesn't overflow uint128
         uint256 sumOfTheSquareOfVotesCast = _sumSquareOfVotesCast(votesCast);
-        if (sumOfTheSquareOfVotesCast > type(uint128).max) revert InsufficientVotingPower();
         uint128 cumulativeVotePowerUsed = SafeCast.toUint128(sumOfTheSquareOfVotesCast);
 
         // check that the voter has enough voting power remaining to cast the vote
