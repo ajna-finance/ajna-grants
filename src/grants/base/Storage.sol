@@ -17,7 +17,7 @@ abstract contract Storage is IGrantFundState {
     uint256 internal constant GLOBAL_BUDGET_CONSTRAINT = 0.03 * 1e18;
 
     /**
-     * @notice Length of the challengephase of the distribution period in blocks.
+     * @notice Length of the challenge phase of the distribution period in blocks.
      * @dev    Roughly equivalent to the number of blocks in 7 days.
      * @dev    The period in which funded proposal slates can be checked in updateSlate.
      */

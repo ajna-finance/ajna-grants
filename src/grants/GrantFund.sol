@@ -172,7 +172,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /// @inheritdoc IGrantFundActions
     function claimDelegateReward(
         uint24 distributionId_
-    ) external override returns(uint256 rewardClaimed_) {
+    ) external override returns (uint256 rewardClaimed_) {
         // Revert if delegatee didn't vote in screening stage
         if (screeningVotesCast[distributionId_][msg.sender] == 0) revert DelegateRewardInvalid();
 

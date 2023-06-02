@@ -156,7 +156,7 @@ interface IGrantFundActions is IGrantFundState {
 
     /**
      * @notice Retrieve the delegate reward accrued to a voter in a given distribution period.
-     * @param  distributionId_ The  to calculate rewards for.
+     * @param  distributionId_ The distributionId to calculate rewards for.
      * @param  voter_          The address of the voter to calculate rewards for.
      * @return rewards_        The rewards earned by the voter for voting in that distribution period.
      */
@@ -219,13 +219,13 @@ interface IGrantFundActions is IGrantFundState {
 
     /**
      * @notice Mapping of proposalIds to {Proposal} structs.
-     * @param  proposalId_       The proposalId to retrieve the Proposal struct for.
-     * @return proposalId        The retrieved struct's proposalId.
-     * @return distributionId    The distributionId in which the proposal was submitted.
-     * @return votesReceived     The amount of votes the proposal has received in it's distribution period's screening round.
-     * @return tokensRequested   The amount of tokens requested by the proposal.
-     * @return qvBudgetAllocated The amount of quadratic vote budget allocated to the proposal in it's distribution period's funding round.
-     * @return executed          True if the proposal has been executed.
+     * @param  proposalId_          The proposalId to retrieve the Proposal struct for.
+     * @return proposalId           The retrieved struct's proposalId.
+     * @return distributionId       The distributionId in which the proposal was submitted.
+     * @return votesReceived        The amount of votes the proposal has received in its distribution period's screening round.
+     * @return tokensRequested      The amount of tokens requested by the proposal.
+     * @return fundingVotesReceived The amount of funding votes cast on the proposal in its distribution period's funding round.
+     * @return executed             True if the proposal has been executed.
      */
     function getProposalInfo(
         uint256 proposalId_
