@@ -36,6 +36,12 @@ contract AjnaTokenTest is Test {
     /*** Tests ***/
     /*************/
 
+    function testMint() external {
+        changePrank(_tokenDeployer);
+        AjnaToken token = new AjnaToken(_tokenHolder);
+        assertEq(token.totalSupply(), _initialAjnaTokenSupply);
+    }
+
     function testCannotSendTokensToContract() external {
         vm.expectRevert("Cannot transfer tokens to the contract itself");
         _token.transfer(address(_token), 1);

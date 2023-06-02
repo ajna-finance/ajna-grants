@@ -34,7 +34,7 @@ contract StandardScreeningInvariant is StandardTestBase {
         uint24 distributionId = _grantFund.getDistributionId();
         uint256 standardFundingProposalsSubmitted = _standardHandler.getStandardFundingProposals(distributionId).length;
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        (, uint256 startBlock, , , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
         require(
             topTenProposals.length <= 10 && standardFundingProposalsSubmitted >= topTenProposals.length,
@@ -98,7 +98,7 @@ contract StandardScreeningInvariant is StandardTestBase {
             // TODO: account for multiple distribution periods?
             TestProposal memory testProposal = _standardHandler.getTestProposal(proposalId);
             require(
-                testProposal.blockAtCreation <= endBlock - 72000,
+                testProposal.blockAtCreation <= _grantFund.getScreeningStageEndBlock(startBlock),
                 "invariant SS9: A proposal can only be created during a distribution period's screening stage"
             );
         }

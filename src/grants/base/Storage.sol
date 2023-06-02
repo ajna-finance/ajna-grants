@@ -17,29 +17,29 @@ abstract contract Storage is IGrantFundState {
     uint256 internal constant GLOBAL_BUDGET_CONSTRAINT = 0.03 * 1e18;
 
     /**
-     * @notice Length of the challengephase of the distribution period in blocks.
+     * @notice Length of the challenge phase of the distribution period in blocks.
      * @dev    Roughly equivalent to the number of blocks in 7 days.
      * @dev    The period in which funded proposal slates can be checked in updateSlate.
      */
-    uint256 internal constant CHALLENGE_PERIOD_LENGTH = 50400;
+    uint256 internal constant CHALLENGE_PERIOD_LENGTH = 50_400;
 
     /**
      * @notice Length of the distribution period in blocks.
-     * @dev    Roughly equivalent to the number of blocks in 97 days.
+     * @dev    Roughly equivalent to the number of blocks in 90 days.
      */
-    uint48 internal constant DISTRIBUTION_PERIOD_LENGTH = 698400;
+    uint48 internal constant DISTRIBUTION_PERIOD_LENGTH = 648_000;
 
     /**
      * @notice Length of the funding stage of the distribution period in blocks.
      * @dev    Roughly equivalent to the number of blocks in 10 days.
      */
-    uint256 internal constant FUNDING_PERIOD_LENGTH = 72000;
+    uint256 internal constant FUNDING_PERIOD_LENGTH = 72_000;
 
     /**
      * @notice Length of the screening stage of the distribution period in blocks.
-     * @dev    Roughly equivalent to the number of blocks in 80 days.
+     * @dev    Roughly equivalent to the number of blocks in 73 days.
      */
-    uint256 internal constant SCREENING_PERIOD_LENGTH = 576000;
+    uint256 internal constant SCREENING_PERIOD_LENGTH = 525_600;
 
     /**
      * @notice Number of blocks prior to a given voting stage to check an accounts voting power.
@@ -66,50 +66,50 @@ abstract contract Storage is IGrantFundState {
      * @notice Mapping of distribution periods from the grant fund.
      * @dev distributionId => DistributionPeriod
      */
-    mapping(uint24 => DistributionPeriod) internal _distributions;
+    mapping(uint24 distributionId => DistributionPeriod) internal _distributions;
 
     /**
      * @dev Mapping of all proposals that have ever been submitted to the grant fund for screening.
      * @dev proposalId => Proposal
      */
-    mapping(uint256 => Proposal) internal _proposals;
+    mapping(uint256 proposalId => Proposal) internal _proposals;
 
     /**
      * @dev Mapping of distributionId to a sorted array of 10 proposalIds with the most votes in the screening period.
      * @dev distribution.id => proposalId[]
      * @dev A new array is created for each distribution period
      */
-    mapping(uint256 => uint256[]) internal _topTenProposals;
+    mapping(uint256 distributionId => uint256[] topTenProposals) internal _topTenProposals;
 
     /**
      * @notice Mapping of a hash of a proposal slate to a list of funded proposals.
      * @dev slate hash => proposalId[]
      */
-    mapping(bytes32 => uint256[]) internal _fundedProposalSlates;
+    mapping(bytes32 slateHash => uint256[] fundedProposalSlate) internal _fundedProposalSlates;
 
     /**
      * @notice Mapping of distribution periods to voters to a Quadratic Voter info struct.
      * @dev distributionId => voter address => QuadraticVoter 
      */
-    mapping(uint256 => mapping(address => QuadraticVoter)) internal _quadraticVoters;
+    mapping(uint256 distributionId => mapping(address voter => QuadraticVoter)) internal _quadraticVoters;
 
     /**
      * @notice Mapping of distributionId to whether surplus funds from distribution updated into treasury
      * @dev distributionId => bool
     */
-    mapping(uint256 => bool) internal _isSurplusFundsUpdated;
+    mapping(uint256 distributionId => bool isUpdated) internal _isSurplusFundsUpdated;
 
     /**
-     * @notice Mapping of distributionId to user address to whether user has claimed his delegate reward
+     * @notice Mapping of distributionId to user address to whether user has claimed their delegate reward
      * @dev distributionId => address => bool
     */
-    mapping(uint256 => mapping(address => bool)) public hasClaimedReward;
+    mapping(uint256 distributionId => mapping(address voter => bool claimed)) public hasClaimedReward;
 
     /**
      * @notice Mapping of distributionId to user address to total votes cast on screening stage proposals.
      * @dev distributionId => address => uint256
     */
-    mapping(uint256 => mapping(address => uint256)) public screeningVotesCast;
+    mapping(uint256 distributionId => mapping(address voter => uint256 votersScreeningVotesCast)) public screeningVotesCast;
 
     /**
      * @notice Total funds available for distribution.
