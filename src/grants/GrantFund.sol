@@ -139,7 +139,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint256 totalTokenDistributed;
         uint256 numFundedProposals = fundingProposalIds.length;
 
-        for (uint i = 0; i < numFundedProposals; ) {
+        for (uint256 i = 0; i < numFundedProposals; ) {
 
             totalTokenDistributed += _proposals[fundingProposalIds[i]].tokensRequested;
 
@@ -174,15 +174,15 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint24 distributionId_
     ) external override returns(uint256 rewardClaimed_) {
         // Revert if delegatee didn't vote in screening stage
-        if(screeningVotesCast[distributionId_][msg.sender] == 0) revert DelegateRewardInvalid();
+        if (screeningVotesCast[distributionId_][msg.sender] == 0) revert DelegateRewardInvalid();
 
         DistributionPeriod memory currentDistribution = _distributions[distributionId_];
 
         // Check if the distribution period is still active
-        if(block.number <= currentDistribution.endBlock) revert DistributionPeriodStillActive();
+        if (block.number <= currentDistribution.endBlock) revert DistributionPeriodStillActive();
 
         // check rewards haven't already been claimed
-        if(hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
+        if (hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
 
         QuadraticVoter memory voter = _quadraticVoters[distributionId_][msg.sender];
 
@@ -384,6 +384,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint256 noOfCalldatas = calldatas_.length;
         for (uint256 i = 0; i < noOfCalldatas;) {
             // proposals can only ever target the Ajna token contract, with 0 value
+            // TODO: https://github.com/code-423n4/2023-05-ajna-findings/blob/main/data/Sathish9098-Q.md#l-5-gas-griefingtheft-is-possible-on-unsafe-external-call
             (bool success, bytes memory returndata) = ajnaTokenAddress.call{value: 0}(calldatas_[i]);
             Address.verifyCallResult(success, returndata, errorMessage);
 
@@ -452,7 +453,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     ) internal view returns (uint128 sum_) {
         uint256 noOfProposals = proposalIdSubset_.length;
 
-        for (uint i = 0; i < noOfProposals;) {
+        for (uint256 i = 0; i < noOfProposals;) {
             // since we are converting from int128 to uint128, we can safely assume that the value will not overflow
             sum_ += uint128(_proposals[proposalIdSubset_[i]].fundingVotesReceived);
 

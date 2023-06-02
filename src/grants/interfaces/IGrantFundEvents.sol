@@ -35,7 +35,7 @@ interface IGrantFundEvents {
     );
 
     /**
-     *  @notice Emitted when delegatee claims his rewards.
+     *  @notice Emitted when delegatee claims their rewards.
      *  @param  delegateeAddress Address of delegatee.
      *  @param  distributionId   Id of distribution period.
      *  @param  rewardClaimed    Amount of Reward Claimed.

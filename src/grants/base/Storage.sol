@@ -100,7 +100,7 @@ abstract contract Storage is IGrantFundState {
     mapping(uint256 => bool) internal _isSurplusFundsUpdated;
 
     /**
-     * @notice Mapping of distributionId to user address to whether user has claimed his delegate reward
+     * @notice Mapping of distributionId to user address to whether user has claimed their delegate reward
      * @dev distributionId => address => bool
     */
     mapping(uint256 => mapping(address => bool)) public hasClaimedReward;

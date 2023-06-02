@@ -34,7 +34,7 @@ interface IGrantFundActions is IGrantFundState {
     /**
      * @notice distributes delegate reward based on delegatee Vote share.
      * @dev Can be called by anyone who has voted in both screening and funding stages.
-     * @param  distributionId_ Id of distribution from which delegatee wants to claim his reward.
+     * @param  distributionId_ Id of distribution from which delegatee wants to claim their reward.
      * @return rewardClaimed_  Amount of reward claimed by delegatee.
      */
     function claimDelegateReward(
