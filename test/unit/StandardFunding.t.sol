@@ -308,6 +308,15 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertEq(votingPower, 0);
         votingPower = _getScreeningVotes(_grantFund, _tokenHolder2);
         assertEq(votingPower, 25_000_000 * 1e18);
+
+        // tokenHolder1 still has no voting power since they didn't keep their tokens for the entire snapshot period
+        vm.roll(_startBlock + 34);
+        votingPower = _getScreeningVotes(_grantFund, _tokenHolder1);
+        assertEq(votingPower, 0);
+
+        vm.roll(_startBlock + 35);
+        votingPower = _getScreeningVotes(_grantFund, _tokenHolder1);
+        assertEq(votingPower, 0);
     }
 
     function testPropose() external {
