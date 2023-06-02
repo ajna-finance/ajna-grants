@@ -203,14 +203,15 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         if (block.number <= currentDistribution.endBlock) revert DistributionPeriodStillActive();
 
         // check rewards haven't already been claimed
-        if (hasClaimedReward[distributionId_][msg.sender]) revert RewardAlreadyClaimed();
+        mapping(address => bool) storage _hasClaimedReward = hasClaimedReward[distributionId_];
+        if (_hasClaimedReward[msg.sender]) revert RewardAlreadyClaimed();
 
         QuadraticVoter storage voter = _quadraticVoters[distributionId_][msg.sender];
 
         // calculate rewards earned for voting
         rewardClaimed_ = _getDelegateReward(currentDistribution, voter);
 
-        hasClaimedReward[distributionId_][msg.sender] = true;
+        _hasClaimedReward[msg.sender] = true;
 
         emit DelegateRewardClaimed(
             msg.sender,
@@ -314,7 +315,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // store new proposal information
         newProposal.proposalId      = proposalId_;
         newProposal.distributionId  = currentDistribution.id;
-        uint128 tokensRequested = _validateCallDatas(targets_, values_, calldatas_); // check proposal parameters are valid and update tokensRequested
+        uint128 tokensRequested     = _validateCallDatas(targets_, values_, calldatas_); // check proposal parameters are valid and update tokensRequested
         newProposal.tokensRequested = tokensRequested;
 
         // revert if proposal requested more tokens than are available in the distribution period
