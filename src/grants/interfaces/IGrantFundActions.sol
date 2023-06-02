@@ -81,7 +81,7 @@ interface IGrantFundActions is IGrantFundState {
 
     /**
      * @notice Submit a new proposal to the Grant Coordination Fund Standard Funding mechanism.
-     * @dev    All proposals can be submitted by anyone. There can only be one value in each array. Interface inherits from OZ.propose().
+     * @dev    All proposals can be submitted by anyone. There can only be one value in each array. Interface is compliant with OZ.propose().
      * @param  targets_     List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
      * @param  values_      List of values to be sent with the proposal calldata. Should be 0 for all proposals.
      * @param  calldatas_   List of calldata to be executed. Should be the transfer() method.
