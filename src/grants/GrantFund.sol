@@ -38,6 +38,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /*** Constructor ***/
     /*******************/
 
+    /**
+     *  @notice Deploys the GrantFund contract.
+     *  @param ajnaToken_ Address of the token which will be distributed to executed proposals, and eligible delegation rewards claimers.
+     */
     constructor(address ajnaToken_) {
         ajnaTokenAddress = ajnaToken_;
     }
