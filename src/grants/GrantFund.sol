@@ -5,6 +5,7 @@ pragma solidity 0.8.18;
 import { Address }         from "@oz/utils/Address.sol";
 import { IERC20 }          from "@oz/token/ERC20/IERC20.sol";
 import { IVotes }          from "@oz/governance/utils/IVotes.sol";
+import { Math }            from "@oz/utils/math/Math.sol";
 import { ReentrancyGuard } from "@oz/security/ReentrancyGuard.sol";
 import { SafeCast }        from "@oz/utils/math/SafeCast.sol";
 import { SafeERC20 }       from "@oz/token/ERC20/utils/SafeERC20.sol";
@@ -214,18 +215,19 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     ) internal pure returns (uint256 rewards_) {
         // calculate the total voting power available to the voter that was allocated in the funding stage
         uint256 votingPowerAllocatedByDelegatee = voter_.votingPower - voter_.remainingVotingPower;
+        // take the sqrt of the voting power allocated to compare against the root of all voting power allocated
+        // multiply by 1e18 to maintain WAD precision
+        uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);
 
         // if none of the voter's voting power was allocated, they receive no rewards
-        if (votingPowerAllocatedByDelegatee != 0) {
+        if (rootVotingPowerAllocatedByDelegatee != 0) {
             // calculate reward
             // delegateeReward = 10 % of GBC distributed as per delegatee Voting power allocated
-            rewards_ = Maths.wdiv(
-                Maths.wmul(
-                    currentDistribution_.fundsAvailable,
-                    votingPowerAllocatedByDelegatee
-                ),
-                currentDistribution_.fundingVotePowerCast
-            ) / 10;
+            rewards_ = Math.mulDiv(
+                currentDistribution_.fundsAvailable,
+                rootVotingPowerAllocatedByDelegatee,
+                10 * currentDistribution_.fundingVotePowerCast
+            );
         }
     }
 
@@ -767,14 +769,16 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // update voter voting power accumulator
         voter_.remainingVotingPower = votingPower - cumulativeVotePowerUsed;
 
-        // calculate the change in voting power used by the voter in this vote in order to accurately track the total voting power used in the funding stage
-        // since we are moving from uint128 to uint256, we can safely assume that the value will not overflow
-        uint256 incrementalVotingPowerUsed = uint256(cumulativeVotePowerUsed - voterPowerUsedPreVote);
+        // calculate the total sqrt voting power used in the funding stage, in order to calculate delegate rewards.
+        // since we are moving from uint128 to uint256, we can safely assume that the value will not overflow.
+        // multiply by 1e18 to maintain WAD precision.
+        uint256 incrementalRootVotingPowerUsed =
+            Math.sqrt(uint256(cumulativeVotePowerUsed) * 1e18) - Math.sqrt(uint256(voterPowerUsedPreVote) * 1e18);
 
-        // update accumulator for total voting power used in the funding stage in order to calculate delegate rewards
+        // update accumulator for total root voting power used in the funding stage in order to calculate delegate rewards
         // check that the voter voted in the screening round before updating the accumulator
         if (screeningVotesCast[_currentDistributionId][msg.sender] != 0) {
-            currentDistribution_.fundingVotePowerCast += incrementalVotingPowerUsed;
+            currentDistribution_.fundingVotePowerCast += incrementalRootVotingPowerUsed;
         }
 
         // update proposal vote tracking

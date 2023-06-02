@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
+import { Math } from "@oz/utils/math/Math.sol";
+
 import { Test } from "@std/Test.sol";
 
 import { Maths } from '../../src/grants/libraries/Maths.sol';
@@ -49,6 +51,18 @@ contract MathsTest is Test {
         assertEq(Maths.wpow(1_000 * 1e18, 2), 1_000_000 * 1e18);
         assertEq(Maths.wpow(0.5 * 1e18, 20), 0.000000953674316406 * 1e18);
         assertEq(Maths.wpow(0.2 * 1e18, 17), 0.000000000001310720 * 1e18);
+    }
+
+    function testSqrt() external {
+        // sqrt
+        assertEq(Math.sqrt(100 * 1e18) * 1e9, 10 * 1e18);
+        assertEq(Math.sqrt(25 * 1e18) * 1e9, 5 * 1e18);
+        assertEq(Math.sqrt(11_000.143012091382543917 * 1e18) * 1e9, 104.881566598000000000 * 1e18);
+
+        assertEq(Math.sqrt(2 * 1e18) * 1e9, 1.414213562000000000 * 1e18);
+        assertEq(Math.sqrt(2) * 1e9, 1 * 1e9);
+        assertEq(Math.sqrt(5699) * 1e9, 75 * 1e9);
+        assertEq(Math.sqrt(5699), 75);
     }
 
 }

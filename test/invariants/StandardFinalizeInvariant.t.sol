@@ -3,6 +3,7 @@
 pragma solidity 0.8.18;
 
 import { console }  from "@std/console.sol";
+import { Math } from "@oz/utils/math/Math.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
 import { IGrantFund } from "../../src/grants/interfaces/IGrantFund.sol";
@@ -156,7 +157,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
         );
     }
 
-    function invariant_DR1_DR2_DR3() external {
+    function invariant_DR1_DR2_DR3_DR5() external {
         uint24 distributionId = _grantFund.getDistributionId();
         (, , , uint128 fundsAvailable, uint256 fundingVotePowerCast, ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
@@ -182,6 +183,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
                 assertTrue(delegationRewardsClaimed >= 0);
 
                 uint256 votingPowerAllocatedByDelegatee = votingPower - remainingVotingPower;
+                uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);
 
                 require(
                     fundingVoteParams.length > 0 && screeningVoteParams.length > 0,
@@ -190,13 +192,11 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
                 uint256 rewards;
                 if (votingPowerAllocatedByDelegatee > 0) {
-                    rewards = Maths.wdiv(
-                        Maths.wmul(
-                            fundsAvailable,
-                            votingPowerAllocatedByDelegatee
-                        ),
-                        fundingVotePowerCast
-                    ) / 10;
+                    rewards = Math.mulDiv(
+                        fundsAvailable,
+                        rootVotingPowerAllocatedByDelegatee,
+                        10 * fundingVotePowerCast
+                    );
                 }
 
                 require(
@@ -206,9 +206,17 @@ contract StandardFinalizeInvariant is StandardTestBase {
             }
         }
 
-        // invariant DR1: Cumulative delegation rewards should be 10% of a distribution periods GBC.
-        assertTrue(totalRewardsClaimed <= fundsAvailable * 1 / 10);
+        require(
+            totalRewardsClaimed <= fundsAvailable * 1 / 10,
+            "invariant DR1: Cumulative delegation rewards should be <= 10% of a distribution periods GBC"
+        );
+
+        // check state after all possible delegation rewards have been claimed
         if (_standardHandler.numberOfCalls('SFH.claimDelegateReward.success') == _standardHandler.getActorsCount()) {
+            require(
+                totalRewardsClaimed >= Maths.wmul(fundsAvailable * 1 / 10, 0.9999 * 1e18),
+                "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"
+            );
             assertEq(totalRewardsClaimed, fundsAvailable * 1 / 10);
         }
     }
