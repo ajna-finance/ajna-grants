@@ -30,8 +30,8 @@ library Maths {
 
     /**
      * @notice Returns the result of multiplying two numbers.
-     * @param x First number.
-     * @param y Second number.
+     * @param x First number, WAD.
+     * @param y Second number, WAD.
      * @return z Result of multiplication, as a WAD.
      */
     function wmul(uint256 x, uint256 y) internal pure returns (uint256) {
@@ -40,8 +40,8 @@ library Maths {
 
     /**
      * @notice Returns the result of dividing two numbers.
-     * @param x First number.
-     * @param y Second number.
+     * @param x First number, WAD.
+     * @param y Second number, WAD.
      * @return z Result of division, as a WAD.
      */
     function wdiv(uint256 x, uint256 y) internal pure returns (uint256) {

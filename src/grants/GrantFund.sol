@@ -402,7 +402,6 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint256 noOfCalldatas = calldatas_.length;
         for (uint256 i = 0; i < noOfCalldatas;) {
             // proposals can only ever target the Ajna token contract, with 0 value
-            // TODO: https://github.com/code-423n4/2023-05-ajna-findings/blob/main/data/Sathish9098-Q.md#l-5-gas-griefingtheft-is-possible-on-unsafe-external-call
             (bool success, bytes memory returndata) = ajnaTokenAddress.call{value: 0}(calldatas_[i]);
             Address.verifyCallResult(success, returndata, errorMessage);
 
