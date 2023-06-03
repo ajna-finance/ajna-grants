@@ -1037,7 +1037,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
         // voter hasn't yet called _castVote in this period
         else {
-            uint256 fundingStageStartBlock = screeningStageEndBlock_ + 1;
+            uint256 fundingStageStartBlock = screeningStageEndBlock_;
             votes_ = Maths.wpow(
                 _getVotesAtSnapshotBlocks(
                     account_,

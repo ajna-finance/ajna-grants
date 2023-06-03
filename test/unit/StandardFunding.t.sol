@@ -94,7 +94,15 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // start distribution period
         _startDistributionPeriod(_grantFund);
 
-        (, uint256 startBlock, uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(_grantFund.getDistributionId());
+        uint24 distributionId = _grantFund.getDistributionId();
+
+        (, uint256 startBlock, uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+
+        TestProposalParams[] memory testProposalParams = new TestProposalParams[](2);
+        testProposalParams[0] = TestProposalParams(_tokenHolder1, 9_000_000 * 1e18);
+        testProposalParams[1] = TestProposalParams(_tokenHolder2, 2_000_000 * 1e18);
+
+        TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
 
         // check stage is correctly set to Screening on the start block
         assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
@@ -106,24 +114,45 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(_startBlock + 50 + 525_600);
         assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
         assertEq(_grantFund.getScreeningStageEndBlock(startBlock), block.number);
+        // only able to cast screening votes
+        assertFundingVoteInvalidVoteRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, 100);
+        _screeningVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, 20_000_000 * 1e18);
+        _screeningVote(_grantFund, _tokenHolder2, testProposals[1].proposalId, 5_000_000 * 1e18);
 
         // roll to screeningStageEndBlock + 1 and check we've entered the Funding stage
         vm.roll(_startBlock + 50 + 525_600 + 1);
         assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
+        assertScreeningVoteInvalidVoteRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, 100);
+        // now able to cast funding votes
+        _fundingVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, voteYes, 25_000_000 * 1e18);
 
         // roll to fundingStageEndBlock and check its still the Funding stage
         vm.roll(_startBlock + 50 + 525_600 + 72000);
         assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
         assertEq(_grantFund.getFundingStageEndBlock(startBlock), block.number);
+        assertUpdateSlateNotChallengeStageRevert(_grantFund, distributionId);
 
         // roll to fundingStageEndBlock + 1 and check we've entered the Challenge stage
         vm.roll(_startBlock + 50 + 525_600 + 72000 + 1);
         assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
         assertEq(_grantFund.getChallengeStageStartBlock(endBlock), block.number);
+        assertScreeningVoteInvalidVoteRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, 100);
+        assertFundingVoteInvalidVoteRevert(_grantFund, _tokenHolder2, testProposals[1].proposalId, 100);
+        // check can update slate on the first block of the challenge stage
+        uint256[] memory potentialProposalSlate = new uint256[](1);
+        potentialProposalSlate[0] = testProposals[1].proposalId;
+        vm.expectEmit(true, true, false, true);
+        emit FundedSlateUpdated(distributionId, _grantFund.getSlateHash(potentialProposalSlate));
+        bool proposalSlateUpdated = _grantFund.updateSlate(potentialProposalSlate, distributionId);
+        assertTrue(proposalSlateUpdated);
 
         // roll to challengeStageEndBlock and check its still the Challenge stage
         vm.roll(endBlock);
         assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
+        // check can't claim rewards yet
+        changePrank(_tokenHolder1);
+        vm.expectRevert(IGrantFundErrors.DistributionPeriodStillActive.selector);
+        _grantFund.claimDelegateReward(distributionId);
 
         // roll to endBlock + 1 and check the distribution period is no longer active
         vm.roll(endBlock + 1);
