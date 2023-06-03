@@ -690,7 +690,8 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     function screeningVote(
         ScreeningVoteParams[] calldata voteParams_
     ) external override returns (uint256 votesCast_) {
-        DistributionPeriod storage currentDistribution = _distributions[_currentDistributionId];
+        uint24 distributionId = _currentDistributionId;
+        DistributionPeriod storage currentDistribution = _distributions[distributionId];
         uint256 startBlock = currentDistribution.startBlock;
 
         // check screening stage is active
@@ -702,11 +703,13 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         uint256 numVotesCast = voteParams_.length;
 
+        VoterInfo storage voter = _voterInfo[distributionId][msg.sender];
+
         for (uint256 i = 0; i < numVotesCast; ) {
             Proposal storage proposal = _proposals[voteParams_[i].proposalId];
 
             // check that the proposal is part of the current distribution period
-            if (proposal.distributionId != currentDistribution.id) revert InvalidVote();
+            if (proposal.distributionId != distributionId) revert InvalidVote();
 
             uint256 votes = voteParams_[i].votes;
 
@@ -715,7 +718,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
             // cast each successive vote
             votesCast_ += votes;
-            _screeningVote(proposal, votes);
+            _screeningVote(proposal, voter, votes);
 
             unchecked { ++i; }
         }
@@ -827,13 +830,13 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      */
     function _screeningVote(
         Proposal storage proposal_,
+        VoterInfo storage voter_,
         uint256 votes_
     ) internal {
         uint24 distributionId = proposal_.distributionId;
 
         // check that the voter has enough voting power to cast the vote
-        VoterInfo storage voter = _voterInfo[distributionId][msg.sender];
-        uint248 pastScreeningVotesCast = voter.screeningVotesCast;
+        uint248 pastScreeningVotesCast = voter_.screeningVotesCast;
         if (
             pastScreeningVotesCast + votes_ > _getVotesScreening(distributionId, msg.sender)
         ) revert InsufficientVotingPower();
@@ -873,8 +876,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
 
         // record voters vote
-        // screeningVotesCast[distributionId][msg.sender] = pastScreeningVotesCast + votes_;
-        voter.screeningVotesCast = pastScreeningVotesCast + SafeCast.toUint248(votes_);
+        voter_.screeningVotesCast = pastScreeningVotesCast + SafeCast.toUint248(votes_);
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(
