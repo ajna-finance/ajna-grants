@@ -194,8 +194,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     function claimDelegateReward(
         uint24 distributionId_
     ) external override returns (uint256 rewardClaimed_) {
+        VoterInfo storage voter = _voterInfo[distributionId_][msg.sender];
+
         // Revert if delegatee didn't vote in screening stage
-        if (screeningVotesCast[distributionId_][msg.sender] == 0) revert DelegateRewardInvalid();
+        if (voter.screeningVotesCast == 0) revert DelegateRewardInvalid();
 
         DistributionPeriod storage currentDistribution = _distributions[distributionId_];
 
@@ -203,15 +205,12 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         if (block.number <= currentDistribution.endBlock) revert DistributionPeriodStillActive();
 
         // check rewards haven't already been claimed
-        mapping(address => bool) storage _hasClaimedReward = hasClaimedReward[distributionId_];
-        if (_hasClaimedReward[msg.sender]) revert RewardAlreadyClaimed();
-
-        QuadraticVoter storage voter = _quadraticVoters[distributionId_][msg.sender];
+        if (voter.hasClaimedReward) revert RewardAlreadyClaimed();
 
         // calculate rewards earned for voting
         rewardClaimed_ = _getDelegateReward(currentDistribution, voter);
 
-        _hasClaimedReward[msg.sender] = true;
+        voter.hasClaimedReward = true;
 
         emit DelegateRewardClaimed(
             msg.sender,
@@ -232,10 +231,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      */
     function _getDelegateReward(
         DistributionPeriod storage currentDistribution_,
-        QuadraticVoter storage voter_
+        VoterInfo storage voter_
     ) internal view returns (uint256 rewards_) {
         // calculate the total voting power available to the voter that was allocated in the funding stage
-        uint256 votingPowerAllocatedByDelegatee = voter_.votingPower - voter_.remainingVotingPower;
+        uint256 votingPowerAllocatedByDelegatee = voter_.fundingVotingPower - voter_.fundingRemainingVotingPower;
         // take the sqrt of the voting power allocated to compare against the root of all voting power allocated
         // multiply by 1e18 to maintain WAD precision
         uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);
@@ -630,7 +629,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint24 currentDistributionId = _currentDistributionId;
 
         DistributionPeriod storage currentDistribution = _distributions[currentDistributionId];
-        QuadraticVoter     storage voter               = _quadraticVoters[currentDistributionId][msg.sender];
+        VoterInfo          storage voter               = _voterInfo[currentDistributionId][msg.sender];
 
         uint256 startBlock = currentDistribution.startBlock;
 
@@ -639,7 +638,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // check that the funding stage is active
         if (block.number <= screeningStageEndBlock || block.number > _getFundingStageEndBlock(startBlock)) revert InvalidVote();
 
-        uint128 votingPower = voter.votingPower;
+        uint128 votingPower = voter.fundingVotingPower;
 
         // if this is the first time a voter has attempted to vote this period,
         // set initial voting power and remaining voting power
@@ -650,13 +649,13 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
                 _getVotesFunding(
                     msg.sender,
                     votingPower,
-                    voter.remainingVotingPower,
+                    voter.fundingRemainingVotingPower,
                     screeningStageEndBlock
                 )
             );
 
-            voter.votingPower          = newVotingPower;
-            voter.remainingVotingPower = newVotingPower;
+            voter.fundingVotingPower          = newVotingPower;
+            voter.fundingRemainingVotingPower = newVotingPower;
         }
 
         uint256 numVotesCast = voteParams_.length;
@@ -691,7 +690,8 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     function screeningVote(
         ScreeningVoteParams[] calldata voteParams_
     ) external override returns (uint256 votesCast_) {
-        DistributionPeriod storage currentDistribution = _distributions[_currentDistributionId];
+        uint24 distributionId = _currentDistributionId;
+        DistributionPeriod storage currentDistribution = _distributions[distributionId];
         uint256 startBlock = currentDistribution.startBlock;
 
         // check screening stage is active
@@ -703,11 +703,13 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         uint256 numVotesCast = voteParams_.length;
 
+        VoterInfo storage voter = _voterInfo[distributionId][msg.sender];
+
         for (uint256 i = 0; i < numVotesCast; ) {
             Proposal storage proposal = _proposals[voteParams_[i].proposalId];
 
             // check that the proposal is part of the current distribution period
-            if (proposal.distributionId != currentDistribution.id) revert InvalidVote();
+            if (proposal.distributionId != distributionId) revert InvalidVote();
 
             uint256 votes = voteParams_[i].votes;
 
@@ -716,7 +718,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
             // cast each successive vote
             votesCast_ += votes;
-            _screeningVote(proposal, votes);
+            _screeningVote(proposal, voter, votes);
 
             unchecked { ++i; }
         }
@@ -738,7 +740,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     function _fundingVote(
         DistributionPeriod storage currentDistribution_,
         Proposal storage proposal_,
-        QuadraticVoter storage voter_,
+        VoterInfo storage voter_,
         FundingVoteParams calldata voteParams_
     ) internal returns (uint256 incrementalVotesUsed_) {
         uint8   support = 1;
@@ -747,10 +749,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // determine if voter is voting for or against the proposal
         voteParams_.votesUsed < 0 ? support = 0 : support = 1;
 
-        uint128 votingPower = voter_.votingPower;
+        uint128 votingPower = voter_.fundingVotingPower;
 
         // the total amount of voting power used by the voter before this vote executes
-        uint128 voterPowerUsedPreVote = votingPower - voter_.remainingVotingPower;
+        uint128 voterPowerUsedPreVote = votingPower - voter_.fundingRemainingVotingPower;
 
         FundingVoteParams[] storage votesCast = voter_.votesCast;
 
@@ -790,7 +792,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         if (cumulativeVotePowerUsed > votingPower) revert InsufficientRemainingVotingPower();
 
         // update voter voting power accumulator
-        voter_.remainingVotingPower = votingPower - cumulativeVotePowerUsed;
+        voter_.fundingRemainingVotingPower = votingPower - cumulativeVotePowerUsed;
 
         // calculate the total sqrt voting power used in the funding stage, in order to calculate delegate rewards.
         // since we are moving from uint128 to uint256, we can safely assume that the value will not overflow.
@@ -800,7 +802,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         // update accumulator for total root voting power used in the funding stage in order to calculate delegate rewards
         // check that the voter voted in the screening round before updating the accumulator
-        if (screeningVotesCast[_currentDistributionId][msg.sender] != 0) {
+        if (voter_.screeningVotesCast != 0) {
             currentDistribution_.fundingVotePowerCast += incrementalRootVotingPowerUsed;
         }
 
@@ -828,12 +830,13 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      */
     function _screeningVote(
         Proposal storage proposal_,
+        VoterInfo storage voter_,
         uint256 votes_
     ) internal {
         uint24 distributionId = proposal_.distributionId;
 
         // check that the voter has enough voting power to cast the vote
-        uint256 pastScreeningVotesCast = screeningVotesCast[distributionId][msg.sender];
+        uint248 pastScreeningVotesCast = voter_.screeningVotesCast;
         if (
             pastScreeningVotesCast + votes_ > _getVotesScreening(distributionId, msg.sender)
         ) revert InsufficientVotingPower();
@@ -873,7 +876,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         }
 
         // record voters vote
-        screeningVotesCast[distributionId][msg.sender] = pastScreeningVotesCast + votes_;
+        voter_.screeningVotesCast = pastScreeningVotesCast + SafeCast.toUint248(votes_);
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(
@@ -1005,12 +1008,13 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      */
     function _getVotesScreening(uint24 distributionId_, address account_) internal view returns (uint256 votes_) {
         uint256 startBlock = _distributions[distributionId_].startBlock;
+        uint256 snapshotBlock = startBlock - 1;
 
         // calculate voting weight based on the number of tokens held at the snapshot blocks of the screening stage
         votes_ = _getVotesAtSnapshotBlocks(
             account_,
-            startBlock - VOTING_POWER_SNAPSHOT_DELAY,
-            startBlock
+            snapshotBlock - VOTING_POWER_SNAPSHOT_DELAY,
+            snapshotBlock
         );
     }
 
@@ -1048,9 +1052,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
      /**
      * @notice Retrieve the voting power of an account.
-     * @dev    Voting power is the minimum of the amount of votes available at a snapshot block 33 blocks prior to voting start, and at the vote starting block.
+     * @dev    Voting power is the minimum of the amount of votes available at two snapshots:
+     *         a snapshot 34 blocks prior to voting start, and the second snapshot the block before the distribution period starts.
      * @param account_        The voting account.
-     * @param snapshot_       One of the block numbers to retrieve the voting power at. 33 blocks prior to the block at which a proposal is available for voting.
+     * @param snapshot_       One of the block numbers to retrieve the voting power at. 34 blocks prior to the block at which a proposal is available for voting.
      * @param voteStartBlock_ The block number the proposal became available for voting.
      * @return                The voting power of the account.
      */
@@ -1061,13 +1066,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     ) internal view returns (uint256) {
         IVotes token = IVotes(ajnaTokenAddress);
 
-        // calculate the number of votes available at the snapshot block
+        // calculate the number of votes available at the first snapshot block
         uint256 votes1 = token.getPastVotes(account_, snapshot_);
 
-        // enable voting weight to be calculated during the voting period's start block
-        voteStartBlock_ = voteStartBlock_ != block.number ? voteStartBlock_ : block.number - 1;
-
-        // calculate the number of votes available at the stage's start block
+        // calculate the number of votes available at the second snapshot occuring the block before the stage's start block
         uint256 votes2 = token.getPastVotes(account_, voteStartBlock_);
 
         return Maths.min(votes2, votes1);
@@ -1095,7 +1097,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         address voter_
     ) external view override returns (uint256 rewards_) {
         DistributionPeriod storage currentDistribution = _distributions[distributionId_];
-        QuadraticVoter     storage voter               = _quadraticVoters[distributionId_][voter_];
+        VoterInfo     storage voter               = _voterInfo[distributionId_][voter_];
 
         rewards_ = _getDelegateReward(currentDistribution, voter);
     }
@@ -1136,7 +1138,12 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint24 distributionId_,
         address account_
     ) external view override returns (FundingVoteParams[] memory) {
-        return _quadraticVoters[distributionId_][account_].votesCast;
+        return _voterInfo[distributionId_][account_].votesCast;
+    }
+
+    /// @inheritdoc IGrantFundActions
+    function getHasClaimedRewards(uint256 distributionId_, address account_) external view override returns (bool) {
+        return _voterInfo[distributionId_][account_].hasClaimedReward;
     }
 
     /// @inheritdoc IGrantFundActions
@@ -1156,6 +1163,11 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /// @inheritdoc IGrantFundActions
     function getScreeningStageEndBlock(uint256 startBlock_) external pure override returns (uint256) {
         return _getScreeningStageEndBlock(startBlock_);
+    }
+
+    /// @inheritdoc IGrantFundActions
+    function getScreeningVotesCast(uint256 distributionId_, address account_) external view override returns (uint256) {
+        return _voterInfo[distributionId_][account_].screeningVotesCast;
     }
 
     /// @inheritdoc IGrantFundActions
@@ -1201,9 +1213,9 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         address account_
     ) external view override returns (uint128, uint128, uint256) {
         return (
-            _quadraticVoters[distributionId_][account_].votingPower,
-            _quadraticVoters[distributionId_][account_].remainingVotingPower,
-            _quadraticVoters[distributionId_][account_].votesCast.length
+            _voterInfo[distributionId_][account_].fundingVotingPower,
+            _voterInfo[distributionId_][account_].fundingRemainingVotingPower,
+            _voterInfo[distributionId_][account_].votesCast.length
         );
     }
 
@@ -1213,11 +1225,11 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         address account_
     ) external view override returns (uint256 votes_) {
         DistributionPeriod memory currentDistribution = _distributions[distributionId_];
-        QuadraticVoter        memory voter               = _quadraticVoters[currentDistribution.id][account_];
+        VoterInfo        memory voter               = _voterInfo[currentDistribution.id][account_];
 
         uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.startBlock);
 
-        votes_ = _getVotesFunding(account_, voter.votingPower, voter.remainingVotingPower, screeningStageEndBlock);
+        votes_ = _getVotesFunding(account_, voter.fundingVotingPower, voter.fundingRemainingVotingPower, screeningStageEndBlock);
     }
 
     /// @inheritdoc IGrantFundActions

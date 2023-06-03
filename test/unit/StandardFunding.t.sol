@@ -280,6 +280,45 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _fundingVoteNoLog(_grantFund, _tokenHolder1, proposal.proposalId, 16_000_000 * 1e18);
     }
 
+    function testVotingPowerAtDistributionStart() external {
+        // 14 tokenholders self delegate their tokens to enable voting on the proposals
+        _selfDelegateVoters(_token, _votersArr);
+
+        // roll 32 blocks forward to the block before the distribution period starts
+        vm.roll(_startBlock + 32);
+
+        // _tokenHolder1 transfers their tokens away
+        address nonVotingAddress = makeAddr("nonVotingAddress");
+        changePrank(_tokenHolder1);
+        _token.transfer(nonVotingAddress, 25_000_000 * 1e18);
+
+        vm.roll(_startBlock + 33);
+
+        // nonVotingAddress returns the funds one block later
+        changePrank(nonVotingAddress);
+        _token.transfer(_tokenHolder1, 25_000_000 * 1e18);
+
+        // start distribution period
+        _startDistributionPeriod(_grantFund);
+
+        // check voting power of _tokenHolder1 is 0
+        uint256 votingPower = _getScreeningVotes(_grantFund, _tokenHolder1);
+        assertEq(votingPower, 0);
+        votingPower = _getScreeningVotes(_grantFund, nonVotingAddress);
+        assertEq(votingPower, 0);
+        votingPower = _getScreeningVotes(_grantFund, _tokenHolder2);
+        assertEq(votingPower, 25_000_000 * 1e18);
+
+        // tokenHolder1 still has no voting power since they didn't keep their tokens for the entire snapshot period
+        vm.roll(_startBlock + 34);
+        votingPower = _getScreeningVotes(_grantFund, _tokenHolder1);
+        assertEq(votingPower, 0);
+
+        vm.roll(_startBlock + 35);
+        votingPower = _getScreeningVotes(_grantFund, _tokenHolder1);
+        assertEq(votingPower, 0);
+    }
+
     function testPropose() external {
         // generate proposal calldata
         bytes[] memory proposalCalldata = new bytes[](1);
@@ -521,7 +560,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
 
         // ensure that user has not voted
-        uint256 screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder1);
+        uint256 screeningVotesCast = _grantFund.getScreeningVotesCast(distributionId, _tokenHolder1);
         assertEq(screeningVotesCast, 0);
 
         // check revert if attempts to vote with 0 power
@@ -541,12 +580,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVote(_grantFund, screeningVoteParams, _tokenHolder1);
 
         // check that user has voted
-        screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder1);
+        screeningVotesCast = _grantFund.getScreeningVotesCast(distributionId, _tokenHolder1);
         assertEq(screeningVotesCast, 20_000_000 * 1e18);
 
         _screeningVote(_grantFund, _tokenHolder2, testProposals[1].proposalId, 5_000_000 * 1e18);
 
-        screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder2);
+        screeningVotesCast = _grantFund.getScreeningVotesCast(distributionId, _tokenHolder2);
         assertEq(screeningVotesCast, 5_000_000 * 1e18);
 
         changePrank(_tokenHolder1);
