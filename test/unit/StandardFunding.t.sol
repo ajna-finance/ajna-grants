@@ -94,8 +94,20 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // start distribution period
         _startDistributionPeriod(_grantFund);
 
+        uint24 distributionId = _grantFund.getDistributionId();
+
+        (, uint256 startBlock, uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+
+        TestProposalParams[] memory testProposalParams = new TestProposalParams[](2);
+        testProposalParams[0] = TestProposalParams(_tokenHolder1, 9_000_000 * 1e18);
+        testProposalParams[1] = TestProposalParams(_tokenHolder2, 2_000_000 * 1e18);
+
+        TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
+
         // check stage is correctly set to Screening on the start block
         assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
+        // check can cast screening votes on the start block
+        _screeningVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, 20_000_000 * 1e18);
 
         vm.roll(_startBlock + 100);
         assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
@@ -103,27 +115,60 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // roll to screeningStageEndBlock and check its still the Screening stage
         vm.roll(_startBlock + 50 + 525_600);
         assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
+        assertEq(_grantFund.getScreeningStageEndBlock(startBlock), block.number);
+        // only able to cast screening votes at screeningStageEndBlock
+        assertFundingVoteInvalidVoteRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, 100);
+        _screeningVote(_grantFund, _tokenHolder2, testProposals[0].proposalId, 5_000_000 * 1e18);
 
         // roll to screeningStageEndBlock + 1 and check we've entered the Funding stage
         vm.roll(_startBlock + 50 + 525_600 + 1);
         assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
+        assertScreeningVoteInvalidVoteRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, 100);
+        // now able to cast funding votes
+        _fundingVote(_grantFund, _tokenHolder1, testProposals[1].proposalId, voteYes, 25_000_000 * 1e18);
 
         // roll to fundingStageEndBlock and check its still the Funding stage
         vm.roll(_startBlock + 50 + 525_600 + 72000);
         assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
+        assertEq(_grantFund.getFundingStageEndBlock(startBlock), block.number);
+        uint256[] memory potentialProposalSlate = new uint256[](1);
+        potentialProposalSlate[0] = testProposals[0].proposalId;
+        assertUpdateSlateNotChallengeStageRevert(_grantFund, distributionId, potentialProposalSlate);
+        // check can cast funding votes on the last block of the funding stage
+        _fundingVote(_grantFund, _tokenHolder2, testProposals[0].proposalId, voteYes, 15_000_000 * 1e18);
 
         // roll to fundingStageEndBlock + 1 and check we've entered the Challenge stage
         vm.roll(_startBlock + 50 + 525_600 + 72000 + 1);
         assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
+        assertEq(_grantFund.getChallengeStageStartBlock(endBlock), block.number);
+        assertScreeningVoteInvalidVoteRevert(_grantFund, _tokenHolder1, testProposals[1].proposalId, 100);
+        assertFundingVoteInvalidVoteRevert(_grantFund, _tokenHolder2, testProposals[1].proposalId, 100);
+        // check can update slate on the first block of the challenge stage
+        vm.expectEmit(true, true, false, true);
+        emit FundedSlateUpdated(distributionId, _grantFund.getSlateHash(potentialProposalSlate));
+        bool proposalSlateUpdated = _grantFund.updateSlate(potentialProposalSlate, distributionId);
+        assertTrue(proposalSlateUpdated);
 
         // roll to challengeStageEndBlock and check its still the Challenge stage
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(_grantFund.getDistributionId());
         vm.roll(endBlock);
         assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
+        // check can update slate on the last block of the challenge stage
+        potentialProposalSlate[0] = testProposals[1].proposalId;
+        vm.expectEmit(true, true, false, true);
+        emit FundedSlateUpdated(distributionId, _grantFund.getSlateHash(potentialProposalSlate));
+        proposalSlateUpdated = _grantFund.updateSlate(potentialProposalSlate, distributionId);
+        assertTrue(proposalSlateUpdated);
+
+        // check can't claim rewards yet
+        changePrank(_tokenHolder1);
+        vm.expectRevert(IGrantFundErrors.DistributionPeriodStillActive.selector);
+        _grantFund.claimDelegateReward(distributionId);
 
         // roll to endBlock + 1 and check the distribution period is no longer active
         vm.roll(endBlock + 1);
         assertEq(_grantFund.getStage(), keccak256(bytes("Pending")));
+        // check can now claim delegate rewards
+        _claimDelegateReward(_grantFund, _tokenHolder1, distributionId, _grantFund.getDelegateReward(distributionId, _tokenHolder1));
     }
 
     function testGetVotingPowerScreeningStage() external {
@@ -560,7 +605,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
 
         // ensure that user has not voted
-        uint256 screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder1);
+        uint256 screeningVotesCast = _grantFund.getScreeningVotesCast(distributionId, _tokenHolder1);
         assertEq(screeningVotesCast, 0);
 
         // check revert if attempts to vote with 0 power
@@ -580,12 +625,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVote(_grantFund, screeningVoteParams, _tokenHolder1);
 
         // check that user has voted
-        screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder1);
+        screeningVotesCast = _grantFund.getScreeningVotesCast(distributionId, _tokenHolder1);
         assertEq(screeningVotesCast, 20_000_000 * 1e18);
 
         _screeningVote(_grantFund, _tokenHolder2, testProposals[1].proposalId, 5_000_000 * 1e18);
 
-        screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder2);
+        screeningVotesCast = _grantFund.getScreeningVotesCast(distributionId, _tokenHolder2);
         assertEq(screeningVotesCast, 5_000_000 * 1e18);
 
         changePrank(_tokenHolder1);
@@ -1237,6 +1282,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
                 claimedReward_:    delegateRewards
             }
         );
+        assertTrue(_grantFund.getHasClaimedRewards(distributionId, _tokenHolder1));
+
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder2);
         assertEq(delegateRewards, 327_029.344384908148174595 * 1e18);
         _claimDelegateReward(
@@ -1247,6 +1294,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
                 claimedReward_:    delegateRewards
             }
         );
+        assertTrue(_grantFund.getHasClaimedRewards(distributionId, _tokenHolder2));
+
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder3);
         assertEq(delegateRewards, 325_981.170713055738413067 * 1e18);
         _claimDelegateReward(
@@ -1257,6 +1306,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
                 claimedReward_:    delegateRewards
             }
         );
+        assertTrue(_grantFund.getHasClaimedRewards(distributionId, _tokenHolder3));
+
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder4);
         assertEq(delegateRewards, 323_742.533886183076332983 * 1e18);
         _claimDelegateReward(
@@ -1267,6 +1318,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
                 claimedReward_:    delegateRewards
             }
         );
+        assertTrue(_grantFund.getHasClaimedRewards(distributionId, _tokenHolder4));
+
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder5);
         assertEq(delegateRewards, 196_217.606630944888904757 * 1e18);
         _claimDelegateReward(
@@ -1277,6 +1330,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
                 claimedReward_:    delegateRewards
             }
         );
+        assertTrue(_grantFund.getHasClaimedRewards(distributionId, _tokenHolder5));
 
         // should revert as _tokenHolder5 already claimed his reward
         vm.expectRevert(IGrantFundErrors.RewardAlreadyClaimed.selector);
@@ -1898,7 +1952,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
 
         _screeningVote(_grantFund, _tokenHolder1, testProposals[0].proposalId, _getScreeningVotes(_grantFund, _tokenHolder1));
         // skip time to move from screening period to funding period
-        vm.roll(_startBlock + 600_000);
+        vm.roll(_startBlock + 550_000);
 
         // check topTenProposals array is correct after screening period - only six should have advanced
         GrantFund.Proposal[] memory screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
@@ -1907,7 +1961,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _fundingVote(_grantFund, lowRewardAddress, screenedProposals[0].proposalId, voteYes, 0.0001e18);
         screenedProposals = _getProposalListFromProposalIds(_grantFund, _grantFund.getTopTenProposals(distributionId));
 
-        vm.roll(_startBlock + 650_000);
+        vm.roll(_startBlock + 600_000);
 
         uint256[] memory potentialProposalSlate = new uint256[](1);
         potentialProposalSlate[0] = screenedProposals[0].proposalId;
