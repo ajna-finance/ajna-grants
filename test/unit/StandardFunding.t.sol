@@ -560,7 +560,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         TestProposal[] memory testProposals = _createNProposals(_grantFund, _token, testProposalParams);
 
         // ensure that user has not voted
-        uint256 screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder1);
+        uint256 screeningVotesCast = _grantFund.getScreeningVotesCast(distributionId, _tokenHolder1);
         assertEq(screeningVotesCast, 0);
 
         // check revert if attempts to vote with 0 power
@@ -580,12 +580,12 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVote(_grantFund, screeningVoteParams, _tokenHolder1);
 
         // check that user has voted
-        screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder1);
+        screeningVotesCast = _grantFund.getScreeningVotesCast(distributionId, _tokenHolder1);
         assertEq(screeningVotesCast, 20_000_000 * 1e18);
 
         _screeningVote(_grantFund, _tokenHolder2, testProposals[1].proposalId, 5_000_000 * 1e18);
 
-        screeningVotesCast = _grantFund.screeningVotesCast(distributionId, _tokenHolder2);
+        screeningVotesCast = _grantFund.getScreeningVotesCast(distributionId, _tokenHolder2);
         assertEq(screeningVotesCast, 5_000_000 * 1e18);
 
         changePrank(_tokenHolder1);

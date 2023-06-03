@@ -833,9 +833,9 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         // check that the voter has enough voting power to cast the vote
         VoterInfo storage voter = _voterInfo[distributionId][msg.sender];
-        // uint256 pastScreeningVotesCast = screeningVotesCast[distributionId][msg.sender];
+        uint248 pastScreeningVotesCast = voter.screeningVotesCast;
         if (
-            uint256(voter.screeningVotesCast) + votes_ > _getVotesScreening(distributionId, msg.sender)
+            pastScreeningVotesCast + votes_ > _getVotesScreening(distributionId, msg.sender)
         ) revert InsufficientVotingPower();
 
         uint256[] storage currentTopTenProposals = _topTenProposals[distributionId];
@@ -874,7 +874,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         // record voters vote
         // screeningVotesCast[distributionId][msg.sender] = pastScreeningVotesCast + votes_;
-        voter.screeningVotesCast += SafeCast.toUint248(votes_);
+        voter.screeningVotesCast = pastScreeningVotesCast + SafeCast.toUint248(votes_);
 
         // emit VoteCast instead of VoteCastWithParams to maintain compatibility with Tally
         emit VoteCast(
