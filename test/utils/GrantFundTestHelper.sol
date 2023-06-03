@@ -261,11 +261,11 @@ abstract contract GrantFundTestHelper is Test {
         // execute proposal
         changePrank(recipient);
         vm.expectEmit(true, true, false, true);
-        emit ProposalExecuted(testProposal_.proposalId);
-        vm.expectEmit(true, true, false, true);
         emit Transfer(address(grantFund_), recipient, testProposal_.totalTokensRequested);
         vm.expectEmit(true, true, false, true);
         emit DelegateVotesChanged(recipient, voterStartingBalance, voterStartingBalance + testProposal_.totalTokensRequested);
+        vm.expectEmit(true, true, false, true);
+        emit ProposalExecuted(testProposal_.proposalId);
         grantFund_.execute(targets, values, calldatas, descriptionHash);
 
         // check ending token balances

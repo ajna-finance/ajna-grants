@@ -399,11 +399,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint256 proposalId_,
         bytes[] memory calldatas_
     ) internal {
-        // TODO: move this to EOF
-        // use common event name to maintain consistency with tally
-        emit ProposalExecuted(proposalId_);
-
-        string memory errorMessage = "GrantFund: call reverted without message";
+        string memory errorMessage = "GF_CALL_NO_MSG";
 
         uint256 noOfCalldatas = calldatas_.length;
         for (uint256 i = 0; i < noOfCalldatas;) {
@@ -413,6 +409,9 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
             unchecked { ++i; }
         }
+
+        // use common event name to maintain consistency with tally
+        emit ProposalExecuted(proposalId_);
     }
 
     /**
