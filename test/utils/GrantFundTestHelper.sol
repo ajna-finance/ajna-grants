@@ -693,9 +693,9 @@ abstract contract GrantFundTestHelper is Test {
         grantFund_.claimDelegateReward(distributionId_);
     }
 
-    function assertUpdateSlateNotChallengeStageRevert(GrantFund grantFund_, uint24 distributionId_) internal {
+    function assertUpdateSlateNotChallengeStageRevert(GrantFund grantFund_, uint24 distributionId_, uint256[] memory slate_) internal {
         vm.expectRevert(IGrantFundErrors.InvalidProposalSlate.selector);
-        grantFund_.updateSlate(new uint256[](0), distributionId_);
+        grantFund_.updateSlate(slate_, distributionId_);
     }
 
 }
