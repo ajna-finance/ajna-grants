@@ -1005,12 +1005,13 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      */
     function _getVotesScreening(uint24 distributionId_, address account_) internal view returns (uint256 votes_) {
         uint256 startBlock = _distributions[distributionId_].startBlock;
+        uint256 snapshotBlock = startBlock - 1;
 
         // calculate voting weight based on the number of tokens held at the snapshot blocks of the screening stage
         votes_ = _getVotesAtSnapshotBlocks(
             account_,
-            startBlock - VOTING_POWER_SNAPSHOT_DELAY,
-            startBlock
+            snapshotBlock - VOTING_POWER_SNAPSHOT_DELAY,
+            snapshotBlock
         );
     }
 
@@ -1048,9 +1049,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
      /**
      * @notice Retrieve the voting power of an account.
-     * @dev    Voting power is the minimum of the amount of votes available at a snapshot block 33 blocks prior to voting start, and at the vote starting block.
+     * @dev    Voting power is the minimum of the amount of votes available at two snapshots:
+     *         a snapshot 34 blocks prior to voting start, and the second snapshot the block before the distribution period starts.
      * @param account_        The voting account.
-     * @param snapshot_       One of the block numbers to retrieve the voting power at. 33 blocks prior to the block at which a proposal is available for voting.
+     * @param snapshot_       One of the block numbers to retrieve the voting power at. 34 blocks prior to the block at which a proposal is available for voting.
      * @param voteStartBlock_ The block number the proposal became available for voting.
      * @return                The voting power of the account.
      */
@@ -1061,13 +1063,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     ) internal view returns (uint256) {
         IVotes token = IVotes(ajnaTokenAddress);
 
-        // calculate the number of votes available at the snapshot block
+        // calculate the number of votes available at the first snapshot block
         uint256 votes1 = token.getPastVotes(account_, snapshot_);
 
-        // enable voting weight to be calculated during the voting period's start block
-        voteStartBlock_ = voteStartBlock_ != block.number ? voteStartBlock_ : block.number - 1;
-
-        // calculate the number of votes available at the stage's start block
+        // calculate the number of votes available at the second snapshot occuring the block before the stage's start block
         uint256 votes2 = token.getPastVotes(account_, voteStartBlock_);
 
         return Maths.min(votes2, votes1);
