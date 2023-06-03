@@ -1237,6 +1237,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
                 claimedReward_:    delegateRewards
             }
         );
+        assertTrue(_grantFund.getHasClaimedRewards(distributionId, _tokenHolder1));
+
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder2);
         assertEq(delegateRewards, 327_029.344384908148174595 * 1e18);
         _claimDelegateReward(
@@ -1247,6 +1249,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
                 claimedReward_:    delegateRewards
             }
         );
+        assertTrue(_grantFund.getHasClaimedRewards(distributionId, _tokenHolder2));
+
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder3);
         assertEq(delegateRewards, 325_981.170713055738413067 * 1e18);
         _claimDelegateReward(
@@ -1257,6 +1261,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
                 claimedReward_:    delegateRewards
             }
         );
+        assertTrue(_grantFund.getHasClaimedRewards(distributionId, _tokenHolder3));
+
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder4);
         assertEq(delegateRewards, 323_742.533886183076332983 * 1e18);
         _claimDelegateReward(
@@ -1267,6 +1273,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
                 claimedReward_:    delegateRewards
             }
         );
+        assertTrue(_grantFund.getHasClaimedRewards(distributionId, _tokenHolder4));
+
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder5);
         assertEq(delegateRewards, 196_217.606630944888904757 * 1e18);
         _claimDelegateReward(
@@ -1277,6 +1285,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
                 claimedReward_:    delegateRewards
             }
         );
+        assertTrue(_grantFund.getHasClaimedRewards(distributionId, _tokenHolder5));
 
         // should revert as _tokenHolder5 already claimed his reward
         vm.expectRevert(IGrantFundErrors.RewardAlreadyClaimed.selector);

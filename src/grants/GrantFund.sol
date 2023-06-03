@@ -1023,7 +1023,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      * @param  votingPower_            The voter's voting power in the funding round. Equal to the square of their tokens in the voting snapshot.
      * @param  remainingVotingPower_   The voter's remaining quadratic voting power in the given distribution period's funding round.
      * @param  screeningStageEndBlock_ The block number at which the screening stage ends.
-     * @return votes_          The number of votes available to an account in this funding stage.
+     * @return votes_                  The number of votes available to an account in this funding stage.
      */
     function _getVotesFunding(
         address account_,
@@ -1096,7 +1096,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         address voter_
     ) external view override returns (uint256 rewards_) {
         DistributionPeriod storage currentDistribution = _distributions[distributionId_];
-        VoterInfo     storage voter               = _voterInfo[distributionId_][voter_];
+        VoterInfo          storage voter               = _voterInfo[distributionId_][voter_];
 
         rewards_ = _getDelegateReward(currentDistribution, voter);
     }
@@ -1224,7 +1224,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         address account_
     ) external view override returns (uint256 votes_) {
         DistributionPeriod memory currentDistribution = _distributions[distributionId_];
-        VoterInfo        memory voter               = _voterInfo[currentDistribution.id][account_];
+        VoterInfo          memory voter               = _voterInfo[distributionId_][account_];
 
         uint256 screeningStageEndBlock = _getScreeningStageEndBlock(currentDistribution.startBlock);
 
