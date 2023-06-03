@@ -88,28 +88,16 @@ abstract contract Storage is IGrantFundState {
     mapping(bytes32 slateHash => uint256[] fundedProposalSlate) internal _fundedProposalSlates;
 
     /**
-     * @notice Mapping of distribution periods to voters to a Quadratic Voter info struct.
-     * @dev distributionId => voter address => QuadraticVoter 
-     */
-    mapping(uint256 distributionId => mapping(address voter => QuadraticVoter)) internal _quadraticVoters;
-
-    /**
      * @notice Mapping of distributionId to whether surplus funds from distribution updated into treasury
      * @dev distributionId => bool
     */
     mapping(uint256 distributionId => bool isUpdated) internal _isSurplusFundsUpdated;
 
     /**
-     * @notice Mapping of distributionId to user address to whether user has claimed their delegate reward
-     * @dev distributionId => address => bool
+     * @notice Mapping of distributionId to user address to a VoterInfo struct.
+     * @dev distributionId => address => VoterInfo
     */
-    mapping(uint256 distributionId => mapping(address voter => bool claimed)) public hasClaimedReward;
-
-    /**
-     * @notice Mapping of distributionId to user address to total votes cast on screening stage proposals.
-     * @dev distributionId => address => uint256
-    */
-    mapping(uint256 distributionId => mapping(address voter => uint256 votersScreeningVotesCast)) public screeningVotesCast;
+    mapping(uint256 distributionId => mapping(address voter => VoterInfo)) public _voterInfo;
 
     /**
      * @notice Total funds available for distribution.

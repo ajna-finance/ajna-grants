@@ -218,6 +218,14 @@ interface IGrantFundActions is IGrantFundState {
     function getFundingVotesCast(uint24 distributionId_, address account_) external view returns (FundingVoteParams[] memory);
 
     /**
+     * @notice Get the reward claim status of an account in a given distribution period.
+     * @param  distributionId_ The distributionId of the distribution period to check.
+     * @param  account_        The address of the voter to check.
+     * @return                 The reward claim status of the account in the distribution period.
+     */
+    function getHasClaimedRewards(uint256 distributionId_, address account_) external view returns (bool);
+
+    /**
      * @notice Mapping of proposalIds to {Proposal} structs.
      * @param  proposalId_          The proposalId to retrieve the Proposal struct for.
      * @return proposalId           The retrieved struct's proposalId.
@@ -237,6 +245,14 @@ interface IGrantFundActions is IGrantFundState {
      * @return The block number at which this distribution period's screening stage ends.
     */
     function getScreeningStageEndBlock(uint256 startBlock_) external pure returns (uint256);
+
+    /**
+     * @notice Get the number of screening votes cast by an account in a given distribution period.
+     * @param  distributionId_ The distributionId of the distribution period to check.
+     * @param  account_        The address of the voter to check.
+     * @return                 The number of screening votes successfully cast the voter.
+     */
+    function getScreeningVotesCast(uint256 distributionId_, address account_) external view returns (uint256);
 
     /**
      * @notice Generate a unique hash of a list of proposal Ids for usage as a key for comparing proposal slates.
