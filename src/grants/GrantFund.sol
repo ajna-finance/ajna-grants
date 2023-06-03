@@ -117,7 +117,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     function _getChallengeStageStartBlock(
         uint256 endBlock_
     ) internal pure returns (uint256) {
-        return endBlock_ - CHALLENGE_PERIOD_LENGTH;
+        return (endBlock_ - CHALLENGE_PERIOD_LENGTH) + 1;
     }
 
     /**

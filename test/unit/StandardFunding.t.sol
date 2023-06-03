@@ -94,6 +94,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // start distribution period
         _startDistributionPeriod(_grantFund);
 
+        (, uint256 startBlock, uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(_grantFund.getDistributionId());
+
         // check stage is correctly set to Screening on the start block
         assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
 
@@ -103,6 +105,7 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // roll to screeningStageEndBlock and check its still the Screening stage
         vm.roll(_startBlock + 50 + 525_600);
         assertEq(_grantFund.getStage(), keccak256(bytes("Screening")));
+        assertEq(_grantFund.getScreeningStageEndBlock(startBlock), block.number);
 
         // roll to screeningStageEndBlock + 1 and check we've entered the Funding stage
         vm.roll(_startBlock + 50 + 525_600 + 1);
@@ -111,13 +114,14 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         // roll to fundingStageEndBlock and check its still the Funding stage
         vm.roll(_startBlock + 50 + 525_600 + 72000);
         assertEq(_grantFund.getStage(), keccak256(bytes("Funding")));
+        assertEq(_grantFund.getFundingStageEndBlock(startBlock), block.number);
 
         // roll to fundingStageEndBlock + 1 and check we've entered the Challenge stage
         vm.roll(_startBlock + 50 + 525_600 + 72000 + 1);
         assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
+        assertEq(_grantFund.getChallengeStageStartBlock(endBlock), block.number);
 
         // roll to challengeStageEndBlock and check its still the Challenge stage
-        (, , uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(_grantFund.getDistributionId());
         vm.roll(endBlock);
         assertEq(_grantFund.getStage(), keccak256(bytes("Challenge")));
 
