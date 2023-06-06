@@ -101,14 +101,18 @@ interface IGrantFundState {
     /**
      * @notice Contains information about voters during a distribution period's funding stage.
      * @dev    Used in `fundingVote()`, and `claimDelegateReward()`.
-     * @param votingPower           Amount of votes originally available to the voter, equal to the sum of the square of their initial votes.
-     * @param remainingVotingPower  Remaining voting power in the given period.
-     * @param votesCast             Array of votes cast by the voter.
+     * @param fundingVotingPower          Amount of votes originally available to the voter, equal to the sum of the square of their initial votes.
+     * @param fundingRemainingVotingPower Remaining voting power in the given period.
+     * @param votesCast                   Array of votes cast by the voter.
+     * @param screeningVotesCast          Number of screening votes cast by the voter.
+     * @param hasClaimedReward            Whether the voter has claimed their reward for the given period.
      */
-    struct QuadraticVoter {
-        uint128 votingPower;
-        uint128 remainingVotingPower;
+    struct VoterInfo {
+        uint128 fundingVotingPower;
+        uint128 fundingRemainingVotingPower;
         FundingVoteParams[] votesCast;
+        uint248 screeningVotesCast;
+        bool hasClaimedReward;
     }
 
 }
