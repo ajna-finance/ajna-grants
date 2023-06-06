@@ -10,7 +10,7 @@ import { IGrantFund } from "../../src/grants/interfaces/IGrantFund.sol";
 import { StandardTestBase } from "./base/StandardTestBase.sol";
 import { StandardHandler }  from "./handlers/StandardHandler.sol";
 
-contract StandardFundingInvariant is StandardTestBase {
+contract FundingInvariant is StandardTestBase {
 
     // hash the top ten proposals at the start of the funding stage to check composition
     bytes32 initialTopTenHash;

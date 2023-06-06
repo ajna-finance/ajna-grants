@@ -11,7 +11,7 @@ import { StandardTestBase } from "./base/StandardTestBase.sol";
 import { StandardHandler }  from "./handlers/StandardHandler.sol";
 import { Handler }          from "./handlers/Handler.sol";
 
-contract StandardMultipleDistributionInvariant is StandardTestBase {
+contract MultipleDistributionInvariant is StandardTestBase {
 
     // run tests against all functions, having just started a distribution period
     function setUp() public override {

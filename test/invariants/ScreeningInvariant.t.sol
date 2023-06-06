@@ -9,7 +9,7 @@ import { IGrantFund } from "../../src/grants/interfaces/IGrantFund.sol";
 import { StandardTestBase } from "./base/StandardTestBase.sol";
 import { StandardHandler }  from "./handlers/StandardHandler.sol";
 
-contract StandardScreeningInvariant is StandardTestBase {
+contract ScreeningInvariant is StandardTestBase {
 
     function setUp() public override {
         super.setUp();

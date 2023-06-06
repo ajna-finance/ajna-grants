@@ -13,7 +13,7 @@ import { StandardTestBase } from "./base/StandardTestBase.sol";
 import { StandardHandler }  from "./handlers/StandardHandler.sol";
 import { Handler }          from "./handlers/Handler.sol";
 
-contract StandardFinalizeInvariant is StandardTestBase {
+contract FinalizeInvariant is StandardTestBase {
 
     // override setup to start tests in the challenge stage with proposals that have already been screened and funded
     function setUp() public override {
