@@ -30,11 +30,11 @@ contract StandardScreeningInvariant is StandardTestBase {
 
     }
 
-    function invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS9() external {
+    function invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS9_SS10_SS11() external {
         uint24 distributionId = _grantFund.getDistributionId();
         uint256 standardFundingProposalsSubmitted = _standardHandler.getStandardFundingProposals(distributionId).length;
         uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
-        (, uint256 startBlock, , , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+        (, uint256 startBlock, , uint256 gbc, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
         require(
             topTenProposals.length <= 10 && standardFundingProposalsSubmitted >= topTenProposals.length,
@@ -72,9 +72,11 @@ contract StandardScreeningInvariant is StandardTestBase {
             assertGe(votesReceivedLast, 0);
         }
 
+        uint256[] memory proposalIds = new uint256[](standardFundingProposalsSubmitted);
+
         // check invariants against all submitted proposals
         for (uint256 j = 0; j < standardFundingProposalsSubmitted; ++j) {
-            (uint256 proposalId, , uint256 votesReceived, , , ) = _grantFund.getProposalInfo(_standardHandler.standardFundingProposals(distributionId, j));
+            (uint256 proposalId, , uint256 votesReceived, uint256 tokensRequested, , ) = _grantFund.getProposalInfo(_standardHandler.standardFundingProposals(distributionId, j));
             require(
                 votesReceived >= 0,
                 "invariant SS4: Screening votes recieved for a proposal can only be positive"
@@ -100,6 +102,18 @@ contract StandardScreeningInvariant is StandardTestBase {
             require(
                 testProposal.blockAtCreation <= _grantFund.getScreeningStageEndBlock(startBlock),
                 "invariant SS9: A proposal can only be created during a distribution period's screening stage"
+            );
+
+            // check proposalId is unique
+            require(
+                _checkDuplicate(proposalIds) == false, "invariant SS10: A proposal's proposalId must be unique"
+            );
+
+            // Add current proposal Id to proposalIds set
+            proposalIds[j] = proposalId;
+
+            require (
+                tokensRequested <= gbc * 9 / 10, "invariant SS11: A proposal's tokens requested must be <= 90% of GBC"
             );
         }
 

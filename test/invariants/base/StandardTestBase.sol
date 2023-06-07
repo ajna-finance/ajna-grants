@@ -36,4 +36,19 @@ contract StandardTestBase is TestBase {
         currentBlock = block.number;
         _grantFund.startNewDistributionPeriod();
     }
+
+    /******************************/
+    /******* Helper Functions ****/
+    /*****************************/
+
+    function _checkDuplicate(uint256[] memory arr) internal pure returns(bool) {
+        for (uint i = 0; i < arr.length; ++i) {
+            for (uint j = i + 1; j < arr.length; ++j) {
+                if (arr[i] != 0 && arr[i] == arr[j]) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }

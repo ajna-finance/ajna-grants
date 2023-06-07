@@ -122,15 +122,10 @@ contract StandardMultipleDistributionInvariant is StandardTestBase {
         }
     }
 
-    function invariant_DP6() external {
+    function invariant_DP6_DP7() external {
         uint24 distributionId = _grantFund.getDistributionId();
 
-        for (uint24 i = 0; i <= distributionId; ) {
-            if (i == 0) {
-                ++i;
-                continue;
-            }
-
+        for (uint24 i = 1; i <= distributionId; ) {
             (
                 ,
                 ,
