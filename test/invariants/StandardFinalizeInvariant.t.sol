@@ -21,6 +21,15 @@ contract StandardFinalizeInvariant is StandardTestBase {
         uint256 votesCast;
     }
 
+    struct DistributionInfo {
+        uint24 id;
+        uint48 startBlock;
+        uint48 endBlock;
+        uint128 fundsAvailable;
+        uint256 fundingVotePowerCast;
+        bytes32 fundedSlateHash;
+    }
+
     // override setup to start tests in the challenge stage with proposals that have already been screened and funded
     function setUp() public override {
         super.setUp();
@@ -182,8 +191,9 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
     function invariant_DR1_DR2_DR3_DR4_DR5() external {
         uint24 distributionId = _grantFund.getDistributionId();
+        DistributionInfo memory distributionInfo;
         while (distributionId > 0) {
-            (, , uint256 distributionEndBlock, uint128 fundsAvailable, uint256 fundingVotePowerCast, ) = _grantFund.getDistributionPeriodInfo(distributionId);
+            (, , distributionInfo.endBlock, distributionInfo.fundsAvailable, distributionInfo.fundingVotePowerCast, ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
             uint256 totalRewardsClaimed;
 
@@ -218,9 +228,9 @@ contract StandardFinalizeInvariant is StandardTestBase {
                     uint256 rewards;
                     if (votingPowerAllocatedByDelegatee > 0) {
                         rewards = Math.mulDiv(
-                            fundsAvailable,
+                            distributionInfo.fundsAvailable,
                             rootVotingPowerAllocatedByDelegatee,
-                            10 * fundingVotePowerCast
+                            10 * distributionInfo.fundingVotePowerCast
                         );
                     }
 
@@ -229,7 +239,7 @@ contract StandardFinalizeInvariant is StandardTestBase {
                         "invariant DR3: Delegation rewards are proportional to voters funding power allocated in the funding stage."
                     );
 
-                    if (distributionEndBlock >= block.timestamp) {
+                    if (distributionInfo.endBlock >= block.timestamp) {
                         require(
                             _grantFund.getHasClaimedRewards(distributionId, actor) == false,
                             "invariant DR4: Delegation rewards can only be claimed for a distribution period after it ended"
@@ -239,17 +249,17 @@ contract StandardFinalizeInvariant is StandardTestBase {
             }
 
             require(
-                totalRewardsClaimed <= fundsAvailable * 1 / 10,
+                totalRewardsClaimed <= distributionInfo.fundsAvailable * 1 / 10,
                 "invariant DR1: Cumulative delegation rewards should be <= 10% of a distribution periods GBC"
             );
 
             // check state after all possible delegation rewards have been claimed
             if (_standardHandler.numberOfCalls('SFH.claimDelegateReward.success') == _standardHandler.getActorsCount()) {
                 require(
-                    totalRewardsClaimed >= Maths.wmul(fundsAvailable * 1 / 10, 0.9999 * 1e18),
+                    totalRewardsClaimed >= Maths.wmul(distributionInfo.fundsAvailable * 1 / 10, 0.9999 * 1e18),
                     "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"
                 );
-                assertEq(totalRewardsClaimed, fundsAvailable * 1 / 10);
+                assertEq(totalRewardsClaimed, distributionInfo.fundsAvailable * 1 / 10);
             }
 
             --distributionId;
