@@ -6,12 +6,12 @@ import { console }  from "@std/console.sol";
 import { Math } from "@oz/utils/math/Math.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
-import { IGrantFund } from "../../src/grants/interfaces/IGrantFund.sol";
-import { Maths }      from "../../src/grants/libraries/Maths.sol";
+import { IGrantFund } from "../../../src/grants/interfaces/IGrantFund.sol";
+import { Maths }      from "../../../src/grants/libraries/Maths.sol";
 
-import { StandardTestBase } from "./base/StandardTestBase.sol";
-import { StandardHandler }  from "./handlers/StandardHandler.sol";
-import { Handler }          from "./handlers/Handler.sol";
+import { StandardTestBase } from "../base/StandardTestBase.sol";
+import { StandardHandler }  from "../handlers/StandardHandler.sol";
+import { Handler }          from "../handlers/Handler.sol";
 
 contract FinalizeInvariant is StandardTestBase {
 

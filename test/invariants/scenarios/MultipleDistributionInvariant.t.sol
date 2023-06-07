@@ -5,11 +5,11 @@ pragma solidity 0.8.18;
 import { console }  from "@std/console.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
-import { Maths }            from "../../src/grants/libraries/Maths.sol";
+import { Maths }            from "../../../src/grants/libraries/Maths.sol";
 
-import { StandardTestBase } from "./base/StandardTestBase.sol";
-import { StandardHandler }  from "./handlers/StandardHandler.sol";
-import { Handler }          from "./handlers/Handler.sol";
+import { StandardTestBase } from "../base/StandardTestBase.sol";
+import { StandardHandler }  from "../handlers/StandardHandler.sol";
+import { Handler }          from "../handlers/Handler.sol";
 
 contract MultipleDistributionInvariant is StandardTestBase {
 
@@ -43,7 +43,6 @@ contract MultipleDistributionInvariant is StandardTestBase {
 
     function invariant_DP1_DP2_DP3_DP4_DP5() external {
         uint24 distributionId = _grantFund.getDistributionId();
-        console.log("distributionId??", distributionId);
         (
             ,
             uint256 startBlockCurrent,

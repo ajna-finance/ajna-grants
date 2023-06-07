@@ -5,10 +5,10 @@ pragma solidity 0.8.18;
 import { console }  from "@std/console.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 
-import { IGrantFund } from "../../src/grants/interfaces/IGrantFund.sol";
+import { IGrantFund } from "../../../src/grants/interfaces/IGrantFund.sol";
 
-import { StandardTestBase } from "./base/StandardTestBase.sol";
-import { StandardHandler }  from "./handlers/StandardHandler.sol";
+import { StandardTestBase } from "../base/StandardTestBase.sol";
+import { StandardHandler }  from "../handlers/StandardHandler.sol";
 
 contract FundingInvariant is StandardTestBase {
 
