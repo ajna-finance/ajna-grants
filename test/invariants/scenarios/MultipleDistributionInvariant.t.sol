@@ -41,147 +41,25 @@ contract MultipleDistributionInvariant is StandardTestBase {
         currentBlock = block.number;
     }
 
-    function invariant_DP1_DP2_DP3_DP4_DP5() external {
-        uint24 distributionId = _grantFund.getDistributionId();
-        (
-            ,
-            uint256 startBlockCurrent,
-            uint256 endBlockCurrent,
-            ,
-            ,
-        ) = _grantFund.getDistributionPeriodInfo(distributionId);
-
-        uint256 totalFundsAvailable = 0;
-
-        uint24 i = distributionId;
-        while (i > 0) {
-            (
-                ,
-                uint256 startBlockPrev,
-                uint256 endBlockPrev,
-                uint128 fundsAvailablePrev,
-                ,
-            ) = _grantFund.getDistributionPeriodInfo(i);
-            StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(i);
-            uint256 currentTreasury = state.treasuryBeforeStart;
-
-            totalFundsAvailable += fundsAvailablePrev;
-            require(
-                totalFundsAvailable < currentTreasury,
-                "invariant DP5: The treasury balance should be greater than the sum of the funds available in all distribution periods"
-            );
-
-            require(
-                fundsAvailablePrev == Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock + fundsAvailablePrev),
-                "invariant DP3: A distribution's fundsAvailablePrev should be equal to 3% of the treasurie's balance at the block `startNewDistributionPeriod()` is called"
-            );
-
-            require(
-                endBlockPrev > startBlockPrev,
-                "invariant DP4: A distribution's endBlock should be greater than its startBlock"
-            );
-
-            uint256 totalTokensRequestedByProposals = 0;
-
-            // check the top funded proposal slate
-            uint256[] memory proposalSlate = _grantFund.getFundedProposalSlate(state.currentTopSlate);
-            for (uint j = 0; j < proposalSlate.length; ++j) {
-                (
-                    ,
-                    uint24 proposalDistributionId,
-                    ,
-                    uint128 tokensRequested,
-                    ,
-                    bool executed
-                ) = _grantFund.getProposalInfo(proposalSlate[j]);
-                assertEq(proposalDistributionId, i);
-
-                if (executed) {
-                    // invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage
-                    assertLt(tokensRequested, fundsAvailablePrev);
-                }
-                totalTokensRequestedByProposals += tokensRequested;
-            }
-            assertTrue(totalTokensRequestedByProposals <= fundsAvailablePrev);
-
-            // check invariants against each previous distribution periods
-            if (i != distributionId) {
-                // check each distribution period's end block and ensure that only 1 has an endblock not in the past.
-                require(
-                    endBlockPrev < startBlockCurrent && endBlockPrev < currentBlock,
-                    "invariant DP1: Only one distribution period should be active at a time"
-                );
-
-                // decrement blocks to ensure that the next distribution period's end block is less than the current block
-                startBlockCurrent = startBlockPrev;
-                endBlockCurrent = endBlockPrev;
-            }
-
-            --i;
-        }
+    function invariant_distribution_period() external {
+        _invariant_DP1_DP2_DP3_DP4_DP5(_grantFund, _standardHandler);
+        _invariant_DP6(_grantFund, _standardHandler);
+        _invariant_T1_T2(_grantFund, _standardHandler);
     }
 
-    function invariant_DP6() external {
-        uint24 distributionId = _grantFund.getDistributionId();
+    function invariant_all() external {
+        // screening invariants
+        _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS9(_grantFund, _standardHandler);
+        _invariant_SS2_SS4_SS8(_grantFund, _standardHandler);
 
-        for (uint24 i = 0; i <= distributionId; ) {
-            if (i == 0) {
-                ++i;
-                continue;
-            }
+        // funding invariants
+        _invariant_FS1_FS2_FS3(_grantFund, _standardHandler);
+        _invariant_FS4_FS5_FS6_FS7_FS8(_grantFund, _standardHandler);
 
-            (
-                ,
-                ,
-                ,
-                uint128 fundsAvailable,
-                ,
-            ) = _grantFund.getDistributionPeriodInfo(i);
-            StandardHandler.DistributionState memory state = _standardHandler.getDistributionState(i);
-
-            // check prior distributions for surplus to return to treasury
-            uint24 prevDistributionId = i - 1;
-            (
-                ,
-                ,
-                ,
-                uint128 fundsAvailablePrev,
-                ,
-                bytes32 topSlateHashPrev
-            ) = _grantFund.getDistributionPeriodInfo(prevDistributionId);
-
-            // calculate the expected treasury amount at the start of the current distribution period <i>
-            uint256 expectedTreasury = state.treasuryBeforeStart;
-            uint256 surplus = _standardHandler.updateTreasury(prevDistributionId, fundsAvailablePrev, topSlateHashPrev);
-            expectedTreasury += surplus;
-
-            if (i == 1) {
-                require(
-                    fundsAvailable == Maths.wmul(.03 * 1e18, state.treasuryBeforeStart),
-                    "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
-                );
-            }
-            else {
-                require(
-                    fundsAvailable == Maths.wmul(.03 * 1e18, expectedTreasury),
-                    "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
-                );
-            }
-
-            ++i;
-        }
-    }
-
-    function invariant_T1_T2() external view {
-        require(
-            _grantFund.treasury() <= _ajna.balanceOf(address(_grantFund)),
-            "invariant T1: The Grant Fund's treasury should always be less than or equal to the contract's token blance"
-        );
-
-        require(
-            _grantFund.treasury() <= _ajna.totalSupply(),
-            "invariant T2: The Grant Fund's treasury should always be less than or equal to the Ajna token total supply"
-        );
+        // finalize invariants
+        _invariant_CS1_CS2_CS3_CS4_CS5_CS6(_grantFund, _standardHandler);
+        _invariant_ES1_ES2_ES3(_grantFund, _standardHandler);
+        _invariant_DR1_DR2_DR3_DR5(_grantFund, _standardHandler);
     }
 
     function invariant_call_summary() external view {
