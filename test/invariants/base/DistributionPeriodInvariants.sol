@@ -54,28 +54,9 @@ abstract contract DistributionPeriodInvariants is TestBase {
                 "invariant DP4: A distribution's endBlock should be greater than its startBlock"
             );
 
-            uint256 totalTokensRequestedByProposals = 0;
-
-            // check the top funded proposal slate
-            uint256[] memory proposalSlate = grantFund_.getFundedProposalSlate(state.currentTopSlate);
-            for (uint j = 0; j < proposalSlate.length; ++j) {
-                (
-                    ,
-                    uint24 proposalDistributionId,
-                    ,
-                    uint128 tokensRequested,
-                    ,
-                    bool executed
-                ) = grantFund_.getProposalInfo(proposalSlate[j]);
-                assertEq(proposalDistributionId, i);
-
-                if (executed) {
-                    // invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage
-                    assertLt(tokensRequested, fundsAvailablePrev);
-                }
-                totalTokensRequestedByProposals += tokensRequested;
-            }
-            assertTrue(totalTokensRequestedByProposals <= fundsAvailablePrev);
+            // check invariant DP5
+            // seperate function avoids stack too deep error
+            _invariant_DP5(_grantFund, state, i, fundsAvailablePrev);
 
             // check invariants against each previous distribution periods
             if (i != distributionId) {
@@ -92,6 +73,31 @@ abstract contract DistributionPeriodInvariants is TestBase {
 
             --i;
         }
+    }
+
+    function _invariant_DP5(GrantFund grantFund_, StandardHandler.DistributionState memory state, uint256 distributionId_, uint256 fundsAvailablePrev_) internal {
+        uint256 totalTokensRequestedByProposals = 0;
+
+        // check the top funded proposal slate
+        uint256[] memory proposalSlate = grantFund_.getFundedProposalSlate(state.currentTopSlate);
+        for (uint j = 0; j < proposalSlate.length; ++j) {
+            (
+                ,
+                uint24 proposalDistributionId,
+                ,
+                uint128 tokensRequested,
+                ,
+                bool executed
+            ) = grantFund_.getProposalInfo(proposalSlate[j]);
+            assertEq(proposalDistributionId, distributionId_);
+
+            if (executed) {
+                // invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage
+                assertLt(tokensRequested, fundsAvailablePrev_);
+            }
+            totalTokensRequestedByProposals += tokensRequested;
+        }
+        assertTrue(totalTokensRequestedByProposals <= fundsAvailablePrev_);
     }
 
     function _invariant_DP6(GrantFund grantFund_, StandardHandler standardHandler_) internal {
