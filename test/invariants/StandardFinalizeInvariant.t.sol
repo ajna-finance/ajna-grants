@@ -135,14 +135,6 @@ contract StandardFinalizeInvariant is StandardTestBase {
 
             uint256[] memory topSlateProposalIds = _grantFund.getFundedProposalSlate(topSlateHash);
 
-            // calculate the total tokens requested by the proposals in the top slate
-            uint256 totalTokensRequested = 0;
-            for (uint256 i = 0; i < topSlateProposalIds.length; ++i) {
-                uint256 proposalId = topSlateProposalIds[i];
-                (, , , uint128 tokensRequested, , ) = _grantFund.getProposalInfo(proposalId);
-                totalTokensRequested += tokensRequested;
-            }
-
             uint256[] memory standardFundingProposals = _standardHandler.getStandardFundingProposals(distributionId);
             uint256[] memory topTenScreenedProposalIds = _grantFund.getTopTenProposals(distributionId);
 

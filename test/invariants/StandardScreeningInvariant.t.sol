@@ -106,13 +106,13 @@ contract StandardScreeningInvariant is StandardTestBase {
 
             // check proposalId is unique
             require(
-                _checkDuplicate(proposalIds) == false, "invariant SS10: A proposal's proposalId must be unique"
+                !hasDuplicates(proposalIds), "invariant SS10: A proposal's proposalId must be unique"
             );
 
             // Add current proposal Id to proposalIds set
             proposalIds[j] = proposalId;
 
-            require (
+            require(
                 tokensRequested <= gbc * 9 / 10, "invariant SS11: A proposal's tokens requested must be <= 90% of GBC"
             );
         }
