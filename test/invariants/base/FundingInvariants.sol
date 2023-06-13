@@ -22,10 +22,6 @@ abstract contract FundingInvariants is TestBase {
 
             uint256[] memory topTenProposals = grantFund_.getTopTenProposals(distributionId);
 
-            // TODO: move these asserts to scenario setup
-            //  check if something went wrong in test setup
-            // assertTrue(topTenProposals.length > 0);
-
             require(
                 topTenProposals.length <= 10,
                 "invariant FS1: 10 or less proposals should make it through the screening stage"
