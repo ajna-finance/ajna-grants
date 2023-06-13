@@ -131,18 +131,10 @@ abstract contract DistributionPeriodInvariants is TestBase {
             uint256 surplus = standardHandler_.updateTreasury(prevDistributionId, fundsAvailablePrev, topSlateHashPrev);
             expectedTreasury += surplus;
 
-            if (i == 1) {
-                require(
-                    fundsAvailable == Maths.wmul(.03 * 1e18, state.treasuryBeforeStart),
-                    "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
-                );
-            }
-            else {
-                require(
-                    fundsAvailable == Maths.wmul(.03 * 1e18, expectedTreasury),
-                    "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
-                );
-            }
+            require(
+                fundsAvailable == Maths.wmul(.03 * 1e18, expectedTreasury),
+                "invariant DP6: Surplus funds from distribution periods whose token's requested in the final funded slate was less than the total funds available are readded to the treasury"
+            );
 
             ++i;
         }
