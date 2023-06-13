@@ -46,7 +46,7 @@ abstract contract DistributionPeriodInvariants is TestBase {
 
             require(
                 fundsAvailablePrev == Maths.wmul(.03 * 1e18, state.treasuryAtStartBlock + fundsAvailablePrev),
-                "invariant DP3: A distribution's fundsAvailablePrev should be equal to 3% of the treasurie's balance at the block `startNewDistributionPeriod()` is called"
+                "invariant DP3: A distribution's fundsAvailablePrev should be equal to 3% of the treasury's balance at the block `startNewDistributionPeriod()` is called"
             );
 
             require(
@@ -92,8 +92,10 @@ abstract contract DistributionPeriodInvariants is TestBase {
             assertEq(proposalDistributionId, distributionId_);
 
             if (executed) {
-                // invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage
-                assertLt(tokensRequested, fundsAvailablePrev_);
+                require(
+                    tokensRequested < fundsAvailablePrev_,
+                    "invariant DP2: Each winning proposal successfully claims no more that what was finalized in the challenge stage"
+                );
             }
             totalTokensRequestedByProposals += tokensRequested;
         }

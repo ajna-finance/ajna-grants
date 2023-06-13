@@ -184,7 +184,7 @@ abstract contract FinalizeInvariants is TestBase {
                         "invariant DR3: Delegation rewards are proportional to voters funding power allocated in the funding stage."
                     );
 
-                    if (distributionInfo.endBlock >= block.timestamp) {
+                    if (distributionInfo.endBlock >= currentBlock) {
                         require(
                             grantFund_.getHasClaimedRewards(distributionId, actor) == false,
                             "invariant DR4: Delegation rewards can only be claimed for a distribution period after it ended"
