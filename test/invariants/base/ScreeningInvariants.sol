@@ -88,7 +88,6 @@ abstract contract ScreeningInvariants is TestBase {
                     }
                 }
 
-                // TODO: account for multiple distribution periods?
                 TestProposal memory testProposal = standardHandler_.getTestProposal(proposalId);
                 require(
                     testProposal.blockAtCreation <= grantFund_.getScreeningStageEndBlock(startBlock),

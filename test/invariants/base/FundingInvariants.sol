@@ -54,13 +54,6 @@ abstract contract FundingInvariants is TestBase {
         uint24 distributionId = grantFund_.getDistributionId();
         while (distributionId > 0) {
 
-            if (initialTopTenHash == 0) {
-                StandardHandler.DistributionState memory state = standardHandler_.getDistributionState(distributionId);
-                // hash the top ten proposals at the start of the funding stage to check composition
-                // if calling from the funding scenario, this is prepoulated and not accessed. Can't rely on hashing empty array as it will be non-zero
-                initialTopTenHash = state.topTenHashAtLastScreeningVote != 0 ? state.topTenHashAtLastScreeningVote : keccak256(abi.encode(grantFund_.getTopTenProposals(distributionId)));
-            }
-
             // check invariants against every actor
             for (uint256 i = 0; i < standardHandler_.getActorsCount(); ++i) {
                 address actor = standardHandler_.actors(i);
@@ -108,11 +101,21 @@ abstract contract FundingInvariants is TestBase {
                 );
             }
 
-            require(
-                keccak256(abi.encode(grantFund_.getTopTenProposals(distributionId))) == initialTopTenHash,
-                "invariant FS7: List of top ten proposals should never change once the funding stage has started"
-            );
+            (, uint256 startBlock, , , , ) = grantFund_.getDistributionPeriodInfo(distributionId);
+            StandardHandler.DistributionState memory state = standardHandler_.getDistributionState(distributionId);
+            // hash the top ten proposals at the start of the funding stage to check composition in FS7
+            // if calling from the funding scenario, this is prepoulated and not accessed. Can't rely on hashing empty array as it will be non-zero
+            initialTopTenHash = state.topTenHashAtLastScreeningVote != 0 ? state.topTenHashAtLastScreeningVote : keccak256(abi.encode(grantFund_.getTopTenProposals(distributionId)));
 
+            // check global invariants
+            if (currentBlock > grantFund_.getScreeningStageEndBlock(startBlock)) {
+                require(
+                    keccak256(abi.encode(grantFund_.getTopTenProposals(distributionId))) == initialTopTenHash,
+                    "invariant FS7: List of top ten proposals should never change once the funding stage has started"
+                );
+            }
+
+            // check the previous distribution period if available
             --distributionId;
         }
     }
