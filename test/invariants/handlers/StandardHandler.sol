@@ -43,8 +43,7 @@ contract StandardHandler is Handler {
         Slate[] topSlates; // assume that the last element in the list is the top slate
         bool treasuryUpdated; // whether the distribution period's surplus tokens have been readded to the treasury
         uint256 totalRewardsClaimed; // total delegation rewards claimed in a distribution period
-        bytes32 topTenHashAtLastScreeningVote; // slate hash of top ten proposals at the time the first funding vote is cast
-        uint256 numberOfProposalFundingVotes; // number of fundingVote() calls
+        bytes32 topTenHashAtLastScreeningVote; // slate hash of top ten proposals at the last time a sreening vote is cast
     }
 
     struct Slate {
@@ -172,6 +171,7 @@ contract StandardHandler is Handler {
 
                 ++i;
             }
+            distributionStates[distributionId].topTenHashAtLastScreeningVote = keccak256(abi.encode(_grantFund.getTopTenProposals(distributionId)));
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -210,14 +210,6 @@ contract StandardHandler is Handler {
 
             // check votesCast is equal to the sum of votes cast
             assertEq(votesCast, sumFundingVotes(fundingVoteParams));
-
-            // record the call to fundingVote
-            distributionStates[distributionId].numberOfProposalFundingVotes += 1;
-
-            if (distributionStates[distributionId].numberOfProposalFundingVotes == 1) {
-                // if this is the first call to fundingVote, record the top ten slate hash
-                distributionStates[distributionId].topTenHashAtLastScreeningVote = keccak256(abi.encode(_grantFund.getTopTenProposals(distributionId)));
-            }
 
             // update actor funding votes counts
             // find and replace previous vote record for that proposlId, in that distributonId
