@@ -4,37 +4,24 @@ pragma solidity 0.8.18;
 
 import { console } from "@std/console.sol";
 
-import { IGrantFund } from "../../src/grants/interfaces/IGrantFund.sol";
+import { GrantFund }        from "../../../src/grants/GrantFund.sol";
+import { IGrantFund }       from "../../../src/grants/interfaces/IGrantFund.sol";
 
-import { StandardTestBase } from "./base/StandardTestBase.sol";
-import { StandardHandler }  from "./handlers/StandardHandler.sol";
+import { TestBase }        from "./TestBase.sol";
+import { StandardHandler } from "../handlers/StandardHandler.sol";
 
-contract StandardScreeningInvariant is StandardTestBase {
+abstract contract ScreeningInvariants is TestBase {
 
-    function setUp() public override {
-        super.setUp();
+    /********************/
+    /**** Invariants ****/
+    /********************/
 
-        startDistributionPeriod();
-
-        // set the list of function selectors to run
-        bytes4[] memory selectors = new bytes4[](3);
-        selectors[0] = _standardHandler.startNewDistributionPeriod.selector;
-        selectors[1] = _standardHandler.propose.selector;
-        selectors[2] = _standardHandler.screeningVote.selector;
-
-        // ensure utility functions are excluded from the invariant runs
-        targetSelector(FuzzSelector({
-            addr: address(_standardHandler),
-            selectors: selectors
-        }));
-
-    }
-
-    function invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS9_SS10_SS11() external {
-        uint24 distributionId = _grantFund.getDistributionId();
-        uint256 standardFundingProposalsSubmitted = _standardHandler.getStandardFundingProposals(distributionId).length;
-        uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
-        (, uint256 startBlock, , uint256 gbc, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
+    function _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS9_SS10_SS11(GrantFund grantFund_, StandardHandler standardHandler_) internal {
+        uint24 distributionId = grantFund_.getDistributionId();
+        uint256[] memory allProposals = standardHandler_.getStandardFundingProposals(distributionId);
+        uint256 standardFundingProposalsSubmitted = allProposals.length;
+        uint256[] memory topTenProposals = grantFund_.getTopTenProposals(distributionId);
+        (, uint256 startBlock, , uint256 gbc, , ) = grantFund_.getDistributionPeriodInfo(distributionId);
 
         require(
             topTenProposals.length <= 10 && standardFundingProposalsSubmitted >= topTenProposals.length,
@@ -45,8 +32,8 @@ contract StandardScreeningInvariant is StandardTestBase {
         if (topTenProposals.length > 1) {
             for (uint256 i = 0; i < topTenProposals.length - 1; ++i) {
                 // check the current proposals votes received against the next proposal in the top ten list
-                (, uint24 distributionIdCurr, uint256 votesReceivedCurr, , , ) = _grantFund.getProposalInfo(topTenProposals[i]);
-                (, uint24 distributionIdNext, uint256 votesReceivedNext, , , ) = _grantFund.getProposalInfo(topTenProposals[i + 1]);
+                (, uint24 distributionIdCurr, uint256 votesReceivedCurr, , , ) = grantFund_.getProposalInfo(topTenProposals[i]);
+                (, uint24 distributionIdNext, uint256 votesReceivedNext, , , ) = grantFund_.getProposalInfo(topTenProposals[i + 1]);
                 require(
                     votesReceivedCurr >= votesReceivedNext,
                     "invariant SS3: proposals should be sorted in descending order"
@@ -68,15 +55,13 @@ contract StandardScreeningInvariant is StandardTestBase {
         // find the number of screening votes received by the last proposal in the top ten list
         uint256 votesReceivedLast;
         if (topTenProposals.length != 0) {
-            (, , votesReceivedLast, , , ) = _grantFund.getProposalInfo(topTenProposals[topTenProposals.length - 1]);
+            (, , votesReceivedLast, , , ) = grantFund_.getProposalInfo(topTenProposals[topTenProposals.length - 1]);
             assertGe(votesReceivedLast, 0);
         }
 
-        uint256[] memory proposalIds = new uint256[](standardFundingProposalsSubmitted);
-
         // check invariants against all submitted proposals
         for (uint256 j = 0; j < standardFundingProposalsSubmitted; ++j) {
-            (uint256 proposalId, , uint256 votesReceived, uint256 tokensRequested, , ) = _grantFund.getProposalInfo(_standardHandler.standardFundingProposals(distributionId, j));
+            (uint256 proposalId, , uint256 votesReceived, uint256 tokensRequested, , ) = grantFund_.getProposalInfo(standardHandler_.standardFundingProposals(distributionId, j));
             require(
                 votesReceived >= 0,
                 "invariant SS4: Screening votes recieved for a proposal can only be positive"
@@ -98,47 +83,45 @@ contract StandardScreeningInvariant is StandardTestBase {
             }
 
             // TODO: account for multiple distribution periods?
-            TestProposal memory testProposal = _standardHandler.getTestProposal(proposalId);
+            TestProposal memory testProposal = standardHandler_.getTestProposal(proposalId);
             require(
-                testProposal.blockAtCreation <= _grantFund.getScreeningStageEndBlock(startBlock),
+                testProposal.blockAtCreation <= grantFund_.getScreeningStageEndBlock(startBlock),
                 "invariant SS9: A proposal can only be created during a distribution period's screening stage"
             );
-
-            // check proposalId is unique
-            require(
-                !hasDuplicates(proposalIds), "invariant SS10: A proposal's proposalId must be unique"
-            );
-
-            // Add current proposal Id to proposalIds set
-            proposalIds[j] = proposalId;
 
             require(
                 tokensRequested <= gbc * 9 / 10, "invariant SS11: A proposal's tokens requested must be <= 90% of GBC"
             );
         }
 
+        // check proposalIds for duplicates
+        require(
+            !hasDuplicates(allProposals), "invariant SS10: A proposal's proposalId must be unique"
+        );
+
+        // TODO: expand this assertion
         // invariant SS6: proposals should be incorporated into the top ten list if, and only if, they have as many or more votes as the last member of the top ten list.
-        if (_standardHandler.screeningVotesCast() > 0) {
+        if (standardHandler_.screeningVotesCast() > 0) {
             assertTrue(topTenProposals.length > 0);
         }
     }
 
-    function invariant_SS2_SS4_SS8() external view {
-        uint256 actorCount = _standardHandler.getActorsCount();
-        uint24 distributionId = _grantFund.getDistributionId();
+    function _invariant_SS2_SS4_SS8(GrantFund grantFund_, StandardHandler standardHandler_) internal view {
+        uint256 actorCount = standardHandler_.getActorsCount();
+        uint24 distributionId = grantFund_.getDistributionId();
 
         // check invariants for all actors
         for (uint256 i = 0; i < actorCount; ++i) {
-            address actor = _standardHandler.actors(i);
-            uint256 votingPower = _grantFund.getVotesScreening(distributionId, actor);
+            address actor = standardHandler_.actors(i);
+            uint256 votingPower = grantFund_.getVotesScreening(distributionId, actor);
 
             require(
-                _standardHandler.sumVoterScreeningVotes(actor, distributionId) <= votingPower,
+                standardHandler_.sumVoterScreeningVotes(actor, distributionId) <= votingPower,
                 "invariant SS2: can only vote up to the amount of voting power at the snapshot blocks"
             );
 
             // check the screening votes cast by the actor
-            ( , IGrantFund.ScreeningVoteParams[] memory screeningVoteParams, ) = _standardHandler.getVotingActorsInfo(actor, distributionId);
+            ( , IGrantFund.ScreeningVoteParams[] memory screeningVoteParams, ) = standardHandler_.getVotingActorsInfo(actor, distributionId);
             for (uint256 j = 0; j < screeningVoteParams.length; ++j) {
                 require(
                     screeningVoteParams[j].votes >= 0,
@@ -146,19 +129,11 @@ contract StandardScreeningInvariant is StandardTestBase {
                 );
 
                 require(
-                    _findProposalIndex(screeningVoteParams[j].proposalId, _standardHandler.getStandardFundingProposals(distributionId)) != -1,
+                    _findProposalIndex(screeningVoteParams[j].proposalId, standardHandler_.getStandardFundingProposals(distributionId)) != -1,
                     "invariant SS8: a proposal can only receive screening votes if it was created via propose()"
                 );
             }
         }
-    }
-
-    function invariant_call_summary() external view {
-        uint24 distributionId = _grantFund.getDistributionId();
-
-        _standardHandler.logCallSummary();
-        // _standardHandler.logProposalSummary();
-        _standardHandler.logActorSummary(distributionId, false, true);
     }
 
 }
