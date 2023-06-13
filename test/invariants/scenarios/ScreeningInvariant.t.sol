@@ -31,7 +31,7 @@ contract ScreeningInvariant is StandardTestBase {
     }
 
     function invariant_screening_stage() external {
-        _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS9(_grantFund, _standardHandler);
+        _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS9_SS10_SS11(_grantFund, _standardHandler);
         _invariant_SS2_SS4_SS8(_grantFund, _standardHandler);
     }
 

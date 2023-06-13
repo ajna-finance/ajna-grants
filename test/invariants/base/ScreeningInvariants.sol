@@ -16,11 +16,11 @@ abstract contract ScreeningInvariants is TestBase {
     /**** Invariants ****/
     /********************/
 
-    function _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS9(GrantFund grantFund_, StandardHandler standardHandler_) internal {
+    function _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS9_SS10_SS11(GrantFund grantFund_, StandardHandler standardHandler_) internal {
         uint24 distributionId = grantFund_.getDistributionId();
         uint256 standardFundingProposalsSubmitted = standardHandler_.getStandardFundingProposals(distributionId).length;
         uint256[] memory topTenProposals = grantFund_.getTopTenProposals(distributionId);
-        (, uint256 startBlock, , , , ) = grantFund_.getDistributionPeriodInfo(distributionId);
+        (, uint256 startBlock, , uint256 gbc, , ) = grantFund_.getDistributionPeriodInfo(distributionId);
 
         require(
             topTenProposals.length <= 10 && standardFundingProposalsSubmitted >= topTenProposals.length,
@@ -58,9 +58,11 @@ abstract contract ScreeningInvariants is TestBase {
             assertGe(votesReceivedLast, 0);
         }
 
+        uint256[] memory proposalIds = new uint256[](standardFundingProposalsSubmitted);
+
         // check invariants against all submitted proposals
         for (uint256 j = 0; j < standardFundingProposalsSubmitted; ++j) {
-            (uint256 proposalId, , uint256 votesReceived, , , ) = grantFund_.getProposalInfo(standardHandler_.standardFundingProposals(distributionId, j));
+            (uint256 proposalId, , uint256 votesReceived, uint256 tokensRequested, , ) = grantFund_.getProposalInfo(standardHandler_.standardFundingProposals(distributionId, j));
             require(
                 votesReceived >= 0,
                 "invariant SS4: Screening votes recieved for a proposal can only be positive"
@@ -86,6 +88,18 @@ abstract contract ScreeningInvariants is TestBase {
             require(
                 testProposal.blockAtCreation <= grantFund_.getScreeningStageEndBlock(startBlock),
                 "invariant SS9: A proposal can only be created during a distribution period's screening stage"
+            );
+
+            // check proposalId is unique
+            require(
+                !hasDuplicates(proposalIds), "invariant SS10: A proposal's proposalId must be unique"
+            );
+
+            // Add current proposal Id to proposalIds set
+            proposalIds[j] = proposalId;
+
+            require(
+                tokensRequested <= gbc * 9 / 10, "invariant SS11: A proposal's tokens requested must be <= 90% of GBC"
             );
         }
 

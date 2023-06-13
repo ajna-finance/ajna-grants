@@ -27,7 +27,7 @@
     - **SS8**: A proposal can only receive screening votes if it was created via `propose()`.
     - **SS9**: A proposal can only be created during a distribution period's screening stage.
     - **SS10**: A proposal's proposalId must be unique.
-    - **SS11**: A proposal's tokens requested must be <= GBC>.
+    - **SS11**: A proposal's tokens requested must be <= 90% of GBC.
 
 - #### Funding Stage:
     - **FS1**: Only 10 proposals can be voted on in the funding stage
@@ -52,7 +52,7 @@
     - **ES2**: A proposal can only be executed after the challenge stage is complete.
     - **ES3**: A proposal can only be executed once.
     - **ES4**: A proposal can only be executed if it was in the top ten screened proposals at the end of the screening stage.
-    - **ES5**: An executed proposal should only ever transfer tokens <= GBC.
+    - **ES5**: An executed proposal should only ever transfer tokens <= 90% of GBC.
 
 - #### Delegation Rewards:
     - **DR1**: Cumulative delegation rewards should be <= 10% of a distribution periods GBC.

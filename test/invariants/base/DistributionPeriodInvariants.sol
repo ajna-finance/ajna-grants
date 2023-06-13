@@ -103,12 +103,7 @@ abstract contract DistributionPeriodInvariants is TestBase {
     function _invariant_DP6(GrantFund grantFund_, StandardHandler standardHandler_) internal {
         uint24 distributionId = grantFund_.getDistributionId();
 
-        for (uint24 i = 0; i <= distributionId; ) {
-            if (i == 0) {
-                ++i;
-                continue;
-            }
-
+        for (uint24 i = 1; i <= distributionId; ) {
             (
                 ,
                 ,
