@@ -19,9 +19,13 @@ abstract contract FundingInvariants is TestBase {
     function _invariant_FS1_FS2_FS3(GrantFund grantFund_, StandardHandler standardHandler_) internal {
         uint256[] memory topTenProposals = grantFund_.getTopTenProposals(grantFund_.getDistributionId());
 
-        // invariant FS1: 10 or less proposals should make it through the screening stage
-        assertTrue(topTenProposals.length <= 10);
-        assertTrue(topTenProposals.length > 0); // check if something went wrong in setup
+        // check if something went wrong in test setup
+        assertTrue(topTenProposals.length > 0);
+
+        require(
+            topTenProposals.length <= 10,
+            "invariant FS1: 10 or less proposals should make it through the screening stage"
+        );
 
         uint24 distributionId = grantFund_.getDistributionId();
         uint256[] memory standardFundingProposals = standardHandler_.getStandardFundingProposals(distributionId);
@@ -31,9 +35,11 @@ abstract contract FundingInvariants is TestBase {
             uint256 proposalId = standardHandler_.standardFundingProposals(distributionId, j);
             (, uint24 proposalDistributionId, , , int128 fundingVotesReceived, ) = grantFund_.getProposalInfo(proposalId);
 
-            // invariant FS2: proposals not in the top ten should not be able to recieve funding votes
             if (_findProposalIndex(proposalId, topTenProposals) == -1) {
-                assertEq(fundingVotesReceived, 0);
+                require(
+                    fundingVotesReceived == 0,
+                    "invariant FS2: proposals not in the top ten should not be able to recieve funding votes"
+                );
             }
 
             require(
@@ -65,8 +71,10 @@ abstract contract FundingInvariants is TestBase {
                 sumOfSquares <= votingPower,
                 "invariant FS4: sum of square of votes cast <= voting power of actor"
             );
-            // invariant FS5: Sum of voter's votesCast should be equal to the square root of the voting power expended (FS4 restated, but added to test intermediate state as well as final).
-            assertEq(sumOfSquares, votingPower - remainingVotingPower);
+            require(
+                sumOfSquares == votingPower - remainingVotingPower,
+                "invariant FS5: Sum of voter's votesCast should be equal to the square root of the voting power expended (FS4 restated, but added to test intermediate state as well as final)."
+            );
 
             // check that the test functioned as expected
             if (votingPower != 0 && remainingVotingPower == 0) {

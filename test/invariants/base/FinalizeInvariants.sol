@@ -147,7 +147,7 @@ abstract contract FinalizeInvariants is TestBase {
 
                 // get the initial funding stage voting power of the actor
                 LocalVotersInfo memory votersInfo;
-               (votersInfo.fundingVotingPower, votersInfo.fundingRemainingVotingPower, ) = grantFund_.getVoterInfo(distributionId, actor);
+                (votersInfo.fundingVotingPower, votersInfo.fundingRemainingVotingPower, ) = grantFund_.getVoterInfo(distributionId, actor);
 
                 // get actor info from standard handler
                 (

@@ -99,6 +99,7 @@ abstract contract ScreeningInvariants is TestBase {
             !hasDuplicates(allProposals), "invariant SS10: A proposal's proposalId must be unique"
         );
 
+        // TODO: expand this assertion
         // invariant SS6: proposals should be incorporated into the top ten list if, and only if, they have as many or more votes as the last member of the top ten list.
         if (standardHandler_.screeningVotesCast() > 0) {
             assertTrue(topTenProposals.length > 0);
