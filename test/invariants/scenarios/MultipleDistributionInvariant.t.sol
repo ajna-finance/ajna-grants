@@ -53,8 +53,8 @@ contract MultipleDistributionInvariant is StandardTestBase {
         // _invariant_SS2_SS4_SS8(_grantFund, _standardHandler);
 
         // // funding invariants
-        // _invariant_FS1_FS2_FS3(_grantFund, _standardHandler);
-        // _invariant_FS4_FS5_FS6_FS7_FS8(_grantFund, _standardHandler);
+        _invariant_FS1_FS2_FS3(_grantFund, _standardHandler);
+        _invariant_FS4_FS5_FS6_FS7_FS8(_grantFund, _standardHandler);
 
         // finalize invariants
         _invariant_CS1_CS2_CS3_CS4_CS5_CS6(_grantFund, _standardHandler);
