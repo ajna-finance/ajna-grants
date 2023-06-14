@@ -40,4 +40,12 @@ contract TestBase is Test, GrantFundTestHelper {
         currentBlock = currentBlock_;
     }
 
+    function getDiff(uint256 x, uint256 y) internal pure returns (uint256 diff) {
+        diff = x > y ? x - y : y - x;
+    }
+
+    function requireWithinDiff(uint256 x, uint256 y, uint256 expectedDiff, string memory err) internal pure {
+        require(getDiff(x, y) <= expectedDiff, err);
+    }
+
 }

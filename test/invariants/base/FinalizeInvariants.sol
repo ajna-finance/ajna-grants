@@ -198,8 +198,10 @@ abstract contract FinalizeInvariants is TestBase {
                 "invariant DR1: Cumulative delegation rewards should be <= 10% of a distribution periods GBC"
             );
 
+            // TODO: need to account for delegation instead of just checking delegation amount -> == _filterZeroFundingPowerActors()
             // check state after all possible delegation rewards have been claimed
             if (standardHandler_.numberOfCalls('SFH.claimDelegateReward.success') == standardHandler_.getActorsCount()) {
+                // requireWithinDiff(totalRewardsClaimed, distributionInfo.fundsAvailable * 1 / 10, 1e18 / 10000); // 0.01 AJNA tokens
                 require(
                     totalRewardsClaimed >= Maths.wmul(distributionInfo.fundsAvailable * 1 / 10, 0.9999 * 1e18),
                     "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"

@@ -64,10 +64,12 @@ contract FundingInvariant is StandardTestBase {
     function _logFundingSummary(uint24 distributionId_) internal view {
         console.log("\nFunding Summary\n");
         console.log("------------------");
-        console.log("number of funding stage starts:        ", _standardHandler.numberOfCalls("SFH.FundingStage"));
-        console.log("number of funding stage success votes: ", _standardHandler.numberOfCalls("SFH.fundingVote.success"));
-        console.log("distributionId:                        ", distributionId_);
-        console.log("SFH.updateSlate.success:               ", _standardHandler.numberOfCalls("SFH.updateSlate.success"));
+        console.log("number of funding stage starts:         ", _standardHandler.numberOfCalls("SFH.FundingStage"));
+        console.log("number of funding stage success votes:  ", _standardHandler.numberOfCalls("SFH.fundingVote.success"));
+        console.log("number of proposals receiving funding:  ", _standardHandler.numberOfCalls("SFH.fundingVote.proposal"));
+        console.log("number of funding stage negative votes: ", _standardHandler.numberOfCalls("SFH.negativeFundingVote"));
+        console.log("distributionId:                         ", distributionId_);
+        console.log("SFH.updateSlate.success:                ", _standardHandler.numberOfCalls("SFH.updateSlate.success"));
         console.log("------------------");
     }
 

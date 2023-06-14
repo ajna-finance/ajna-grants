@@ -83,6 +83,8 @@ contract MultipleDistributionInvariant is StandardTestBase {
         console.log("unexecuted proposal:        ", _standardHandler.numberOfCalls('unexecuted.proposal'));
         console.log("funding stage starts:       ", _standardHandler.numberOfCalls("SFH.FundingStage"));
         console.log("funding stage success votes ", _standardHandler.numberOfCalls("SFH.fundingVote.success"));
+        console.log("funding stage prop voted on ", _standardHandler.numberOfCalls("SFH.fundingVote.proposal"));
+        console.log("funding stage neg votes:    ", _standardHandler.numberOfCalls("SFH.negativeFundingVote"));
 
 
         (, , , , uint256 fundingPowerCast, ) = _grantFund.getDistributionPeriodInfo(2);

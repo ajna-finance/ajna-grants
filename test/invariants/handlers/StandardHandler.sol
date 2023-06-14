@@ -27,7 +27,6 @@ contract StandardHandler is Handler {
     uint256[] public proposalsExecuted;
 
     // number of proposals that recieved a vote in the given stage
-    // uint256 public screeningVotesCast;
     uint256 public fundingVotesCast;
 
     struct VotingActor {
@@ -447,6 +446,7 @@ contract StandardHandler is Handler {
             uint24 distributionId = _grantFund.getDistributionId();
             (, , , uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
+            // TODO: reduce the maximum value passed into randomAmount to enable more proposals to be part of update slate
             // account for amount that was previously requested
             uint256 additionalTokensRequested = randomAmount(uint256(fundsAvailable * 9 /10) - totalTokensRequested);
             totalTokensRequested += additionalTokensRequested;
@@ -573,12 +573,6 @@ contract StandardHandler is Handler {
                     votesUsed: votesToCast
                 });
 
-                // start voting on the next proposal
-                ++i;
-            }
-            else {
-                // TODO: move flip coin into happy path
-                // flip a coin to see if should instead use a negative vote
                 if (randomSeed() % 2 == 0) {
                     numberOfCalls['SFH.negativeFundingVote']++;
                     // generate negative vote
@@ -586,10 +580,26 @@ contract StandardHandler is Handler {
                         proposalId: proposalId,
                         votesUsed: -1 * votesToCast
                     });
-                    ++i;
-                    continue;
                 }
+                numberOfCalls['SFH.fundingVote.proposal']++;
+
+                // start voting on the next proposal
+                ++i;
             }
+            // else {
+            //     // TODO: move flip coin into happy path
+            //     // flip a coin to see if should instead use a negative vote
+            //     if (randomSeed() % 2 == 0) {
+            //         numberOfCalls['SFH.negativeFundingVote']++;
+            //         // generate negative vote
+            //         fundingVoteParams_[i] = IGrantFundState.FundingVoteParams({
+            //             proposalId: proposalId,
+            //             votesUsed: -1 * votesToCast
+            //         });
+            //         ++i;
+            //         continue;
+            //     }
+            // }
         }
     }
 
@@ -734,6 +744,26 @@ contract StandardHandler is Handler {
             }
             ++i;
         }
+    }
+
+    function _filterZeroFundingPowerActors(address[] memory actors_, uint24 distributionId_) internal view returns (address[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < actors_.length; ++i) {
+            if (_grantFund.getVotesFunding(distributionId_, actors_[i]) > 0) {
+                ++count;
+            }
+        }
+
+        address[] memory filteredActors = new address[](count);
+        uint256 index = 0;
+        for (uint256 i = 0; i < actors_.length; ++i) {
+            if (_grantFund.getVotesFunding(distributionId_, actors_[i]) > 0) {
+                filteredActors[index] = actors_[i];
+                ++index;
+            }
+        }
+
+        return filteredActors;
     }
 
     /**************************/
