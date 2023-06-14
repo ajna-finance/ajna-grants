@@ -42,24 +42,24 @@ contract MultipleDistributionInvariant is StandardTestBase {
     }
 
     function invariant_distribution_period() external {
-        // _invariant_DP1_DP2_DP3_DP4_DP5(_grantFund, _standardHandler);
-        // _invariant_DP6(_grantFund, _standardHandler);
-        // _invariant_T1_T2(_grantFund, _standardHandler);
+        _invariant_DP1_DP2_DP3_DP4_DP5(_grantFund, _standardHandler);
+        _invariant_DP6(_grantFund, _standardHandler);
+        _invariant_T1_T2(_grantFund, _standardHandler);
     }
 
     function invariant_all() external {
-        // // screening invariants
-        // _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS9_SS10_SS11(_grantFund, _standardHandler); // FIXME: this isn't working
-        // _invariant_SS2_SS4_SS8(_grantFund, _standardHandler); // WORKING
+        // screening invariants
+        _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS8_SS10_SS11_SS12(_grantFund, _standardHandler);
+        _invariant_SS2_SS4_SS9(_grantFund, _standardHandler);
 
-        // // funding invariants
-        // _invariant_FS1_FS2_FS3(_grantFund, _standardHandler); // WORKING
-        _invariant_FS4_FS5_FS6_FS7_FS8(_grantFund, _standardHandler); // WORKING
+        // funding invariants
+        _invariant_FS1_FS2_FS3(_grantFund, _standardHandler);
+        _invariant_FS4_FS5_FS6_FS7_FS8(_grantFund, _standardHandler);
 
         // finalize invariants
-        // _invariant_CS1_CS2_CS3_CS4_CS5_CS6(_grantFund, _standardHandler); // WORKING
-        // _invariant_ES1_ES2_ES3_ES4_ES5(_grantFund, _standardHandler); // WORKING
-        // _invariant_DR1_DR2_DR3_DR4_DR5(_grantFund, _standardHandler); // WORKING
+        _invariant_CS1_CS2_CS3_CS4_CS5_CS6(_grantFund, _standardHandler);
+        _invariant_ES1_ES2_ES3_ES4_ES5(_grantFund, _standardHandler);
+        _invariant_DR1_DR2_DR3_DR4_DR5(_grantFund, _standardHandler);
     }
 
     function invariant_call_summary() external view {

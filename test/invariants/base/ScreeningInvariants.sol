@@ -16,7 +16,7 @@ abstract contract ScreeningInvariants is TestBase {
     /**** Invariants ****/
     /********************/
 
-    function _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS9_SS10_SS11(GrantFund grantFund_, StandardHandler standardHandler_) internal {
+    function _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS8_SS10_SS11_SS12(GrantFund grantFund_, StandardHandler standardHandler_) internal {
         // set block number to current block
         // TODO: find more elegant solution to block.number not being updated in time for the snapshot -> probably a modifier
         vm.roll(currentBlock);
@@ -50,7 +50,6 @@ abstract contract ScreeningInvariants is TestBase {
                         "invariant SS4: Screening votes recieved for a proposal can only be positive"
                     );
 
-                    // TODO: improve this check
                     require(
                         distributionIdCurr == distributionIdNext && distributionIdCurr == distributionId,
                         "invariant SS5: distribution id for a proposal should be the same as the current distribution id"
@@ -75,7 +74,7 @@ abstract contract ScreeningInvariants is TestBase {
 
                 require(
                     votesReceived <= _ajna.totalSupply(),
-                    "invariant SS7: a proposal should never receive more screening votes than the token supply"
+                    "invariant SS8: a proposal should never receive more screening votes than the token supply"
                 );
 
                 // check each submitted proposals votes against the last proposal in the top ten list
@@ -91,30 +90,31 @@ abstract contract ScreeningInvariants is TestBase {
                 TestProposal memory testProposal = standardHandler_.getTestProposal(proposalId);
                 require(
                     testProposal.blockAtCreation <= grantFund_.getScreeningStageEndBlock(startBlock),
-                    "invariant SS9: A proposal can only be created during a distribution period's screening stage"
+                    "invariant SS10: A proposal can only be created during a distribution period's screening stage"
                 );
 
                 require(
-                    tokensRequested <= gbc * 9 / 10, "invariant SS11: A proposal's tokens requested must be <= 90% of GBC"
+                    tokensRequested <= gbc * 9 / 10, "invariant SS12: A proposal's tokens requested must be <= 90% of GBC"
                 );
             }
 
             // check proposalIds for duplicates
             require(
-                !hasDuplicates(allProposals), "invariant SS10: A proposal's proposalId must be unique"
+                !hasDuplicates(allProposals), "invariant SS11: A proposal's proposalId must be unique"
             );
 
-            // TODO: expand this assertion
-            // invariant SS6: proposals should be incorporated into the top ten list if, and only if, they have as many or more votes as the last member of the top ten list.
-            if (standardHandler_.screeningVotesCast() > 0) {
-                assertTrue(topTenProposals.length > 0);
+            if (standardHandler_.screeningVotesCast(distributionId) > 0) {
+                require(
+                    topTenProposals.length > 0,
+                    "invariant SS7: Screening vote's on a proposal should cause addition to the topTenProposals if the array is unpopulated."
+                );
             }
 
             --distributionId;
         }
     }
 
-    function _invariant_SS2_SS4_SS8(GrantFund grantFund_, StandardHandler standardHandler_) internal {
+    function _invariant_SS2_SS4_SS9(GrantFund grantFund_, StandardHandler standardHandler_) internal {
         // set block number to current block
         // TODO: find more elegant solution to block.number not being updated in time for the snapshot -> probably a modifier
         vm.roll(currentBlock);
@@ -143,7 +143,7 @@ abstract contract ScreeningInvariants is TestBase {
 
                     require(
                         _findProposalIndex(screeningVoteParams[j].proposalId, standardHandler_.getStandardFundingProposals(distributionId)) != -1,
-                        "invariant SS8: a proposal can only receive screening votes if it was created via propose()"
+                        "invariant SS9: a proposal can only receive screening votes if it was created via propose()"
                     );
                 }
             }

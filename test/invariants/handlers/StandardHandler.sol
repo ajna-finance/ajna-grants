@@ -27,7 +27,7 @@ contract StandardHandler is Handler {
     uint256[] public proposalsExecuted;
 
     // number of proposals that recieved a vote in the given stage
-    uint256 public screeningVotesCast;
+    // uint256 public screeningVotesCast;
     uint256 public fundingVotesCast;
 
     struct VotingActor {
@@ -59,6 +59,7 @@ contract StandardHandler is Handler {
     mapping(address => mapping(uint24 => VotingActor)) internal votingActors; // actor => distributionId => VotingActor
     mapping(uint256 => TestProposal) public testProposals;                    // proposalId => TestProposal
     mapping(uint24 => bool) public distributionIdSurplusAdded;
+    mapping(uint24 => uint256) public screeningVotesCast; // total screening votes cast in a distribution period
 
     /*******************/
     /*** Constructor ***/
@@ -170,7 +171,7 @@ contract StandardHandler is Handler {
 
             for (uint256 i = 0; i < proposalsToVoteOn_; ) {
                 actor.screeningVotes.push(screeningVoteParams[i]);
-                screeningVotesCast++;
+                screeningVotesCast[distributionId]++;
 
                 ++i;
             }
@@ -668,7 +669,7 @@ contract StandardHandler is Handler {
         VotingActor storage actor = votingActors[actor_][distributionId];
         for (uint256 i = 0; i < numProposalsToVoteOn; ) {
             actor.screeningVotes.push(screeningVoteParams[i]);
-            screeningVotesCast++;
+            screeningVotesCast[distributionId]++;
 
             ++i;
         }
