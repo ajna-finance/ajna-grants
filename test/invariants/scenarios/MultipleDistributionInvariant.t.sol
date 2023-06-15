@@ -41,7 +41,7 @@ contract MultipleDistributionInvariant is StandardTestBase {
         currentBlock = block.number;
     }
 
-    function invariant_all() external {
+    function invariant_all() external useCurrentBlock {
         // screening invariants
         _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS8_SS10_SS11_SS12(_grantFund, _standardHandler);
         _invariant_SS2_SS4_SS9(_grantFund, _standardHandler);
@@ -61,7 +61,7 @@ contract MultipleDistributionInvariant is StandardTestBase {
         _invariant_T1_T2(_grantFund, _standardHandler);
     }
 
-    function invariant_call_summary() external {
+    function invariant_call_summary() external useCurrentBlock {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _logger.logCallSummary();

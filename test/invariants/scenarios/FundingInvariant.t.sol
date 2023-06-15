@@ -47,7 +47,7 @@ contract FundingInvariant is StandardTestBase {
         assertTrue(initialTopTenProposals.length > 0);
     }
 
-    function invariant_funding_stage() external {
+    function invariant_funding_stage() external useCurrentBlock {
         _invariant_FS1_FS2_FS3(_grantFund, _standardHandler);
         _invariant_FS4_FS5_FS6_FS7_FS8(_grantFund, _standardHandler);
     }
