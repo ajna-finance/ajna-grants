@@ -344,8 +344,10 @@ contract StandardHandler is Handler {
 
         try _grantFund.execute(targets, values, calldatas, keccak256(bytes(proposal.description))) returns (uint256 proposalId_) {
             assertEq(proposalId_, proposal.proposalId);
+
             numberOfCalls['SFH.execute.success']++;
             proposalsExecuted.push(proposalId_);
+            testProposals[proposalId].blockAtExecution = block.number;
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);

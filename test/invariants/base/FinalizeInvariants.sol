@@ -105,9 +105,9 @@ abstract contract FinalizeInvariants is TestBase {
                 assertEq(distributionId, proposalDistributionId);
                 if (executed) {
                     (, , uint48 endBlock, , , ) = grantFund_.getDistributionPeriodInfo(proposalDistributionId);
-                    // TODO: store and check proposal execution time
+                    TestProposal memory testProposal = standardHandler_.getTestProposal(proposalId);
                     require(
-                        currentBlock > endBlock,
+                        testProposal.blockAtExecution > endBlock,
                         "invariant ES2: A proposal can only be executed after the challenge stage is complete."
                     );
 
@@ -205,7 +205,6 @@ abstract contract FinalizeInvariants is TestBase {
                 "invariant DR1: Cumulative delegation rewards should be <= 10% of a distribution periods GBC"
             );
 
-            // TODO: need to account for delegation instead of just checking delegation amount -> == _filterZeroFundingPowerActors()
             // check state after all possible delegation rewards have been claimed
             if (standardHandler_.numberOfCalls('SFH.claimDelegateReward.success') == actorsWithRewards && distributionInfo.endBlock < currentBlock) {
                 console.log("totalRewardsClaimed", totalRewardsClaimed);
@@ -216,11 +215,6 @@ abstract contract FinalizeInvariants is TestBase {
                 //     1e15,
                 //     "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"
                 // );
-                // require(
-                //     totalRewardsClaimed >= Maths.wmul(distributionInfo.fundsAvailable * 1 / 10, 0.9999 * 1e18),
-                //     "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"
-                // );
-                // assertEq(totalRewardsClaimed, distributionInfo.fundsAvailable * 1 / 10);
             }
 
             --distributionId;
