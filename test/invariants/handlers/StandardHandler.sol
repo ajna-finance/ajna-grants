@@ -24,6 +24,7 @@ contract StandardHandler is Handler {
 
     // proposalId of proposals executed
     uint256[] public proposalsExecuted;
+    uint256 public maxProposals; // maximum number of proposals for a distribution period
 
     // number of proposals that recieved a vote in the given stage
     uint256 public fundingVotesCast;
@@ -68,9 +69,12 @@ contract StandardHandler is Handler {
         address token_,
         address tokenDeployer_,
         uint256 numOfActors_,
+        uint256 maxProposals_,
         uint256 treasury_,
         address testContract_
-    ) Handler(grantFund_, token_, tokenDeployer_, numOfActors_, treasury_, testContract_) {}
+    ) Handler(grantFund_, token_, tokenDeployer_, numOfActors_, treasury_, testContract_) {
+        maxProposals = maxProposals_;
+    }
 
     /*************************/
     /*** Wrapped Functions ***/
@@ -116,8 +120,8 @@ contract StandardHandler is Handler {
             string memory description
         ) = generateProposalParams(address(_ajna), testProposalParams);
 
-        // liimit the number of proposals created in a distribution period to 200
-        if (standardFundingProposals[distributionId].length >= 200) return;
+        // liimit the number of proposals created in a distribution period
+        if (standardFundingProposals[distributionId].length >= maxProposals) return;
 
         try _grantFund.propose(targets, values, calldatas, description) returns (uint256 proposalId) {
             standardFundingProposals[distributionId].push(proposalId);

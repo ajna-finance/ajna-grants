@@ -15,7 +15,8 @@ import { ScreeningInvariants }          from "./ScreeningInvariants.sol";
 
 contract StandardTestBase is DistributionPeriodInvariants, FinalizeInvariants, FundingInvariants, ScreeningInvariants {
 
-    uint256 internal constant NUM_ACTORS = 20;
+    uint256 internal constant NUM_ACTORS = 20; // default number of actors
+    uint256 internal constant NUM_PROPOSALS = 200; // default maximum number of proposals that can be created in a distribution period
     uint256 public constant TOKENS_TO_DISTRIBUTE = 500_000_000 * 1e18;
 
     StandardHandler internal _standardHandler;
@@ -28,7 +29,8 @@ contract StandardTestBase is DistributionPeriodInvariants, FinalizeInvariants, F
             payable(address(_grantFund)),
             address(_ajna),
             _tokenDeployer,
-            NUM_ACTORS,
+            vm.envOr("NUM_ACTORS", NUM_ACTORS),
+            vm.envOr("NUM_PROPOSALS", NUM_PROPOSALS),
             TOKENS_TO_DISTRIBUTE,
             address(this)
         );
