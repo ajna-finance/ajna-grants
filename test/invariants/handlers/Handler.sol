@@ -218,6 +218,10 @@ contract Handler is Test, GrantFundTestHelper {
     /*** View Functions ****/
     /***********************/
 
+    function getActors() public view returns(address[] memory) {
+        return actors;
+    }
+
     function getActorsCount() public view returns(uint256) {
         return actors.length;
     }
