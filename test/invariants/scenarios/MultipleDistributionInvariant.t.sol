@@ -41,8 +41,7 @@ contract MultipleDistributionInvariant is StandardTestBase {
         currentBlock = block.number;
     }
 
-    // TODO: roll to current block in modifier to this function
-    function invariant_all() external {
+    function invariant_all() external useCurrentBlock {
         // screening invariants
         _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS8_SS10_SS11_SS12(_grantFund, _standardHandler);
         _invariant_SS2_SS4_SS9(_grantFund, _standardHandler);
@@ -62,11 +61,11 @@ contract MultipleDistributionInvariant is StandardTestBase {
         _invariant_T1_T2(_grantFund, _standardHandler);
     }
 
-    function invariant_call_summary() external view {
-        // uint24 distributionId = _grantFund.getDistributionId();
+    function invariant_call_summary() external useCurrentBlock {
+        uint24 distributionId = _grantFund.getDistributionId();
 
-        _standardHandler.logCallSummary();
-        _standardHandler.logTimeSummary();
+        _logger.logCallSummary();
+        _logger.logTimeSummary();
 
         console.log("scenario type", uint8(_standardHandler.getCurrentScenarioType()));
 
@@ -94,7 +93,7 @@ contract MultipleDistributionInvariant is StandardTestBase {
         if (_standardHandler.numberOfCalls('unexecuted.proposal') != 0) {
             console.log("state of unexecuted:        ", uint8(_grantFund.state(_standardHandler.numberOfCalls('unexecuted.proposal'))));
         }
-        // _standardHandler.logProposalSummary();
-        // _standardHandler.logActorSummary(distributionId, true, true);
+        _logger.logProposalSummary();
+        _logger.logActorSummary(distributionId, true, true);
     }
 }

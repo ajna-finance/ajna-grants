@@ -135,10 +135,6 @@ abstract contract FinalizeInvariants is TestBase {
     }
 
     function _invariant_DR1_DR2_DR3_DR4_DR5(GrantFund grantFund_, StandardHandler standardHandler_) internal {
-        // set block number to current block
-        // TODO: find more elegant solution to block.number not being updated in time for the snapshot -> probably a modifier
-        vm.roll(currentBlock);
-
         uint24 distributionId = grantFund_.getDistributionId();
         DistributionInfo memory distributionInfo;
         while (distributionId > 0) {

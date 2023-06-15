@@ -4,8 +4,9 @@ pragma solidity 0.8.18;
 
 import { console } from "@std/console.sol";
 
-import { TestBase }        from "./TestBase.sol";
+import { Logger }          from "./Logger.sol";
 import { StandardHandler } from "../handlers/StandardHandler.sol";
+import { TestBase }        from "./TestBase.sol";
 
 import { DistributionPeriodInvariants } from "./DistributionPeriodInvariants.sol";
 import { FinalizeInvariants }           from "./FinalizeInvariants.sol";
@@ -18,6 +19,7 @@ contract StandardTestBase is DistributionPeriodInvariants, FinalizeInvariants, F
     uint256 public constant TOKENS_TO_DISTRIBUTE = 500_000_000 * 1e18;
 
     StandardHandler internal _standardHandler;
+    Logger internal _logger;
 
     function setUp() public virtual override {
         super.setUp();
@@ -30,6 +32,9 @@ contract StandardTestBase is DistributionPeriodInvariants, FinalizeInvariants, F
             TOKENS_TO_DISTRIBUTE,
             address(this)
         );
+
+        // instantiate logger
+        _logger = new Logger(address(_grantFund), address(_standardHandler), address(this));
 
         // explicitly target handler
         targetContract(address(_standardHandler));

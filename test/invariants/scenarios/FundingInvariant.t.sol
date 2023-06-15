@@ -52,25 +52,13 @@ contract FundingInvariant is StandardTestBase {
         _invariant_FS4_FS5_FS6_FS7_FS8(_grantFund, _standardHandler);
     }
 
-    function invariant_call_summary() external view {
+    function invariant_call_summary() external useCurrentBlock {
         uint24 distributionId = _grantFund.getDistributionId();
 
-        _standardHandler.logCallSummary();
-        // _standardHandler.logProposalSummary();
-        // _standardHandler.logActorSummary(distributionId, true, false);
-        _logFundingSummary(distributionId);
-    }
-
-    function _logFundingSummary(uint24 distributionId_) internal view {
-        console.log("\nFunding Summary\n");
-        console.log("------------------");
-        console.log("number of funding stage starts:         ", _standardHandler.numberOfCalls("SFH.FundingStage"));
-        console.log("number of funding stage success votes:  ", _standardHandler.numberOfCalls("SFH.fundingVote.success"));
-        console.log("number of proposals receiving funding:  ", _standardHandler.numberOfCalls("SFH.fundingVote.proposal"));
-        console.log("number of funding stage negative votes: ", _standardHandler.numberOfCalls("SFH.negativeFundingVote"));
-        console.log("distributionId:                         ", distributionId_);
-        console.log("SFH.updateSlate.success:                ", _standardHandler.numberOfCalls("SFH.updateSlate.success"));
-        console.log("------------------");
+        _logger.logCallSummary();
+        _logger.logProposalSummary();
+        _logger.logActorSummary(distributionId, true, false);
+        _logger.logFundingSummary(distributionId);
     }
 
 }

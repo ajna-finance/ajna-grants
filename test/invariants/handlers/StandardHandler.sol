@@ -4,7 +4,6 @@ pragma solidity 0.8.18;
 
 import { console }  from "@std/console.sol";
 import { Test }     from "forge-std/Test.sol";
-import { Math }     from "@oz/utils/math/Math.sol";
 import { SafeCast } from "@oz/utils/math/SafeCast.sol";
 import { Strings }  from "@oz/utils/Strings.sol";
 import { Math }     from "@oz/utils/math/Math.sol";
@@ -737,118 +736,6 @@ contract StandardHandler is Handler {
             }
             ++i;
         }
-    }
-
-    /**************************/
-    /*** Logging Functions ****/
-    /**************************/
-
-    function logActorSummary(uint24 distributionId_, bool funding_, bool screening_) external view {
-        console.log("\nActor Summary\n");
-
-        console.log("------------------");
-        console.log("Number of Actors", getActorsCount());
-
-        // sum proposal votes of each actor
-        for (uint256 i = 0; i < getActorsCount(); ++i) {
-            address actor = actors[i];
-
-            // get actor info
-            (
-                IGrantFundState.FundingVoteParams[] memory fundingVoteParams,
-                IGrantFundState.ScreeningVoteParams[] memory screeningVoteParams,
-                uint256 delegationRewardsClaimed
-            ) = getVotingActorsInfo(actor, distributionId_);
-
-            console.log("Actor:                    ", actor);
-            console.log("Delegate:                 ", _ajna.delegates(actor));
-            console.log("delegationRewardsClaimed: ", delegationRewardsClaimed);
-            console.log("\n");
-
-            // log funding info
-            if (funding_) {
-                console.log("--Funding----------");
-                console.log("Funding proposals voted for:     ", fundingVoteParams.length);
-                console.log("Sum of squares of fvc:           ", sumSquareOfVotesCast(fundingVoteParams));
-                console.log("Funding Votes Cast:              ", uint256(sumFundingVotes(fundingVoteParams)));
-                console.log("Negative Funding Votes Cast:     ", countNegativeFundingVotes(fundingVoteParams));
-                console.log("------------------");
-                console.log("\n");
-            }
-
-            if (screening_) {
-                console.log("--Screening----------");
-                console.log("Screening Voting Power:          ", _grantFund.getVotesScreening(distributionId_, actor));
-                console.log("Screening Votes Cast:            ", sumVoterScreeningVotes(actor, distributionId_));
-                console.log("Screening proposals voted for:   ", screeningVoteParams.length);
-                console.log("------------------");
-                console.log("\n");
-            }
-        }
-    }
-
-    function logCallSummary() external view {
-        console.log("\nCall Summary\n");
-        console.log("--SFM----------");
-        console.log("SFH.startNewDistributionPeriod ",  numberOfCalls["SFH.startNewDistributionPeriod"]);
-        console.log("SFH.propose                    ",  numberOfCalls["SFH.propose"]);
-        console.log("SFH.screeningVote              ",  numberOfCalls["SFH.screeningVote"]);
-        console.log("SFH.fundingVote                ",  numberOfCalls["SFH.fundingVote"]);
-        console.log("SFH.updateSlate                ",  numberOfCalls["SFH.updateSlate"]);
-        console.log("SFH.execute                    ",  numberOfCalls["SFH.execute"]);
-        console.log("SFH.claimDelegateReward        ",  numberOfCalls["SFH.claimDelegateReward"]);
-        console.log("roll                           ",  numberOfCalls["roll"]);
-        console.log("------------------");
-        console.log(
-            "Total Calls:",
-            numberOfCalls["SFH.startNewDistributionPeriod"] +
-            numberOfCalls["SFH.propose"] +
-            numberOfCalls["SFH.screeningVote"] +
-            numberOfCalls["SFH.fundingVote"] +
-            numberOfCalls["SFH.updateSlate"] +
-            numberOfCalls["SFH.execute"] +
-            numberOfCalls["SFH.claimDelegateReward"] +
-            numberOfCalls["roll"]
-        );
-    }
-
-    function logProposalSummary() external view {
-        uint24 distributionId = _grantFund.getDistributionId();
-        uint256[] memory proposals = standardFundingProposals[distributionId];
-
-        console.log("\nProposal Summary\n");
-        console.log("Number of Proposals", proposals.length);
-        for (uint256 i = 0; i < proposals.length; ++i) {
-            console.log("------------------");
-            (uint256 proposalId, , uint128 votesReceived, uint128 tokensRequested, int128 fundingVotesReceived, bool executed) = _grantFund.getProposalInfo(proposals[i]);
-            console.log("proposalId:              ",  proposalId);
-            console.log("distributionId:          ",  distributionId);
-            console.log("executed:                ",  executed);
-            console.log("screening votesReceived: ",  votesReceived);
-            console.log("tokensRequested:         ",  tokensRequested);
-            if (fundingVotesReceived < 0) {
-                console.log("Negative fundingVotesReceived: ",  uint256(Maths.abs(fundingVotesReceived)));
-            }
-            else {
-                console.log("Positive fundingVotesReceived: ",  uint256(int256(fundingVotesReceived)));
-            }
-
-            console.log("------------------");
-        }
-        console.log("\n");
-    }
-
-    function logTimeSummary() external view {
-        uint24 distributionId = _grantFund.getDistributionId();
-        (, uint256 startBlock, uint256 endBlock, , , ) = _grantFund.getDistributionPeriodInfo(distributionId);
-        console.log("\nTime Summary\n");
-        console.log("------------------");
-        console.log("Distribution Id:        %s", distributionId);
-        console.log("start block:            %s", startBlock);
-        console.log("end block:              %s", endBlock);
-        console.log("block number:           %s", block.number);
-        console.log("current block:          %s", testContract.currentBlock());
-        console.log("------------------");
     }
 
     /***********************/

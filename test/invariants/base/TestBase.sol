@@ -36,7 +36,23 @@ contract TestBase is Test, GrantFundTestHelper {
         currentBlock = block.number;
     }
 
-    function setCurrentBlock(uint256 currentBlock_) external {
+    /*****************/
+    /*** Modifiers ***/
+    /*****************/
+
+    modifier useCurrentBlock() {
+        vm.roll(currentBlock);
+
+        _;
+
+        setCurrentBlock(block.number);
+    }
+
+    /***************************/
+    /**** Utility Functions ****/
+    /***************************/
+
+    function setCurrentBlock(uint256 currentBlock_) public {
         currentBlock = currentBlock_;
     }
 

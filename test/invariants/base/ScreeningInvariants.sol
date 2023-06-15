@@ -17,10 +17,6 @@ abstract contract ScreeningInvariants is TestBase {
     /********************/
 
     function _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS8_SS10_SS11_SS12(GrantFund grantFund_, StandardHandler standardHandler_) internal {
-        // set block number to current block
-        // TODO: find more elegant solution to block.number not being updated in time for the snapshot -> probably a modifier
-        vm.roll(currentBlock);
-
         uint24 distributionId = grantFund_.getDistributionId();
         while (distributionId > 0) {
 
@@ -114,11 +110,7 @@ abstract contract ScreeningInvariants is TestBase {
         }
     }
 
-    function _invariant_SS2_SS4_SS9(GrantFund grantFund_, StandardHandler standardHandler_) internal {
-        // set block number to current block
-        // TODO: find more elegant solution to block.number not being updated in time for the snapshot -> probably a modifier
-        vm.roll(currentBlock);
-
+    function _invariant_SS2_SS4_SS9(GrantFund grantFund_, StandardHandler standardHandler_) internal view {
         uint256 actorCount = standardHandler_.getActorsCount();
         uint24 distributionId = grantFund_.getDistributionId();
         while (distributionId > 0) {
