@@ -43,7 +43,7 @@ contract MultipleDistributionInvariant is StandardTestBase {
 
     function invariant_all() external useCurrentBlock {
         // screening invariants
-        _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS8_SS10_SS11_SS12(_grantFund, _standardHandler);
+        _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS8_SS10_SS11_P1_P2(_grantFund, _standardHandler);
         _invariant_SS2_SS4_SS9(_grantFund, _standardHandler);
 
         // funding invariants

@@ -26,7 +26,7 @@
     - **SS8**: A proposal should never receive more screening votes than the Ajna token supply.
     - **SS9**: A proposal can only receive screening votes if it was created via `propose()`.
     - **SS10**: A proposal can only be created during a distribution period's screening stage.
-    - **SS12**: A proposal's tokens requested must be <= 90% of GBC.
+    - **SS11**: A proposal's tokens requested must be <= 90% of GBC.
 
 - #### Funding Stage:
     - **FS1**: Only 10 proposals can be voted on in the funding stage
@@ -60,11 +60,6 @@
     - **DR4**: Delegation rewards can only be claimed for a distribution period after it ended.
     - **DR5**: Cumulative rewards claimed should be within 99.99% of all available delegation rewards.
 
-<!-- TODO: add these to ProposalInvariants file -->
 - #### Proposal:
-    - **P1**: A proposal should never enter an unused state (canceled, queued, expired).
+    - **P1**: A proposal should never enter an unused state (pending, canceled, queued, expired).
     - **SS11**: A proposal's proposalId must be unique.
-
-
-## Global Invariants:
-   - **G1**: A proposal should never enter an unused state (canceled, queued, expired).

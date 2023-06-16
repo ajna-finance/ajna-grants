@@ -4,8 +4,9 @@ pragma solidity 0.8.18;
 
 import { console } from "@std/console.sol";
 
-import { GrantFund }        from "../../../src/grants/GrantFund.sol";
-import { IGrantFund }       from "../../../src/grants/interfaces/IGrantFund.sol";
+import { GrantFund }       from "../../../src/grants/GrantFund.sol";
+import { IGrantFund }      from "../../../src/grants/interfaces/IGrantFund.sol";
+import { IGrantFundState } from "../../../src/grants/interfaces/IGrantFundState.sol";
 
 import { TestBase }        from "./TestBase.sol";
 import { StandardHandler } from "../handlers/StandardHandler.sol";
@@ -16,7 +17,7 @@ abstract contract ScreeningInvariants is TestBase {
     /**** Invariants ****/
     /********************/
 
-    function _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS8_SS10_SS11_SS12(GrantFund grantFund_, StandardHandler standardHandler_) internal {
+    function _invariant_SS1_SS3_SS4_SS5_SS6_SS7_SS8_SS10_SS11_P1_P2(GrantFund grantFund_, StandardHandler standardHandler_) internal {
         uint24 distributionId = grantFund_.getDistributionId();
         while (distributionId > 0) {
 
@@ -90,13 +91,22 @@ abstract contract ScreeningInvariants is TestBase {
                 );
 
                 require(
-                    tokensRequested <= gbc * 9 / 10, "invariant SS12: A proposal's tokens requested must be <= 90% of GBC"
+                    tokensRequested <= gbc * 9 / 10, "invariant SS11: A proposal's tokens requested must be <= 90% of GBC"
+                );
+
+                IGrantFundState.ProposalState state = grantFund_.state(proposalId);
+                require(
+                    state != IGrantFundState.ProposalState.Pending &&
+                    state != IGrantFundState.ProposalState.Canceled &&
+                    state != IGrantFundState.ProposalState.Expired &&
+                    state != IGrantFundState.ProposalState.Queued,
+                    "Invariant P1: A proposal should never enter an unused state (pending, canceled, queued, expired)."
                 );
             }
 
             // check proposalIds for duplicates
             require(
-                !hasDuplicates(allProposals), "invariant SS11: A proposal's proposalId must be unique"
+                !hasDuplicates(allProposals), "invariant P2: A proposal's proposalId must be unique"
             );
 
             if (standardHandler_.screeningVotesCast(distributionId) > 0) {
