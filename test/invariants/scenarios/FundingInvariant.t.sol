@@ -44,6 +44,7 @@ contract FundingInvariant is StandardTestBase {
 
         uint256[] memory initialTopTenProposals = _grantFund.getTopTenProposals(_grantFund.getDistributionId());
         initialTopTenHash = keccak256(abi.encode(initialTopTenProposals));
+        assertTrue(initialTopTenProposals.length > 0);
     }
 
     function invariant_funding_stage() external {

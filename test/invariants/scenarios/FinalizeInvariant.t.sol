@@ -52,6 +52,10 @@ contract FinalizeInvariant is StandardTestBase {
             addr: address(_standardHandler),
             selectors: selectors
         }));
+
+        //  check test setup
+        uint256[] memory topTenProposals = _grantFund.getTopTenProposals(distributionId);
+        assertTrue(topTenProposals.length > 0);
     }
 
     function invariant_finalize() external {

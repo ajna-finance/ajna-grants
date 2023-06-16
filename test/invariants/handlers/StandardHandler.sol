@@ -27,7 +27,7 @@ contract StandardHandler is Handler {
     uint256[] public proposalsExecuted;
 
     // number of proposals that recieved a vote in the given stage
-    uint256 public screeningVotesCast;
+    // uint256 public screeningVotesCast;
     uint256 public fundingVotesCast;
 
     struct VotingActor {
@@ -43,6 +43,7 @@ contract StandardHandler is Handler {
         Slate[] topSlates; // assume that the last element in the list is the top slate
         bool treasuryUpdated; // whether the distribution period's surplus tokens have been readded to the treasury
         uint256 totalRewardsClaimed; // total delegation rewards claimed in a distribution period
+        bytes32 topTenHashAtLastScreeningVote; // slate hash of top ten proposals at the last time a sreening vote is cast
     }
 
     struct Slate {
@@ -58,6 +59,7 @@ contract StandardHandler is Handler {
     mapping(address => mapping(uint24 => VotingActor)) internal votingActors; // actor => distributionId => VotingActor
     mapping(uint256 => TestProposal) public testProposals;                    // proposalId => TestProposal
     mapping(uint24 => bool) public distributionIdSurplusAdded;
+    mapping(uint24 => uint256) public screeningVotesCast; // total screening votes cast in a distribution period
 
     /*******************/
     /*** Constructor ***/
@@ -116,6 +118,9 @@ contract StandardHandler is Handler {
             string memory description
         ) = generateProposalParams(address(_ajna), testProposalParams);
 
+        // limit the number of proposals created in a distribution period to 200
+        if (standardFundingProposals[distributionId].length >= 200) return;
+
         try _grantFund.propose(targets, values, calldatas, description) returns (uint256 proposalId) {
             standardFundingProposals[distributionId].push(proposalId);
 
@@ -166,10 +171,11 @@ contract StandardHandler is Handler {
 
             for (uint256 i = 0; i < proposalsToVoteOn_; ) {
                 actor.screeningVotes.push(screeningVoteParams[i]);
-                screeningVotesCast++;
+                screeningVotesCast[distributionId]++;
 
                 ++i;
             }
+            distributionStates[distributionId].topTenHashAtLastScreeningVote = keccak256(abi.encode(_grantFund.getTopTenProposals(distributionId)));
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -663,7 +669,7 @@ contract StandardHandler is Handler {
         VotingActor storage actor = votingActors[actor_][distributionId];
         for (uint256 i = 0; i < numProposalsToVoteOn; ) {
             actor.screeningVotes.push(screeningVoteParams[i]);
-            screeningVotesCast++;
+            screeningVotesCast[distributionId]++;
 
             ++i;
         }
