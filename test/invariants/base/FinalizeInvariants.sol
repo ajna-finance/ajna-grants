@@ -205,12 +205,12 @@ abstract contract FinalizeInvariants is TestBase {
             if (standardHandler_.numberOfCalls('SFH.claimDelegateReward.success') == actorsWithRewards && distributionInfo.endBlock < currentBlock) {
                 console.log("totalRewardsClaimed", totalRewardsClaimed);
                 console.log("rewards available: ", distributionInfo.fundsAvailable * 1 / 10);
-                // requireWithinDiff(
-                //     totalRewardsClaimed,
-                //     distributionInfo.fundsAvailable * 1 / 10,
-                //     1e15,
-                //     "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"
-                // );
+                requireWithinDiff(
+                    totalRewardsClaimed,
+                    distributionInfo.fundsAvailable * 1 / 10,
+                    1e15,
+                    "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"
+                );
             }
 
             --distributionId;

@@ -331,7 +331,6 @@ contract StandardHandler is Handler {
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
 
-        // TODO: implement unhappy path
         uint256 proposalId = _findUnexecutedProposalId(distributionId);
         TestProposal memory proposal = testProposals[proposalId];
         numberOfCalls['unexecuted.proposal'] = proposalId;
