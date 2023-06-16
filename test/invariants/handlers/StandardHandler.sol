@@ -118,7 +118,7 @@ contract StandardHandler is Handler {
             string memory description
         ) = generateProposalParams(address(_ajna), testProposalParams);
 
-        // liimit the number of proposals created in a distribution period to 200
+        // limit the number of proposals created in a distribution period to 200
         if (standardFundingProposals[distributionId].length >= 200) return;
 
         try _grantFund.propose(targets, values, calldatas, description) returns (uint256 proposalId) {

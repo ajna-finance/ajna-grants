@@ -22,7 +22,7 @@
     - **SS4**: Screening vote's cast can only be positive.
     - **SS5**: Screening votes can only be cast on a proposal in it's distribution period's screening stage.
     - **SS6**: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list (typically the 10th of course, but it may be shorter than ten proposals).
-    - **SS7**: Screening vote's on a proposal should cause addition to the topTenProposals if the array is unpopulated.
+    - **SS7**: Screening vote's on a proposal should cause addition to the topTenProposals if no proposal has been added yet.
     <!-- TODO: move these into separate 'Proposal invariants:' section -->
     - **SS8**: A proposal should never receive more vote than the Ajna token supply.
     - **SS9**: A proposal can only receive screening votes if it was created via `propose()`.
@@ -37,7 +37,7 @@
     - **FS4**: Sum of square of votes cast by a given actor are less than or equal to the actor's Ajna delegated balance, squared.
     - **FS5**: Sum of voter's votesCast should be equal to the square root of the voting power expended (FS4 restated, but added to test intermediate state as well as final).
     - **FS6**: All voter funding votes on a proposal should be cast in the same direction. Multiple votes on the same proposal should see the voting power increase according to the combined cost of votes.
-    - **FS7** List of top ten proposals should never change once the funding stage has started.
+    - **FS7**: List of top ten proposals should never change once the funding stage has started.
     - **FS8**: a voter should never be able to cast more votes than the Ajna token supply.
 
 - #### Challenge Stage:
