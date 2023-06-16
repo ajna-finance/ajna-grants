@@ -62,4 +62,4 @@
 
 - #### Proposal:
     - **P1**: A proposal should never enter an unused state (pending, canceled, queued, expired).
-    - **SS11**: A proposal's proposalId must be unique.
+    - **P2**: A proposal's proposalId must be unique.
