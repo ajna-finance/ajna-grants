@@ -151,21 +151,8 @@ contract StandardHandler is Handler {
 
         vm.roll(block.number + 100);
 
-        // get actor voting power
-        uint256 votingPower = _grantFund.getVotesScreening(_grantFund.getDistributionId(), _actor);
-
         // construct vote params
-        IGrantFundState.ScreeningVoteParams[] memory screeningVoteParams = new IGrantFundState.ScreeningVoteParams[](proposalsToVoteOn_);
-        for (uint256 i = 0; i < proposalsToVoteOn_; i++) {
-            // get a random proposal
-            uint256 proposalId = randomProposal();
-
-            // generate screening vote params
-            screeningVoteParams[i] = IGrantFundState.ScreeningVoteParams({
-                proposalId: proposalId,
-                votes: constrictToRange(randomSeed(), 0, votingPower) // TODO: account for previously used voting power in a happy path scenario
-            });
-        }
+        IGrantFundState.ScreeningVoteParams[] memory screeningVoteParams = _screeningVoteParams(_actor, distributionId, proposalsToVoteOn_, true);
 
         try _grantFund.screeningVote(screeningVoteParams) {
             // update actor screeningVotes if vote was successful
@@ -604,8 +591,8 @@ contract StandardHandler is Handler {
         uint256 numProposalsToVoteOn_,
         bool happyPath_
     ) internal returns (IGrantFundState.ScreeningVoteParams[] memory screeningVoteParams_) {
-        uint256 votingPower = _grantFund.getVotesScreening(distributionId_, actor_);
-        uint256 totalVotesUsed = 0;
+        uint256 votingPower    = _grantFund.getVotesScreening(distributionId_, actor_);
+        uint256 totalVotesUsed = _grantFund.getScreeningVotesCast(distributionId_, actor_);
 
         // determine which proposals should be voted upon
         screeningVoteParams_ = new IGrantFundState.ScreeningVoteParams[](numProposalsToVoteOn_);
