@@ -17,6 +17,8 @@ contract MultipleDistributionInvariant is StandardTestBase {
     function setUp() public override {
         super.setUp();
 
+        startDistributionPeriod();
+
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](8);
         selectors[0] = _standardHandler.startNewDistributionPeriod.selector;
@@ -94,6 +96,6 @@ contract MultipleDistributionInvariant is StandardTestBase {
             console.log("state of unexecuted:        ", uint8(_grantFund.state(_standardHandler.numberOfCalls('unexecuted.proposal'))));
         }
         _logger.logProposalSummary();
-        // _logger.logActorSummary(distributionId, true, true);
+        _logger.logActorSummary(distributionId, true, true);
     }
 }
