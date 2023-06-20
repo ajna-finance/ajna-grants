@@ -31,23 +31,6 @@ foundryup
 make all
 ```
 
-#### Run Tests
-
-```bash
-make tests
-```
-
-#### Code Coverage
-- generate basic code coverage report:
-```bash
-make coverage
-```
-- exclude tests from code coverage report:
-```
-apt-get install lcov
-bash ./check-code-coverage.sh
-```
-
 ### Contract Deployment
 Ensure the following env variables are in your `.env` file or exported into your environment.
 | Environment Variable | Purpose |
