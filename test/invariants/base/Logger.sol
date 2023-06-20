@@ -212,8 +212,8 @@ contract Logger is Test {
 
             // get actor info
             (
-                IGrantFundState.FundingVoteParams[] memory fundingVoteParams,
-                IGrantFundState.ScreeningVoteParams[] memory screeningVoteParams,
+                ,
+                ,
                 uint256 delegationRewardsClaimed
             ) = _standardHandler.getVotingActorsInfo(actor, distributionId_);
 
@@ -223,7 +223,7 @@ contract Logger is Test {
             console.log("Delegate:                            ", _ajna.delegates(actor));
             console.log("delegationRewardsClaimed:            ", delegationRewardsClaimed);
 
-            (uint256 votingPower, uint256 remainingVotingPower, uint256 votesCast) = _grantFund.getVoterInfo(distributionId_, actor);
+            (uint256 votingPower, uint256 remainingVotingPower, ) = _grantFund.getVoterInfo(distributionId_, actor);
 
             uint256 votingPowerAllocatedByDelegatee = votingPower - remainingVotingPower;
             uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);

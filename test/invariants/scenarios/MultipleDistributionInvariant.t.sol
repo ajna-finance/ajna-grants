@@ -58,7 +58,7 @@ contract MultipleDistributionInvariant is StandardTestBase {
         // distribution period invariants
         _invariant_DP1_DP2_DP3_DP4_DP5(_grantFund, _standardHandler);
         _invariant_DP6(_grantFund, _standardHandler);
-        _invariant_T1_T2(_grantFund, _standardHandler);
+        _invariant_T1_T2(_grantFund);
     }
 
     function invariant_call_summary() external useCurrentBlock {

@@ -738,6 +738,7 @@ contract StandardHandler is Handler {
                 ++j;
             }
         }
+        return (address(0), 0);
     }
 
     /***********************/
