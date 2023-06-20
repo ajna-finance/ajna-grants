@@ -9,6 +9,11 @@
 
 <br>
 
+## **[Tests](./src/token/AJNA_TOKEN.md)**
+
+For information on running tests and checking code coverage see the **[Tests README](./src/token/AJNA_TOKEN.md)**.
+
+
 ## **Development**
 
 Install Foundry [instructions](https://github.com/gakonst/foundry/blob/master/README.md#installation)  then, install the [foundry](https://github.com/gakonst/foundry) toolchain installer (`foundryup`) with:

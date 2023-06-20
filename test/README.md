@@ -1,4 +1,4 @@
-# Ajna Tests
+# Ecosystem Coordination Tests
 ## Forge tests
 ### Unit tests
 - validation tests:
