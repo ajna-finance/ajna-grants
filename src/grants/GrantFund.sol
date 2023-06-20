@@ -243,16 +243,13 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         // multiply by 1e18 to maintain WAD precision
         uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);
 
-        // if none of the voter's voting power was allocated, they receive no rewards
-        if (rootVotingPowerAllocatedByDelegatee != 0) {
-            // calculate reward
-            // delegateeReward = 10 % of GBC distributed as per delegatee Voting power allocated
-            rewards_ = Math.mulDiv(
-                currentDistribution_.fundsAvailable,
-                rootVotingPowerAllocatedByDelegatee,
-                10 * currentDistribution_.fundingVotePowerCast
-            );
-        }
+        // calculate reward
+        // delegateeReward = 10 % of GBC distributed as per delegatee Voting power allocated
+        rewards_ = Math.mulDiv(
+            currentDistribution_.fundsAvailable,
+            rootVotingPowerAllocatedByDelegatee,
+            10 * currentDistribution_.fundingVotePowerCast
+        );
     }
 
     /***********************************/
