@@ -81,6 +81,8 @@ contract Logger {
 
         console.log("------------------");
         console.log("Number of Actors", _standardHandler.getActorsCount());
+        console.log("------------------");
+        console.log("\n");
 
         uint256 totalDelegationRewardsClaimed = 0;
 
@@ -97,15 +99,16 @@ contract Logger {
 
             totalDelegationRewardsClaimed += delegationRewardsClaimed;
 
-            console.log("Actor:                    ", actor);
-            console.log("Delegate:                 ", _ajna.delegates(actor));
-            console.log("delegationRewardsClaimed: ", delegationRewardsClaimed);
-            console.log("\n");
+            console.log("Actor:                               ", actor);
+            console.log("Delegate:                            ", _ajna.delegates(actor));
+            console.log("delegationRewardsClaimed:            ", delegationRewardsClaimed);
 
             (uint256 votingPower, uint256 remainingVotingPower, uint256 votesCast) = _grantFund.getVoterInfo(distributionId_, actor);
 
             uint256 votingPowerAllocatedByDelegatee = votingPower - remainingVotingPower;
             uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);
+            console.log("votingPower:                         ", votingPower);
+            console.log("remainingVotingPower:                ", remainingVotingPower);
             console.log("votingPowerAllocatedByDelegatee:     ", votingPowerAllocatedByDelegatee);
             console.log("rootVotingPowerAllocatedByDelegatee: ", rootVotingPowerAllocatedByDelegatee);
 

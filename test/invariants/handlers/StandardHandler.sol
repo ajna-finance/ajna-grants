@@ -367,19 +367,21 @@ contract StandardHandler is Handler {
         uint24 distributionId = _grantFund.getDistributionId();
         if (distributionId == 0) return;
 
-        uint24 distributionIdToClaim = _findUnclaimedReward(_actor, distributionId);
+        (address actor, uint24 distributionIdToClaim) = _findUnclaimedReward(distributionId);
+
+        changePrank(actor);
 
         try _grantFund.claimDelegateReward(distributionIdToClaim) returns (uint256 rewardClaimed_) {
             numberOfCalls['SFH.claimDelegateReward.success']++;
 
             // should only be able to claim delegation rewards once
-            assertEq(votingActors[_actor][distributionIdToClaim].delegationRewardsClaimed, 0);
+            assertEq(votingActors[actor][distributionIdToClaim].delegationRewardsClaimed, 0);
 
             // rewards should be non zero
             assertTrue(rewardClaimed_ > 0);
 
             // record the newly claimed rewards
-            votingActors[_actor][distributionIdToClaim].delegationRewardsClaimed = rewardClaimed_;
+            votingActors[actor][distributionIdToClaim].delegationRewardsClaimed = rewardClaimed_;
             distributionStates[distributionIdToClaim].totalRewardsClaimed += rewardClaimed_;
         }
         catch (bytes memory _err){
@@ -388,6 +390,7 @@ contract StandardHandler is Handler {
                 err == keccak256(abi.encodeWithSignature("DelegateRewardInvalid()"))   ||
                 err == keccak256(abi.encodeWithSignature("DistributionPeriodStillActive()")) ||
                 err == keccak256(abi.encodeWithSignature("RewardAlreadyClaimed()")),
+                // err == keccak256("Division or modulo by 0"), // when called with 0 funding voting power or Math.sqrt() rounds down to 0 power
                 UNEXPECTED_REVERT
             );
         }
@@ -728,16 +731,20 @@ contract StandardHandler is Handler {
         }
     }
 
-    function _findUnclaimedReward(address actor_, uint24 endingDistributionId_) internal returns (uint24 distributionIdToClaim_) {
-        for (uint24 i = 1; i <= endingDistributionId_; ) {
-            uint256 delegationReward = _grantFund.getDelegateReward(i, actor_);
-            numberOfCalls["delegationRewardSet"]++;
-            if (delegationReward > 0) {
+    function _findUnclaimedReward(uint24 endingDistributionId_) internal returns (address, uint24) {
+        for (uint256 i = 0; i < actors.length; ++i) {
+            // get an actor who hasn't already claimed rewards for a period
+            address actor = actors[i];
+
+            for (uint24 j = 1; j <= endingDistributionId_; ) {
+                uint256 delegationReward = _grantFund.getDelegateReward(j, actor);
                 numberOfCalls["delegationRewardSet"]++;
-                distributionIdToClaim_ = i;
-                break;
+                if (delegationReward > 0 && _grantFund.getHasClaimedRewards(j, actor) == false) {
+                    numberOfCalls["delegationRewardSet"]++;
+                    return (actor, j);
+                }
+                ++j;
             }
-            ++i;
         }
     }
 

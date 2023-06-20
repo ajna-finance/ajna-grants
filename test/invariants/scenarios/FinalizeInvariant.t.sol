@@ -68,10 +68,11 @@ contract FinalizeInvariant is StandardTestBase {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _logger.logCallSummary();
-        _logger.logActorSummary(distributionId, false, false);
-        _logger.logProposalSummary();
         _logger.logTimeSummary();
         _logger.logFinalizeSummary(distributionId);
+        _logger.logActorSummary(distributionId, false, false);
+        _logger.logProposalSummary();
+        _logger.logActorDelegationRewards(distributionId);
     }
 
 }
