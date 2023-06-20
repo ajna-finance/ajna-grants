@@ -9,9 +9,9 @@
 
 <br>
 
-## **[Tests](./src/token/AJNA_TOKEN.md)**
+## **[Tests](./test/README.md)**
 
-For information on running tests and checking code coverage see the **[Tests README](./src/token/AJNA_TOKEN.md)**.
+For information on running tests and checking code coverage see the **[Tests README](./test/README.md)**.
 
 
 ## **Development**

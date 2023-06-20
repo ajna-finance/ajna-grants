@@ -15,6 +15,8 @@ make test-with-gas-report
 Invariant test scenarios can be externally configured by customizing following environment variables:
 | Variable | Default | Description |
 | ------------- | ------------- | ------------- |
+| SCENARIO  | MultipleDistribution | Type of Invariant Scenario to run: Screening, FundingInvariant, Finalize, MultipleDistribution |
+| PER_ADDRESS_TOKEN_REQ_CAP  | .1 | Percentage of funds available to request per proposal recipient in invariants |
 | NUM_ACTORS  | 20 | Max number of actors to participate in invariant testing |
 | NUM_PROPOSALS  | 200 | Max number of proposals that can be proposed in invariant testing |
 | LOGS_VERBOSITY | 0 | <p> Details to log <p> 0 = No Logs <p> 1 =  Calls details, Proposal details, Time details <p> 2 = Calls details, Proposal details, Time details, Funding proposal details, Finalize proposals details <p> 3 = Calls details, Proposal details, Time details, Funding proposal details, Finalize proposals details, Actor details
