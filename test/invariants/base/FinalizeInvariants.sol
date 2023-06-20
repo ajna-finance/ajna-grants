@@ -203,17 +203,17 @@ abstract contract FinalizeInvariants is TestBase {
                 "invariant DR1: Cumulative delegation rewards should be <= 10% of a distribution periods GBC"
             );
 
-            // TODO: modify this check to account for actors not claiming rewards fully until multiple distribution tests pass in the test simulation
             // check state after all possible delegation rewards have been claimed
-            if (standardHandler_.numberOfCalls('SFH.claimDelegateReward.success') == actorsWithRewards && distributionInfo.endBlock < currentBlock) {
+            StandardHandler.DistributionState memory state = standardHandler_.getDistributionState(distributionId);
+            if (state.numVoterRewardsClaimed == standardHandler_.getNumVotersWithRewards(distributionId) && distributionInfo.endBlock < currentBlock) {
                 console.log("totalRewardsClaimed", totalRewardsClaimed);
                 console.log("rewards available: ", distributionInfo.fundsAvailable * 1 / 10);
-                // requireWithinDiff(
-                //     totalRewardsClaimed,
-                //     distributionInfo.fundsAvailable * 1 / 10,
-                //     1e18,
-                //     "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"
-                // );
+                requireWithinDiff(
+                    totalRewardsClaimed,
+                    distributionInfo.fundsAvailable * 1 / 10,
+                    1e12,
+                    "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"
+                );
             }
             require(
                 totalRewardsClaimed <= distributionInfo.fundsAvailable * 1 / 10,

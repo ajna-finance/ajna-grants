@@ -42,6 +42,7 @@ contract StandardHandler is Handler {
         Slate[] topSlates; // assume that the last element in the list is the top slate
         bool treasuryUpdated; // whether the distribution period's surplus tokens have been readded to the treasury
         uint256 totalRewardsClaimed; // total delegation rewards claimed in a distribution period
+        uint256 numVoterRewardsClaimed; // number of unique voters who claimed rewards in a distribution period
         bytes32 topTenHashAtLastScreeningVote; // slate hash of top ten proposals at the last time a sreening vote is cast
     }
 
@@ -383,6 +384,7 @@ contract StandardHandler is Handler {
             // record the newly claimed rewards
             votingActors[actor][distributionIdToClaim].delegationRewardsClaimed = rewardClaimed_;
             distributionStates[distributionIdToClaim].totalRewardsClaimed += rewardClaimed_;
+            distributionStates[distributionIdToClaim].numVoterRewardsClaimed++;
         }
         catch (bytes memory _err){
             bytes32 err = keccak256(_err);
@@ -751,6 +753,14 @@ contract StandardHandler is Handler {
     /***********************/
     /*** View Functions ****/
     /***********************/
+
+    function getNumVotersWithRewards(uint24 distributionId) external view returns (uint256 numVoters_) {
+        for (uint256 i = 0; i < actors.length; ++i) {
+            if (_grantFund.getDelegateReward(distributionId, actors[i]) > 0) {
+                numVoters_++;
+            }
+        }
+    }
 
     function getDistributionFundsUpdated(uint24 distributionId_) external view returns (bool) {
         return distributionStates[distributionId_].treasuryUpdated;
