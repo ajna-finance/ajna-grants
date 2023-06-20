@@ -96,9 +96,11 @@ abstract contract FinalizeInvariants is TestBase {
                 uint256 proposalId = standardFundingProposals[i];
                 (, uint24 proposalDistributionId, , uint256 tokenRequested, , bool executed) = grantFund_.getProposalInfo(proposalId);
                 int256 proposalIndex = _findProposalIndex(proposalId, topSlateProposalIds);
-                // invariant ES1: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round.
                 if (proposalIndex == -1) {
-                    assertFalse(executed);
+                    require(
+                        !executed,
+                        "invariant ES1: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round."
+                    );
                 }
 
                 // invariant ES2: A proposal can only be executed after the challenge stage is complete.
@@ -202,16 +204,19 @@ abstract contract FinalizeInvariants is TestBase {
             );
 
             // check state after all possible delegation rewards have been claimed
-            if (standardHandler_.numberOfCalls('SFH.claimDelegateReward.success') == actorsWithRewards && distributionInfo.endBlock < currentBlock) {
-                console.log("totalRewardsClaimed", totalRewardsClaimed);
-                console.log("rewards available: ", distributionInfo.fundsAvailable * 1 / 10);
+            StandardHandler.DistributionState memory state = standardHandler_.getDistributionState(distributionId);
+            if (state.numVoterRewardsClaimed == standardHandler_.getNumVotersWithRewards(distributionId) && distributionInfo.endBlock < currentBlock) {
                 requireWithinDiff(
                     totalRewardsClaimed,
                     distributionInfo.fundsAvailable * 1 / 10,
-                    1e15,
+                    1e12,
                     "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"
                 );
             }
+            require(
+                totalRewardsClaimed <= distributionInfo.fundsAvailable * 1 / 10,
+                "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"
+            );
 
             --distributionId;
         }

@@ -17,8 +17,6 @@ contract MultipleDistributionInvariant is StandardTestBase {
     function setUp() public override {
         super.setUp();
 
-        startDistributionPeriod();
-
         // set the list of function selectors to run
         bytes4[] memory selectors = new bytes4[](8);
         selectors[0] = _standardHandler.startNewDistributionPeriod.selector;
@@ -68,34 +66,17 @@ contract MultipleDistributionInvariant is StandardTestBase {
 
         _logger.logCallSummary();
         _logger.logTimeSummary();
-
+        _logger.logProposalSummary();
         console.log("scenario type", uint8(_standardHandler.getCurrentScenarioType()));
 
-        console.log("Delegation Rewards:         ", _standardHandler.numberOfCalls('delegationRewardSet'));
-        console.log("Delegation Rewards Claimed: ", _standardHandler.numberOfCalls('SFH.claimDelegateReward.success'));
-        console.log("Proposal Execute attempt:   ", _standardHandler.numberOfCalls('SFH.execute.attempt'));
-        console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.execute.success'));
-        console.log("Slate Update Prep:          ", _standardHandler.numberOfCalls('SFH.updateSlate.prep'));
-        console.log("Slate Update length:        ", _standardHandler.numberOfCalls('updateSlate.length'));
-        console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
-        console.log("Slate Update Success:       ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
-        console.log("Slate Proposals:            ", _standardHandler.numberOfCalls('proposalsInSlates'));
-        console.log("unused proposal:            ", _standardHandler.numberOfCalls('unused.proposal'));
-        console.log("unexecuted proposal:        ", _standardHandler.numberOfCalls('unexecuted.proposal'));
-        console.log("funding stage starts:       ", _standardHandler.numberOfCalls("SFH.FundingStage"));
-        console.log("funding stage success votes ", _standardHandler.numberOfCalls("SFH.fundingVote.success"));
-        console.log("funding stage prop voted on ", _standardHandler.numberOfCalls("SFH.fundingVote.proposal"));
-        console.log("funding stage neg votes:    ", _standardHandler.numberOfCalls("SFH.negativeFundingVote"));
+        while (distributionId > 0) {
 
+            _logger.logFundingSummary(distributionId);
+            _logger.logFinalizeSummary(distributionId);
+            _logger.logActorSummary(distributionId, true, true);
+            _logger.logActorDelegationRewards(distributionId);
 
-        (, , , , uint256 fundingPowerCast, ) = _grantFund.getDistributionPeriodInfo(2);
-        console.log("Total Funding Power Cast    ", fundingPowerCast);
-
-
-        if (_standardHandler.numberOfCalls('unexecuted.proposal') != 0) {
-            console.log("state of unexecuted:        ", uint8(_grantFund.state(_standardHandler.numberOfCalls('unexecuted.proposal'))));
+            --distributionId;
         }
-        _logger.logProposalSummary();
-        _logger.logActorSummary(distributionId, true, true);
     }
 }

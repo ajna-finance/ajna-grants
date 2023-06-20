@@ -40,7 +40,6 @@ contract TestBase is Test, GrantFundTestHelper {
     /*** Modifiers ***/
     /*****************/
 
-    // FIXME: this isn't working properly when used at the top level of a test
     modifier useCurrentBlock() {
         vm.roll(currentBlock);
 

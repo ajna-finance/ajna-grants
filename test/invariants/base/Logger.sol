@@ -2,7 +2,8 @@
 
 pragma solidity 0.8.18;
 
-import { console }  from "@std/console.sol";
+import { console } from "@std/console.sol";
+import { Math }    from "@oz/utils/math/Math.sol";
 
 import { GrantFund }       from "../../../src/grants/GrantFund.sol";
 import { IGrantFundState } from "../../../src/grants/interfaces/IGrantFundState.sol";
@@ -73,6 +74,52 @@ contract Logger {
                 console.log("\n");
             }
         }
+    }
+
+    function logActorDelegationRewards(uint24 distributionId_) external view {
+        console.log("\nActor Delegation Rewards\n");
+
+        console.log("------------------");
+        console.log("Number of Actors", _standardHandler.getActorsCount());
+        console.log("------------------");
+        console.log("\n");
+
+        uint256 totalDelegationRewardsClaimed = 0;
+
+        // get voter info
+        for (uint256 i = 0; i < _standardHandler.getActorsCount(); ++i) {
+            address actor = _standardHandler.actors(i);
+
+            // get actor info
+            (
+                IGrantFundState.FundingVoteParams[] memory fundingVoteParams,
+                IGrantFundState.ScreeningVoteParams[] memory screeningVoteParams,
+                uint256 delegationRewardsClaimed
+            ) = _standardHandler.getVotingActorsInfo(actor, distributionId_);
+
+            totalDelegationRewardsClaimed += delegationRewardsClaimed;
+
+            console.log("Actor:                               ", actor);
+            console.log("Delegate:                            ", _ajna.delegates(actor));
+            console.log("delegationRewardsClaimed:            ", delegationRewardsClaimed);
+
+            (uint256 votingPower, uint256 remainingVotingPower, uint256 votesCast) = _grantFund.getVoterInfo(distributionId_, actor);
+
+            uint256 votingPowerAllocatedByDelegatee = votingPower - remainingVotingPower;
+            uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);
+            console.log("votingPower:                         ", votingPower);
+            console.log("remainingVotingPower:                ", remainingVotingPower);
+            console.log("votingPowerAllocatedByDelegatee:     ", votingPowerAllocatedByDelegatee);
+            console.log("rootVotingPowerAllocatedByDelegatee: ", rootVotingPowerAllocatedByDelegatee);
+
+            if (votingPowerAllocatedByDelegatee > 0 && rootVotingPowerAllocatedByDelegatee == 0) {
+                console.log("ACTOR ROUNDED TO 0 REWARDS: ", actor);
+            }
+            console.log("------------------");
+            console.log("\n");
+
+        }
+        console.log("totalDelegationRewardsClaimed: ", totalDelegationRewardsClaimed);
     }
 
     function logCallSummary() external view {
@@ -149,19 +196,25 @@ contract Logger {
         console.log("\nFinalize Summary\n");
         console.log("------------------");
         console.log("Distribution Id:            ", distributionId_);
+        console.log("Funds Available:            ", fundsAvailable);
+        // DELEGATION REWARDS LOGS
+        console.log("Delegation Rewards Set:     ", _standardHandler.numberOfCalls('delegationRewardSet'));
         console.log("Delegation Rewards Claimed: ", _standardHandler.numberOfCalls('SFH.claimDelegateReward.success'));
+        // EXECUTE LOGS
         console.log("Proposal Execute attempt:   ", _standardHandler.numberOfCalls('SFH.execute.attempt'));
         console.log("Proposal Execute Count:     ", _standardHandler.numberOfCalls('SFH.execute.success'));
-        console.log("Slate Created:              ", _standardHandler.numberOfCalls('SFH.updateSlate.prep'));
+        console.log("unexecuted proposal:        ", _standardHandler.numberOfCalls('unexecuted.proposal'));
+        // UPDATE SLATE LOGS
+        console.log("Slate Update Prep:          ", _standardHandler.numberOfCalls('SFH.updateSlate.prep'));
+        console.log("Slate Update length:        ", _standardHandler.numberOfCalls('updateSlate.length'));
         console.log("Slate Update Called:        ", _standardHandler.numberOfCalls('SFH.updateSlate.called'));
-        console.log("Slate Update Count:         ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
+        console.log("Slate Update Success:       ", _standardHandler.numberOfCalls('SFH.updateSlate.success'));
+        console.log("Slate Proposals:            ", _standardHandler.numberOfCalls('proposalsInSlates'));
         console.log("Next Slate length:          ", _standardHandler.numberOfCalls('updateSlate.length'));
+        console.log("unused proposal:            ", _standardHandler.numberOfCalls('unused.proposal'));
         console.log("Top Slate Proposal Count:   ", topSlateProposalIds.length);
         console.log("Top Ten Proposal Count:     ", topTenScreenedProposalIds.length);
-        console.log("Funds Available:            ", fundsAvailable);
         console.log("Top slate funds requested:  ", _standardHandler.getTokensRequestedInFundedSlateInvariant(topSlateHash));
-        (, , , , uint256 fundingPowerCast, ) = _grantFund.getDistributionPeriodInfo(distributionId_);
-        console.log("Total Funding Power Cast    ", fundingPowerCast);
         console.log("------------------");
     }
 
@@ -175,6 +228,8 @@ contract Logger {
         console.log("number of funding stage negative votes: ", _standardHandler.numberOfCalls("SFH.negativeFundingVote"));
         console.log("distributionId:                         ", distributionId_);
         console.log("SFH.updateSlate.success:                ", _standardHandler.numberOfCalls("SFH.updateSlate.success"));
+        (, , , , uint256 fundingPowerCast, ) = _grantFund.getDistributionPeriodInfo(distributionId_);
+        console.log("Total Funding Power Cast:               ", fundingPowerCast);
         console.log("------------------");
     }
 }
