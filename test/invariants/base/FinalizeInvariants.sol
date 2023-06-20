@@ -206,8 +206,6 @@ abstract contract FinalizeInvariants is TestBase {
             // check state after all possible delegation rewards have been claimed
             StandardHandler.DistributionState memory state = standardHandler_.getDistributionState(distributionId);
             if (state.numVoterRewardsClaimed == standardHandler_.getNumVotersWithRewards(distributionId) && distributionInfo.endBlock < currentBlock) {
-                console.log("totalRewardsClaimed", totalRewardsClaimed);
-                console.log("rewards available: ", distributionInfo.fundsAvailable * 1 / 10);
                 requireWithinDiff(
                     totalRewardsClaimed,
                     distributionInfo.fundsAvailable * 1 / 10,

@@ -61,20 +61,19 @@ contract MultipleDistributionInvariant is StandardTestBase {
         _invariant_T1_T2(_grantFund, _standardHandler);
     }
 
-    // TODO: use log level to determine whether to run proposal and actor summary
     function invariant_call_summary() external useCurrentBlock {
         uint24 distributionId = _grantFund.getDistributionId();
 
         _logger.logCallSummary();
         _logger.logTimeSummary();
-        // _logger.logProposalSummary();
+        _logger.logProposalSummary();
         console.log("scenario type", uint8(_standardHandler.getCurrentScenarioType()));
 
         while (distributionId > 0) {
 
-            // _logger.logFundingSummary(distributionId);
-            // _logger.logFinalizeSummary(distributionId);
-            // _logger.logActorSummary(distributionId, true, true);
+            _logger.logFundingSummary(distributionId);
+            _logger.logFinalizeSummary(distributionId);
+            _logger.logActorSummary(distributionId, true, true);
             _logger.logActorDelegationRewards(distributionId);
 
             --distributionId;
