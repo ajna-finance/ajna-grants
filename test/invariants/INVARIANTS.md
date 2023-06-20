@@ -22,7 +22,7 @@
     - **SS4**: Screening vote's cast can only be positive.
     - **SS5**: Screening votes can only be cast on a proposal in it's distribution period's screening stage.
     - **SS6**: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list (typically the 10th of course, but it may be shorter than ten proposals).
-    - **SS7**: Screening vote's on a proposal should cause addition to the topTenProposals if no proposal has been added yet
+    - **SS7**: Screening votes on a proposal should cause addition to the topTenProposals if no proposal has been added yet
     - **SS8**: A proposal should never receive more screening votes than the Ajna token supply.
     - **SS9**: A proposal can only receive screening votes if it was created via `propose()`.
     - **SS10**: A proposal can only be created during a distribution period's screening stage.
