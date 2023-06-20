@@ -29,7 +29,7 @@ contract Logger is Test {
         _standardHandler = StandardHandler(standardHandler_);
         testContract = ITestBase(testContract_);
         // Verbosity of Log file
-        logFileVerbosity = uint256(vm.envOr("LOGS_VERBOSITY", uint256(0)));
+        logFileVerbosity = uint256(vm.envOr("LOGS_VERBOSITY", uint256(2)));
     }
 
     /**************************/

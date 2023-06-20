@@ -17,6 +17,7 @@ contract StandardTestBase is DistributionPeriodInvariants, FinalizeInvariants, F
 
     uint256 internal constant NUM_ACTORS = 20; // default number of actors
     uint256 internal constant NUM_PROPOSALS = 200; // default maximum number of proposals that can be created in a distribution period
+    uint256 internal constant PER_ADDRESS_TOKEN_REQ_CAP = 10; // Percentage of funds available to request per proposal recipient in invariants
     uint256 public constant TOKENS_TO_DISTRIBUTE = 500_000_000 * 1e18;
 
     StandardHandler internal _standardHandler;
@@ -31,6 +32,7 @@ contract StandardTestBase is DistributionPeriodInvariants, FinalizeInvariants, F
             _tokenDeployer,
             vm.envOr("NUM_ACTORS", NUM_ACTORS),
             vm.envOr("NUM_PROPOSALS", NUM_PROPOSALS),
+            vm.envOr("PER_ADDRESS_TOKEN_REQ_CAP", PER_ADDRESS_TOKEN_REQ_CAP),
             TOKENS_TO_DISTRIBUTE,
             address(this)
         );

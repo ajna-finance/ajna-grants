@@ -25,6 +25,7 @@ contract StandardHandler is Handler {
     // proposalId of proposals executed
     uint256[] public proposalsExecuted;
     uint256 public maxProposals; // maximum number of proposals for a distribution period
+    uint256 public percentageTokensReq; // Percentage of funds available to request per proposal recipient in invariants
 
     // number of proposals that recieved a vote in the given stage
     uint256 public fundingVotesCast;
@@ -71,10 +72,12 @@ contract StandardHandler is Handler {
         address tokenDeployer_,
         uint256 numOfActors_,
         uint256 maxProposals_,
+        uint256 percentageTokensReq_,
         uint256 treasury_,
         address testContract_
     ) Handler(grantFund_, token_, tokenDeployer_, numOfActors_, treasury_, testContract_) {
         maxProposals = maxProposals_;
+        percentageTokensReq = percentageTokensReq_;
     }
 
     /*************************/
@@ -441,9 +444,9 @@ contract StandardHandler is Handler {
             uint24 distributionId = _grantFund.getDistributionId();
             (, , , uint128 fundsAvailable, , ) = _grantFund.getDistributionPeriodInfo(distributionId);
 
-            // set a proposals tokens requested for an address's max amount to 1/10 the funds available in a period
+            // set a proposals tokens requested for an address's max amount to a configurable percentage of the funds available in a period
             // account for amount that was previously requested with totalTokensRequested accumulator
-            uint256 additionalTokensRequested = randomAmount(uint256(fundsAvailable * 1 / 10) - totalTokensRequested);
+            uint256 additionalTokensRequested = randomAmount(uint256(fundsAvailable * percentageTokensReq / 100) - totalTokensRequested);
             totalTokensRequested += additionalTokensRequested;
 
             testProposalParams_[i] = TestProposalParams({
