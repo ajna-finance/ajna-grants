@@ -235,6 +235,10 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     ) internal view returns (uint256 rewards_) {
         // calculate the total voting power available to the voter that was allocated in the funding stage
         uint256 votingPowerAllocatedByDelegatee = voter_.fundingVotingPower - voter_.fundingRemainingVotingPower;
+
+        // check for inputs that would revert with divide by 0
+        if (votingPowerAllocatedByDelegatee == 0 || currentDistribution_.fundsAvailable == 0 || currentDistribution_.fundingVotePowerCast == 0) return 0;
+
         // take the sqrt of the voting power allocated to compare against the root of all voting power allocated
         // multiply by 1e18 to maintain WAD precision
         uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);
