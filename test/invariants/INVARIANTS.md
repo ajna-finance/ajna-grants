@@ -45,6 +45,7 @@
     - **CS4**: Funded proposals are all a subset of the ones voted on in funding stage.
     - **CS5**: Funded proposal slate's should never contain duplicate proposals.
     - **CS6**: Funded proposal slate's can only be updated during a distribution period's challenge stage.
+    - **CS7**: The highest submitted funded proposal slate should have won or tied depending on when it was submitted.
 
 - #### Execute:
     - **ES1**: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round.

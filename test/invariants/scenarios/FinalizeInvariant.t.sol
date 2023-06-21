@@ -59,7 +59,7 @@ contract FinalizeInvariant is StandardTestBase {
     }
 
     function invariant_finalize() external useCurrentBlock {
-        _invariant_CS1_CS2_CS3_CS4_CS5_CS6(_grantFund, _standardHandler);
+        _invariant_CS1_CS2_CS3_CS4_CS5_CS6_CS7(_grantFund, _standardHandler);
         _invariant_ES1_ES2_ES3_ES4_ES5(_grantFund, _standardHandler);
         _invariant_DR1_DR2_DR3_DR4_DR5(_grantFund, _standardHandler);
     }
