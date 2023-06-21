@@ -9,11 +9,6 @@
 
 <br>
 
-## **[Tests](./test/README.md)**
-
-For information on running tests and checking code coverage see the **[Tests README](./test/README.md)**.
-
-
 ## **Development**
 
 Install Foundry [instructions](https://github.com/gakonst/foundry/blob/master/README.md#installation)  then, install the [foundry](https://github.com/gakonst/foundry) toolchain installer (`foundryup`) with:
@@ -34,6 +29,23 @@ foundryup
 - Run
 ```bash
 make all
+```
+
+#### Run Tests
+
+```bash
+make tests
+```
+
+#### Code Coverage
+- generate basic code coverage report:
+```bash
+make coverage
+```
+- exclude tests from code coverage report:
+```
+apt-get install lcov
+bash ./check-code-coverage.sh
 ```
 
 ### Contract Deployment

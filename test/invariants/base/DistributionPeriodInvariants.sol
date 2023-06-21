@@ -140,7 +140,7 @@ abstract contract DistributionPeriodInvariants is TestBase {
         }
     }
 
-    function _invariant_T1_T2(GrantFund grantFund_) internal view {
+    function _invariant_T1_T2(GrantFund grantFund_, StandardHandler standardHandler_) internal view {
         require(
             grantFund_.treasury() <= _ajna.balanceOf(address(grantFund_)),
             "invariant T1: The Grant Fund's treasury should always be less than or equal to the contract's token blance"

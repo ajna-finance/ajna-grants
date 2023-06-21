@@ -67,7 +67,6 @@ abstract contract GrantFundTestHelper is Test {
         string description;
         uint256 totalTokensRequested;
         uint256 blockAtCreation; // block number of test proposal creation
-        uint256 blockAtExecution; // block number of proposal execution
         GeneratedTestProposalParams[] params;
     }
 
@@ -236,7 +235,7 @@ abstract contract GrantFundTestHelper is Test {
     // return a TestProposal struct containing the state of a created proposal
     function _createTestProposal(uint24 distributionId_, uint256 proposalId_, address[] memory targets_, uint256[] memory values_, bytes[] memory calldatas_, string memory description) internal view returns (TestProposal memory proposal_) {
         (GeneratedTestProposalParams[] memory params, uint256 totalTokensRequested) = _getGeneratedTestProposalParamsFromParams(targets_, values_, calldatas_);
-        proposal_ = TestProposal(proposalId_, distributionId_, description, totalTokensRequested, block.number, 0, params);
+        proposal_ = TestProposal(proposalId_, distributionId_, description, totalTokensRequested, block.number, params);
     }
 
     /**
