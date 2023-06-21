@@ -22,13 +22,11 @@
     - **SS4**: Screening vote's cast can only be positive.
     - **SS5**: Screening votes can only be cast on a proposal in it's distribution period's screening stage.
     - **SS6**: For every proposal, it is included in the top 10 list if, and only if, it has as many or more votes as the last member of the top ten list (typically the 10th of course, but it may be shorter than ten proposals).
-    - **SS7**: Screening vote's on a proposal should cause addition to the topTenProposals if no proposal has been added yet.
-    <!-- TODO: move these into separate 'Proposal invariants:' section -->
-    - **SS8**: A proposal should never receive more vote than the Ajna token supply.
+    - **SS7**: Screening votes on a proposal should cause addition to the topTenProposals if no proposal has been added yet
+    - **SS8**: A proposal should never receive more screening votes than the Ajna token supply.
     - **SS9**: A proposal can only receive screening votes if it was created via `propose()`.
     - **SS10**: A proposal can only be created during a distribution period's screening stage.
-    - **SS11**: A proposal's proposalId must be unique.
-    - **SS12**: A proposal's tokens requested must be <= 90% of GBC.
+    - **SS11**: A proposal's tokens requested must be <= 90% of GBC.
 
 - #### Funding Stage:
     - **FS1**: Only 10 proposals can be voted on in the funding stage
@@ -47,6 +45,7 @@
     - **CS4**: Funded proposals are all a subset of the ones voted on in funding stage.
     - **CS5**: Funded proposal slate's should never contain duplicate proposals.
     - **CS6**: Funded proposal slate's can only be updated during a distribution period's challenge stage.
+    - **CS7**: The highest submitted funded proposal slate should have won or tied depending on when it was submitted.
 
 - #### Execute:
     - **ES1**: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round.
@@ -62,7 +61,6 @@
     - **DR4**: Delegation rewards can only be claimed for a distribution period after it ended.
     - **DR5**: Cumulative rewards claimed should be within 99.99% of all available delegation rewards.
 
-
-<!-- TODO: rename this to proposal invariants -->
-## Global Invariants:
-   - **G1**: A proposal should never enter an unused state (canceled, queued, expired).
+- #### Proposal:
+    - **P1**: A proposal should never enter an unused state (pending, canceled, queued, expired).
+    - **P2**: A proposal's proposalId must be unique.

@@ -198,7 +198,7 @@ contract Handler is Test, GrantFundTestHelper {
     }
 
     function randomAmount(uint256 maxAmount_) internal returns (uint256) {
-        return constrictToRange(randomSeed(), 1, maxAmount_);
+        return constrictToRange(randomSeed(), 0, maxAmount_);
     }
 
     function randomActor() internal returns (address) {
@@ -217,6 +217,10 @@ contract Handler is Test, GrantFundTestHelper {
     /***********************/
     /*** View Functions ****/
     /***********************/
+
+    function getActors() public view returns(address[] memory) {
+        return actors;
+    }
 
     function getActorsCount() public view returns(uint256) {
         return actors.length;
