@@ -30,7 +30,7 @@ abstract contract FinalizeInvariants is TestBase {
         bytes32 fundedSlateHash;
     }
 
-    function _invariant_CS1_CS2_CS3_CS4_CS5_CS6(GrantFund grantFund_, StandardHandler standardHandler_) view internal {
+    function _invariant_CS1_CS2_CS3_CS4_CS5_CS6_CS7(GrantFund grantFund_, StandardHandler standardHandler_) view internal {
         uint24 distributionId = grantFund_.getDistributionId();
 
         (, , uint256 endBlock, uint128 fundsAvailable, , bytes32 topSlateHash) = grantFund_.getDistributionPeriodInfo(distributionId);
@@ -81,6 +81,11 @@ abstract contract FinalizeInvariants is TestBase {
                 "invariant CS6: Funded proposal slate's can only be updated during a distribution period's challenge stage"
             );
         }
+
+        require(
+            state.currentTopSlate == topSlateHash,
+            "invariant CS7: The highest submitted funded proposal slate should have won or tied depending on when it was submitted."
+        );
     }
 
     function _invariant_ES1_ES2_ES3_ES4_ES5(GrantFund grantFund_, StandardHandler standardHandler_) internal {
