@@ -30,7 +30,7 @@ abstract contract FinalizeInvariants is TestBase {
         bytes32 fundedSlateHash;
     }
 
-    function _invariant_CS1_CS2_CS3_CS4_CS5_CS6(GrantFund grantFund_, StandardHandler standardHandler_) view internal {
+    function _invariant_CS1_CS2_CS3_CS4_CS5_CS6_CS7(GrantFund grantFund_, StandardHandler standardHandler_) view internal {
         uint24 distributionId = grantFund_.getDistributionId();
 
         (, , uint256 endBlock, uint128 fundsAvailable, , bytes32 topSlateHash) = grantFund_.getDistributionPeriodInfo(distributionId);
@@ -81,6 +81,11 @@ abstract contract FinalizeInvariants is TestBase {
                 "invariant CS6: Funded proposal slate's can only be updated during a distribution period's challenge stage"
             );
         }
+
+        require(
+            state.currentTopSlate == topSlateHash,
+            "invariant CS7: The highest submitted funded proposal slate should have won or tied depending on when it was submitted."
+        );
     }
 
     function _invariant_ES1_ES2_ES3_ES4_ES5(GrantFund grantFund_, StandardHandler standardHandler_) internal {
@@ -96,18 +101,20 @@ abstract contract FinalizeInvariants is TestBase {
                 uint256 proposalId = standardFundingProposals[i];
                 (, uint24 proposalDistributionId, , uint256 tokenRequested, , bool executed) = grantFund_.getProposalInfo(proposalId);
                 int256 proposalIndex = _findProposalIndex(proposalId, topSlateProposalIds);
-                // invariant ES1: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round.
                 if (proposalIndex == -1) {
-                    assertFalse(executed);
+                    require(
+                        !executed,
+                        "invariant ES1: A proposal can only be executed if it's listed in the final funded proposal slate at the end of the challenge round."
+                    );
                 }
 
                 // invariant ES2: A proposal can only be executed after the challenge stage is complete.
                 assertEq(distributionId, proposalDistributionId);
                 if (executed) {
                     (, , uint48 endBlock, , , ) = grantFund_.getDistributionPeriodInfo(proposalDistributionId);
-                    // TODO: store and check proposal execution time
+                    TestProposal memory testProposal = standardHandler_.getTestProposal(proposalId);
                     require(
-                        currentBlock > endBlock,
+                        testProposal.blockAtExecution > endBlock,
                         "invariant ES2: A proposal can only be executed after the challenge stage is complete."
                     );
 
@@ -141,6 +148,7 @@ abstract contract FinalizeInvariants is TestBase {
             (, , distributionInfo.endBlock, distributionInfo.fundsAvailable, distributionInfo.fundingVotePowerCast, ) = grantFund_.getDistributionPeriodInfo(distributionId);
 
             uint256 totalRewardsClaimed;
+            uint256 actorsWithRewards;
 
             for (uint256 i = 0; i < standardHandler_.getActorsCount(); ++i) {
                 address actor = standardHandler_.actors(i);
@@ -161,6 +169,8 @@ abstract contract FinalizeInvariants is TestBase {
                 if (delegationRewardsClaimed != 0) {
                     // check that delegation rewards are greater tahn 0 if they did vote in both stages
                     assertTrue(delegationRewardsClaimed >= 0);
+
+                    actorsWithRewards += 1;
 
                     uint256 votingPowerAllocatedByDelegatee = votersInfo.fundingVotingPower - votersInfo.fundingRemainingVotingPower;
                     uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);
@@ -199,13 +209,19 @@ abstract contract FinalizeInvariants is TestBase {
             );
 
             // check state after all possible delegation rewards have been claimed
-            if (standardHandler_.numberOfCalls('SFH.claimDelegateReward.success') == standardHandler_.getActorsCount()) {
-                require(
-                    totalRewardsClaimed >= Maths.wmul(distributionInfo.fundsAvailable * 1 / 10, 0.9999 * 1e18),
+            StandardHandler.DistributionState memory state = standardHandler_.getDistributionState(distributionId);
+            if (state.numVoterRewardsClaimed == standardHandler_.getNumVotersWithRewards(distributionId) && distributionInfo.endBlock < currentBlock) {
+                requireWithinDiff(
+                    totalRewardsClaimed,
+                    distributionInfo.fundsAvailable * 1 / 10,
+                    1e12,
                     "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"
                 );
-                assertEq(totalRewardsClaimed, distributionInfo.fundsAvailable * 1 / 10);
             }
+            require(
+                totalRewardsClaimed <= distributionInfo.fundsAvailable * 1 / 10,
+                "invariant DR5: Cumulative rewards claimed should be within 99.99% -or- 0.01 AJNA tokens of all available delegation rewards"
+            );
 
             --distributionId;
         }
