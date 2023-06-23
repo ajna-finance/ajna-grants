@@ -168,6 +168,8 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         vm.roll(endBlock + 1);
         assertEq(_grantFund.getStage(), keccak256(bytes("Pending")));
         // check can now claim delegate rewards
+        uint256 rewards = _grantFund.getDelegateReward(distributionId, _tokenHolder1);
+        assertGt(rewards, 0);
         _claimDelegateReward(_grantFund, _tokenHolder1, distributionId, _grantFund.getDelegateReward(distributionId, _tokenHolder1));
     }
 
@@ -1935,6 +1937,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _token.delegate(lowRewardAddress);
 
         vm.roll(_startBlock + 150);
+
+        // rewards are 0 before distribution period starts
+        uint256 rewards = _grantFund.getDelegateReward(1, _tokenHolder1);
+        assertEq(rewards, 0);
 
         // start distribution period
         _startDistributionPeriod(_grantFund);
