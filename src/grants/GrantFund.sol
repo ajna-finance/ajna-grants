@@ -225,7 +225,6 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /**
      * @notice Calculate the delegate rewards that have accrued to a given voter, in a given distribution period.
      * @dev    Voter must have voted in both the screening and funding stages, and is proportional to their share of votes across the stages.
-     * @dev    If the provided distribution period hasn't passed the end of the funding stage, or the voter's funding votes were 0 then calculated rewards will be 0.
      * @param  currentDistribution_ Struct of the distribution period to calculate rewards for.
      * @param  voter_               Struct of the funding stages voter.
      * @return rewards_             The delegate rewards accrued to the voter.
@@ -238,22 +237,17 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         uint256 votingPowerAllocatedByDelegatee = voter_.fundingVotingPower - voter_.fundingRemainingVotingPower;
 
         if (votingPowerAllocatedByDelegatee != 0) {
-            uint256 fundsAvailable       = currentDistribution_.fundsAvailable;
-            uint256 fundingVotePowerCast = currentDistribution_.fundingVotePowerCast;
+            // take the sqrt of the voting power allocated to compare against the root of all voting power allocated
+            // multiply by 1e18 to maintain WAD precision
+            uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);
 
-            if (fundsAvailable != 0 && fundingVotePowerCast != 0) {
-                // take the sqrt of the voting power allocated to compare against the root of all voting power allocated
-                // multiply by 1e18 to maintain WAD precision
-                uint256 rootVotingPowerAllocatedByDelegatee = Math.sqrt(votingPowerAllocatedByDelegatee * 1e18);
-
-                // calculate reward
-                // delegateeReward = 10 % of GBC distributed as per delegatee Voting power allocated
-                rewards_ = Math.mulDiv(
-                    fundsAvailable,
-                    rootVotingPowerAllocatedByDelegatee,
-                    10 * fundingVotePowerCast
-                );
-            }
+            // calculate reward
+            // delegateeReward = 10 % of GBC distributed as per delegatee Voting power allocated
+            rewards_ = Math.mulDiv(
+                currentDistribution_.fundsAvailable,
+                rootVotingPowerAllocatedByDelegatee,
+                10 * currentDistribution_.fundingVotePowerCast
+            );
         }
     }
 
