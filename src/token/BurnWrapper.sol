@@ -11,6 +11,11 @@ import { ERC20Permit }    from "@oz/token/ERC20/extensions/draft-ERC20Permit.sol
 import { ERC20Wrapper }   from "@oz/token/ERC20/extensions/ERC20Wrapper.sol";
 import { IERC20Metadata } from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
 
+/// @dev Ajna Token `ERC20` token interface.
+interface IERC20Token {
+    function burnFrom(address account, uint256 amount) external;
+}
+
 contract BurnWrappedAjna is ERC20, ERC20Burnable, ERC20Permit, ERC20Wrapper {
 
     /**
@@ -48,6 +53,18 @@ contract BurnWrappedAjna is ERC20, ERC20Burnable, ERC20Permit, ERC20Wrapper {
     function decimals() public pure override(ERC20, ERC20Wrapper) returns (uint8) {
         // since the Ajna Token has 18 decimals, we can just return 18 here.
         return 18;
+    }
+
+    /**
+     * @notice Override wrap method to burn Ajna tokens on wrapping instead of transferring to the wrapper contract.
+     */
+    function depositFor(address account, uint256 amount) public override returns (bool) {
+        // burn the existing ajna tokens
+        IERC20Token(AJNA_TOKEN_ADDRESS).burnFrom(account, amount);
+
+        // mint the new wrapped tokens
+        _mint(account, amount);
+        return true;
     }
 
     /**

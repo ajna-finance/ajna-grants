@@ -42,7 +42,7 @@ contract BurnWrappedTokenTest is Test {
         _token.approve(address(_wrappedToken), amount_);
 
         vm.expectEmit(true, true, false, true);
-        emit Transfer(address(account_), address(_wrappedToken), amount_);
+        emit Transfer(address(account_), address(0), amount_);
         vm.expectEmit(true, true, false, true);
         emit Transfer(address(0), address(account_), amount_);
         (bool wrapSuccess) = _wrappedToken.depositFor(account_, amount_);
@@ -77,6 +77,7 @@ contract BurnWrappedTokenTest is Test {
 
         // check initial token supply
         assertEq(_token.totalSupply(),        1_000_000_000 * 10 ** _token.decimals());
+        assertEq(_token.totalSupply(),        _initialAjnaTokenSupply);
         assertEq(_wrappedToken.totalSupply(), 0);
 
         // transfer some tokens to the test address
@@ -99,8 +100,8 @@ contract BurnWrappedTokenTest is Test {
         assertEq(_token.balanceOf(address(_tokenDeployer)), _initialAjnaTokenSupply - tokensToWrap);
         assertEq(_wrappedToken.balanceOf(address(_tokenDeployer)), 0);
 
-        // check token supply after wrapping
-        assertEq(_token.totalSupply(),        1_000_000_000 * 10 ** _token.decimals());
+        // check token supply has decreased after wrapping by the wrapped amount
+        assertEq(_token.totalSupply(),        _initialAjnaTokenSupply - tokensToWrap);
         assertEq(_wrappedToken.totalSupply(), tokensToWrap);
     }
 
