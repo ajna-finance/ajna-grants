@@ -277,7 +277,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         uint24 distributionId = proposal.distributionId;
 
-        // check that the distribution period has ended, and one week has passed to enable competing slates to be checked
+        // check that the distribution period has ended
         if (block.number <= _distributions[distributionId].endBlock) revert ExecuteProposalInvalid();
 
         // check proposal is successful and hasn't already been executed
@@ -307,8 +307,8 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         DistributionPeriod storage currentDistribution = _distributions[_currentDistributionId];
 
-        // cannot add new proposal after end of screening period
-        // screening period ends 72000 blocks before end of distribution period, ~ 80 days.
+        // cannot add new proposal after the screening period ends
+        // screening period ends 525_600 blocks after the start of the distribution period, ~73 days.
         if (block.number > _getScreeningStageEndBlock(currentDistribution.startBlock)) revert ScreeningPeriodEnded();
 
         // store new proposal information
