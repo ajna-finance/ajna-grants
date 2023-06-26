@@ -80,7 +80,7 @@ interface IGrantFundActions is IGrantFundState {
 
     /**
      * @notice Submit a new proposal to the Grant Coordination Fund Standard Funding mechanism.
-     * @dev    All proposals can be submitted by anyone. There can only be one value in each array. Interface is compliant with OZ.propose().
+     * @dev    Proposals can be submitted by anyone. Interface is compliant with OZ.propose().
      * @param  targets_     List of contracts the proposal calldata will interact with. Should be the Ajna token contract for all proposals.
      * @param  values_      List of values to be sent with the proposal calldata. Should be 0 for all proposals.
      * @param  calldatas_   List of calldata to be executed. Should be the transfer() method.
@@ -96,7 +96,7 @@ interface IGrantFundActions is IGrantFundState {
 
     /**
      * @notice Find the status of a given proposal.
-     * @dev Check proposal status based upon Grant Fund specific logic.
+     * @dev Proposal status depends on the stage of the distribution period in which it was submitted, and vote counts on the proposal.
      * @param proposalId_ The id of the proposal to query the status of.
      * @return ProposalState of the given proposal.
      */
@@ -105,7 +105,7 @@ interface IGrantFundActions is IGrantFundState {
     ) external view returns (ProposalState);
 
     /**
-     * @notice Check if a slate of proposals meets requirements, and maximizes votes. If so, update DistributionPeriod.
+     * @notice Check if a slate of proposals meets requirements, and maximizes votes. If so, set the provided proposal slate as the new top slate of proposals.
      * @param  proposalIds_    Array of proposal Ids to check.
      * @param  distributionId_ Id of the current distribution period.
      * @return newTopSlate_    Boolean indicating whether the new proposal slate was set as the new top slate for distribution.
@@ -203,7 +203,7 @@ interface IGrantFundActions is IGrantFundState {
 
     /**
      * @notice Get the block number at which this distribution period's funding stage ends.
-     * @param  startBlock_ The end block of a distribution period to get the funding stage end block for.
+     * @param  startBlock_ The start block of a distribution period to get the funding stage end block for.
      * @return The block number at which this distribution period's funding stage ends.
     */
     function getFundingStageEndBlock(uint256 startBlock_) external pure returns (uint256);

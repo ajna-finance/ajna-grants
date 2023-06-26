@@ -732,7 +732,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
      * @dev    Votes can be allocated to multiple proposals, quadratically, for or against.
      * @param  currentDistribution_  The current distribution period.
      * @param  proposal_             The current proposal being voted upon.
-     * @param  voter_                The voter data struct tracking available votes.
+     * @param  voter_                The VoterInfo struct tracking votes.
      * @param  voteParams_           The amount of votes being allocated to the proposal. Not squared. If less than 0, vote is against.
      * @return incrementalVotesUsed_ The amount of funding stage votes allocated to the proposal.
      */
@@ -825,6 +825,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /**
      * @notice Vote on a proposal in the screening stage of the Distribution Period.
      * @param proposal_ The current proposal being voted upon.
+     * @param  voter_   The VoterInfo struct tracking votes.
      * @param votes_    The amount of votes being cast.
      */
     function _screeningVote(
