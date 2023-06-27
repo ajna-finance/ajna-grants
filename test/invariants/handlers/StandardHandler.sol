@@ -824,6 +824,14 @@ contract StandardHandler is Handler {
         }
     }
 
+    function sumSlateFundingVotes(bytes32 slateHash_) public view returns (int256 sum_) {
+        uint256[] memory fundedProposals = _grantFund.getFundedProposalSlate(slateHash_);
+        for (uint256 i = 0; i < fundedProposals.length; ++i) {
+            (, , , , int256 fundingVotesReceived, ) = _grantFund.getProposalInfo(fundedProposals[i]);
+            sum_ += fundingVotesReceived;
+        }
+    }
+
     function countNegativeFundingVotes(IGrantFundState.FundingVoteParams[] memory fundingVotes_) public pure returns (uint256 count_) {
         for (uint256 i = 0; i < fundingVotes_.length; ++i) {
             if (fundingVotes_[i].votesUsed < 0) {

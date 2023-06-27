@@ -45,10 +45,12 @@ abstract contract FinalizeInvariants is TestBase {
 
         // check proposal state of the constituents of the top slate
         uint256 totalTokensRequested = 0;
+        int256 topSlateTotalVotesReceived = 0;
         for (uint256 i = 0; i < topSlateProposalIds.length; ++i) {
             uint256 proposalId = topSlateProposalIds[i];
             (, , , uint128 tokensRequested, int128 fundingVotesReceived, ) = grantFund_.getProposalInfo(proposalId);
             totalTokensRequested += tokensRequested;
+            topSlateTotalVotesReceived += fundingVotesReceived;
 
             require(
                 fundingVotesReceived >= 0,
@@ -80,6 +82,16 @@ abstract contract FinalizeInvariants is TestBase {
                 slate.updateBlock <= endBlock && slate.updateBlock >= grantFund_.getChallengeStageStartBlock(endBlock),
                 "invariant CS6: Funded proposal slate's can only be updated during a distribution period's challenge stage"
             );
+
+            if (slate.slateHash != topSlateHash) {
+                // ensure slates that aren't the top slates have total votes less than the top slate's votes
+                int256 sumSlateFundingVotes = standardHandler_.sumSlateFundingVotes(slate.slateHash);
+
+                require(
+                    sumSlateFundingVotes <= topSlateTotalVotesReceived,
+                    "invariant CS7: The highest submitted funded proposal slate should have won or tied depending on when it was submitted."
+                );
+            }
         }
 
         require(
