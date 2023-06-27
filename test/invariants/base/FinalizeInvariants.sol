@@ -50,7 +50,7 @@ abstract contract FinalizeInvariants is TestBase {
             uint256 proposalId = topSlateProposalIds[i];
             (, , , uint128 tokensRequested, int128 fundingVotesReceived, ) = grantFund_.getProposalInfo(proposalId);
             totalTokensRequested += tokensRequested;
-            topSlateTotalVotesReceived  += fundingVotesReceived;
+            topSlateTotalVotesReceived += fundingVotesReceived;
 
             require(
                 fundingVotesReceived >= 0,
