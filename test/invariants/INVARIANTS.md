@@ -1,11 +1,5 @@
 # GrantFund Invariants
 
-## Treasury Invariants:
-   - **T1**: The Grant Fund's `treasury` should always be less than or equal to the contract's token balance.
-   - **T2**: The Grant Fund's `treasury` should always be less than or equal to the Ajna token total supply.
-
-## Standard Funding Mechanism Invariants
-
 - #### Distribution Period:
     - **DP1**: Only one distribution period should be active at a time. Each successive distribution period's start block should be greater than the previous periods end block.
     - **DP2**: Each winning proposal successfully claims no more that what was finalized in the challenge stage
@@ -64,3 +58,7 @@
 - #### Proposal:
     - **P1**: A proposal should never enter an unused state (pending, canceled, queued, expired).
     - **P2**: A proposal's proposalId must be unique.
+
+- #### Treasury:
+   - **T1**: The Grant Fund's `treasury` should always be less than or equal to the contract's token balance.
+   - **T2**: The Grant Fund's `treasury` should always be less than or equal to the Ajna token total supply.
