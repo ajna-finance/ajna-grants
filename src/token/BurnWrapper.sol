@@ -24,7 +24,7 @@ interface IERC20Token {
 
 /**
  *  @title  BurnWrappedAjna Contract
- *  @notice Entrypoint of BurnWrappedAjna actions for Ajna token holders looking to migrate their assets to a sidechain:
+ *  @notice Entrypoint of BurnWrappedAjna actions for Ajna token holders looking to migrate their tokens to a sidechain:
  *          - `TokenHolders`: Approve the BurnWrappedAjna contract to burn a specified amount of Ajna tokens, and mint them a corresponding amount of BurnWrappedAjna tokens.
  *  @dev    This contract is intended for usage in cases where users are attempting to migrate their Ajna to a sidechain that lacks a permissionless bridge.
  *          Usage of this contract protects holders from the risk of a compromised sidechain bridge.
