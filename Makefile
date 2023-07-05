@@ -15,12 +15,12 @@ install :; git submodule update --init --recursive
 build  :; forge clean && forge build --optimize --optimizer-runs 1000000
 
 # Tests
-tests   			   				 :; forge clean && forge test --mt test --optimize --optimizer-runs 1000000 -v # --ffi # enable if you need the `ffi` cheat code on HEVM
-test-with-gas-report   				 :; forge clean && forge build && forge test --mt test --optimize --optimizer-runs 1000000 -v --gas-report # --ffi # enable if you need the `ffi` cheat code on HEVM
+tests                                :; forge clean && forge test --mt test --optimize --optimizer-runs 1000000 -v # --ffi # enable if you need the `ffi` cheat code on HEVM
+test-with-gas-report                 :; forge clean && forge build && forge test --mt test --optimize --optimizer-runs 1000000 -v --gas-report # --ffi # enable if you need the `ffi` cheat code on HEVM
 test-invariant                       :; ./test/invariants/test-invariant.sh ${SCENARIO} ${NUM_ACTORS} ${NUM_PROPOSALS} ${PER_ADDRESS_TOKEN_REQ_CAP}
-test-invariant-all		 			 :; forge clean && forge t --mt invariant
+test-invariant-all                   :; forge clean && forge t --mt invariant
 test-invariant-multiple-distribution :; forge clean && ./test/invariants/test-invariant.sh MultipleDistribution 2 25 200
-coverage   			   				 :; forge coverage
+coverage                             :; forge coverage
 
 # Generate Gas Snapshots
 snapshot :; forge clean && forge snapshot --optimize --optimize-runs 1000000
