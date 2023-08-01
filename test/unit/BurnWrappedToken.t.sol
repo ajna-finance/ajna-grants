@@ -104,13 +104,6 @@ contract BurnWrappedTokenTest is Test {
         assertEq(_wrappedToken.totalSupply(), tokensToWrap);
     }
 
-    function testOnlyWrapAjna() external {
-        ERC20 _invalidToken = new ERC20("Invalid Token", "INV");
-
-        vm.expectRevert(BurnWrappedAjna.InvalidWrappedToken.selector);
-        new BurnWrappedAjna(IERC20(address(_invalidToken)));
-    }
-
     function testCantUnwrap() external {
         uint256 tokensToWrap = 50 * 1e18;
 

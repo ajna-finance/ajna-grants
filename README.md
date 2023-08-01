@@ -69,7 +69,7 @@ make deploy-ajnatoken mintto=<MINT_TO_ADDRESS>
 Record the address of the token upon deployment.  See [AJNA_TOKEN.md](src/token/AJNA_TOKEN.md#deployment) for validation.
 
 #### Burn Wrapper
-To deploy, ensure the correct AJNA token address is specified in code. Then, run:
+To deploy, run:
 ```
 make deploy-burnwrapper ajna=<AJNA_TOKEN_ADDRESS>
 ```
