@@ -9,6 +9,11 @@
 
 <br>
 
+## **[Tests](./test/README.md)**
+
+For information on running tests and checking code coverage see the **[Tests README](./test/README.md)**.
+
+
 ## **Development**
 
 Install Foundry [instructions](https://github.com/gakonst/foundry/blob/master/README.md#installation)  then, install the [foundry](https://github.com/gakonst/foundry) toolchain installer (`foundryup`) with:
@@ -29,23 +34,6 @@ foundryup
 - Run
 ```bash
 make all
-```
-
-#### Run Tests
-
-```bash
-make tests
-```
-
-#### Code Coverage
-- generate basic code coverage report:
-```bash
-make coverage
-```
-- exclude tests from code coverage report:
-```
-apt-get install lcov
-bash ./check-code-coverage.sh
 ```
 
 ### Contract Deployment
@@ -80,10 +68,14 @@ make deploy-ajnatoken mintto=<MINT_TO_ADDRESS>
 ```
 Record the address of the token upon deployment.  See [AJNA_TOKEN.md](src/token/AJNA_TOKEN.md#deployment) for validation.
 
+#### Burn Wrapper
+To deploy, ensure the correct AJNA token address is specified in code. Then, run:
+```
+make deploy-burnwrapper ajna=<AJNA_TOKEN_ADDRESS>
+```
+
 #### Grant Fund
 Deployment of the Grant Coordination Fund requires an argument to specify the address of the AJNA token. The deployment script also uses the token address to determine funding level.
-
-Before deploying, edit `src/grants/base/Storage.sol` to set the correct AJNA token address for the target chain.
 
 To deploy, run:
 ```

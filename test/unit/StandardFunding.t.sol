@@ -2140,6 +2140,205 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         assertGe(gbc / 10, totalDelegationReward);
     }
 
+    function testFuzzScreeningStage(uint256 noOfVoters_, uint256 noOfProposals_, uint256 noOfScreeningVoteCast_) external {
+
+        /******************************/
+        /***  Screening stage fuzz  ***/
+        /******************************/
+
+        noOfVoters_ = bound(noOfVoters_, 1, 500);
+        noOfProposals_ = bound(noOfProposals_, 1, 50);
+        noOfScreeningVoteCast_ = bound(noOfScreeningVoteCast_, 200, 500);
+
+        vm.roll(_startBlock + 20);
+
+        // Initialize N voter addresses 
+        address[] memory voters = _getVoters(noOfVoters_);
+        assertEq(voters.length, noOfVoters_);
+
+        // Transfer random ajna tokens to all voters and self delegate
+        uint256[] memory votes = _setVotingPower(noOfVoters_, voters, _token, _tokenDeployer);
+        assertEq(votes.length, noOfVoters_);
+
+        vm.roll(block.number + 100);
+
+        _startDistributionPeriod(_grantFund);
+
+        vm.roll(block.number + 100);
+
+        // ensure user gets the vote for screening stage
+        for(uint i = 0; i < noOfVoters_; i++) {
+            assertEq(votes[i], _getScreeningVotes(_grantFund, voters[i]));
+        }
+
+        uint24 distributionId = _grantFund.getDistributionId();
+
+        // submit N proposals
+        TestProposal[] memory proposals = _getProposals(noOfProposals_, _grantFund, _tokenHolder1, _token);
+
+        // Random voter votes on a random proposal from all Proposals for random number of times
+        for(uint i = 0; i < noOfScreeningVoteCast_; i++) {
+            
+            // get random voter
+            uint256 randomVoterIndex = bound(i, 0, noOfVoters_ - 1);
+            address randomVoter = voters[randomVoterIndex];
+
+            // get random proposal to vote on
+            uint256 randomProposalIndex = _getRandomProposal(noOfProposals_);
+            uint256 randomProposalId = proposals[randomProposalIndex].proposalId;
+
+            uint256 previousVoteCast = _grantFund.getScreeningVotesCast(distributionId, randomVoter);
+
+            uint256 totalVoteAvailable = _getScreeningVotes(_grantFund, randomVoter) - previousVoteCast;
+
+            // get random vote to cast based on available voting power
+            uint256 voteToCast = bound(totalVoteAvailable, 0, totalVoteAvailable); 
+
+            noOfVotesOnProposal[randomProposalId] += voteToCast;
+
+            (,, uint256 beforeVoteReceived,,,) = _grantFund.getProposalInfo(randomProposalId);
+
+            // vote on proposal if voteToCast is more than 0
+            if (voteToCast > 0) _screeningVote(_grantFund, randomVoter, randomProposalId, voteToCast);
+
+            // ensure that votes are added into screeningVotesCast accumulator
+            assertEq(_grantFund.getScreeningVotesCast(distributionId, randomVoter), previousVoteCast + voteToCast);
+
+            (,, uint256 afterVoteReceived,,,) = _grantFund.getProposalInfo(randomProposalId);
+
+            // ensure that votes are added into votesReceived accumulator
+            assertEq(afterVoteReceived, beforeVoteReceived + voteToCast);
+        }
+
+        // calculate top 10 proposals based on total vote casted on each proposal
+        for(uint i = 0; i < noOfProposals_; i++) {
+            uint256 currentProposalId = proposals[i].proposalId;
+            uint256 votesOnCurrentProposal = noOfVotesOnProposal[currentProposalId];
+            uint256 lengthOfArray = topTenProposalIds.length;
+
+            // only add proposals having atleast a vote
+            if (votesOnCurrentProposal > 0) {
+
+                // if there are less than 10 proposals in topTenProposalIds , add current proposals and sort topTenProposalIds based on Votes
+                if (lengthOfArray < 10) {
+                    topTenProposalIds.push(currentProposalId);
+
+                    // ensure if there are more than 1 proposalId in topTenProposalIds to sort  
+                    if(topTenProposalIds.length > 1) {
+                        _insertionSortProposalsByVotes(topTenProposalIds); 
+                    }
+                }
+
+                // if there are 10 proposals in topTenProposalIds, check new proposal has more votes than the last proposal in topTenProposalIds
+                else if(noOfVotesOnProposal[topTenProposalIds[lengthOfArray - 1]] < votesOnCurrentProposal) {
+
+                    // remove last proposal with least no of vote in topTenProposalIds
+                    topTenProposalIds.pop();
+
+                    // add new proposal with more votes than last
+                    topTenProposalIds.push(currentProposalId);
+
+                    // sort topTenProposalIds
+                    _insertionSortProposalsByVotes(topTenProposalIds);
+                }
+            }
+        }
+        
+        // get top ten proposals from contract
+        uint256[] memory topTenProposalIdsFromContract = _grantFund.getTopTenProposals(distributionId);
+
+        // ensure the no of proposals are correct
+        assertEq(topTenProposalIds.length, topTenProposalIdsFromContract.length);
+
+        for (uint i = 0; i < topTenProposalIds.length; i++) {
+            // ensure that each proposal in topTenProposalIdsFromContract is correct
+            assertEq(topTenProposalIds[i], topTenProposalIdsFromContract[i]);
+        }
+
+    }
+
+    function testFuzzFundingStage(uint256 noOfVoters_, uint256 noOfProposals_, uint256 noOfFundingVoteCast_) external {
+
+        noOfVoters_ = bound(noOfVoters_, 1, 500);
+        noOfProposals_ = bound(noOfProposals_, 1, 50);
+        noOfFundingVoteCast_ = bound(noOfFundingVoteCast_, 200, 500);
+
+        vm.roll(_startBlock + 20);
+
+        // Initialize N voter addresses 
+        address[] memory voters = _getVoters(noOfVoters_);
+
+        // Transfer random ajna tokens to all voters and self delegate
+        _setVotingPower(noOfVoters_, voters, _token, _tokenDeployer);
+
+        vm.roll(block.number + 100);
+
+        _startDistributionPeriod(_grantFund);
+
+        vm.roll(block.number + 100);
+
+        uint24 distributionId = _grantFund.getDistributionId();
+
+        // submit N proposals
+        TestProposal[] memory proposals = _getProposals(noOfProposals_, _grantFund, _tokenHolder1, _token);
+
+        // Each voter votes on a random proposal from all Proposals
+        for(uint i = 0; i < noOfVoters_; i++) {
+            uint256 randomProposalIndex = _getRandomProposal(noOfProposals_);
+
+            uint256 randomProposalId = proposals[randomProposalIndex].proposalId;
+
+            _screeningVote(_grantFund, voters[i], randomProposalId, _getScreeningVotes(_grantFund, voters[i]));
+        }
+
+        /******************************/
+        /***   Funding stage fuzz   ***/
+        /******************************/
+
+        // skip to funding stage
+        vm.roll(block.number + 550_000);
+
+        // get top ten proposals from contract
+        topTenProposalIds = _grantFund.getTopTenProposals(distributionId);
+
+        // random voter votes random number of votes on random proposal
+        for(uint i = 0; i < noOfFundingVoteCast_; i++) {
+
+            // get random voter
+            uint256 randomVoterIndex = bound(i, 0, noOfVoters_ - 1);
+            address randomVoter = voters[randomVoterIndex];
+
+            // get random proposal to vote on
+            uint256 randomProposalIndex = _getRandomProposal(topTenProposalIds.length);
+            uint256 randomProposalId = topTenProposalIds[randomProposalIndex];
+
+            (, uint256 beforeRemainingVotingPower,) = _grantFund.getVoterInfo(distributionId, randomVoter);
+
+            // get random vote to cast based on available voting power
+            uint256 voteToCast = bound(beforeRemainingVotingPower, 0, beforeRemainingVotingPower);
+
+            // get random support
+            uint8 support = (voteToCast % 2 == 0) ? voteYes: voteNo;
+
+            (,,,, int256 beforeVoteReceived,) = _grantFund.getProposalInfo(randomProposalId);
+
+            // vote on proposal if voteToCast is more than 0
+            if (voteToCast != 0) _fundingVote(_grantFund, randomVoter, randomProposalId, support, int256(voteToCast));
+
+            (, uint256 afterRemainingVotingPower,) = _grantFund.getVoterInfo(distributionId, randomVoter);
+
+            // ensure that voter voting power decreased
+            assertEq(afterRemainingVotingPower, beforeRemainingVotingPower - voteToCast);
+
+            (,,,, int256 afterVoteReceived,) = _grantFund.getProposalInfo(randomProposalId);
+
+            int256 expectedVoteReceived = (support == 1 ? beforeVoteReceived + int256(voteToCast) : beforeVoteReceived - int256(voteToCast));
+
+            // ensure quadratic vote received on proposal is updated
+            assertEq(afterVoteReceived, expectedVoteReceived);
+        }
+    }
+
     // helper method that sort proposals based on votes on them
     function _insertionSortProposalsByVotes(uint256[] storage arr) internal {
         for (uint i = 1; i < arr.length; i++) {
