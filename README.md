@@ -77,3 +77,17 @@ make deploy-grantfund ajna=<AJNA_TOKEN_ADDRESS>
 ```
 
 See [GRANT_FUND.md](src/grants/GRANT_FUND.md#deployment) for next steps.
+
+#### Grant Fund deployer
+Deployer contract can be used to deploy grant fund, fund treasury and start distribution in a single call to avoid someone starting a distribution without treasury.
+
+Steps to use Deployer contract to deploy grant Fund:
+1. Deploy `Deployer` contract.
+2. Approve `<treasury_amount>` `AJNA ` to `Deployer` contract from `treasury` address.
+3. Call `deployGrantFund(address ajnaToken_, uint256 treasury_)` from `treasury` address to deploy grant fund and start distribution with treasury amount.
+4. GrantFund can be verified using remix contract verification plugin, foundry or hardhat.
+
+To deploy Deployer contract, run:
+```
+make deploy-grantfund-deployer
+```
