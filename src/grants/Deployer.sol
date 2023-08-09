@@ -8,19 +8,33 @@ import { GrantFund } from "./GrantFund.sol";
 
 contract Deployer {
 
+    error IncorrectTreasuryBalance();
+
+    error DistributionNotStarted();
+
     GrantFund public grantFund;
 
-    function deployGrantFund(address ajnaToken_, uint256 treasury_) public returns (GrantFund) {
+    function deployGrantFund(address ajnaToken_, uint256 treasury_) public returns (GrantFund grantFund_) {
+        
+        // deploy grant Fund
+        grantFund_ = new GrantFund(ajnaToken_);
 
+        // Approve ajna token to fund treasury
+        IERC20(ajnaToken_).approve(address(grantFund_), treasury_);
+
+        // Transfer treasury ajna tokens to Deployer contract
         IERC20(ajnaToken_).transferFrom(msg.sender, address(this), treasury_);
 
-        grantFund = new GrantFund(ajnaToken_);
+        // Fund treasury and start new distribution
+        grantFund_.fundTreasury(treasury_);
+        grantFund_.startNewDistributionPeriod();
 
-        IERC20(ajnaToken_).approve(address(grantFund), treasury_);
+        // check treasury balance is correct
+        if(IERC20(ajnaToken_).balanceOf(address(grantFund_)) != treasury_) revert IncorrectTreasuryBalance();
 
-        grantFund.fundTreasury(treasury_);
+        // check new distribution started
+        if(grantFund_.getDistributionId() != 1) revert DistributionNotStarted();
 
-        grantFund.startNewDistributionPeriod();
-        return grantFund;
+        grantFund = grantFund_;
     }
 }
