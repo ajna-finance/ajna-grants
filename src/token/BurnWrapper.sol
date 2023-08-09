@@ -86,11 +86,4 @@ contract BurnWrappedAjna is ERC20, ERC20Burnable, ERC20Permit, ERC20Wrapper {
         revert UnwrapNotAllowed();
     }
 
-    /**
-     * @notice The underlying ajna token address.
-     */
-    function ajna() external pure returns (address) {
-        return AJNA_TOKEN_ADDRESS;
-    }
-
 }
