@@ -108,7 +108,7 @@ contract BurnWrappedTokenTest is Test {
     function testOnlyWrapAjna() external {
 
         BurnWrappedAjna _newBurnWrappedAjna = new BurnWrappedAjna();
-        assertEq(_newBurnWrappedAjna.AJNA_TOKEN_ADDRESS(), address(_ajnaAddress));
+        assertEq(_newBurnWrappedAjna.ajna(), address(_ajnaAddress));
 
     }
 
