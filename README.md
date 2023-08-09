@@ -68,6 +68,12 @@ make deploy-ajnatoken mintto=<MINT_TO_ADDRESS>
 ```
 Record the address of the token upon deployment.  See [AJNA_TOKEN.md](src/token/AJNA_TOKEN.md#deployment) for validation.
 
+#### Burn Wrapper
+To deploy, ensure the correct AJNA token address is specified in code. Then, run:
+```
+make deploy-burnwrapper ajna=<AJNA_TOKEN_ADDRESS>
+```
+
 #### Grant Fund
 Deployment of the Grant Coordination Fund requires an argument to specify the address of the AJNA token. The deployment script also uses the token address to determine funding level.
 
