@@ -34,7 +34,7 @@ contract BurnWrappedTokenTest is Test {
 
         // reference mainnet deployment
         _token = AjnaToken(_ajnaAddress);
-        _wrappedToken = new BurnWrappedAjna(IERC20(address(_token)));
+        _wrappedToken = new BurnWrappedAjna();
     }
 
    function approveAndWrapTokens(address account_, uint256 amount_) internal {
@@ -106,10 +106,10 @@ contract BurnWrappedTokenTest is Test {
     }
 
     function testOnlyWrapAjna() external {
-        ERC20 _invalidToken = new ERC20("Invalid Token", "INV");
 
-        vm.expectRevert(BurnWrappedAjna.InvalidWrappedToken.selector);
-        new BurnWrappedAjna(IERC20(address(_invalidToken)));
+        BurnWrappedAjna _newBurnWrappedAjna = new BurnWrappedAjna();
+        assertEq(_newBurnWrappedAjna.AJNA_TOKEN_ADDRESS(), address(_ajnaAddress));
+
     }
 
     function testCantUnwrap() external {

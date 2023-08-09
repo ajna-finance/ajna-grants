@@ -12,7 +12,7 @@ contract DeployBurnWrapper is Script {
         IERC20 ajna = IERC20(vm.envAddress("AJNA_TOKEN"));
 
         vm.startBroadcast();
-        address wrapperAddress = address(new BurnWrappedAjna(ajna));
+        address wrapperAddress = address(new BurnWrappedAjna());
         vm.stopBroadcast();
 
         console.log("Created BurnWrapper at %s for AJNA token at %s", wrapperAddress, address(ajna));

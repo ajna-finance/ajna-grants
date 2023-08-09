@@ -42,27 +42,18 @@ contract BurnWrappedAjna is ERC20, ERC20Burnable, ERC20Permit, ERC20Wrapper {
     /**
      * @notice Ethereum mainnet address of the Ajna Token.
      */
-    address internal constant AJNA_TOKEN_ADDRESS = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
+    address public constant AJNA_TOKEN_ADDRESS = 0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079;
 
     /**
      * @notice Tokens that have been wrapped cannot be unwrapped.
      */
     error UnwrapNotAllowed();
 
-    /**
-     * @notice Only mainnet Ajna token can be wrapped.
-     */
-    error InvalidWrappedToken();
-
-    constructor(IERC20 wrappedToken)
+    constructor()
         ERC20("Burn Wrapped AJNA", "bwAJNA")
         ERC20Permit("Burn Wrapped AJNA") // enables wrapped token to also use permit functionality
-        ERC20Wrapper(wrappedToken)
-    {
-        if (address(wrappedToken) != AJNA_TOKEN_ADDRESS) {
-            revert InvalidWrappedToken();
-        }
-    }
+        ERC20Wrapper(IERC20(AJNA_TOKEN_ADDRESS))
+    {}
 
     /*****************/
     /*** OVERRIDES ***/
