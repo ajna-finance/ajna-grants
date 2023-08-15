@@ -388,6 +388,55 @@ contract StandardHandler is Handler {
         }
     }
 
+    function fundTreasury(uint256 actorIndex_, uint256 treasuryAmount_) external useCurrentBlock useRandomActor(actorIndex_) {
+        numberOfCalls['SFH.fundTreasury']++;
+
+        // bound treasury amount
+        treasuryAmount_ = bound(treasuryAmount_, 0, _ajna.balanceOf(_actor));
+
+        if (treasuryAmount_ == 0) return;
+
+        uint256 previousTreasury = _grantFund.treasury();
+
+        // fund treasury
+        changePrank(_actor);
+        _ajna.approve(address(_grantFund), type(uint256).max);
+        _grantFund.fundTreasury(treasuryAmount_);
+
+        // ensure amount is added into treasury
+        assertEq(_grantFund.treasury(), previousTreasury + treasuryAmount_);
+    }
+
+    function transferAjna(uint256 fromActorIndex_, uint256 toActorIndex_, uint256 amountToTransfer_) external useCurrentBlock useRandomActor(fromActorIndex_) {
+        numberOfCalls['SFH.transferAjna']++;
+
+        // bound actor
+        toActorIndex_ = bound(toActorIndex_, 0, actors.length - 1);
+        address toActor = actors[toActorIndex_];
+
+        amountToTransfer_ = bound(amountToTransfer_, 0, _ajna.balanceOf(_actor));
+
+        if (amountToTransfer_ == 0 || _actor == toActor) return;
+
+        _ajna.transfer(toActor, amountToTransfer_);
+    }
+
+    function addActors(uint256 noOfActorsToAdd_, uint256 tokensToDistribute_) external useCurrentBlock {
+        numberOfCalls['SFH.addActors']++;
+
+        // bound tokens to distribute and no of actors to add
+        noOfActorsToAdd_   = bound(noOfActorsToAdd_, 1, 10);
+        tokensToDistribute_ = bound(tokensToDistribute_, 0, _ajna.balanceOf(_tokenDeployer));
+
+        if (tokensToDistribute_ == 0) return;
+
+        address[] memory newActors = _buildActors(noOfActorsToAdd_, tokensToDistribute_);
+
+        // add new actors to actors array
+        for (uint256 i = 0; i < newActors.length; ++i) {
+            if (newActors[i] != address(0)) actors.push(newActors[i]);
+        }
+    }
     /**********************************/
     /*** External Utility Functions ***/
     /**********************************/
