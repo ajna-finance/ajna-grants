@@ -905,6 +905,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         _screeningVote(_grantFund, _tokenHolder3, testProposals[12].proposalId, 5_000 * 1e18);
         _screeningVote(_grantFund, _tokenHolder5, testProposals[12].proposalId, 50_000 * 1e18);
         assertEq(_findProposalIndex(testProposals[12].proposalId, _grantFund.getTopTenProposals(distributionId)), -1);
+
+        // cast screening votes on a proposal not in the top 10 to make it top 10 proposal
+        _screeningVote(_grantFund, _tokenHolder7, testProposals[12].proposalId, 2_500_000 * 1e18);
+        assertEq(_findProposalIndex(testProposals[12].proposalId, _grantFund.getTopTenProposals(distributionId)), 2);
     }
 
     function testStartNewDistributionPeriod() external {
