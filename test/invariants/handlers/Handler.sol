@@ -70,7 +70,10 @@ contract Handler is Test, GrantFundTestHelper {
         _tokenDeployer = tokenDeployer_;
 
         // instantiate actors
-        actors = _buildActors(numOfActors_, tokensToDistribute_);
+        address[] memory newActors = _buildActors(numOfActors_, tokensToDistribute_);
+        for (uint256 i = 0; i < newActors.length; ++i) {
+            if (newActors[i] != address(0)) actors.push(newActors[i]);
+        }
 
         // set Test invariant contract
         testContract = ITestBase(testContract_);
@@ -141,9 +144,11 @@ contract Handler is Test, GrantFundTestHelper {
         actors_ = new address[](numOfActors_);
         uint256 tokensDistributed = 0;
 
+        uint256 existingActors = actors.length;
+
         for (uint256 i = 0; i < numOfActors_; ++i) {
             // create actor
-            address actor = makeAddr(string(abi.encodePacked("Actor", Strings.toString(i))));
+            address actor = makeAddr(string(abi.encodePacked("Actor", Strings.toString(existingActors + i))));
             actors_[i] = actor;
 
             // transfer ajna tokens to the actor
