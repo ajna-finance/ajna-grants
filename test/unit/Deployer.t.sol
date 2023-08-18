@@ -28,5 +28,7 @@ contract DeployerTest is Test {
         (,,,uint256 fundAvailable,,) = grantFund.getDistributionPeriodInfo(1);
 
         assertEq(grantFund.treasury(), treasury - fundAvailable);
+
+        assertEq(fundAvailable, treasury * 3 / 100);
     }
 }
