@@ -93,8 +93,6 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
     /// @inheritdoc IGrantFundActions
     function fundTreasury(uint256 fundingAmount_) external override {
-        IERC20 token = IERC20(ajnaTokenAddress);
-
         // update treasury accounting
         uint256 newTreasuryAmount = treasury + fundingAmount_;
         treasury = newTreasuryAmount;
@@ -102,7 +100,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         emit FundTreasury(fundingAmount_, newTreasuryAmount);
 
         // transfer ajna tokens to the treasury
-        token.safeTransferFrom(msg.sender, address(this), fundingAmount_);
+        IERC20(ajnaTokenAddress).safeTransferFrom(msg.sender, address(this), fundingAmount_);
     }
 
     /**************************************************/
@@ -145,7 +143,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
     /**
      * @notice Updates Treasury with surplus funds from distribution.
      * @dev    Counters incremented in an unchecked block due to being bounded by array length of at most 10.
-     * @param distributionId_ distribution Id of updating distribution 
+     * @param distributionId_ distribution Id of updating distribution
      */
     function _updateTreasury(
         uint24 distributionId_
@@ -755,7 +753,7 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
 
         FundingVoteParams[] storage votesCast = voter_.votesCast;
 
-        // check that the voter hasn't already voted on a proposal by seeing if it's already in the votesCast array 
+        // check that the voter hasn't already voted on a proposal by seeing if it's already in the votesCast array
         int256 voteCastIndex = _findProposalIndexOfVotesCast(proposalId, votesCast);
 
         // voter had already cast a funding vote on this proposal
