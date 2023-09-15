@@ -1099,6 +1099,8 @@ contract GrantFund is IGrantFund, Storage, ReentrancyGuard {
         DistributionPeriod storage currentDistribution = _distributions[distributionId_];
         VoterInfo          storage voter               = _voterInfo[distributionId_][voter_];
 
+        if (voter.screeningVotesCast == 0) return 0;
+
         rewards_ = _getDelegateReward(currentDistribution, voter);
     }
 
