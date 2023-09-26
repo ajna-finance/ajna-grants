@@ -13,11 +13,6 @@ interface IGrantFundErrors {
     /**************/
 
     /**
-     * @notice Voter has already voted on a proposal in the screening stage in a quarter.
-     */
-    error AlreadyVoted();
-
-    /**
      * @notice User attempted to start a new distribution or claim delegation rewards before the distribution period ended.
      */
      error DistributionPeriodStillActive();
