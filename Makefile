@@ -17,6 +17,7 @@ build  :; forge clean && forge build --optimize --optimizer-runs 1000000
 # Tests
 tests                                :; forge clean && forge test --mt test --optimize --optimizer-runs 1000000 -v # --ffi # enable if you need the `ffi` cheat code on HEVM
 test-with-gas-report                 :; forge clean && forge build && forge test --mt test --optimize --optimizer-runs 1000000 -v --gas-report # --ffi # enable if you need the `ffi` cheat code on HEVM
+test-unit							 :; forge clean && forge test --no-match-test invariant --optimize --optimizer-runs 1000000 -v # --ffi # enable if you need the `ffi` cheat code on HEVM
 test-invariant                       :; ./test/invariants/test-invariant.sh ${SCENARIO} ${NUM_ACTORS} ${NUM_PROPOSALS} ${PER_ADDRESS_TOKEN_REQ_CAP}
 test-invariant-all                   :; forge clean && forge t --mt invariant
 test-invariant-multiple-distribution :; forge clean && ./test/invariants/test-invariant.sh MultipleDistribution 2 25 200
