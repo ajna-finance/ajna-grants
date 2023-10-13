@@ -1277,6 +1277,10 @@ contract StandardFundingGrantFundTest is GrantFundTestHelper {
         /******************************/
 
         // Claim delegate reward for all delegatees
+        // delegates who didn't vote in the screening stage have zero rewards
+        delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder11);
+        assertEq(delegateRewards, 0);
+
         // delegates who didn't vote with their full power receive fewer rewards
         delegateRewards = _grantFund.getDelegateReward(distributionId, _tokenHolder1);
         assertEq(delegateRewards, 327_029.344384908148174595 * 1e18);

@@ -22,6 +22,6 @@ contract DeployGrantFund is Script {
         vm.stopBroadcast();
 
         console.log("GrantFund deployed to %s", grantFund);
-        console.log("Please transfer %s AJNA (%s WAD) into the treasury", treasury / 1e18, treasury);
+        console.log("Please transfer %s AJNA (%s WAD) to the treasury using the fundTreasury() method found in GrantFund.sol", treasury / 1e18, treasury);
     }
 }
