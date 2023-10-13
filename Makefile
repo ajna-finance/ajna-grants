@@ -39,3 +39,5 @@ deploy-burnwrapper:
 	eval AJNA_TOKEN=${ajna}
 	forge script script/BurnWrapper.s.sol:DeployBurnWrapper \
 		--rpc-url ${ETH_RPC_URL} --sender ${DEPLOY_ADDRESS} --keystore ${DEPLOY_KEY} --broadcast -vvv --verify
+deploy-grantfund-deployer:
+	forge create --rpc-url ${ETH_RPC_URL} --keystore ${DEPLOY_KEY} --verify src/grants/Deployer.sol:Deployer

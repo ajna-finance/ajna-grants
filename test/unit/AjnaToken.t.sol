@@ -313,4 +313,52 @@ contract AjnaTokenTest is Test {
         assertEq(_token.getVotes(address(3333)), 0);
         assertEq(_token.getVotes(address(4444)), 2_000_000_000 * 1e18);
     }
+
+    function testCyclingVotingDelegation() external {
+        // define actors and set their balances
+        address actor1 = makeAddr("actor1");
+        deal(address(_token), actor1, 1_000 * 1e18);
+
+        address actor2 = makeAddr("actor2");
+        deal(address(_token), actor2, 2_000 * 1e18);
+
+        address actor3 = makeAddr("actor3");
+        deal(address(_token), actor3, 5_000 * 1e18);
+
+        // actor1 delegates votes to actor2
+        changePrank(actor1);
+        _token.delegate(actor2);
+
+        // ensure actor2 has votes equals to actor1 balance
+        assertEq(_token.getVotes(actor1), 0);
+        assertEq(_token.getVotes(actor2), 1_000 * 1e18);
+        assertEq(_token.getVotes(actor3), 0);
+
+        // actor2 delegates votes to actor3
+        changePrank(actor2);
+        _token.delegate(actor3);
+
+        // ensure actor3 has votes equals to actor2 balance
+        assertEq(_token.getVotes(actor1), 0);
+        assertEq(_token.getVotes(actor2), 1_000 * 1e18);
+        assertEq(_token.getVotes(actor3), 2_000 * 1e18);
+
+        // actor3 delegates votes to actor1
+        changePrank(actor3);
+        _token.delegate(actor1);
+
+        // ensure actor1 has votes equals to actor3 balance
+        assertEq(_token.getVotes(actor1), 5_000 * 1e18);
+        assertEq(_token.getVotes(actor2), 1_000 * 1e18);
+        assertEq(_token.getVotes(actor3), 2_000 * 1e18);
+
+        // actor3 delegates votes to actor2
+        changePrank(actor3);
+        _token.delegate(actor2);
+
+        // ensure actor2 has votes equals to sum of actor3 and actor1 balance
+        assertEq(_token.getVotes(actor1), 0);
+        assertEq(_token.getVotes(actor2), 6_000 * 1e18);
+        assertEq(_token.getVotes(actor3), 2_000 * 1e18);
+    }
 }
