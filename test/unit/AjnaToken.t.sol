@@ -235,6 +235,106 @@ contract AjnaTokenTest is Test {
         assertEq(_token.getPastVotes(delegate2, 11112), 1_000 * 1e18);
     }
 
+    function testMultipleSelfDelegation() external {
+        address delegator = address(2222);
+        address delegate1 = address(3333);
+
+        // set delegator balance to 1_000 AJNA tokens
+        deal(address(_token), delegator, 1_000 * 1e18);
+
+        // check voting power
+        assertEq(_token.getVotes(delegator), 0);
+        assertEq(_token.getVotes(delegate1), 0);
+
+        vm.roll(11111);
+        changePrank(delegator);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateChanged(delegator, address(0), delegator);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateVotesChanged(delegator, 0, 1_000 * 1e18);
+        _token.delegate(delegator);
+
+        // check accounts balances
+        assertEq(_token.balanceOf(delegator), 1_000 * 1e18);
+        assertEq(_token.balanceOf(delegate1), 0);
+        // check voting power
+        assertEq(_token.getVotes(delegator), 1_000 * 1e18);
+        assertEq(_token.getVotes(delegate1), 0);
+
+        assertEq(_token.delegates(delegator), delegator);
+
+        // additional tokens are transferred to delegator
+        vm.roll(11121);
+        changePrank(_tokenHolder);
+        uint256 addAmount = 1 * 1e18;
+        _token.approve(_tokenHolder, addAmount);
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(_tokenHolder, delegator, addAmount);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateVotesChanged(delegator, 1_000 * 1e18, 1_001 * 1e18);
+        _token.transferFrom(_tokenHolder, delegator, addAmount);
+
+        // check accounts balances
+        assertEq(_token.balanceOf(delegator), 1_001 * 1e18);
+        assertEq(_token.balanceOf(delegate1), 0);
+        // check voting power
+        assertEq(_token.getVotes(delegator), 1_001 * 1e18);
+        assertEq(_token.getVotes(delegate1), 0);
+    }
+
+    function testMultipleDelegationDifferentDelegatee() external {
+        address delegator = address(2222);
+        address delegate1 = address(3333);
+        address delegate2 = address(4444);
+
+        // set delegator balance to 1_000 AJNA tokens
+        deal(address(_token), delegator, 1_000 * 1e18);
+
+        // check voting power
+        assertEq(_token.getVotes(delegator), 0);
+        assertEq(_token.getVotes(delegate1), 0);
+        assertEq(_token.getVotes(delegate2), 0);
+
+        vm.roll(11111);
+        changePrank(delegator);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateChanged(delegator, address(0), delegate1);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateVotesChanged(delegate1, 0, 1_000 * 1e18);
+        _token.delegate(delegate1);
+
+        // check accounts balances
+        assertEq(_token.balanceOf(delegator), 1_000 * 1e18);
+        assertEq(_token.balanceOf(delegate1), 0);
+        assertEq(_token.balanceOf(delegate2), 0);
+        // check voting power
+        assertEq(_token.getVotes(delegator), 0);
+        assertEq(_token.getVotes(delegate1), 1_000 * 1e18);
+        assertEq(_token.getVotes(delegate2), 0);
+
+        assertEq(_token.delegates(delegator), delegate1);
+
+        // additional tokens are transferred to delegator
+        vm.roll(11121);
+        changePrank(_tokenHolder);
+        uint256 addAmount = 2_000 * 1e18;
+        _token.approve(_tokenHolder, addAmount);
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(_tokenHolder, delegator, addAmount);
+        vm.expectEmit(true, true, false, true);
+        emit DelegateVotesChanged(delegate1, 1_000 * 1e18, 3_000 * 1e18);
+        _token.transferFrom(_tokenHolder, delegator, addAmount);
+
+        // check accounts balances
+        assertEq(_token.balanceOf(delegator), 3_000 * 1e18);
+        assertEq(_token.balanceOf(delegate1), 0);
+        assertEq(_token.balanceOf(delegate2), 0);
+        // check voting power
+        assertEq(_token.getVotes(delegator), 0);
+        assertEq(_token.getVotes(delegate1), 3_000 * 1e18);
+        assertEq(_token.getVotes(delegate2), 0);
+    }
+
     function testCalculateVotingPower() external {
         address delegator1 = address(1111);
         address delegator2 = address(2222);
