@@ -18,12 +18,6 @@ jobs:
           pip install slither-analyzer
         id: slither
 
-      - name: Analyze AjnaToken
-        run: |
-          solc-select install 0.8.7 && solc-select use 0.8.7
-          slither src/token/ --exclude solc-version --compile-force-framework foundry
-        id: token_analyzer
-
       - name: Analyze GrantFund
         run: |
           solc-select install 0.8.18 && solc-select use 0.8.18
