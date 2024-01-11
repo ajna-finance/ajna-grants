@@ -15,46 +15,13 @@ The Grant Coordination Fund will distribute funds through the two sub-mechanisms
 
 ### **Standard Funding Mechanism**
 
-On a quarterly basis, a portion of the treasury is distributed to facilitate growth of the Ajna system.  Projects submit proposals for funding, denominated in a fixed amount of Ajna tokens, that are then voted on by Ajna token holders.  The result of this voting is binary: either the proposal wins and is funded with the requested tokens, or fails and receives nothing.  The overall set of approved proposals is decided upon by maximizing the number of votes for them, subject to an overall budgetary constraint.  The voting system has two stages: a screening stage, in which the list of possible winning projects is culled down to 10 candidates using a simple 1-token-1-vote method, and a quadratic voting stage, in which the actual winning projects are determined.
+On a quarterly basis, a portion of the treasury is distributed to facilitate growth of the Ajna system.  Projects submit proposals for funding, denominated in a fixed amount of Ajna tokens, that are then voted on by Ajna token holders.  The result of this voting is binary: either the proposal wins and is funded with the requested tokens, or fails and receives nothing.  The overall set of approved proposals is decided upon by maximizing the number of votes for them, subject to an overall budgetary constraint. 
+
+The voting system has three stages. First, a screening stage (525,600 blocks long), in which the list of possible winning projects is culled down to 10 candidates using a simple 1-token-1-vote method. Next there is a quadratic voting or Funding stage (72,000 blocks long), where voters are able to cast votes for or against proposals up to the cumulative sum of the square of their votes, further filtering the propsosals. Finally there is a challenge stage (50,400 blocks long), in which anyone can submit the set of proposals from the filtered top ten list which received the most net votes, and which doesn't exceed the token budget for that distribution period. The distribution period as a whole lasts for 648,000 blocks. New distribution periods cannot be started until the previous distribution period has ended (the number of blocks has elapsed), and must be started by calling `startNewDistributionPeriod`.
 
 For more information, see the Ajna Protocol Whitepaper.
 
 <br>
-
-## Resources
-
-### Governance Design Research:
-*OpenZeppelin Guides*
-- https://docs.openzeppelin.com/contracts/4.x/governance
-- https://wizard.openzeppelin.com/#governor
-- https://twitter.com/OpenZeppelin/status/1448054190631051266
-
-*ENS*
-- https://github.com/ensdomains/governance-docs/blob/main/process/README.md
-- https://github.com/ensdomains/governance 
-
-*HOP*
-- https://github.com/hop-protocol/governance
-
-*OP*
-- https://github.com/ethereum-optimism/optimism/tree/develop/packages/contracts-governance
-
-*General Governance Research*
-- https://github.com/D3LAB-DAO/Governor-C
-- https://www.daomasters.xyz/
-
-*Multichain Governance*
-- https://doseofdefi.substack.com/p/multichain-governance-how-can-daos
-- https://github.com/gnosis/zodiac
-- https://ethereum-magicians.org/t/eip-draft-multi-chain-governance/9284
-
-*Quadratic Voting*
-- https://github.com/VirginiaBlockchain/QuadraticVotingDapp
-- https://blog.tally.xyz/a-simple-guide-to-quadratic-voting-327b52addde1
-
-*Tally*
-- https://docs.tally.xyz/user-guides/tally-contract-compatibility
-
 
 ## Deployment
 
