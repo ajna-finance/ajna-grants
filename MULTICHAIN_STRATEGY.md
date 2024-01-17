@@ -18,11 +18,11 @@ NOTE (11/16/22): Starknet doesn't currently support non-whitelisted ERC20 tokens
 
 ### Sidechains
 
-Due to the lower safety of sidechain bridges, bwAJNA tokens should be double-wrapped by a sidechain-specific `BurnWrapper` also deployed on the L1. This design prevents double-spends of the bwAJNA token due to sidechain bridges being compromised and releasing bwAJNA tokens incorrectly, artifically increasing the token supply available for burn-and-buy on other L2 solutions.
+Due to the lower safety of young sidechain bridges, bwAJNA tokens should generally be double-wrapped by a sidechain-specific `BurnWrapper` also deployed on the L1. This design prevents double-spends of the bwAJNA token due to sidechain bridges being compromised and releasing bwAJNA tokens incorrectly, artifically increasing the token supply available for burn-and-buy on other L2 scaling solutions.
 
-#### Polygon 
+#### Polygon PoS
 
-bwAJNA tokens must be mapped to the polygon sidechain prior to bridging. This mapping will create a unique address for bwAJNA on the sidechain. Once this address has been created, it can be referenced permissionlessly in either of the Polygon POS, or Polygon Plasma bridges.
+Polygon's canonical bridge has held significant funds for many years without issue. As such, single-wrapped bwAJNA tokens will be mapped to the polygon sidechain prior to bridging, consistent with the design used for rollups. This mapping will create a unique address for bwAJNA on the sidechain. Once this address has been created, it can be referenced permissionlessly in either of the Polygon PoS, or Polygon Plasma bridges.
 
 #### Binance
 
